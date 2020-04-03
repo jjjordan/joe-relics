@@ -1,0 +1,655 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: Sound Blaster V2: part 1 of 4
+Message-ID: <+tbjpcfthinman@netcom.com>
+Date: 27 Mar 92 05:23:41 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 646
+
+
+
+                         Sound Blaster(tm) Driver
+                       (Copyright 1991, Brian Smith)
+
+	Rewritten for Release 2 by Lance Norskog, March 1992
+
+This is a driver and application suite for the Creative Labs'
+original monophonic Sound Blaster card.  It should work on
+other cards that claim to be SB-compatible, like the SB Pro,
+MediaVision, etc.  (The Adlib synth chips are supported, but
+you may have to comment out the SB DSP chip support if you
+want to run the Adlib or Game Board cards.)
+
+Version 1 of the driver & applications was written by Brian Smith 
+(brians@rigel.cs.pdx.edu).  Pace Willisson (pace@blitz.com) rewrote
+the driver for overall cleanliness and to use in-kernel buffering
+to avoid the gottverdammter clicking problem. Independently, I
+rewrote the assembler interrupt to attack this issue, and have
+since merged my ugly hacks into Pace's very clean rewrite.
+There's nothing new in the application suite except a program
+to play a .INS file as a tone, just as a previewer.  
+
+REQUIREMENTS
+
+This driver and the associated user programs require a 386/486 system
+running System V 3.2 Unix.  It has been tested on ISC Unix versions
+2.0.2 through 2.2.1.  I believe it will work correctly on Esix, Intel,
+and AT&T Unix.  SCO is a mystery to me (as well as many others).  I do
+not believe it will work in SysV 4.0 and above, but the modifications
+should be fairly minimal.  Remember, though, THERE IS NO WARRANTY.
+As a character driver, it should port easily to Linux and the various
+BSD 386 ports going on.  There is a Streams driver that presently
+only does MIDI; this should port to V.4 easily.  It should also be
+easy to port the sampling and FM synthesis parts of the driver
+into the Streams version, but nobody's done it yet.
+
+GENERAL INFORMATION
+
+This driver is for the Sound Blaster sound card designed by Creative
+Labs, Incorporated.  The Sound Blaster is a sound card for the
+IBM-PC(tm) type I/O bus.  The card is capable of sampling sound from a
+microphone jack from 4KHz to 23KHz (or 24KHz, depending upon which
+portion of the manual you believe) at 8 raw bits of resolution.  It is
+also capable of playing samples at speeds from 4KHz up to 12KHz.  The
+board can play raw 8 bit samples, or 2 bit, 2.6 bit, or 4 bit ADPCM
+packed samples.  ADCPM is a lossy method of data compression.  The
+sampling and output may be directly driven by the CPU, or it may be
+driven by DMA.  The card is also capable of playing music through an
+on-board FM synthesizer chip.  The chip may play 9 simultaneous
+instruments, or it can play 6 simultaneous voices with 5 additional
+rhythm instruments.  In addition, the board (but NOT my driver) also
+supports the addition of 2 C/MS chips. For more information, read the
+advertising blurb, errr...  manual which comes with the Sound Blaster.
+
+The driver is capable of utilizing only a subset of the capabilities
+of the Sound Blaster card.  The driver is accessed through four
+device nodes.
+
+The /dev/sbdsp node accesses the DSP chip which controls sampling and
+sample playback.  Only 8-bit sound is supported thus far.  The driver
+utilizes DMA, and therefore is very unobtrusive to the system load.
+The ls utility is harder upon the system.  Read(2) and write(2) upon
+/dev/sbdsp sample sound and play back sound samples, respectively.
+Several ioctl(2)'s control sampling/playback speed, resets, etc... 
+The play_snd utility demonstrates the use of the /dev/sbdsp node.
+
+The /dev/sbfm node accesses the FM chips.  The only access to the FM
+chips are through ioctl(2)'s.  The play_cmf utility demonstrates the
+use of the FM chips by (mostly) interpreting and playing CMF files.
+The various options controlling the voices can be dumped from a CMF
+file by the get_instruments utility.  Those familiar with synthesizers
+can then learn how to create their own instruments.  
+
+The /dev/sbcms node accesses absolutely nothing.  The C/MS chips are 
+really awful, and Creative Labs is trying to forget it ever used them.
+
+The /dev/sbmidi node does MIDI I/O if you have a MIDI dongle box
+attached to the joystick port.  The driver reads & writes a longword
+per MIDI byte, with the other 3 bytes giving a Unix time code.
+There are no programs for this; read the driver.  The mfplay
+program does not compile by itself.  It needs an old version
+of TJ Thompson's 'midifile' library; it should be rewritten
+for the recent 'mf2t' version of that library.
+
+This driver is merely the rough outlines of what it could be.  Support
+could be added for oodles of features, like efficiency improvements, and
+ADCPM interpretion for the /dev/sbdsp node.  If you wish to add to this
+driver, please be my guest (after reading the license file).  
+
+The file sb.prog.doc gives the complete info on programming the
+SB and SB Pro.  If you have an SB Pro and want to hear it do
+stereo, you'll have to modify this software.  Please send in
+your changes.
+
+With Brian's consent, I have taken over as maintainer of this suite.
+Please!  Send your fixes to me, and I'll integrate them, test them,
+and send the patches to Usenet.  That way, there won't be billions 
+of versions of this driver to contend with.
+
+Send money to Brian Smith, if you want.  
+
+The current list of contributors is:
+
+	Lance C. Norskog	(thinman@netcom.com)
+	Pace Willisson		(pace@blitz.com)
+	Your name here!
+
+I've got a pile of Internet source code for sound manipulation 
+kicking around.  Contact me if you want something to hack on: 
+a speed synthesizer, music scorefile translators, a 
+frequency-based analyzer & distorter, etc.
+
+Enjoy!
+
+Lance C. Norskog
+#!/bin/sh
+# This is SoundBlaster_V2, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 03/27/1992 04:37 UTC by thinman@netcom.com
+# Source directory /usr2/sound/sb
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   5555 -rw-r--r-- README
+#   3638 -rw-r--r-- INSTALL
+#   2117 -r--r--r-- LICENSE
+#   2121 -rw-r--r-- Makefile
+#     29 -r--r--r-- Master
+#     20 -r--r--r-- Name
+#     64 -r--r--r-- Node
+#    373 -r--r--r-- Space.c
+#     25 -r--r--r-- System
+#  38978 -rw-r--r-- sb.c
+#   3005 -rw-r--r-- sb.h
+#     21 -rw-r--r-- patchlevel.h
+#   3408 -rw-r--r-- sb_asm.s
+#  10247 -rw------- stream.c
+#   1597 -rw-r--r-- apps/Makefile
+#    377 -r--r--r-- apps/get_instr.1
+#   4475 -rw-r--r-- apps/get_instr.c
+#   7045 -rw-r--r-- apps/mfplay.c
+#    841 -rw-r--r-- apps/mfplay.1
+#    450 -r--r--r-- apps/play_cmf.1
+#    526 -r--r--r-- apps/play_cleanup.1
+#    767 -r--r--r-- apps/play_cleanup.c
+#    792 -rw-r--r-- apps/play_snd.1
+#   6022 -rw-r--r-- apps/play_snd.c
+#    805 -rw-r--r-- apps/record_snd.1
+#   6278 -rw-r--r-- apps/record_snd.c
+#   9315 -rw-r--r-- apps/play_cmf.c
+#    560 -rw-r--r-- apps/play_instr.1
+#  10191 -rw-r--r-- apps/play_instr.c
+#    520 -r--r--r-- apps/set_speed.1
+#    778 -r--r--r-- apps/set_speed.c
+#    495 -rw-r--r-- apps/snd_norm.1
+#   1773 -rw-r--r-- apps/snd_norm.c
+#   2049 -r--r--r-- apps/tst_fm_note.c
+#    415 -r--r--r-- apps/tst_fm_open.c
+#   4060 -rw-r--r-- apps/tst_instr.c
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+X
+X                         Sound Blaster(tm) Driver
+X                       (Copyright 1991, Brian Smith)
+X
+X	Rewritten for Release 2 by Lance Norskog, March 1992
+X
+XThis is a driver and application suite for the Creative Labs'
+Xoriginal monophonic Sound Blaster card.  It should work on
+Xother cards that claim to be SB-compatible, like the SB Pro,
+XMediaVision, etc.  (The Adlib synth chips are supported, but
+Xyou may have to comment out the SB DSP chip support if you
+Xwant to run the Adlib or Game Board cards.)
+X
+XVersion 1 of the driver & applications was written by Brian Smith 
+X(brians@rigel.cs.pdx.edu).  Pace Willisson (pace@blitz.com) rewrote
+Xthe driver for overall cleanliness and to use in-kernel buffering
+Xto avoid the gottverdammter clicking problem. Independently, I
+Xrewrote the assembler interrupt to attack this issue, and have
+Xsince merged my ugly hacks into Pace's very clean rewrite.
+XThere's nothing new in the application suite except a program
+Xto play a .INS file as a tone, just as a previewer.  
+X
+XREQUIREMENTS
+X
+XThis driver and the associated user programs require a 386/486 system
+Xrunning System V 3.2 Unix.  It has been tested on ISC Unix versions
+X2.0.2 through 2.2.1.  I believe it will work correctly on Esix, Intel,
+Xand AT&T Unix.  SCO is a mystery to me (as well as many others).  I do
+Xnot believe it will work in SysV 4.0 and above, but the modifications
+Xshould be fairly minimal.  Remember, though, THERE IS NO WARRANTY.
+XAs a character driver, it should port easily to Linux and the various
+XBSD 386 ports going on.  There is a Streams driver that presently
+Xonly does MIDI; this should port to V.4 easily.  It should also be
+Xeasy to port the sampling and FM synthesis parts of the driver
+Xinto the Streams version, but nobody's done it yet.
+X
+XGENERAL INFORMATION
+X
+XThis driver is for the Sound Blaster sound card designed by Creative
+XLabs, Incorporated.  The Sound Blaster is a sound card for the
+XIBM-PC(tm) type I/O bus.  The card is capable of sampling sound from a
+Xmicrophone jack from 4KHz to 23KHz (or 24KHz, depending upon which
+Xportion of the manual you believe) at 8 raw bits of resolution.  It is
+Xalso capable of playing samples at speeds from 4KHz up to 12KHz.  The
+Xboard can play raw 8 bit samples, or 2 bit, 2.6 bit, or 4 bit ADPCM
+Xpacked samples.  ADCPM is a lossy method of data compression.  The
+Xsampling and output may be directly driven by the CPU, or it may be
+Xdriven by DMA.  The card is also capable of playing music through an
+Xon-board FM synthesizer chip.  The chip may play 9 simultaneous
+Xinstruments, or it can play 6 simultaneous voices with 5 additional
+Xrhythm instruments.  In addition, the board (but NOT my driver) also
+Xsupports the addition of 2 C/MS chips. For more information, read the
+Xadvertising blurb, errr...  manual which comes with the Sound Blaster.
+X
+XThe driver is capable of utilizing only a subset of the capabilities
+Xof the Sound Blaster card.  The driver is accessed through four
+Xdevice nodes.
+X
+XThe /dev/sbdsp node accesses the DSP chip which controls sampling and
+Xsample playback.  Only 8-bit sound is supported thus far.  The driver
+Xutilizes DMA, and therefore is very unobtrusive to the system load.
+XThe ls utility is harder upon the system.  Read(2) and write(2) upon
+X/dev/sbdsp sample sound and play back sound samples, respectively.
+XSeveral ioctl(2)'s control sampling/playback speed, resets, etc... 
+XThe play_snd utility demonstrates the use of the /dev/sbdsp node.
+X
+XThe /dev/sbfm node accesses the FM chips.  The only access to the FM
+Xchips are through ioctl(2)'s.  The play_cmf utility demonstrates the
+Xuse of the FM chips by (mostly) interpreting and playing CMF files.
+XThe various options controlling the voices can be dumped from a CMF
+Xfile by the get_instruments utility.  Those familiar with synthesizers
+Xcan then learn how to create their own instruments.  
+X
+XThe /dev/sbcms node accesses absolutely nothing.  The C/MS chips are 
+Xreally awful, and Creative Labs is trying to forget it ever used them.
+X
+XThe /dev/sbmidi node does MIDI I/O if you have a MIDI dongle box
+Xattached to the joystick port.  The driver reads & writes a longword
+Xper MIDI byte, with the other 3 bytes giving a Unix time code.
+XThere are no programs for this; read the driver.  The mfplay
+Xprogram does not compile by itself.  It needs an old version
+Xof TJ Thompson's 'midifile' library; it should be rewritten
+Xfor the recent 'mf2t' version of that library.
+X
+XThis driver is merely the rough outlines of what it could be.  Support
+Xcould be added for oodles of features, like efficiency improvements, and
+XADCPM interpretion for the /dev/sbdsp node.  If you wish to add to this
+Xdriver, please be my guest (after reading the license file).  
+X
+XThe file sb.prog.doc gives the complete info on programming the
+XSB and SB Pro.  If you have an SB Pro and want to hear it do
+Xstereo, you'll have to modify this software.  Please send in
+Xyour changes.
+X
+XWith Brian's consent, I have taken over as maintainer of this suite.
+XPlease!  Send your fixes to me, and I'll integrate them, test them,
+Xand send the patches to Usenet.  That way, there won't be billions 
+Xof versions of this driver to contend with.
+X
+XSend money to Brian Smith, if you want.  
+X
+XThe current list of contributors is:
+X
+X	Lance C. Norskog	(thinman@netcom.com)
+X	Pace Willisson		(pace@blitz.com)
+X	Your name here!
+X
+XI've got a pile of Internet source code for sound manipulation 
+Xkicking around.  Contact me if you want something to hack on: 
+Xa speed synthesizer, music scorefile translators, a 
+Xfrequency-based analyzer & distorter, etc.
+X
+XEnjoy!
+X
+XLance C. Norskog
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 5555 -eq "$Wc_c" ||
+	echo 'README: original size 5555, current size' "$Wc_c"
+fi
+# ============= INSTALL ==============
+if test -f 'INSTALL' -a X"$1" != X"-c"; then
+	echo 'x - skipping INSTALL (File already exists)'
+else
+echo 'x - extracting INSTALL (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'INSTALL' &&
+X
+X                         Sound Blaster(tm) Driver
+X                       (Copyright 1991, Brian Smith)
+X			Rewritten by Lance Norskog
+X
+XINSTALLING THE DRIVER UNDER AT&T V.3
+X
+X1. Run 'make all' in the directory with the driver code (sb.c, sb.h, etc...).
+X2. Make the directory /etc/conf/pack.d/sb.
+X3. Change column 6 of System to the interrupt line you picked
+X   for the Sound Blaster.  If you picked interrupt 2, use 9 instead.
+X   (Wonders of Unix, you see).  If you didn't used the factory
+X   default I/O address of 220, change columns 7 & 8 to the
+X   I/O address and address+F.
+X3. Copy Node to /etc/conf/node.d/sb
+X4. Copy System to /etc/conf/sdevice.d/sb
+X5. Copy Master onto the end of the file /etc/conf/cf.d/mdevice.
+X   DON'T DESTROY THE FILE!  Pick a new character major number
+X   (column 6) in mdevice and assign that to the sb line (find 666).
+X6. Run 'make install'
+X5. Build a new kernel with /etc/conf/bin/idbuild.
+X6. Run 'init 6' to install the new kernel and reboot.
+X
+XINSTALLING THE DRIVER UNDER ISC
+X
+X1. Run make in the directory with the driver code (sb.c, sb.h, etc...).
+X2. su to root, if not already so, and run /etc/insdriver.
+X    a. Answer . for query asking for the directory of the driver
+X        files.
+X    b. Answer sb for the query asking for the driver name.
+X    c. Accept the default of /etc/conf for the configuration directory
+X        by hitting return.
+X    d. Enter any description you like.  Maybe: "Sound Blaster Driver".
+X    e. Answer n to the configuration question.
+X3. As root still, run /etc/kconfig.
+X4. Make sure the driver is configured into the kernel in the
+X    configuration menu.
+X5. Build a new kernel.
+X6. Install the new kernel.  This reboots the machine.
+X
+XINSTALLING THE DRIVER UNDER ESIX
+X
+XThere's some sort of loadable driver support in the driver.
+XYou'll have to investigate that yourself.  Otherwise,
+Xfollow the AT&T V.3 instructions.
+X
+XINSTALLING THE USER PROGRAMS
+X
+X1. Edit the Makefile in the apps directory.
+X2. Run make.
+X3. Run make install.
+X4. Manually install the man files however you like.  The *.1 files are
+Xnroff source, while the *.doc files are nroff'ed for those of use
+Xwithout.
+X5. SU to root, and set record_snd, play_snd, and play_cleanup to
+Xbe setuid to super-user.  This will make them less vulnerable to
+Xscheduling oddities and your samples will have fewer dropouts under
+Xsystem load.
+X
+XTEST THE DRIVER
+X
+XSet the sampling rate with 'set_speed 12000' and
+Xtry recording or playing back a sound.  'cat /dev/sbdsp > file'
+Xwill record just fine.  Let it run at least 30 seconds.
+X
+XPull a .cmf file from the Sound Blaster floppies and play
+Xit back with play_cmf.
+X
+XUse 'dd if=/dev/sbmidi of=/tmp/xxx bs=4' to do MIDI input.
+XThe MIDI driver has no apps to go with it.  Have fun :-)
+XThe format is: 3 bytes timer, 1 byte MIDI.  The timer is
+Xthe kernel 1/100 sec. counter.  Its consistency is dubious.
+X
+XTRY THE ASSEMBLER HANDLER
+XYou may have noticed an ticking noise when you played back samples.  
+XChange the 'FAST=' line to 'FAST=-DFASTINTR' in the Makefile.
+XRemove the .o files and rebuild the driver, 'make install',
+Xand rebuild the kernel and reboot.  This installs a special
+Xassemblerized interrupt handler that suppresses the ticking.
+XThis handler works on AT&T V.3, and should work on the other
+XV.3's from ISC, ESIX, & SCO.  You may have to disassemble
+Xthe kernel and figure out why it doesn't work on your machine.
+XSorry, them's the breaks.  
+X
+XThe standard kernel interrupt handler does all sorts of things 
+Xbefore calling the C interrupt handler for a board interrupt; 
+Xthis latency causes the ticking by putting a square wave in 
+Xthe sound output.  This is a fault in the board design.
+SHAR_EOF
+chmod 0644 INSTALL ||
+echo 'restore of INSTALL failed'
+Wc_c="`wc -c < 'INSTALL'`"
+test 3638 -eq "$Wc_c" ||
+	echo 'INSTALL: original size 3638, current size' "$Wc_c"
+fi
+# ============= LICENSE ==============
+if test -f 'LICENSE' -a X"$1" != X"-c"; then
+	echo 'x - skipping LICENSE (File already exists)'
+else
+echo 'x - extracting LICENSE (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'LICENSE' &&
+X
+X                 SoundBlaster(tm) Driver General Public License
+X                       (Copyright 1991, Brian Smith)
+X
+X  Most licenses are restrictive in one way or another, the GNU license
+Xas well.  The whole purpose of this excercise was to benefit the computer
+Xcommunity as a whole, including those of us unprincipled enough to want
+Xto make money on software. :-)
+X
+X  For my protection, it must be stated at the outset that there is NO
+Xstated or implied warranty for the driver nor is there any stated or
+Ximplied warranty for any of the associated user programs nor for the
+Xdocumentation.  The mistakes are mine, the responsibility is yours (for
+Xusing the package).
+X
+XCOPYING ANDUSE POLICIES
+X
+X1. You may use this unmodified package on any and all computers which
+Xyou wish to install this package.
+X
+X2. You may copy and distribute verbatim copies of this SoundBlaster driver
+Xand associated user software as you recieved them.  Distribute them however
+Xyou like, as long as they are distributed with the original copyright
+Xand (lack of) warranty messages intact.
+X
+X3. You may distribute modified copies of this driver in source forms if
+Xand only if my copyright and (lack of) is intact in addition to an
+Xappended statement of your modification.  I must not be held responsible
+Xfor any modifications made by other persons.
+X
+X4. Any persons or companies or persons who wish to make a commercial
+Xdistribution (binaries only) using this package or any portion of this
+Xpackage must contact me first.  I will most likely license the person or
+Xcompany for little or no charge.  Mostly, I'm a snoop: if you are using
+Xmy software let me know. :-)
+X
+XAs I am not a lawyer, so, there are likely legal holes the size of
+Xsmall continents, but please try to keep the spirit of this license.  The
+Xintent of this was for betterment of the community.  Any changes should
+Xbe sent to me for integration (either e-mail or snail-mail).
+X
+XCURRENT ADDRESSES
+X    e-mail:     brians@cs.pdx.edu
+X                ...!uunet!tektronix!pdxgate!eecs!brians
+X    US Mail:    Brian Smith
+X                18700 SW Cascadia Court
+X                Aloha, OR 97007
+SHAR_EOF
+chmod 0444 LICENSE ||
+echo 'restore of LICENSE failed'
+Wc_c="`wc -c < 'LICENSE'`"
+test 2117 -eq "$Wc_c" ||
+	echo 'LICENSE: original size 2117, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+X# 
+X#                       Sound Blaster(tm) Driver
+X#                     (Copyright 1991, Brian Smith)
+X#
+X
+XSHELL=/bin/sh
+XINCLSYS = /usr/include/sys
+XLKDRVRDIR = /etc/conf/pack.d/sb
+XLKSCONFDIR = /etc/conf/sdevice.d
+XLKNCONFDIR = /etc/conf/node.d
+XLKICONFDIR = /etc/conf/init.d
+XLKKCONFDIR = /etc/conf/kconfig.d
+XDRVRNAME = Driver.o
+XCONFNAME = sb
+X
+XFILES= README INSTALL LICENSE Makefile Master Name Node \
+X	Space.c System sb.c sb.h patchlevel.h sb_asm.s \
+X	stream.c \
+X	apps/Makefile apps/get_instr.1 apps/get_instr.c \
+X	apps/mfplay.c apps/mfplay.1 apps/play_cmf.1 \
+X	apps/play_cleanup.1 apps/play_cleanup.c apps/play_snd.1 \
+X	apps/play_snd.c apps/record_snd.1 apps/record_snd.c \
+X	apps/play_cmf.c apps/play_instr.1 apps/play_instr.c \
+X	apps/set_speed.1 apps/set_speed.c apps/snd_norm.1 \
+X	apps/snd_norm.c apps/tst_fm_note.c apps/tst_fm_open.c \
+X	apps/tst_instr.c
+X
+X# define this for special hacked assembler code
+X# test without it first!
+XFAST= # -DFASTINTR
+X
+XCC=cc
+XCFLAGS = -g -DINKERNEL $(FAST)
+X
+XOBJS = Driver.o 
+X
+Xall: Driver.o 
+X
+XDriver.o: sb.o sb_asm.o sb.h Makefile
+X	rm -f Driver.o
+X	ld -r sb.o sb_asm.o -o Driver.o
+X
+Xinstall: $(LKDRVRDIR) $(LKDRVRDIR)/$(DRVRNAME) $(LKDRVRDIR)/space.c \
+X	$(INCLSYS)/sb.h
+X	cp Driver.o /etc/conf/pack.d/sb/Driver.o
+X	cp Space.c /etc/conf/pack.d/sb/space.c
+X
+Xsb.o: sb.c Makefile
+X
+Xsb_asm.o: sb_asm.s Makefile
+X	rm -f $*.o
+X	$(CC) -E $(FAST) $*.s | grep -v "^#ident" > xx.s
+X	as xx.s
+X	mv xx.o $*.o
+X	rm xx.s
+X
+X# OLD install, now done manually
+X# install: Driver.o $(INCLSYS)/sb.h Master System Space.c Node
+X# 	/etc/insdriver
+X# 	/etc/kconfig
+X
+X$(LKDRVRDIR):
+X	-mkdir $(LKDRVRDIR) 2> /dev/null
+X	chmod 755 $(LKDRVRDIR)
+X
+X$(INCLSYS)/sb.h: sb.h
+X	@echo /bin/cp sb.h $(INCLSYS)/sb.h
+X	/bin/cp sb.h $(INCLSYS)/sb.h
+X
+X$(LKDRVRDIR)/Driver.o: Driver.o
+X	cp Driver.o $(LKDRVRDIR)/$(DRVRNAME)
+X	chmod 644 $(LKDRVRDIR)/$(DRVRNAME)
+X
+X$(LKDRVRDIR)/space.c: Space.c
+X	cp Space.c $(LKDRVRDIR)/space.c
+X	chmod 644 $(LKDRVRDIR)/space.c
+X
+Xclean:
+X	rm -f Driver.o
+X
+X# Shar: -F (prefix all lines with X), 
+X# 	-s addr (set return addr of poster)
+Xshar:
+X	/usr2/tools/shar/shar -M -F -l 50 -o shar -n SoundBlaster_V2 -s thinman@netcom.com $(FILES)
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 2121 -eq "$Wc_c" ||
+	echo 'Makefile: original size 2121, current size' "$Wc_c"
+fi
+# ============= Master ==============
+if test -f 'Master' -a X"$1" != X"-c"; then
+	echo 'x - skipping Master (File already exists)'
+else
+echo 'x - extracting Master (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Master' &&
+Xsb	ocrwiI	iHc	sb	0	666	1	3	3
+SHAR_EOF
+chmod 0444 Master ||
+echo 'restore of Master failed'
+Wc_c="`wc -c < 'Master'`"
+test 29 -eq "$Wc_c" ||
+	echo 'Master: original size 29, current size' "$Wc_c"
+fi
+# ============= Name ==============
+if test -f 'Name' -a X"$1" != X"-c"; then
+	echo 'x - skipping Name (File already exists)'
+else
+echo 'x - extracting Name (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Name' &&
+XSoundBlaster Driver
+SHAR_EOF
+chmod 0444 Name ||
+echo 'restore of Name failed'
+Wc_c="`wc -c < 'Name'`"
+test 20 -eq "$Wc_c" ||
+	echo 'Name: original size 20, current size' "$Wc_c"
+fi
+# ============= Node ==============
+if test -f 'Node' -a X"$1" != X"-c"; then
+	echo 'x - skipping Node (File already exists)'
+else
+echo 'x - extracting Node (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Node' &&
+Xsb  sbcms  c  0
+Xsb  sbfm   c  1
+Xsb  sbdsp  c  2
+Xsb  sbmidi c  3
+SHAR_EOF
+chmod 0444 Node ||
+echo 'restore of Node failed'
+Wc_c="`wc -c < 'Node'`"
+test 64 -eq "$Wc_c" ||
+	echo 'Node: original size 64, current size' "$Wc_c"
+fi
+# ============= Space.c ==============
+if test -f 'Space.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping Space.c (File already exists)'
+else
+echo 'x - extracting Space.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Space.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/types.h>
+X#include <sys/iobuf.h>
+X#include <config.h>
+X
+X#include <sys/sb.h>
+X
+Xushort sb_configured = SB;
+Xushort sb_dma_chan = 1;
+Xushort sb_interrupt = SB_0_VECT;
+Xushort sb_port = SB_0_SIOA;
+SHAR_EOF
+chmod 0444 Space.c ||
+echo 'restore of Space.c failed'
+Wc_c="`wc -c < 'Space.c'`"
+test 373 -eq "$Wc_c" ||
+	echo 'Space.c: original size 373, current size' "$Wc_c"
+fi
+# ============= System ==============
+if test -f 'System' -a X"$1" != X"-c"; then
+	echo 'x - skipping System (File already exists)'
+else
+echo 'x - extracting System (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'System' &&
+Xsb	Y	3	6	3	5	220	22F	0	0
+SHAR_EOF
+chmod 0444 System ||
+echo 'restore of System failed'
+Wc_c="`wc -c < 'System'`"
+test 25 -eq "$Wc_c" ||
+	echo 'System: original size 25, current size' "$Wc_c"
+fi
+true || echo 'restore of sb.c failed'
+echo End of part 1, continue with part 2
+exit 0

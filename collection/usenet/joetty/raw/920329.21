@@ -1,0 +1,1411 @@
+Path: funic!fuug!mcsun!uunet!centerline!noc.near.net!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOETTY Part 1 of 3
+Message-ID: <1992Mar27.053754.21705@wpi.WPI.EDU>
+Date: 27 Mar 92 05:37:54 GMT
+Organization: Worcester Polytechnic Institute
+Lines: 1402
+
+Archive-name: JOETTYbeta1
+Submitted-by: rcarter@wpi.wpi.edu
+
+                              JOETTY - BETA TEST
+
+	This is my implementation of curses which I'm ultimately going to
+use for my rewrite of JOE (Joe's Own Editor).  Since I have this done and
+since it's seperable from JOE, I'm releasing it.  It has a number of
+features which I think make it much better than other versions of curses:
+
+	* It has scrolling functions which actually use the terminal's
+scrolling commands.  Multiple calls to the scrolling functions are buffered
+so that the minimum amount of scrolling is done to the terminal.
+
+	* It handles all of the weird termcap ideosyncrasies.  For example,
+JOETTY will be perfectly happy with this as a termcap entry:
+
+vt|vt000|Broken Vt100:\
+	:co#80:li#24:ho=\E[H:up=\E[A:
+
+	JOETTY will use ho and repeated LFs to move down, will retype
+characters from its buffer to move right and will use CR and retyped
+characters to move left.  (try this with vi or gnu-emacs....)
+
+	Actually, one of the reasons I'm releasing this before JOE is
+finished, is to find out if it will work with every weird terminal.  Please
+let me know if you find problems. 
+
+	* The screen refresh automatically gets deferred if there is
+typeahead
+
+	* No typeahead is lost when entering or exiting or when doing shell
+escapes/suspends
+
+	* Key sequences defined in termcap for arrow keys, functions keys
+and some other special keys are converted to single integer codes. 
+
+	* Modifications to the screen are buffered such that a brute force
+scan of the screen buffer is not done if only a few simple changes are made. 
+This saves a lot of CPU time. 
+
+	* Uses the winsize/ttysize structure to get the screen size if your
+UNIX supports it
+
+	* Uses the environment variables ROWS and COLS to override the
+termcap and winsize/ttysize method of getting the screen size
+
+	* The screen automatically gets refreshed when you read characters
+from the keyboard.  The only time you ever have to explicitly refresh the
+screen is when you're doing animation or if you need to put a PLEASE WAIT -
+ACCESSING DISK message on the screen.
+
+	* No confusing window support.  It does have functions to save and
+restore areas of the screen - so you can implement windows yourself.
+
+	* It's generally much easier to use.  Here's a complete program
+which draws a box around the screen, lets you type characters to the screen
+and exits when you press X.  It also checks for and executes shell escapes/
+suspends (press !).
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+#include "types.h"
+#include "tty.h"
+#include "cap.h"
+#include "scrn.h"
+
+main()
+{
+SCRN *t=topen(0);	/* Open the screen.  This sets up everything */
+int x=1,y=1,c;
+if(!t) return;		/* Abort if there was an error... */
+
+tbox(t,1,1,t->co-2,t->li-2);	/* Draw a box around the screen */
+
+do
+ {
+ tsetpos(t,x,y);		/* Set the displayed cursor position */
+ c=tgetc(t);			/* Get a character from the keyboard */
+ if(c==KEYUP && y) --y;		/* Check for arrow keys... */
+ else if(c==KEYDOWN && y!=t->li-1) ++y;
+ else if(c==KEYRIGHT && x!=t->co-1) ++x;
+ else if(c==KEYLEFT && x) --x;
+ else if(c=='X') tclose(t,0);	/* Check for exiting... */
+ else if(c=='!')
+  if(!(t=tsusp(t))) exit(1);	/* Check for shell escape... */
+ else if(c>=' ' && c<='~' && x!=t->co-1)
+  tputc(t,x,y,c), ++x;		/* Write normal chars to screen */
+ }
+ while(!leave);
+}
+
+=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Joseph H. Allen (rcarter@wpi.wpi.edu)
+
+=-=-=-= Cut here =-=-=-=
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  COMPILING COPYING README USEAGE cap.h scrn.c scrn.h
+#   termcap termcap.c test.c tty.h ttybad.c ttybsd.c ttyhpux.c
+#   ttymsdos.c ttyposix.c ttysv.c ttyxenix.c types.h
+# Wrapped by rcarter@wpi on Fri Mar 27 00:27:35 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'COMPILING' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'COMPILING'\"
+else
+echo shar: Extracting \"'COMPILING'\" \(814 characters\)
+sed "s/^X//" >'COMPILING' <<'END_OF_FILE'
+XCompile 3 files along with your own code.  The three files are:
+X
+X	scrn.c		The main JOETTY program
+X
+X	termcap.c	The termcap interface
+X
+X	and one of the tty*.c files.  Choose one of the following:
+X
+X	ttybsd.c	For BSD UNIX
+X	ttysv.c		For AT&T SYS V UNIX
+X	ttyhpux.c	For AT&T SYS V UNIX with BSD extensions
+X	ttymsdos.c	For MS-DOS (TURBO - C, any memory model)
+X	ttyposix.c	For POSIX (I haven't tested this)
+X	ttyxenix.c	For Xenix (be sure to link in the 'x' library)
+X	ttybad.c	If nothing else works
+X
+XIf your computer is pedantic about declarations (I.E., if it gives errors;
+Xmany compilers will give warnings), try to change: 
+X
+X	typedef int V;
+X
+Xto
+X
+X	typedef void V;
+X
+Xin the types.h file.
+X
+XFor MS-DOS, be sure to copy 'termcap' to \etc\termcap
+Xalso, put 'set TERM=ansisys' in the autoexec.bat file
+Xand be sure to use ANSI.SYS
+END_OF_FILE
+if test 814 -ne `wc -c <'COMPILING'`; then
+    echo shar: \"'COMPILING'\" unpacked with wrong size!
+fi
+# end of 'COMPILING'
+fi
+if test -f 'COPYING' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'COPYING'\"
+else
+echo shar: Extracting \"'COPYING'\" \(12488 characters\)
+sed "s/^X//" >'COPYING' <<'END_OF_FILE'
+X
+X		    GNU GENERAL PUBLIC LICENSE
+X		     Version 1, February 1989
+X
+X Copyright (C) 1989 Free Software Foundation, Inc.
+X                    675 Mass Ave, Cambridge, MA 02139, USA
+X Everyone is permitted to copy and distribute verbatim copies
+X of this license document, but changing it is not allowed.
+X
+X			    Preamble
+X
+X  The license agreements of most software companies try to keep users
+Xat the mercy of those companies.  By contrast, our General Public
+XLicense is intended to guarantee your freedom to share and change free
+Xsoftware--to make sure the software is free for all its users.  The
+XGeneral Public License applies to the Free Software Foundation's
+Xsoftware and to any other program whose authors commit to using it.
+XYou can use it for your programs, too.
+X
+X  When we speak of free software, we are referring to freedom, not
+Xprice.  Specifically, the General Public License is designed to make
+Xsure that you have the freedom to give away or sell copies of free
+Xsoftware, that you receive source code or can get it if you want it,
+Xthat you can change the software or use pieces of it in new free
+Xprograms; and that you know you can do these things.
+X
+X  To protect your rights, we need to make restrictions that forbid
+Xanyone to deny you these rights or to ask you to surrender the rights.
+XThese restrictions translate to certain responsibilities for you if you
+Xdistribute copies of the software, or if you modify it.
+X
+X  For example, if you distribute copies of a such a program, whether
+Xgratis or for a fee, you must give the recipients all the rights that
+Xyou have.  You must make sure that they, too, receive or can get the
+Xsource code.  And you must tell them their rights.
+X
+X  We protect your rights with two steps: (1) copyright the software, and
+X(2) offer you this license which gives you legal permission to copy,
+Xdistribute and/or modify the software.
+X
+X  Also, for each author's protection and ours, we want to make certain
+Xthat everyone understands that there is no warranty for this free
+Xsoftware.  If the software is modified by someone else and passed on, we
+Xwant its recipients to know that what they have is not the original, so
+Xthat any problems introduced by others will not reflect on the original
+Xauthors' reputations.
+X
+X  The precise terms and conditions for copying, distribution and
+Xmodification follow.
+X
+X		    GNU GENERAL PUBLIC LICENSE
+X   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+X
+X  0. This License Agreement applies to any program or other work which
+Xcontains a notice placed by the copyright holder saying it may be
+Xdistributed under the terms of this General Public License.  The
+X"Program", below, refers to any such program or work, and a "work based
+Xon the Program" means either the Program or any work containing the
+XProgram or a portion of it, either verbatim or with modifications.  Each
+Xlicensee is addressed as "you".
+X
+X  1. You may copy and distribute verbatim copies of the Program's source
+Xcode as you receive it, in any medium, provided that you conspicuously and
+Xappropriately publish on each copy an appropriate copyright notice and
+Xdisclaimer of warranty; keep intact all the notices that refer to this
+XGeneral Public License and to the absence of any warranty; and give any
+Xother recipients of the Program a copy of this General Public License
+Xalong with the Program.  You may charge a fee for the physical act of
+Xtransferring a copy.
+X
+X  2. You may modify your copy or copies of the Program or any portion of
+Xit, and copy and distribute such modifications under the terms of Paragraph
+X1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating that
+X    you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish, that
+X    in whole or in part contains the Program or any part thereof, either
+X    with or without modifications, to be licensed at no charge to all
+X    third parties under the terms of this General Public License (except
+X    that you may choose to grant warranty protection to some or all
+X    third parties, at your option).
+X
+X    c) If the modified program normally reads commands interactively when
+X    run, you must cause it, when started running for such interactive use
+X    in the simplest and most usual way, to print or display an
+X    announcement including an appropriate copyright notice and a notice
+X    that there is no warranty (or else, saying that you provide a
+X    warranty) and that users may redistribute the program under these
+X    conditions, and telling the user how to view a copy of this General
+X    Public License.
+X
+X    d) You may charge a fee for the physical act of transferring a
+X    copy, and you may at your option offer warranty protection in
+X    exchange for a fee.
+X
+XMere aggregation of another independent work with the Program (or its
+Xderivative) on a volume of a storage or distribution medium does not bring
+Xthe other work under the scope of these terms.
+X
+X  3. You may copy and distribute the Program (or a portion or derivative of
+Xit, under Paragraph 2) in object code or executable form under the terms of
+XParagraphs 1 and 2 above provided that you also do one of the following:
+X
+X    a) accompany it with the complete corresponding machine-readable
+X    source code, which must be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    b) accompany it with a written offer, valid for at least three
+X    years, to give any third party free (except for a nominal charge
+X    for the cost of distribution) a complete machine-readable copy of the
+X    corresponding source code, to be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    c) accompany it with the information you received as to where the
+X    corresponding source code may be obtained.  (This alternative is
+X    allowed only for noncommercial distribution and only if you
+X    received the program in object code or executable form alone.)
+X
+XSource code for a work means the preferred form of the work for making
+Xmodifications to it.  For an executable file, complete source code means
+Xall the source code for all modules it contains; but, as a special
+Xexception, it need not include source code for modules which are standard
+Xlibraries that accompany the operating system on which the executable
+Xfile runs, or for standard header files or definitions files that
+Xaccompany that operating system.
+X
+X  4. You may not copy, modify, sublicense, distribute or transfer the
+XProgram except as expressly provided under this General Public License.
+XAny attempt otherwise to copy, modify, sublicense, distribute or transfer
+Xthe Program is void, and will automatically terminate your rights to use
+Xthe Program under this License.  However, parties who have received
+Xcopies, or rights to use copies, from you under this General Public
+XLicense will not have their licenses terminated so long as such parties
+Xremain in full compliance.
+X
+X  5. By copying, distributing or modifying the Program (or any work based
+Xon the Program) you indicate your acceptance of this license to do so,
+Xand all its terms and conditions.
+X
+X  6. Each time you redistribute the Program (or any work based on the
+XProgram), the recipient automatically receives a license from the original
+Xlicensor to copy, distribute or modify the Program subject to these
+Xterms and conditions.  You may not impose any further restrictions on the
+Xrecipients' exercise of the rights granted herein.
+X
+X  7. The Free Software Foundation may publish revised and/or new versions
+Xof the General Public License from time to time.  Such new versions will
+Xbe similar in spirit to the present version, but may differ in detail to
+Xaddress new problems or concerns.
+X
+XEach version is given a distinguishing version number.  If the Program
+Xspecifies a version number of the license which applies to it and "any
+Xlater version", you have the option of following the terms and conditions
+Xeither of that version or of any later version published by the Free
+XSoftware Foundation.  If the Program does not specify a version number of
+Xthe license, you may choose any version ever published by the Free Software
+XFoundation.
+X
+X  8. If you wish to incorporate parts of the Program into other free
+Xprograms whose distribution conditions are different, write to the author
+Xto ask for permission.  For software which is copyrighted by the Free
+XSoftware Foundation, write to the Free Software Foundation; we sometimes
+Xmake exceptions for this.  Our decision will be guided by the two goals
+Xof preserving the free status of all derivatives of our free software and
+Xof promoting the sharing and reuse of software generally.
+X
+X			    NO WARRANTY
+X
+X  9. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+XFOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+XOTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+XPROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+XOR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+XMERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+XTO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+XPROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+XREPAIR OR CORRECTION.
+X
+X  10. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+XWILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+XREDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+XINCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING
+XOUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED
+XTO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+XYOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+XPROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+XPOSSIBILITY OF SUCH DAMAGES.
+X
+X		     END OF TERMS AND CONDITIONS
+X
+X	Appendix: How to Apply These Terms to Your New Programs
+X
+X  If you develop a new program, and you want it to be of the greatest
+Xpossible use to humanity, the best way to achieve this is to make it
+Xfree software which everyone can redistribute and change under these
+Xterms.
+X
+X  To do so, attach the following notices to the program.  It is safest to
+Xattach them to the start of each source file to most effectively convey
+Xthe exclusion of warranty; and each file should have at least the
+X"copyright" line and a pointer to where the full notice is found.
+X
+X    <one line to give the program's name and a brief idea of what it does.>
+X    Copyright (C) 19yy  <name of author>
+X
+X    This program is free software; you can redistribute it and/or modify
+X    it under the terms of the GNU General Public License as published by
+X    the Free Software Foundation; either version 1, or (at your option)
+X    any later version.
+X
+X    This program is distributed in the hope that it will be useful,
+X    but WITHOUT ANY WARRANTY; without even the implied warranty of
+X    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X    GNU General Public License for more details.
+X
+X    You should have received a copy of the GNU General Public License
+X    along with this program; if not, write to the Free Software
+X    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+XAlso add information on how to contact you by electronic and paper mail.
+X
+XIf the program is interactive, make it output a short notice like this
+Xwhen it starts in an interactive mode:
+X
+X    Gnomovision version 69, Copyright (C) 19xx name of author
+X    Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+X    This is free software, and you are welcome to redistribute it
+X    under certain conditions; type `show c' for details.
+X
+XThe hypothetical commands `show w' and `show c' should show the
+Xappropriate parts of the General Public License.  Of course, the
+Xcommands you use may be called something other than `show w' and `show
+Xc'; they could even be mouse-clicks or menu items--whatever suits your
+Xprogram.
+X
+XYou should also get your employer (if you work as a programmer) or your
+Xschool, if any, to sign a "copyright disclaimer" for the program, if
+Xnecessary.  Here a sample; alter the names:
+X
+X  Yoyodyne, Inc., hereby disclaims all copyright interest in the
+X  program `Gnomovision' (a program to direct compilers to make passes
+X  at assemblers) written by James Hacker.
+X
+X  <signature of Ty Coon>, 1 April 1989
+X  Ty Coon, President of Vice
+X
+XThat's all there is to it!
+END_OF_FILE
+if test 12488 -ne `wc -c <'COPYING'`; then
+    echo shar: \"'COPYING'\" unpacked with wrong size!
+fi
+# end of 'COPYING'
+fi
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(3378 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+X                              JOETTY - BETA TEST
+X
+X	This is my implementation of curses which I'm ultimately going to
+Xuse for my rewrite of JOE (Joe's Own Editor).  Since I have this done and
+Xsince it's seperable from JOE, I'm releasing it.  It has a number of
+Xfeatures which I think make it much better than other versions of curses:
+X
+X	* It has scrolling functions which actually use the terminal's
+Xscrolling commands.  Multiple calls to the scrolling functions are buffered
+Xso that the minimum amount of scrolling is done to the terminal.
+X
+X	* It handles all of the weird termcap ideosyncrasies.  For example,
+XJOETTY will be perfectly happy with this as a termcap entry:
+X
+Xvt|vt000|Broken Vt100:\
+X	:co#80:li#24:ho=\E[H:up=\E[A:
+X
+X	JOETTY will use ho and repeated LFs to move down, will retype
+Xcharacters from its buffer to move right and will use CR and retyped
+Xcharacters to move left.  (try this with vi or gnu-emacs....)
+X
+X	Actually, one of the reasons I'm releasing this before JOE is
+Xfinished, is to find out if it will work with every weird terminal.  Please
+Xlet me know if you find problems. 
+X
+X	* The screen refresh automatically gets deferred if there is
+Xtypeahead
+X
+X	* No typeahead is lost when entering or exiting or when doing shell
+Xescapes/suspends
+X
+X	* Key sequences defined in termcap for arrow keys, functions keys
+Xand some other special keys are converted to single integer codes. 
+X
+X	* Modifications to the screen are buffered such that a brute force
+Xscan of the screen buffer is not done if only a few simple changes are made. 
+XThis saves a lot of CPU time. 
+X
+X	* Uses the winsize/ttysize structure to get the screen size if your
+XUNIX supports it
+X
+X	* Uses the environment variables ROWS and COLS to override the
+Xtermcap and winsize/ttysize method of getting the screen size
+X
+X	* The screen automatically gets refreshed when you read characters
+Xfrom the keyboard.  The only time you ever have to explicitly refresh the
+Xscreen is when you're doing animation or if you need to put a PLEASE WAIT -
+XACCESSING DISK message on the screen.
+X
+X	* No confusing window support.  It does have functions to save and
+Xrestore areas of the screen - so you can implement windows yourself.
+X
+X	* It's generally much easier to use.  Here's a complete program
+Xwhich draws a box around the screen, lets you type characters to the screen
+Xand exits when you press X.  It also checks for and executes shell escapes/
+Xsuspends (press !).
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+X
+X#include "types.h"
+X#include "tty.h"
+X#include "cap.h"
+X#include "scrn.h"
+X
+Xmain()
+X{
+XSCRN *t=topen(0);	/* Open the screen.  This sets up everything */
+Xint x=1,y=1,c;
+Xif(!t) return;		/* Abort if there was an error... */
+X
+Xtbox(t,1,1,t->co-2,t->li-2);	/* Draw a box around the screen */
+X
+Xdo
+X {
+X tsetpos(t,x,y);		/* Set the displayed cursor position */
+X c=tgetc(t);			/* Get a character from the keyboard */
+X if(c==KEYUP && y) --y;		/* Check for arrow keys... */
+X else if(c==KEYDOWN && y!=t->li-1) ++y;
+X else if(c==KEYRIGHT && x!=t->co-1) ++x;
+X else if(c==KEYLEFT && x) --x;
+X else if(c=='X') tclose(t,0);	/* Check for exiting... */
+X else if(c=='!')
+X  if(!(t=tsusp(t))) exit(1);	/* Check for shell escape... */
+X else if(c>=' ' && c<='~' && x!=t->co-1)
+X  tputc(t,x,y,c), ++x;		/* Write normal chars to screen */
+X }
+X while(!leave);
+X}
+X
+X=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+X
+XJoseph H. Allen (rcarter@wpi.wpi.edu)
+END_OF_FILE
+if test 3378 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'USEAGE' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'USEAGE'\"
+else
+echo shar: Extracting \"'USEAGE'\" \(6496 characters\)
+sed "s/^X//" >'USEAGE' <<'END_OF_FILE'
+X=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XINITAILIZING,
+XEXITING,
+XSHELL ESCAPE and
+XREDRAWING the screen
+X
+XUse these include files:
+X
+X	#include "types.h"
+X	#include "tty.h"
+X	#include "scrn.h"
+X
+XTo initialize JOETTY, do this:
+X
+X	SCRN *t;
+X	if(!(t=topen(0))) exit(1);
+X
+XFrom then on, 't' refers to the open screen.
+X
+XTo shutdown JOETTY and restore the TTY to it's original state, do this:
+X
+X	tclose(t);
+X
+XThis will also set the global variable 'leave', which when set is internally
+Xused to prevent typeahead checking and the loss of typeahead which can
+Xresult from it.  You should set 'leave' yourself the moment you know that
+Xthe program is about to exit.  This way, if you call any other JOETTY
+Xfunctions, they also will not do typeahead checking.  
+X
+XTo suspend the program (or call a shell if your UNIX can't do that), use this
+Xfunction:
+X
+X	if(!(t=tsusp(t))) exit(1);
+X
+XTclose and tsusp do not automatically clear the screen or set the cursor
+Xposition to a nice place for the shell to take over.  You should do these
+Xyourself before calling tsusp or tclose.
+X
+XUse this function to redraw the screen:
+X
+X	tredraw(t);
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XSIMPLE CHANGES TO THE SCREEN,
+XSETTING THE DISPLAYED CURSOR POSITION,
+XGETTING THE SCREEN SIZE,
+Xand READING FROM THE KEYBOARD
+X
+XUse these functions to make simple changes to the screen:
+X
+X	tputc(t,x,y,c);			Write c to the screen x & y position
+X	tputs(t,x,y,"Hello");		Write a string to the screen
+X	tprintf(t,x,y,"The number is %d",5);	Formatted output to the screen
+X
+XNever write past the right edge or bottem of the screen, no clipping or
+Xerror check is done.  The dimensions of the screen can be gotten with: 
+X
+X	t->li		Number of lines on the screen
+X	t->co		Number of columns on the screen
+X
+XThe screen coordinate system is as follows:  The top left of the screen is
+Xx=0, y=0.  Increase x to move more to the right.  Increase y to move lower.
+X
+XThe displayed cursor position is set independantly from writing to the
+Xscreen.  To set it use:
+X
+X	tsetpos(t,x,y);
+X
+Xyou can also get the current displayed cursor position with:
+X
+X	int x,y;
+X	tgetpos(t,&x,&y);
+X
+XFinally to refresh the screen and read from the keyboard, use this function:
+X
+X	c=tgetc(t);
+X
+XKey sequences defined in the termcap entry are translated into these single
+Xinteger codes by 'tgetc':
+X
+X	KEYUP, KEYDOWN, KEYLEFT, KEYRIGHT,
+X	KEYF0 - KEYF9,
+X	KEYHOME, KEYEND, KEYINS, KEYDEL, KEYPGUP, KEYPGDN
+X
+X(See the scrn.h file for the correspondance between these and the termcap
+Xentry names)
+X
+XThe TTY will be set-up to do no input translations other than these.
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XSETTING THE ATTRIBUTES
+X
+XAll functions which write to the screen use the currently set attribute
+Xbits.  The bits are:
+X
+X	INVERSE, UNDERLINE, BOLD, DIM and BLINK
+X
+XTo read the current attribute bits use:
+X
+X	int attr=tgetattr(t);
+X
+XTo set the current attribute bits use:
+X
+X	tsetattr(t,INVERSE|DIM);
+X
+XTo get a list of the attributes available for this terminal use:
+X
+X	int available=tavattr(t);
+X
+Xthis will return the sum of the available attrbute bits.
+X
+XFor any of the screen modification functions which take a single character
+Xas their argument, you may OR the attribute bits in with the character.
+XFor example:
+X
+X	tputc(t,x,y,c|INVERSE);
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XMORE ADVANCED SCREEN CHANGES
+X
+XTo fill a rectangle on the screen use:
+X
+X	trect(t,x,y,width,height,c);
+X
+Xwhere 'c' is the character which is used to fill the rectangle (the current
+Xattributes are ORed in with this character).
+X
+XTo draw a box on the screen use:
+X
+X	tbox(t,x,y,width,height);
+X
+XThis draws with the characters set in the global variables boxl, boxr,
+Xboxt, boxb, boxll, boxlr, boxul, and boxur.  Each of these chartacters may
+Xhave attribute values ORed in with them.  All of the characters get the
+Xcurrent attributes ORed in.
+X
+XTo save a rectangular area from the screen use:
+X
+X	int *area=tsave(t,x,y,width,height);
+X
+Xthis allocates space using malloc for the buffer.
+X
+XTo restore a rectangular area to the screen use:
+X
+X	trestore(t,x,y,width,height,area);
+X
+Xtrestore does not free the malloc block allocated with tsave.  Do this
+Xyourself with:
+X
+X	free(area);
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XSCROLLING
+X
+XScroll a region on the screen upwards with:
+X
+X	tscrollup(t,top,bot,amount);
+X
+XWhere top is the first line of the region, bot is 1 after the last line of
+Xthe region and amount is the number of lines to scroll upwards.  The new
+Xlines will be filled with spaces with no attributes set. 
+X
+XSimilarly to scroll down use:
+X
+X	tscrolldn(t,top,bot,amount);
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XDIRECTLY ACCESSING THE SCREEN BUFFER
+X
+XTo access the screen buffer directly use this macro:
+X
+X	int c=TDIRECT(t,x,y);
+X
+X	to read from it or
+X
+X	TDIRECT(t,x,y)=c;
+X
+X	to write to it.
+X
+XTo access a saved area (as returned by tsave) directly, use:
+X
+X	int c=area[x+y*width];
+X
+X	to read from it or
+X
+X	area[x+y*width]=('A'|INVERSE);
+X
+X	to write to it
+X
+XNOTE:  if you only need to make a few simple changes to the screen, it is
+Xbetter to use 'tputc', 'tputs' and 'tprintf'.  The output from these are
+Xbuffered so that a brute force scan of the screen buffer is not always needed.
+X
+XNOTE:  after you make changes directly to the screen buffer, you must
+Xindicate that it has been changed.  Otherwise, the screen refresh will not
+Xoccur (even if you call trefresh directly).  To do this use:
+X
+X	t->upd=1;
+X
+XNOTE:  before reading or writing to the screen buffer, you must first flush
+Xany buffered simple changes which were made by 'tputc', 'tputs' and
+X'tprintf' to the screen buffer.  To do this use:
+X
+X	tdumpq(t);
+X
+XFinally, you should only directly access the screen buffer if you need to
+Xread it or if you need to make a lot of complex changes to it and if
+X'tputc', 'tputs', 'tprintf', etc. are too slow.
+X
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XEXPLICIT REFRESH
+X
+XIf for some reason you have to refresh the screen other than when 'tgetc'
+Xis called, you can call the refresh function directly with:
+X
+X	trefresh(t);
+X=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+XFuture extensions:
+X
+X	I will add insert and delete character in the next version
+X
+X	I may add a function to apply the Gosling algorithm to detect and
+Xexecute optimal scrolling.
+X
+X	I may add support for multiple terminals.
+END_OF_FILE
+if test 6496 -ne `wc -c <'USEAGE'`; then
+    echo shar: \"'USEAGE'\" unpacked with wrong size!
+fi
+# end of 'USEAGE'
+fi
+if test -f 'cap.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'cap.h'\"
+else
+echo shar: Extracting \"'cap.h'\" \(7163 characters\)
+sed "s/^X//" >'cap.h' <<'END_OF_FILE'
+X/* TERMCAP/TERMINFO header file
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#define CAPEP 0			/* Flag capabilities */
+X#define CAPHD 1
+X#define CAPLC 2
+X#define CAPMT 3
+X#define CAPNL 4
+X#define CAPOP 5
+X#define CAPUC 6
+X#define CAPam 7
+X#define CAPbs 8
+X#define CAPbw 9
+X#define CAPca 10
+X#define CAPda 11
+X#define CAPdb 12
+X#define CAPeo 13
+X#define CAPgn 14
+X#define CAPhc 15
+X#define CAPhs 16
+X#define CAPhz 17
+X#define CAPin 18
+X#define CAPkm 19
+X#define CAPmi 20
+X#define CAPms 21
+X#define CAPmt 22
+X#define CAPnc 23
+X#define CAPns 24
+X#define CAPos 25
+X#define CAPpt 26
+X#define CAPul 27
+X#define CAPxb 28
+X#define CAPxn 29
+X#define CAPxo 30
+X#define CAPxr 31
+X#define CAPxs 32
+X#define CAPxt 33
+X#define CAPxv 34
+X#define CAPxx 35
+X#define NFLGS 36		/* Number of flag capabilities */
+X#define CAPco 0			/* Numeric capabilities */
+X#define CAPdB 1
+X#define CAPdC 2
+X#define CAPdF 3
+X#define CAPdN 4
+X#define CAPdT 5
+X#define CAPdV 6
+X#define CAPit 7
+X#define CAPkn 8
+X#define CAPli 9
+X#define CAPlm 10
+X#define CAPpb 11
+X#define CAPsg 12
+X#define CAPss 13
+X#define CAPtw 14
+X#define CAPug 15
+X#define CAPvt 16
+X#define CAPws 17
+X#define NNUMS 18		/* Number of numeric capabilities */
+X#define CAPAL 0			/* String capabilities */
+X#define CAPCC 1               
+X#define CAPCM 2
+X#define CAPDC 3
+X#define CAPDL 4
+X#define CAPDO 5
+X#define CAPIC 6
+X#define CAPK1 7
+X#define CAPK2 8
+X#define CAPK3 9
+X#define CAPK4 10
+X#define CAPK5 11
+X#define CAPLE 12
+X#define CAPRI 13
+X#define CAPSF 14
+X#define CAPSR 15
+X#define CAPUP 16
+X#define CAPae 17
+X#define CAPal 18
+X#define CAPas 19
+X#define CAPbc 20
+X#define CAPbl 21
+X#define CAPbt 22
+X#define CAPcd 23
+X#define CAPce 24
+X#define CAPch 25
+X#define CAPcl 26
+X#define CAPcm 27
+X#define CAPcr 28
+X#define CAPcs 29
+X#define CAPct 30
+X#define CAPcv 31
+X#define CAPdc 32
+X#define CAPdl 33
+X#define CAPdm 34
+X#define CAPdo 35
+X#define CAPds 36
+X#define CAPec 37
+X#define CAPed 38
+X#define CAPei 39
+X#define CAPes 40
+X#define CAPff 41
+X#define CAPfs 42
+X#define CAPge 43
+X#define CAPgo 44
+X#define CAPgt 45
+X#define CAPhd 46
+X#define CAPho 47
+X#define CAPhu 48
+X#define CAPi1 49
+X#define CAPi2 50
+X#define CAPi3 51
+X#define CAPiP 52
+X#define CAPic 53
+X#define CAPif 54
+X#define CAPim 55
+X#define CAPip 56
+X#define CAPis 57
+X#define CAPk0 58
+X#define CAPk1 59
+X#define CAPk2 60
+X#define CAPk3 61
+X#define CAPk4 62
+X#define CAPk5 63
+X#define CAPk6 64
+X#define CAPk7 65
+X#define CAPk8 66
+X#define CAPk9 67
+X#define CAPkA 68
+X#define CAPkC 69
+X#define CAPkD 70
+X#define CAPkE 71
+X#define CAPkF 72
+X#define CAPkH 73
+X#define CAPkI 74
+X#define CAPkL 75
+X#define CAPkM 76
+X#define CAPkN 77
+X#define CAPkP 78
+X#define CAPkR 79
+X#define CAPkS 80
+X#define CAPkT 81
+X#define CAPka 82
+X#define CAPkb 83
+X#define CAPkd 84
+X#define CAPke 85
+X#define CAPkh 86
+X#define CAPkl 87
+X#define CAPko 88
+X#define CAPkr 89
+X#define CAPks 90
+X#define CAPkt 91
+X#define CAPku 92
+X#define CAPl0 93
+X#define CAPl1 94
+X#define CAPl2 95
+X#define CAPl3 96
+X#define CAPl4 97
+X#define CAPl5 98
+X#define CAPl6 99
+X#define CAPl7 100
+X#define CAPl8 101
+X#define CAPl9 102
+X#define CAPle 103
+X#define CAPll 104
+X#define CAPma 105
+X#define CAPmb 106
+X#define CAPmd 107
+X#define CAPme 108
+X#define CAPmh 109
+X#define CAPmk 110
+X#define CAPml 111
+X#define CAPmm 112
+X#define CAPmo 113
+X#define CAPmp 114
+X#define CAPmr 115
+X#define CAPmu 116
+X#define CAPnd 117
+X#define CAPnl 118
+X#define CAPnw 119
+X#define CAPpO 120
+X#define CAPpc 121
+X#define CAPpf 122
+X#define CAPpk 123
+X#define CAPpl 124
+X#define CAPpo 125
+X#define CAPps 126
+X#define CAPpx 127
+X#define CAPr1 128
+X#define CAPr2 129
+X#define CAPr3 130
+X#define CAPrc 131
+X#define CAPrf 132
+X#define CAPri 133
+X#define CAPrp 134
+X#define CAPrs 135
+X#define CAPsa 136
+X#define CAPsc 137
+X#define CAPse 138
+X#define CAPsf 139
+X#define CAPso 140
+X#define CAPsr 141
+X#define CAPst 142
+X#define CAPta 143
+X#define CAPtc 144
+X#define CAPte 145
+X#define CAPti 146
+X#define CAPts 147
+X#define CAPuc 148
+X#define CAPue 149
+X#define CAPup 150
+X#define CAPus 151
+X#define CAPvb 152
+X#define CAPve 153
+X#define CAPvi 154
+X#define CAPvs 155
+X#define CAPwi 156
+X#define NSTRS 157		/* Number of string capabilities */
+X
+X#define ENTRYLEN 1024
+X#define TERMPATH ".termcap /etc/termcap"
+X
+Xstruct cap
+X {
+X I flgs[NFLGS];
+X I nums[NNUMS];
+X C *strs[NSTRS];
+X C tbuf[ENTRYLEN];
+X };
+X
+X/* CAP *getcap(C *s);  Get CAP entry for terminal type name given in s.
+X   If s is zero, uses TERM environment variable.  Returns 0 if there was any
+X   error. */
+XCAP *getcap();
+X
+X/* V texec(C *str,V (*out)(V *ptr,C c),V *outptr,
+X              C *pad,I div,I l,I x,I y);
+X
+X   Execute a termcap string capability.
+X   
+X   'str' is the string to execute
+X   
+X   'out' is a function with each character to send to the terminal
+X
+X   'outptr' is value passed as first argument to 'out'
+X   
+X   'pad' is a string containing the pad character to use.  If 'pad'==0,
+X   zero is used as the pad character.
+X   
+X   'div' is the number of 10ths of milliseconds it takes to send each
+X   character out at the current baud rate.  This is used to determine the
+X   number of padding characters to send.
+X
+X   'l' is the number of lines effected by this string.  For example, if you
+X   use the clear to end of screen capability, the number of lines between
+X   the current cursor position and the end of the screen should be
+X   given here.
+X
+X   'x' and 'y' are the arguments for the string.
+X*/
+XV texec();
+X
+X
+X/* I tcost(C *str,C *pad,I div,I l,I x,I y);
+X   Return cost in number of characters which need to be sent required
+X   to execute a termcap string capability.
+X   
+X   'str' is the string to execute
+X   
+X   'pad' is a string containing the pad character to use.  If 'pad'==0,
+X   zero is used as the pad character.
+X   
+X   'div' is the number of 10ths of milliseconds it takes to send each
+X   character out at the current baud rate.  This is used to determine the
+X   amount of padding characters to send.
+X
+X   'l' is the number of lines effected by this string.  I.E., if you
+X   use the clear to end of screen capability, the number of lines between
+X   the current cursor position and the end of the screen should be
+X   given here.
+X
+X   'x' and 'y' are the arguments for the string.
+X*/
+XI tcost();
+X
+X/* C *tcompile(C *str,I x,I y,I *l);
+X
+X   Compile a string capability.  Returns a pointer to a static area of memory
+X   containing the zero-terminated compiled string.  You must copy this string
+X   elsewhere before calling tcompile again.
+X
+X   The length of the string is placed in the integer at l.
+X*/
+XC *tcompile();
+X
+X/* V tshow(C *str);
+X   Print a compiled string on stdout:  Shows control characters in a nice way
+X */
+XV tshow();
+X
+X/* V rmcap(CAP *);  Eliminate a termcap entry returned by getcap */
+XV rmcap();
+END_OF_FILE
+if test 7163 -ne `wc -c <'cap.h'`; then
+    echo shar: \"'cap.h'\" unpacked with wrong size!
+fi
+# end of 'cap.h'
+fi
+if test -f 'scrn.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'scrn.c'\"
+else
+echo shar: Extracting \"'scrn.c'\" \(26883 characters\)
+sed "s/^X//" >'scrn.c' <<'END_OF_FILE'
+X/* Device independant TTY interface for JOE
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include "types.h"
+X#include "cap.h"
+X#include "tty.h"
+X#include "scrn.h"
+X
+X/* Table of key sequences which we will translate to single codes */
+X
+Xstruct
+X {
+X I seq;
+X I code;
+X } seqs[NKEYS]=
+X{
+X { CAPkd, KEYDOWN },
+X { CAPku, KEYUP },
+X { CAPkl, KEYLEFT },
+X { CAPkr, KEYRIGHT },
+X { CAPk0, KEYF0 },
+X { CAPk1, KEYF1 },
+X { CAPk2, KEYF2 },
+X { CAPk3, KEYF3 },
+X { CAPk4, KEYF4 },
+X { CAPk5, KEYF5 },
+X { CAPk6, KEYF6 },
+X { CAPk7, KEYF7 },
+X { CAPk8, KEYF8 },
+X { CAPk9, KEYF9 },
+X { CAPkD, KEYDEL },
+X { CAPkI, KEYINS },
+X { CAPkh, KEYHOME },
+X { CAPkH, KEYEND },
+X { CAPkN, KEYPGDN },
+X { CAPkP, KEYPGUP }
+X};
+X
+X/* Set attributes */
+X
+XV attr(t,c)
+XSCRN *t;
+XI c;
+X{
+XI e=(t->attrib&~c);
+Xif(e&UNDERLINE)
+X {
+X if(t->ue) texec(t->ue,t->out,t,t->pad,t->div,1), e&=~UNDERLINE;
+X t->attrib&=~UNDERLINE;
+X }
+Xif(e&INVERSE)
+X {
+X if(t->se) texec(t->se,t->out,t,t->pad,t->div,1), e&=~INVERSE;
+X else if(t->me) texec(t->me,t->out,t,t->pad,t->div,1), e=0, t->attrib=0;
+X t->attrib&=~INVERSE;
+X }
+Xif(e)
+X {
+X if(t->me) texec(t->me,t->out,t,t->pad,t->div,1);
+X t->attrib=0;
+X }
+Xe=(c&~t->attrib);
+Xif(e&INVERSE)
+X if(t->mr) texec(t->mr,t->out,t,t->pad,t->div,1);
+X else if(t->so) texec(t->so,t->out,t,t->pad,t->div,1);
+Xif(e&UNDERLINE)
+X if(t->us) texec(t->us,t->out,t,t->pad,t->div,1);
+Xif(e&BLINK)
+X if(t->mb) texec(t->mb,t->out,t,t->pad,t->div,1);
+Xif(e&BOLD)
+X if(t->md) texec(t->md,t->out,t,t->pad,t->div,1);
+Xif(e&DIM)
+X if(t->mh) texec(t->mh,t->out,t,t->pad,t->div,1);
+Xt->attrib=c;
+X}
+X
+X/* Output a character with attributes */
+X
+XV outatr(t,c,flg)
+XSCRN *t;
+XI c,flg;
+X{
+XI ch=c&255;
+Xif(t->am && t->x==t->co-1 && t->y==t->li-1) return;
+Xif((c&~255)!=t->attrib) attr(t,c&~255);
+Xif((c&UNDERLINE) && !t->us && t->uc)
+X {
+X if(!flg)
+X  {
+X  if(t->hz && ch=='~') ch='\\';
+X  t->out(t,ch);
+X  ++t->x;
+X  cpos(t,t->x-1,t->y);
+X  }
+X texec(t->uc,t->out,t,t->pad,t->div,0);
+X ++t->x;
+X }
+Xelse
+X {
+X if(t->hz && ch=='~') ch='\\';
+X t->out(t,ch);
+X ++t->x;
+X }
+Xif(t->x==t->co)
+X if(t->am) t->x=0, ++t->y;
+X else if(t->xn) t->x= -1, t->y= -1;
+X else --t->x;
+X}
+X
+X/* Set scrolling region */
+X
+XV setregn(t,top,bot)
+XSCRN *t;
+XI top,bot;
+X{
+Xif(!t->cs)
+X {
+X t->top=top;
+X t->bot=bot;
+X return;
+X }
+Xif(t->top!=top || t->bot!=bot)
+X {
+X t->top=top;
+X t->bot=bot;
+X texec(t->cs,t->out,t,t->pad,t->div,1,top,bot-1);
+X t->x= -1; t->y= -1;
+X }
+X}
+X
+XV out(t,c)
+XC *t;
+XC c;
+X{
+Xeputc(c);
+X}
+X
+XSCRN *topen(flg)
+XI flg;
+X{
+XSCRN *t=(SCRN *)malloc(sizeof(SCRN));
+XI x,y;
+XC *p;
+Xif(!(t->cap=getcap(NULL)))
+X {
+X free(t);
+X printf("Couldn't load termcap/terminfo entry\n");
+X return 0;
+X }
+X
+Xif(!flg) sigjoe();
+Xaopen();
+X
+Xif(t->cap->nums[CAPli]<1) t->li=24; else t->li=t->cap->nums[CAPli];
+Xif(t->cap->nums[CAPco]<2) t->co=80; else t->co=t->cap->nums[CAPco];
+Xgetsize(&x,&y);
+Xif(x>3 && y>3) t->li=y, t->co=x;
+Xx=0; y=0;
+Xif(p=getenv("ROWS")) sscanf(p,"%d",&y);
+Xif(p=getenv("COLS")) sscanf(p,"%d",&x);
+Xif(x>3) t->co=x;
+Xif(y>3) t->li=y;
+X
+Xt->pad=t->cap->strs[CAPpc];
+Xt->div=100000/baud;
+Xt->out=out;
+X
+Xt->hz=t->cap->flgs[CAPhz];
+Xt->os=t->cap->flgs[CAPos];
+Xt->eo=t->cap->flgs[CAPeo];
+Xif(t->cap->flgs[CAPhc]) t->os=1;
+Xif(t->os || t->cap->flgs[CAPul]) t->ul=1;
+X
+Xif(t->cap->flgs[CAPxn]) t->xn=1;
+Xelse t->xn=0;
+X
+Xif(t->cap->flgs[CAPam]) t->am=1;
+Xelse t->am=0;
+X
+Xt->ti=0;
+Xif(t->cap->strs[CAPti]) t->ti=t->cap->strs[CAPti];
+X
+Xt->te=0;
+Xif(t->cap->strs[CAPte]) t->te=t->cap->strs[CAPte];
+X
+Xif(!(t->me=t->cap->strs[CAPme])) goto oops;
+Xif(t->mb=t->cap->strs[CAPmb]) t->avattr|=BLINK;
+Xif(t->md=t->cap->strs[CAPmd]) t->avattr|=BOLD;
+Xif(t->mh=t->cap->strs[CAPmh]) t->avattr|=DIM;
+Xif(t->mr=t->cap->strs[CAPmr]) t->avattr|=INVERSE;
+Xoops:
+X
+Xt->so=0; t->se=0;
+Xif(t->cap->nums[CAPsg]<=0 && !t->mr && t->cap->strs[CAPse])
+X {
+X if(t->so=t->cap->strs[CAPso]) t->avattr|=INVERSE;
+X t->se=t->cap->strs[CAPse];
+X }
+Xif(t->cap->flgs[CAPxs] || t->cap->flgs[CAPxt]) t->so=0;
+X
+Xt->us=0; t->ue=0;
+Xif(t->cap->nums[CAPug]<=0 && t->cap->strs[CAPue])
+X {
+X if(t->us=t->cap->strs[CAPus]) t->avattr|=UNDERLINE;
+X t->ue=t->cap->strs[CAPue];
+X }
+X
+Xif(!(t->uc=t->cap->strs[CAPuc])) if(t->ul) t->uc="_";
+Xif(t->uc) t->avattr|=UNDERLINE;
+X
+Xt->ms=t->cap->flgs[CAPms];
+X
+Xt->da=t->cap->nums[CAPda];
+Xt->db=t->cap->nums[CAPdb];
+Xt->cs=t->cap->strs[CAPcs];
+Xt->sf=t->cap->strs[CAPsf];
+Xt->sr=t->cap->strs[CAPsr];
+Xt->SF=t->cap->strs[CAPSF];
+Xt->SR=t->cap->strs[CAPSR];
+Xt->al=t->cap->strs[CAPal];
+Xt->dl=t->cap->strs[CAPdl];
+Xt->AL=t->cap->strs[CAPAL];
+Xt->DL=t->cap->strs[CAPDL];
+Xif(!t->cap->nums[CAPns] && !t->sf) t->sf="\12";
+X
+Xt->bs=0;
+Xif(t->cap->strs[CAPbc]) t->bs=t->cap->strs[CAPbc];
+Xelse if(t->cap->strs[CAPle]) t->bs=t->cap->strs[CAPle]; 
+Xif(t->cap->flgs[CAPbs]) t->bs="\10";
+X
+Xif(t->bs) t->cbs=tcost(t->bs,t->pad,t->div,1,2,2); else t->cbs=10000;
+X
+Xt->lf="\12";
+Xif(t->cap->strs[CAPdo]) t->lf=t->cap->strs[CAPdo];
+X
+Xif(t->lf) t->clf=tcost(t->lf,t->pad,t->div,1,2,2); else t->clf=10000;
+X
+Xt->up=t->cap->strs[CAPup];
+X
+Xif(t->up) t->cup=tcost(t->up,t->pad,t->div,1,2,2); else t->cup=10000;
+X
+Xt->tw=8;
+Xif(t->cap->nums[CAPit]>0) t->tw=t->cap->nums[CAPit];
+Xelse if(t->cap->nums[CAPtw]>0) t->tw=t->cap->nums[CAPtw];
+X
+Xif(t->cap->strs[CAPta]) t->ta=t->cap->strs[CAPta];
+Xelse if(t->cap->flgs[CAPpt]) t->ta="\11";
+Xt->bt=t->cap->strs[CAPbt];
+Xif(t->cap->flgs[CAPxt]) t->ta=0, t->bt=0;
+X
+Xif(t->ta) t->cta=tcost(t->ta,t->pad,t->div,1,2,2); else t->cta=10000;
+Xif(t->bt) t->cbt=tcost(t->bt,t->pad,t->div,1,2,2); else t->cbt=10000;
+X
+Xt->ho=t->cap->strs[CAPho];
+Xif(t->ho) t->cho=tcost(t->ho,t->pad,t->div,1,2,2); else t->cho=10000;
+Xt->ll=t->cap->strs[CAPll];
+Xif(t->ll) t->cll=tcost(t->ll,t->pad,t->div,1,2,2); else t->cll=10000;
+X
+Xt->cr="\15";
+Xif(t->cap->strs[CAPcr]) t->cr=t->cap->strs[CAPcr];
+Xif(t->cap->flgs[CAPnc] || t->cap->flgs[CAPxr]) t->cr=0;
+Xif(t->cr) t->ccr=tcost(t->cr,t->pad,t->div,1,2,2); else t->ccr=10000;
+X
+Xif(t->RI=t->cap->strs[CAPRI]) t->cRI=tcost(t->RI,t->pad,t->div,1,2,2);
+Xelse t->cRI=10000;
+Xif(t->LE=t->cap->strs[CAPLE]) t->cLE=tcost(t->LE,t->pad,t->div,1,2,2);
+Xelse t->cLE=10000;
+Xif(t->UP=t->cap->strs[CAPUP]) t->cUP=tcost(t->UP,t->pad,t->div,1,2,2);
+Xelse t->cUP=10000;
+Xif(t->DO=t->cap->strs[CAPDO]) t->cDO=tcost(t->DO,t->pad,t->div,1,2,2);
+Xelse t->cDO=10000;
+Xif(t->ch=t->cap->strs[CAPch]) t->cch=tcost(t->ch,t->pad,t->div,1,2,2);
+Xelse t->cch=10000;
+Xif(t->cv=t->cap->strs[CAPcv]) t->ccv=tcost(t->cv,t->pad,t->div,1,2,2);
+Xelse t->ccv=10000;
+Xif(t->cm=t->cap->strs[CAPcm]) t->ccm=tcost(t->cm,t->pad,t->div,1,2,2);
+Xelse t->ccm=10000;
+X
+Xif(t->ce=t->cap->strs[CAPce]) t->cce=tcost(t->ce,t->pad,t->div,1,2,2);
+Xelse t->cce=10000;
+Xif(t->cd=t->cap->strs[CAPcd]) t->ccd=tcost(t->cd,t->pad,t->div,1,2,2);
+Xelse t->ccd=10000;
+X
+Xx=0;
+Xfor(y=0;y!=NKEYS;++y)
+X if(t->cap->strs[seqs[y].seq])
+X  {
+X  I l;
+X  C *s=tcompile(t->cap->strs[seqs[y].seq],0,0,&l);
+X  if(l)
+X   {
+X   t->ktab[x].s=(C *)malloc(l);
+X   memcpy(t->ktab[x].s,s,l);
+X   t->ktab[x].l=l;
+X   t->ktab[x].n=seqs[y].code;
+X   ++x;
+X   }
+X  }
+Xt->tabsize=x;
+Xt->kbufp=0;
+X
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

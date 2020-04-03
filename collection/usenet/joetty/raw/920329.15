@@ -1,0 +1,1959 @@
+Path: funic!fuug!mcsun!uunet!world!spike
+From: spike@world.std.com (Joe Ilacqua)
+Newsgroups: alt.sources
+Subject: msend 1.1 - send one line messages to other users (2/2)
+Message-ID: <SPIKE.92Mar25132344@world.std.com>
+Date: 25 Mar 92 18:23:44 GMT
+Sender: spike@world.std.com (Joe Ilacqua)
+Followup-To: alt.sources.d
+Distribution: alt
+Organization: Software Tool & Die
+Lines: 1947
+
+
+Archive-name: msend-1.1/part2
+Submitted-by: spike@world.std.com
+
+---Cut---
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 2)."
+# Contents:  fwdloop.c misc.c msend.c msendd.c network.c sendrecv.c
+#   utmp.c whoami.c write.c
+# Wrapped by spike@world on Wed Mar 25 12:52:51 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f fwdloop.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"fwdloop.c\"
+else
+echo shar: Extracting \"fwdloop.c\" \(720 characters\)
+sed "s/^X//" >fwdloop.c <<'END_OF_fwdloop.c'
+X/* fwdloop.c:
+X *
+X * check for obvious forwarding loops
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X
+X/* check for a local forwarding loop
+X */
+X
+Xint fwdloop(host)
+Xchar *host;
+X{ struct hostent *h;
+X  char hname[MAXHOSTNAME+1];
+X
+X  gethostname(hname,MAXHOSTNAME);
+X  h= gethostbyname(hname);
+X  if (strcmp(h->h_name,host)) {  /* obvious match? */
+X
+X    /* look through alias list to see if it's one of the possible names
+X     */
+X
+X    for (; (*h->h_aliases) && strcmp(*h->h_aliases,host); h->h_aliases++)
+X      ;
+X    return(*h->h_aliases != NULL);  
+X  }
+X  return(1);
+X}
+END_OF_fwdloop.c
+if test 720 -ne `wc -c <fwdloop.c`; then
+    echo shar: \"fwdloop.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f misc.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"misc.c\"
+else
+echo shar: Extracting \"misc.c\" \(2714 characters\)
+sed "s/^X//" >misc.c <<'END_OF_misc.c'
+X/* misc.c:
+X *
+X * miscellaneous functions
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X#ifdef M_SYSV
+X#include <unistd.h>                     /* Unix Standard definitions */
+X#endif
+X#if defined(_AIX) && defined(USE_LOCKF)
+X#include <sys/lockf.h>
+X#endif
+X
+Xvoid error();
+X
+X/* easy way to build error messages
+X */
+X
+Xvoid blderr(ri,errno,msg)
+Xstruct rimsg *ri;
+Xint    errno;
+Xchar   *msg;
+X{ ri->h.errno= errno;
+X  ri->h.msglen= strlen(msg);
+X  strcpy(ri->msg,msg);
+X}
+X
+Xvoid die(i)
+Xint i;
+X{ error("md terminated");
+X  exit(i);
+X}
+X
+X/* when we have a problem, call this
+X */
+X
+Xvoid error(s)
+Xchar *s;
+X{ int  uid;
+X  long t;
+X  char when[30];
+X  FILE *f;
+X
+X  time(&t);
+X  strcpy(when,ctime(&t));
+X  when[strlen(when)-1]= '\0';
+X  if (getuid() == ROOTUID) {
+X    uid= geteuid();
+X    seteuid(ROOTUID);
+X  }
+X  f= fopen(LOGFILE,"a");
+X  if (getuid() == ROOTUID)
+X    seteuid(uid);
+X  if (f != NULL) {
+X#ifndef USE_LOCKF
+X    flock(fileno(f),LOCK_EX);
+X#else
+X    lockf(fileno(f),F_TLOCK, 0);
+X#endif
+X    fprintf(f,"%s: %s\n",when,s);
+X#ifndef USE_LOCKF
+X    flock(fileno(f),LOCK_UN);
+X#else
+X    lockf(fileno(f),F_ULOCK, 0);
+X#endif
+X    fclose(f);
+X  }
+X  else
+X    printf("%s: %s\n",when,s);
+X}
+X
+X/* this returns the port number to use for communication
+X */
+X
+Xint portnum()
+X{ struct servent *se;
+X  int    p;
+X
+X  /* if possible, return the port number in /etc/services; if not,
+X   * use hardcoded default
+X   */
+X
+X  if ((se= getservbyname("msend","tcp")) == NULL)
+X    p= PORTNUM;
+X  else
+X    p= ntohs(se->s_port);
+X
+X  /* oops, someone forgot to make me setuid
+X   */
+X
+X  if ((p < 1024) && geteuid()) {
+X    printf("portnum: not setuid\n");
+X    exit(1);
+X  }
+X  return(p);
+X}
+X
+X/* find the host name within an address, put it in an array, and truncate
+X * the address at the hostname.
+X */
+X
+Xchar *striphost(addr,host)
+Xchar addr[];
+Xchar *host;
+X{ int a;
+X
+X  for (a= strlen(addr); (a >= 0) && (addr[a] != '@'); a--)
+X    ;
+X  if (a >= 0) {
+X    strcpy(host,&addr[a+1]);
+X    addr[a]= '\0';
+X    return(host);
+X  }
+X  host[0]= '\0';
+X  return(NULL);
+X}
+X
+Xchar *gethome(user)
+X     char *user;
+X{ struct passwd *pw;
+X
+X  if (! (pw= getpwnam(user)))
+X    return(NULL);
+X  return(pw->pw_dir);
+X}
+X
+Xint getid(user)
+X     char *user;
+X{ struct passwd *pw;
+X
+X  if (! (pw= getpwnam(user)))
+X    return(-1);
+X  return(pw->pw_uid);
+X}
+X
+X#ifdef NEEDS_LOCK
+X/* if the system needs flock, put the correct locking function in here.  if
+X * you leave it like this it's possible that you'll get some conflict in
+X * writing to spool files and such, but it's not likely and it won't hurt
+X * anything much.
+X */
+X
+Xint flock(fd, how)
+X     int fd, how;
+X{
+X  return(0);
+X}
+X#endif
+X
+END_OF_misc.c
+if test 2714 -ne `wc -c <misc.c`; then
+    echo shar: \"misc.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f msend.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"msend.c\"
+else
+echo shar: Extracting \"msend.c\" \(13872 characters\)
+sed "s/^X//" >msend.c <<'END_OF_msend.c'
+X/* msend.c:
+X *
+X * user interface
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X#include "patchlevel"
+X
+Xstatic void huh(i)
+Xint i;
+X{ char   d[10];
+X  char   spoolfile[MAXFILENAME+1];
+X  struct stat   stb;
+X
+X  sprintf(d,"-%d",i);
+X
+X#ifdef SPOOLDIR
+X  if (getuid() == ROOTUID)
+X    seteuid(ROOTUID);
+X  sprintf(spoolfile,"%s/%s",SPOOLDIR,whoami());
+X#else
+X  if (gethome(whoami()))
+X    sprintf(spoolfile,"%s/.msendmsgs",gethome(whoami()));
+X  else {
+X    printf("Can't find your home directory\n");
+X    exit(1);
+X  }
+X#endif
+X
+X  if (stat(spoolfile,&stb) == -1) {
+X    printf("No old messages\n");
+X    exit(0);
+X  }
+X
+X  execlp("tail","tail",d,spoolfile,0);
+X  perror("huh");
+X  exit(0);
+X}
+X
+X/* wipe out a user's spool file on demand
+X */
+X
+Xstatic void rmspool()
+X{ char s[MAXFILENAME+1];
+X
+X#ifdef SPOOLDIR
+X  if (getuid() == ROOTUID)
+X    seteuid(ROOTUID);
+X  sprintf(s,"%s/%s",SPOOLDIR,whoami());
+X#else
+X  if (gethome(whoami()))
+X    sprintf(s,"%s/.msendmsgs",gethome(whoami()));
+X  else {
+X    printf("Can't find your home directory\n");
+X    exit(1);
+X  }
+X#endif
+X
+X  if (unlink(s) < 0)
+X    perror(s);
+X  exit(0);
+X}
+X
+X/* "documentation"
+X */
+X
+Xstatic void version() {
+X  printf("   msend version %s patchlevel %s\n",VERSION,PATCHLEVEL);
+X  printf("   by Jim Frost (%s) & Joe Ilacqua (%s)\n",MADD,SPIKE);
+X  printf("   %s\n",Copyright);
+X}
+X
+Xstatic void usage()
+X{ 
+X  version();
+X#ifndef GNUREADLINE
+X  printf("Usage: msend username[@host] [message]\n");
+X  printf("       msend . [message]\n");
+X#else
+X  printf("Usage: msend [-edit] username[@host] [message]\n");
+X  printf("       msend [-edit] . [message]\n");
+X#endif
+X  printf("       msend -huh [# of messages to display]\n");
+X  printf("       msend -clean\n");
+X  printf("       msend -T tty [@host] [message]\n");
+X  printf("       msend -version [@host]\n");
+X#ifdef CBROADCAST
+X  printf("       msend -B @host [message]\n");
+X#endif
+X  exit(0);
+X}
+X
+Xstatic void bigsig()
+X{ printf("Signature too big\n");
+X  exit(1);
+X}
+X
+Xstatic void sigalrm()
+X{
+X  printf("Inactivity timeout\n");
+X  exit(1);
+X}
+X
+X/* user breaks aren't really wanted, but we let the user break out if
+X * he or she REALLY wants to
+X */
+X
+Xstatic void sigint()
+X{ static wasint= 0;
+X
+X  if (wasint) {
+X    printf("\nConnection broken\n");
+X    exit(1);
+X  }
+X  else {
+X    wasint= 1;
+X    printf("\nInterrupt received -- one more to kill\n");
+X  }
+X}
+X
+Xmain(argc,argv)
+Xint  argc;
+Xchar *argv[];
+X{ int    a,b;
+X  int    broadcast;
+X  int    totty;
+X  int    uid;
+X  long   when;
+X  char   sig[MAXSIGNATURE+1];
+X  char   sigfmt[MAXSIGNATURE+1];
+X  char   line[MAXLINE+1];
+X  char   token[MAXTOKEN+1];
+X  char   fname[MAXFILENAME+1];
+X  char   localhost[MAXHOSTNAME+1];
+X  char   tmphost[MAXHOSTNAME+1];
+X  struct hostent *hp;
+X#ifdef GNUREADLINE
+X  char *gnubuf, *GNUGets();
+X  extern int rl_insert();
+X  short edit = EDIT;
+X#endif
+X  FILE   *f;
+X  struct simsg  si;
+X  struct rimsg  ri;
+X
+X  /* find out who we really are before becoming effectively root
+X   */
+X
+X  whoami();
+X
+X  /* since tty termination requests can leave hanging daemons, ignore
+X   * them.  user can still force termination, but not so easy.
+X   */
+X
+X  signal(SIGINT,sigint);
+X
+X  /* daemon will timeout after 10 minutes of inactivity, so we might
+X   * as well do it too.
+X   */
+X
+X  alarm(LIFETIME);
+X  signal(SIGALRM,sigalrm);
+X
+X  /* swap ruid and euid so our real id is root.  this enables us to toggle
+X   * between root uid-ness and nonroot uid-ness as necessary.
+X   */
+X
+X  if (geteuid() == ROOTUID) {
+X    uid= getuid();
+X    setruid(geteuid());
+X    seteuid(uid);
+X  }
+X
+X  /* please, no piping
+X   */
+X
+X  if (!isatty(0)) {
+X    printf("Input must be a tty\n");
+X    exit(1);
+X  }
+X
+X  gethostname(tmphost,MAXHOSTNAME);
+X  if ((hp = gethostbyname(tmphost)) != NULL)
+X    (void) strncpy(localhost,hp->h_name,MAXHOSTNAME);
+X  else /* better than nothing */
+X    (void) strncpy(localhost,tmphost,MAXHOSTNAME);
+X  /* defaults
+X   */
+X
+X  broadcast= 0;
+X  totty= 0;
+X  sprintf(sig,"%s@%s (%s): ",whoami(),localhost,ttyname(0)+5);
+X  si.ttty[0]= '\0';                /* ttyname(0)+5 to strip "/dev/" */
+X
+X  /* look at options file
+X   */
+X
+X  sprintf(fname,"%s/.msendrc",gethome(whoami()));
+X  if ((f= fopen(fname,"r")) != NULL) {
+X    while (fgets(line,MAXLINE,f) != NULL) {
+X      sscanf(line,"%s",token);
+X
+X
+X      /* user define history size - the default is unlimited
+X       */
+X      if (!strcmp(token,"history")) {
+X	/* If we are not using the GNU readline stuff history is meaningless,
+X	 * but that is no reason for it to cause an error...
+X	 */
+X#ifdef GNUREADLINE
+X	int n;
+X	if (sscanf (line, "%*s %d", &n) == 1) 
+X	  stifle_history (n);
+X	else {
+X	  printf("Bad history value in .msendrc\n");
+X	  exit(1);
+X	}
+X#endif
+X	continue;
+X      }
+X      if (!strcmp(token,"editing_mode")) {
+X	/* If we are not using the GNU readline stuff history is meaningless,
+X	 * but that is no reason for it to cause an error...
+X	 */
+X#ifdef GNUREADLINE
+X	char buf[10];
+X	if (sscanf (line, "%*s \"%s\"", buf) == 1) {
+X	  if (!strncmp(buf,"vi",2))
+X	    rl_vi_editing_mode();
+X	  else if (!strncmp(buf,"emacs",5)) /* The default is emacs, but...*/
+X	    rl_emacs_editing_mode();
+X	  else {
+X	    printf("Bad editor value in .msendrc\n");
+X	    exit(1);
+X	  }
+X	}
+X	else {
+X	  printf("Bad editor value in .msendrc\n");
+X	  exit(1);
+X	}
+X#endif
+X	continue;
+X      }
+X      if (!strcmp(token,"edit")) {
+X	/* If we are not using the GNU readline stuff history is meaningless,
+X	 * but that is no reason for it to cause an error...
+X	 */
+X#ifdef GNUREADLINE
+X	char buf[10];
+X	if (sscanf (line, "%*s \"%s\"", buf) == 1) {
+X	  if (!strncmp(buf,"on",2))
+X	    edit = 1;
+X	  else if (!strncmp(buf,"off",3)) /* The default is emacs, but...*/
+X	    edit = 0;
+X	  else {
+X	    printf("Bad editor value in .msendrc\n");
+X	    exit(1);
+X	  }
+X	}
+X	else {
+X	  printf("Bad editor value in .msendrc\n");
+X	  exit(1);
+X	}
+X#endif
+X	continue;
+X      }
+X
+X      /* user defined signature
+X       */
+X
+X      if (!strcmp(token,"signature")) {
+X        for (a= 0; (line[a] != '\0') && (line[a] != '"'); a++)
+X          ;
+X        if (line[a] == '\0') {
+X          printf("Signature needs a quoted string\n");
+X          exit(1);
+X        }
+X        for (a++, b= 0; (line[a] != '\0') && (line[a] != '"')
+X                         && (b <= MAXSIGNATURE); a++)
+X          sigfmt[b++]= line[a];
+X        if (line[a] != '"') {
+X          printf("Signature format string has no end quotes or is too long\n");
+X          exit(1);
+X        }
+X        sigfmt[b]= '\0';
+X
+X        /* parse signature format and build the signature
+X         */
+X
+X        sprintf(sig,"%s@%s ",whoami(),localhost); /* always include this */
+X        for (b= 0; sigfmt[b] != '\0'; b++)
+X          if (sigfmt[b] == '%')
+X            switch (sigfmt[++b]) {
+X              case '%' :
+X                if (strlen(sig) >= MAXSIGNATURE)
+X                  bigsig();
+X                strcat(sig,"%");
+X                break;
+X              case 'd' : /* date and time */
+X                if (strlen(sig) + strlen(ctime(&when)) > MAXSIGNATURE)
+X                  bigsig();
+X                time(&when);
+X                strcat(sig,ctime(&when));
+X                sig[strlen(sig)-9]= '\0';
+X                break;
+X              case 't' : /* tty */
+X                if (strlen(sig) + strlen(ttyname(0)+5) > MAXSIGNATURE)
+X                  bigsig();
+X                strcat(sig,ttyname(0)+5);
+X                break;
+X              default :
+X                a= strlen(sig);
+X                sig[a]= sigfmt[b];
+X                sig[a+1]= '\0';
+X            }
+X          else {
+X            a= strlen(sig);
+X            sig[a]= sigfmt[b];
+X            sig[a+1]= '\0';
+X          }
+X        strcat(sig,": ");
+X      }
+X    }
+X  fclose(f);
+X  }
+X
+X  /* figure out options
+X   */
+X
+X  for (a= 1; (a < argc) && (*argv[a] == '-'); a++) {
+X
+X    /* the "huh" function
+X     */
+X
+X    if (!strcmp(argv[a],"-huh")) {
+X      if (++a < argc)
+X        huh(atoi(argv[a]));
+X      else
+X        huh(1);
+X    }
+X
+X    /* deliberate forgetfulness option
+X     */
+X
+X    if (!strcmp(argv[a],"-clean"))
+X      rmspool();
+X
+X    else if (!strcmp(argv[a],"-edit"))
+X#ifdef GNUREADLINE
+X      edit = !edit;
+X#else
+X    ;
+X#endif
+X    else if ((!strcmp(argv[a],"-version")) || *(argv[a]+1) == 'v') {
+X      if (argc == 2) {
+X	version();
+X	exit(0);
+X      } else if ( argc == 3 ) {
+X	if (*argv[2] != '@')
+X	  usage();
+X	strcpy(si.taddr,argv[2]);
+X        (void) striphost(si.taddr,si.tohost);
+X	si.fwdcount= 0;
+X	si.msg[0]= '\0';
+X	sendmessage(&si,&ri,SM_CLOSE|SM_VERSION);
+X	if (ri.msg[0] == '\0') {
+X	  while(striphost(si.taddr,si.tohost))
+X		strcpy(si.taddr,si.tohost);
+X	  printf ("%s is running a pre-1.0 version of msend\n",si.taddr);
+X	} else
+X	  printf("%s\n",ri.msg);
+X	exit(0);
+X      } else
+X	usage();
+X    }
+X
+X    /* decode option(s)
+X     */
+X
+X    else switch (*(argv[a]+1)) {
+X      case 'B' :
+X#ifdef CBROADCAST
+X        broadcast= SM_BROADCAST;
+X        break;
+X#else
+X        printf("Broadcasting is not allowed from this host\n");
+X        exit(1);
+X#endif
+X      case 'c' : /* short form of -clean for lazy people like me */
+X        rmspool();
+X	break;
+X      case 'e' : /* short form of -edit for lazy people like jim */
+X#ifdef GNUREADLINE
+X	edit = !edit;
+X#endif
+X	break;
+X      case 'T' :
+X        totty= SM_TTY;
+X        if (*(argv[a]+2) == '\0') {
+X          if (++a == argc) {
+X            printf("Tty name missing\n");
+X            exit(1);
+X          }
+X          else if (strlen(argv[a]) > MAXTTY) {
+X            printf("Tty name too long\n");
+X            exit(1);
+X          }
+X          else
+X            strcpy(si.ttty,argv[a]);
+X        }
+X        else if (strlen(argv[a]+2) > MAXTTY) {
+X          printf("Tty name too long\n");
+X          exit(1);
+X        }
+X        else
+X          strcpy(si.ttty,argv[a]+2);
+X        break;
+X      default :
+X        usage();
+X    }
+X  }
+X
+X  if ((!totty) && (a == argc))
+X    usage();
+X
+X  if (broadcast && totty) {
+X    printf("Broadcast and tty selection functions are mutually exclusive\n");
+X    exit(1);
+X  }
+X
+X  /* argument verification and "last send" function
+X   */
+X
+X  if ((!totty) && (!broadcast)) {
+X    sprintf(fname,"%s/.lastmsend",gethome(whoami()));
+X    if (!strcmp(argv[a],".")) {
+X      if ((f= fopen(fname,"r")) == NULL) {
+X        printf("Last recipient name unknown\n");
+X        exit(1);
+X      }
+X      else {
+X        fscanf(f,"%s",si.taddr);
+X        fclose(f);
+X        if (!striphost(si.taddr,si.tohost))
+X          strcpy(si.tohost,localhost);
+X      }
+X      a++;
+X    }
+X    else {
+X
+X      /* get name from command line argument and save it if we can
+X       */
+X
+X      if (*argv[a] == '@') {
+X        printf("You must specify a username\n");
+X        exit(1);
+X      }
+X      strcpy(si.taddr,argv[a]);
+X      if ((f= fopen(fname,"w")) != NULL) {
+X        fprintf(f,"%s\n",argv[a]);
+X        fclose(f);
+X      }
+X      if (!striphost(si.taddr,si.tohost))
+X        strcpy(si.tohost,localhost);
+X      a++;
+X    }
+X  }
+X  else if (totty) {
+X    if ((a < argc) && (*argv[a] == '@'))
+X      strcpy(si.tohost,argv[a++]+1);
+X    else
+X      strcpy(si.tohost,localhost);
+X  }
+X  else if (*argv[a] != '@') { /* broadcast */
+X    printf("You must indicate '@host' for a broadcast\n");
+X    exit(1);
+X  }
+X  else {
+X    strcpy(si.taddr,argv[a++]);
+X    (void) striphost(si.taddr,si.tohost);
+X  }
+X
+X  if (a < argc) {
+X
+X    /* command line mode
+X     */
+X
+X    strcpy(&si.msg[0],sig); /* copy signature into message area */
+X    for (; a < argc; a++) {
+X      strcat(si.msg,argv[a]);
+X      if (a != argc-1)
+X        strcat(si.msg," ");
+X    }
+X    si.fwdcount= 0;
+X    sendmessage(&si,&ri,SM_CLOSE|broadcast|totty);
+X    if (ri.h.errno != RE_OK)
+X      printf("%s\n",ri.msg);
+X    exit(0);
+X  }
+X
+X  /* make initial connection to see if we can
+X   */
+X
+X  si.msg[0]= '\0';
+X  sendmessage(&si,&ri,0);
+X  if (ri.h.errno != RE_OK) {
+X    printf("%s\n",ri.msg);
+X    exit(1);
+X  }
+X
+X  strcpy(&si.msg[0],sig); /* copy signature into message area */
+X
+X  for (;;) {
+X    int once = 0;
+X#ifdef GNUREADLINE
+X    if (!edit) {
+X#endif
+X      printf("msend>");
+X      if (fgets(&si.msg[strlen(sig)],MAXMSG-strlen(sig),stdin) == NULL) {
+X	printf("^D\n");                       /* EOF */
+X	si.msg[0]= '\0';                      /* send null message to close */
+X	sendmessage(&si,&ri,SM_CLOSE);        /* the connection */
+X	exit(0);
+X      }
+X#ifdef GNUREADLINE
+X    } else {
+X      rl_bind_key('\t',rl_insert); /* The default is "complete" */
+X      bzero(&si.msg[strlen(sig)],MAXMSG-strlen(sig));
+X      if((gnubuf = GNUGets("msend>")) == NULL) {
+X	printf("^D\n");                       /* EOF */
+X	si.msg[0]= '\0';                      /* send null message to close */
+X	sendmessage(&si,&ri,SM_CLOSE);        /* the connection */
+X	exit(0);
+X      } else  {
+X	strncpy(&si.msg[strlen(sig)],gnubuf,MAXMSG-strlen(sig)-1);
+X	free(gnubuf);
+X      }
+X    }
+X#endif
+X    
+X    alarm(LIFETIME);                         /* reset idle out timer */
+X#ifdef GNUREADLINE
+X    if (!edit)
+X#endif
+X      si.msg[strlen(si.msg)-1]= '\0';          /* strip newline */
+X
+X    if (!strcmp(&si.msg[strlen(sig)],".")) { /* exit command */
+X      si.msg[0]= '\0';
+X      sendmessage(&si,&ri,SM_CLOSE);
+X      exit(0);
+X    }
+X      
+X    if (si.msg[strlen(sig)] != '\0') {
+X      si.fwdcount= 0;
+X      sendmessage(&si,&ri,broadcast|totty);
+X      switch (ri.h.errno) {
+X        case RE_OK :
+X          break;
+X	case RE_NOTFATAL:
+X          printf("%s\n",ri.msg);
+X	  break;
+X        default :
+X          printf("%s\n",ri.msg);
+X          exit(1);               /* connection is already broken */
+X      }
+X    }
+X    if (!once) {
+X      /* This is some code to strip off the domain name of the host 
+X       * after we have sent one message.  It works because we know the 
+X       * signature is in the form "<user>@<host><SPACE>...".  If that 
+X       * format changes this will break...
+X       */
+X      int i,j;
+X      once++;
+X      for (i = 0; sig[i] != ' '; i++) {
+X	if (sig[i] == '.') {
+X	  for (j = i+1; sig[j] != ' '; j++);
+X	  strcpy(&sig[i],&sig[j]);
+X	  strcpy(&si.msg[0],sig); /* copy signature into message area */
+X	  break;
+X	}
+X      }
+X    }    
+X  }
+X}
+X
+END_OF_msend.c
+if test 13872 -ne `wc -c <msend.c`; then
+    echo shar: \"msend.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f msendd.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"msendd.c\"
+else
+echo shar: Extracting \"msendd.c\" \(3790 characters\)
+sed "s/^X//" >msendd.c <<'END_OF_msendd.c'
+X/* msendd.c:
+X *
+X * daemon required to allow msend to operate.  works with inetd also.
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X *
+X * special thanks to Barry Shein (bzs@bu-it.bu.edu) for the skeleton
+X * that this was built from.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X
+X#ifdef ROUTE
+Xshort doroute = 1;
+X#endif
+X
+X#ifdef DBROADCAST
+Xshort dobroadcast = 1;
+X#endif
+X
+X#ifdef SECURE_PORT
+Xshort notsecure = 1;
+X#endif
+X
+Xstatic void fireman()	/* catches falling babies */
+X{ WAIT_STATUS wstatus;
+X
+X  while(wait3(&wstatus,WNOHANG,NULL) > 0);
+X}
+X
+Xstatic void sigint()
+X{ error("SIGINT interrupt received");
+X  die(0);
+X}
+X
+Xstatic void sigterm()
+X{ error("SIGTERM interrupt received");
+X  die(0);
+X}
+X
+X
+Xmain(argc,argv)
+X     int argc;
+X     char *argv[];
+X{ 
+X  char c;
+X  int s,t;
+X  int i;
+X  struct sockaddr_in isa;
+X  extern int errno;
+X
+X
+X  while ((c = getopt(argc, argv, "rb")) != (char) -1) {
+X    switch(c) {
+X    case 'r':
+X#ifdef ROUTE
+X      doroute = 0;
+X#endif
+X      break;
+X    case 'b':
+X#ifdef DBROADCAST
+X      dobroadcast = 0;
+X#endif
+X      break;
+X    }
+X  }
+X
+X#ifndef ALONE
+X  /* inetd(8), don't leave home without it */
+X#ifdef SECURE_PORT
+X  i = sizeof(isa);
+X  s = 0; /* stdin */
+X  if (getpeername(s,(struct sockaddr *)&isa,&i) >= 0){
+X    if ((ntohs(isa.sin_port) < IPPORT_RESERVED)
+X	&& (ntohs(isa.sin_port) > IPPORT_RESERVED/2))
+X      notsecure = 0;
+X  }
+X#endif
+X  domessage(0);
+X  exit(0);
+X
+X#else
+X  /* disassociate ourselves from any terminal
+X   */
+X
+X  for (i= 0; i < getdtablesize(); i++)
+X    close(i);
+X  if ((i= open("/dev/tty", O_RDWR)) >= 0) {
+X    if (ioctl(i, TIOCNOTTY, NULL) < 0)
+X      error("Can't disassociate from tty\n");
+X    close(i);
+X  }
+X
+X  /* normal daemon.  set up for listening and then go into an infinite
+X   * loop for connections
+X   */
+X
+X  error("msendd started");           /* remember when it all started */
+X  if ((s= establish(portnum())) < 0) { /* bind to a socket */
+X    if (errno == EADDRINUSE) {
+X      printf("msendd: cannot allocate port (daemon already active?)\n");
+X    }
+X    else
+X      perror("msendd: establish");
+X    die(1);
+X  }
+X
+X  /* an ioctl should go here after openning /dev/tty but i can't remember
+X   * which ioctl
+X   */
+X
+X  switch (fork()) {
+X  case -1: /* oh well */
+X    error("can't fork, sorry\n");
+X  case 0:
+X    break;
+X  default:
+X    exit(0);
+X  }
+X
+X  /* after establishing ourselves, become DAEMONUID
+X   */
+X
+X  if (getuid() == ROOTUID)
+X    seteuid(DAEMONUID);
+X
+X  i = sizeof(isa);                   /* find it's "name" */
+X  getsockname(s,&isa,&i);
+X  signal(SIGHUP,SIG_IGN);
+X  signal(SIGSTOP,SIG_IGN);           /* bad things happened w/o this */
+X  signal(SIGTSTP,SIG_IGN);           /* seems to get this sometimes */
+X  signal(SIGINT,sigint);
+X  signal(SIGTERM,sigterm);
+X  signal(SIGCHLD,fireman);           /* set up to catch dead children */
+X  listen(s,BACKLOG);                 /* set maximum backlog */
+X
+X  for(;;) {
+X    i = sizeof isa ;
+X    if((t = accept(s,&isa,&i)) < 0) {
+X      if(errno != EINTR)             /* we'll get an EINTR when child dies */
+X	error("accept error");
+X      continue;	                     /* try again */
+X    }
+X
+X    if (fork() == 0) {
+X      close(s);                      /* i have no need for you */
+X      setpgrp(0, getpid());          /* parent doesn't want signals! */
+X#ifdef SECURE_PORT
+X      if (getpeername(t,(struct sockaddr *)&isa,&i) >= 0){
+X	if ((ntohs(isa.sin_port) < IPPORT_RESERVED)
+X	    && (ntohs(isa.sin_port) > IPPORT_RESERVED/2))
+X	  notsecure = 0;
+X      }
+X#endif
+X      domessage(t);                  /* process the message(s) */
+X      exit(0);                       /* domessage does this too */
+X    }
+X
+X    /* fork errors disconnect immediately, tough luck on the user
+X     */
+X
+X    else
+X      close(t);
+X  }
+X#endif
+X}
+X
+X
+END_OF_msendd.c
+if test 3790 -ne `wc -c <msendd.c`; then
+    echo shar: \"msendd.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f network.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"network.c\"
+else
+echo shar: Extracting \"network.c\" \(4982 characters\)
+sed "s/^X//" >network.c <<'END_OF_network.c'
+X/* network.c:
+X *
+X * raw networking commands.  these commands are independent of the
+X * application protocol; they are not tuned specifically for msend,
+X * but instead make up a library that i use to work with networking.
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"    /* for NOHERROR */
+X#include "msend.h"     /* for MAXHOSTNAME */
+X#include <sys/errno.h>
+X
+X#define MAXCONNECTS 1  /* max number of connects we need */
+X
+Xextern errno;
+Xextern int h_errno;
+X
+Xstatic int  init= 1;
+Xstatic int  socki[MAXCONNECTS];
+Xstatic char sockh[MAXCONNECTS][MAXHOSTNAME+1];
+X
+Xstatic void hinit()
+X{ int a;
+X
+X  for (a= 0; a < MAXCONNECTS; a++)
+X    socki[a]= -1;
+X  init= 0;
+X}
+X
+Xint hopen(hostname)
+Xchar *hostname;
+X{ struct sockaddr_in sa;
+X  struct hostent     *hp;
+X  unsigned long address = 0;
+X  unsigned long inet_addr();
+X  int a,i;
+X#ifdef SECURE_PORT
+X  int lport = IPPORT_RESERVED - 1;
+X  int uid;
+X#endif
+X
+X  if (init)
+X    hinit();
+X
+X  /* find host table entry
+X   */
+X
+X  if ((address = inet_addr(hostname)) == (unsigned long) -1) {
+X    address = 0;
+X    if((hp= gethostbyname(hostname)) == NULL) {
+X      errno= ECONNREFUSED;
+X#ifdef NOHERROR
+X      h_errno = 1; /* Unknown Host */
+X#endif
+X      return(-1);
+X    }
+X  }
+X
+X  h_errno = 0;
+X
+X
+X  /* see if we're already talking
+X   */
+X
+X  for (a= 0; (a < MAXCONNECTS) && ((socki[a] == -1) ||
+X             strcmp(sockh[a], address ? hostname : hp->h_name)); a++)
+X    ;
+X  if (a < MAXCONNECTS) /* great!  don't need a connection */
+X    return(socki[a]);
+X
+X  /* find an empty spot
+X   */
+X
+X  for (a= 0; (a < MAXCONNECTS) && (socki[a] != -1); a++)
+X    ;
+X  if (a >= MAXCONNECTS) {
+X    errno= EMFILE;
+X    return(-1);
+X  }
+X
+X  strcpy(sockh[a],address ? hostname : hp->h_name);
+X  bzero(&sa,sizeof(sa));
+X  if (getprotobyname("tcp") == NULL) {
+X    errno= ENOPROTOOPT;
+X    return(-1);
+X  }
+X  if (address)
+X    sa.sin_addr.s_addr = address;
+X  else
+X    bcopy(hp->h_addr,(char *)&sa.sin_addr,hp->h_length);
+X  sa.sin_family= address ? AF_INET : hp->h_addrtype;
+X  i=portnum();
+X  sa.sin_port= htons((u_short)i);
+X#ifndef SECURE_PORT
+X  if ((socki[a]= socket(address ? AF_INET : hp->h_addrtype,SOCK_STREAM,0)) < 0)
+X    return(-1);
+X#else
+X  uid= geteuid();
+X  seteuid(ROOTUID);
+X  if((socki[a] = rresvport(&lport)) < 0) {
+X    seteuid(uid);
+X    return(-1);
+X  }
+X  seteuid(uid);
+X#endif
+X#if defined(h_addr)  /* 4.3 or greater system. Has "h_addr_list". */
+X  while((connect(socki[a],&sa,sizeof sa) < 0)) {
+X    (void) close(socki[a]);
+X#ifdef SECURE_PORT
+X    if (errno == EADDRINUSE) {
+X      lport--;
+X      seteuid(ROOTUID);
+X      if((socki[a] = rresvport(&lport)) < 0) {
+X	seteuid(uid);
+X	return(-1);
+X      }
+X      seteuid(uid);
+X      continue;
+X    }
+X#endif
+X    if (address) 
+X      return(-1);
+X    if (!hp->h_addr_list[1])
+X      return(-1);
+X    hp->h_addr_list++;
+X    bcopy(hp->h_addr_list[0],&sa.sin_addr,hp->h_length);
+X#ifndef SECURE_PORT
+X    if ((socki[a]= socket( hp->h_addrtype,SOCK_STREAM,0)) < 0)
+X      return(-1);
+X#else
+X    seteuid(ROOTUID);
+X    if((socki[a] = rresvport(&lport)) < 0) {
+X      seteuid(uid);
+X      return(-1);
+X    }
+X    seteuid(uid);
+X#endif
+X  }
+X#else
+X#ifdef SECURE_PORT
+Xfor(;;) {
+X#endif
+X  if (connect(socki[a],&sa,sizeof sa) < 0) {
+X    (void) close(socki[a]);
+X#ifndef SECURE_PORT
+X    return(-1);
+X#else
+X    if (errno == EADDRINUSE) {
+X      lport--;
+X      seteuid(ROOTUID);
+X      if((socki[a] = rresvport(&lport)) < 0) {
+X	seteuid(uid);
+X	return(-1);
+X      }
+X      seteuid(uid);
+X      continue;
+X    }
+X    break;
+X#endif
+X  }
+X}
+X
+X#endif
+X  /* at this point you should be connected to the host for commands */
+X
+X  return(socki[a]);
+X}
+X
+X/* close a single network connection
+X */
+X
+Xvoid hclose(s)
+Xint s;
+X{ int a;
+X
+X  for (a= 0; (a < MAXCONNECTS) && (socki[a] != s); a++)
+X  if (a < MAXCONNECTS) {
+X    close(socki[a]);
+X    socki[a]= -1;
+X  }
+X  else        /* not one of ours, but close it anyway */
+X    close(s);
+X}
+X
+X/* this closes all open network connections
+X */
+X
+Xvoid hcleanup()
+X{ int     a;
+X
+X  for (a= 0; a < MAXCONNECTS; a++)
+X    if (socki[a] != -1) {
+X      close(socki[a]);
+X      socki[a]= -1;
+X    }
+X}
+X
+Xint hread(s,buf,n)
+Xint  s;
+Xchar *buf;
+Xint  n;
+X{ int bcount,                      /* counts bytes read */
+X      br;                          /* bytes read this pass */
+X
+X  bcount= 0;
+X  br= 0;
+X  while (bcount < n) {             /* loop until full buffer */
+X    if ((br= read(s,buf,n-bcount)) > 0) {
+X      bcount += br;                /* increment byte counter */
+X      buf += br;                   /* move buffer ptr for next read */
+X    }
+X    if (br == 0)                    /* EOF */
+X      return(0);
+X    if (br < 0)                    /* signal an error to the caller */
+X      return(-1);
+X  }
+X  return(bcount);
+X}
+X
+Xint hwrite(s,buf,n)
+Xint  s;
+Xchar *buf;
+Xint  n;
+X{ int bcount,
+X      bw;
+X
+X  bcount=0;
+X  while (bcount < n) {
+X    if ((bw= write(s,buf,n-bcount))>0) {
+X      bcount += bw;
+X      buf += bw;
+X    }
+X    if (bw < 0)
+X      return(-1);
+X  }
+X  return(bcount);
+X}
+END_OF_network.c
+if test 4982 -ne `wc -c <network.c`; then
+    echo shar: \"network.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f sendrecv.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"sendrecv.c\"
+else
+echo shar: Extracting \"sendrecv.c\" \(5347 characters\)
+sed "s/^X//" >sendrecv.c <<'END_OF_sendrecv.c'
+X/* sendrecv.c:
+X *
+X * these routines send messages and receive replies
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X
+Xextern int  errno;
+Xextern char *sys_errlist[];
+X
+X
+Xchar	*h_errlist[] = {
+X  "Error 0",
+X  "Unknown host",			/* 1 HOST_NOT_FOUND */
+X  "Host name lookup failure",		/* 2 TRY_AGAIN */
+X  "Unknown server error",		/* 3 NO_RECOVERY */
+X  "No address associated with name",	/* 4 NO_ADDRESS */
+X};
+X
+X#ifndef NOHERROR
+Xextern int h_errno;
+X#else
+Xint h_errno;
+X#endif
+X
+Xstatic char *wrerr= "communications error with socket";
+X
+X/* send a message to another server and get a reply
+X */
+X
+Xvoid sendmessage(si,ri,mode)
+Xstruct simsg *si; /* message to send */
+Xstruct rimsg *ri; /* reply we'll get */
+Xint    mode;      /* communications mode */
+X{ int     a;
+X  int     uid;
+X  static  int     s= -1;
+X  struct  sheader sh;
+X  struct  rheader rh;
+X  u_short fwdcount;
+X  u_short mmode;
+X
+X  /* check to see if we have too many forwards
+X   */
+X
+X  if (si->fwdcount > MAXFORWARD) {
+X    ri->h.errno= RE_FWDLOOP;
+X    strcpy(ri->msg,"Forwarding loop (too many forwards)");
+X    return;
+X  }
+X
+X  /* look for illegal characters in the string.  this stops people
+X   * from sending nasty codes with this
+X   */
+X
+X  for (a= 0; a < strlen(si->msg); a++)
+X    if ((si->msg[a] < ' ') && (si->msg[a] != '\t') && (si->msg[a] != '\n') &&
+X        (si->msg[a] != 010)) {
+X      ri->h.errno= RE_NOTFATAL;
+X      strcpy(ri->msg,"Control characters are not allowed in messages (message not sent)");
+X      ri->h.msglen= strlen(ri->msg);
+X      return;
+X    }
+X
+X  /* s is -1 if we're not already connected
+X   */
+X
+X  if (s == -1) {
+X
+X    /* if possible, become root for duration of hopen() call so we can
+X     * deal with low port numbers
+X     */
+X
+X    if (getuid() == ROOTUID) {
+X      uid= geteuid();
+X      seteuid(ROOTUID);
+X    }
+X
+X    /* return immediate error if we can't connect
+X     */
+X
+X    if ((s= hopen(si->tohost)) < 0) {
+X      if (getuid() == ROOTUID)
+X        seteuid(uid);
+X      if (h_errno == 0) { 
+X	sprintf(ri->msg,"%s: %s",si->tohost,sys_errlist[errno]);
+X	ri->h.msglen= strlen(sys_errlist[errno]);
+X      } else { 
+X	sprintf(ri->msg,"%s: %s",si->tohost,h_errlist[h_errno]);
+X	ri->h.msglen= strlen(h_errlist[h_errno]);
+X      }
+X      ri->h.errno= RE_SYSERR;
+X      return;
+X    }
+X    if (getuid() == ROOTUID)
+X      seteuid(uid); /* become our old selves again */
+X  }
+X
+X  /* format request and send it across
+X   */
+X
+X  fwdcount= htons(si->fwdcount);
+X  mmode= htons((u_short)mode);
+X  sh.taddrlen= htons((u_short)strlen(si->taddr));
+X  sh.tttylen= htons((u_short)strlen(si->ttty));
+X  sh.msglen= htons((u_short)strlen(si->msg));
+X
+X  if (hwrite(s,(char *)&sh,sizeof(struct sheader)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X  if (hwrite(s,(char *)&fwdcount,sizeof(u_short)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X  if (hwrite(s,(char *)&mmode,sizeof(u_short)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X  if (hwrite(s,(char *)si->taddr,strlen(si->taddr)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X  if (hwrite(s,(char *)si->ttty,strlen(si->ttty)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X  if (hwrite(s,(char *)si->msg,strlen(si->msg)) < 0) {
+X    hclose(s);
+X    s= -1;
+X    blderr(ri,RE_SYSERR,wrerr);
+X    return;
+X  }
+X
+X  /* Get the returned structure
+X   */
+X
+X  hread(s,(char *)&rh,sizeof(struct rheader));
+X  ri->h.errno= ntohs(rh.errno);
+X  ri->h.msglen= ntohs(rh.msglen);
+X  hread(s,(char *)ri->msg,ri->h.msglen);
+X  ri->msg[ri->h.msglen]= '\0';
+X  if ((mode & SM_CLOSE) || (ri->h.errno != RE_OK)) {
+X    hclose(s);
+X    s= -1;
+X  }
+X}
+X
+X/* sendreply() and recvmessage() are used only in the daemon
+X */
+X
+X/* send reply back to whomever called us.  automatically close connection
+X * if we were supposed to.
+X */
+X
+Xvoid sendreply(s,ri,mode)
+Xint s;
+Xstruct rimsg *ri;
+Xint mode;
+X{ struct rheader rh;
+X
+X  rh.errno= htons(ri->h.errno);
+X  rh.msglen= htons((u_short)strlen(ri->msg));
+X  hwrite(s,(char *)&rh,sizeof(struct rheader));
+X  hwrite(s,(char *)ri->msg,strlen(ri->msg));
+X  if ((mode & SM_CLOSE) || (ri->h.errno != RE_OK))
+X    hclose(s);
+X}
+X
+X/* this gets a message from the socket.
+X */
+X
+Xvoid recvmessage(s,si)
+Xint s;
+Xstruct simsg *si;
+X{ struct sheader sh;
+X  int    r;
+X
+X  /* pull the message out of the connection and into a structure
+X   */
+X
+X  switch (hread(s,(char *)&sh,sizeof(struct sheader))) {
+X  case -1:
+X    error("error reading message header"); /* oh well */
+X  case 0:
+X    hclose(s);
+X    exit(0);
+X  default:
+X    break;
+X  }
+X
+X  /* adjust integer format
+X   */
+X
+X  sh.taddrlen= ntohs(sh.taddrlen);
+X  sh.tttylen= ntohs(sh.tttylen);
+X  sh.msglen= ntohs(sh.msglen);
+X
+X  /* read the data section
+X   */
+X
+X  r= hread(s,(char *)&si->fwdcount,sizeof(u_short));
+X  r|= hread(s,(char *)&si->mode,sizeof(u_short));
+X  r|= hread(s,(char *)si->taddr,sh.taddrlen);
+X  r|= hread(s,(char *)si->ttty,sh.tttylen);
+X  r|= hread(s,(char *)si->msg,sh.msglen);
+X
+X  if (r < 0) {
+X    error("packet read error");
+X    hclose(s);
+X    exit(1);
+X  }
+X
+X  si->fwdcount= ntohs(si->fwdcount);
+X  si->mode= ntohs(si->mode);
+X  si->taddr[sh.taddrlen]= '\0';
+X  si->ttty[sh.tttylen]= '\0';
+X  si->msg[sh.msglen]= '\0';
+X}
+END_OF_sendrecv.c
+if test 5347 -ne `wc -c <sendrecv.c`; then
+    echo shar: \"sendrecv.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f utmp.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"utmp.c\"
+else
+echo shar: Extracting \"utmp.c\" \(1285 characters\)
+sed "s/^X//" >utmp.c <<'END_OF_utmp.c'
+X/* utmp.c:
+X *
+X * these routines are for manipulating the utmp file.  these were written
+X * by Phil Budne (budd@bu-it.bu.edu) originally.
+X */
+X
+X#include "config.h"
+X#include "msend.h"
+X
+Xstatic FILE *uf;			/* utmp file */
+Xstatic char *utmpfile = "/etc/utmp";	/* utmp file name */
+X
+X/* open the utmp file if necessary and read one entry at a time
+X */
+X
+Xstruct utmp *getutent()
+X{ static struct utmp ubuf;
+X  struct stat   stb;
+X
+X  /* verify that utmp file is a reasonable size
+X   */
+X
+X  if (uf == NULL) {
+X    if (stat(utmpfile,&stb) == 0 ) {
+X      if ((stb.st_size % sizeof(struct utmp)) != 0) {
+X        return(NULL);
+X      }
+X    }
+X    else
+X      return(NULL);
+X
+X    /* open utmp
+X     */
+X
+X    if ((uf= fopen(utmpfile,"r")) == NULL) /* was '< 0' -20 Mar 89-composer */
+X      return(NULL);
+X  }
+X
+X  /* read next utmp entry and return it if we can
+X   */
+X
+X  if (fread(&ubuf,sizeof(ubuf),1,uf) == 0 ) {
+X    fseek(uf,0L,0);
+X    return(NULL);
+X  }
+X
+X/* fix for problem with ut_name containing both ut_name and ut_host */
+X/*   when the size of ut_name = 8 .. - 20 Mar 89 - composer         */
+X/*   one slight side effect - kills 1st char of ut_host             */
+X  ubuf.ut_name[8] = '\0';
+X  return(&ubuf);
+X}
+X
+X/* close utmp file
+X */
+X
+Xvoid endutent()
+X{
+X  if(uf != NULL) {
+X    fclose(uf);
+X    uf= NULL;
+X  }
+X}
+X
+X
+X
+END_OF_utmp.c
+if test 1285 -ne `wc -c <utmp.c`; then
+    echo shar: \"utmp.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f whoami.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"whoami.c\"
+else
+echo shar: Extracting \"whoami.c\" \(723 characters\)
+sed "s/^X//" >whoami.c <<'END_OF_whoami.c'
+X/* whoami.c:
+X *
+X * this attempts to figure out who ran the program
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X#ifndef M_SYSV
+X#include <string.h>
+Xextern char *getlogin();
+X#endif
+X
+Xchar *whoami()
+X{ struct passwd *pwd;
+X  static char   name[MAXUSERNAME+1];
+X  static int    unknown= 1;
+X
+X  if (unknown) {
+X    if ((pwd= getpwuid(getuid())) == NULL) {
+X      if (strcpy(name,getlogin()) == NULL) {
+X        printf("Who are you?  (No password file entry?)\n");
+X        exit(1);
+X      }
+X    }
+X    else
+X      strcpy(name,pwd->pw_name);
+X    unknown= 0;
+X  }
+X  return(name);
+X}
+END_OF_whoami.c
+if test 723 -ne `wc -c <whoami.c`; then
+    echo shar: \"whoami.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f write.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"write.c\"
+else
+echo shar: Extracting \"write.c\" \(6464 characters\)
+sed "s/^X//" >write.c <<'END_OF_write.c'
+X/* write.c:
+X *
+X * these routines are used for writing to users
+X *
+X * (c) Copyright 1988, 1989, 1990 Jim Frost.  All Rights Reserved.  Please see
+X * the accompanying file "Copyright" for more information.
+X */
+X
+X#include "Copyright"
+X#include "config.h"
+X#include "msend.h"
+X#ifdef M_SYS
+X#include <unistd.h>
+X#endif
+X#if defined(_AIX) && defined(USE_LOCKF)
+X#include <sys/lockf.h>
+X#endif
+X
+Xextern int  errno;
+X
+X#ifdef SECURE_PORT
+Xextern short notsecure;
+X#endif
+X
+X/* this writes to the tty specified in si and saves the message in spool
+X */
+X
+Xstatic int ttywrite(si)
+Xstruct simsg *si;
+X{ FILE *f;
+X  char fname[MAXFILENAME];
+X  int  uid;
+X
+X  /* try to write to user's tty
+X   */
+X
+X  sprintf(fname,"/dev/%s",si->ttty);
+X  if ((f= fopen(fname,"w")) == NULL)
+X    if (errno == EACCES)
+X      return(RE_NOMSGS);
+X    else
+X      return(RE_SYSERR);
+X#ifdef SECURE_PORT
+X  if (notsecure)
+X    fprintf(f,"\r\n[Bogus? %s]\r\n",si->msg);
+X  else
+X#endif
+X    if (isatty(fileno(f)))
+X      fprintf(f,"\r\n[%s]\r\n",si->msg);
+X  fclose(f);
+X
+X  /* save the message in the spool for "huh" option
+X   */
+X
+X  if (getuid() == ROOTUID) {
+X    if ((uid= getid(si->taddr)) < 0) /* write to file as if we were user */
+X      return(RE_NOUSER);
+X    seteuid(uid);
+X  }
+X#ifdef SPOOLDIR
+X  sprintf(fname,"%s/%s",SPOOLDIR,si->taddr);
+X#else
+X  sprintf(fname,"%s/.msendmsgs",gethome(si->taddr));
+X#endif
+X
+X
+X  if ((f= fopen(fname,"a")) != NULL) {
+X#ifndef USE_LOCKF
+X    flock(fileno(f),LOCK_EX);
+X#else
+X    lockf(fileno(f), F_TLOCK, 0);
+X#endif
+X    fprintf(f,"[%s]\n",si->msg);
+X#ifndef USE_LOCKF
+X    flock(fileno(f),LOCK_UN);
+X#else
+X    lockf(fileno(f), F_ULOCK, 0);
+X#endif
+X    fclose(f);
+X  }
+X
+X  if (getuid() == ROOTUID)
+X    seteuid(DAEMONUID);
+X
+X  return(RE_OK);
+X}
+X
+Xvoid broadcast(si)
+Xstruct simsg *si;
+X{ char   s[80];
+X  struct utmp *u;
+X
+X  sprintf(s,"Broadcast message %s",si->msg); /* log it! */
+X  error(s);
+X
+X  /* loop for every utmp entry and try to write.  ignore any
+X   * errors returned by ttywrite.  we have to implement the
+X   * entire write command here or else we get an infinite
+X   * loop on the first utmp entry.
+X   */
+X
+X  while (u= getutent()) {
+X#ifdef SYSVUTMP
+X    if (u->ut_type != USER_PROCESS)
+X      continue;
+X#endif
+X    if (strcmp(u->ut_name,"")) {
+X      sprintf(si->ttty,u->ut_line);
+X      sprintf(si->taddr,u->ut_name);
+X      ttywrite(si);
+X    }
+X  }
+X  endutent();
+X}
+X
+X/* single user
+X */
+X
+Xint writeuser(si)
+Xstruct simsg     *si;
+X{ struct utmp    *u;  /* utmp entry */
+X  struct stat    stb;
+X  struct rimsg   ri;
+X  char   *home;
+X  char   ttyname[sizeof("/dev/")+MAXTTY+1];
+X  char   token[MAXTOKEN+1];
+X  char   fname[MAXFILENAME+1];
+X  char   line[MAXLINE+1];
+X  FILE   *f;
+X  time_t ltime;
+X  int    ttystat;
+X  int    notfound;
+X  int    allttys;
+X  int    forward;
+X  int    fwderr;
+X  int    ttyerr;
+X  int    uid;
+X
+X  /* send to particular tty
+X   */
+X
+X  if (si->mode & SM_TTY) {
+X
+X    /* look up user of that tty.
+X     */
+X
+X    ttystat= RE_SYSERR;
+X    while (u= getutent())
+X      if (!strcmp(u->ut_line,si->ttty)) {
+X        strcpy(si->taddr,u->ut_name);
+X        strcpy(si->ttty,u->ut_line);
+X        ttystat= ttywrite(si);
+X        break;
+X      }
+X    endutent();
+X    if (ttystat == RE_SYSERR)
+X      errno= ENODEV;          /* error message for user */
+X    return(ttystat);
+X  }
+X
+X  /* open user's options file and see if they want some special
+X   * propagation
+X   */
+X
+X  allttys= 0;
+X  forward= 0;
+X  fwderr= RE_OK;
+X
+X  if ((home= gethome(si->taddr)) == NULL)
+X    return(RE_NOUSER);
+X  if (getuid() == ROOTUID) {
+X    if ((uid= getid(si->taddr)) < 0)
+X      return(RE_NOUSER);
+X    seteuid(uid);
+X  }
+X
+X  sprintf(fname,"%s/.msendrc",home);
+X  if ((f= fopen(fname,"r")) != NULL) {
+X    while (fgets(line,MAXLINE,f) != NULL) {
+X      sscanf(line,"%s",token);
+X
+X      /* tty options
+X       */
+X
+X      if (!strcmp(token,"allttys"))
+X        allttys= 1;
+X      else if (!strcmp(token,"write-to-tty")) {
+X        sscanf(line,"%*s %s",si->ttty);
+X        ttywrite(si);
+X        forward= 1; /* same idea as forwarding */
+X      }
+X
+X      /* forwarding options.  note that we return the first error that
+X       * we get when forwarding so the user has some idea that something
+X       * went wrong.  compound errors will be lost.  we ignore obvious
+X       * host loops.
+X       */
+X
+X      else if (!strcmp(token,"forward-to-user")) {
+X        sscanf(line,"%*s %s",si->taddr);
+X        if ((striphost(si->taddr,si->tohost)) && (!fwdloop(si->tohost))) {
+X          si->fwdcount++;
+X          forward= 1;
+X          sendmessage(si,&ri,si->mode);
+X          if (fwderr == RE_OK)
+X            fwderr= ri.h.errno;
+X	}
+X      }
+X      else if (!strcmp(token,"forward-to-tty")) {
+X        sscanf(line,"%*s %s %s",si->ttty,si->taddr);
+X        if ((striphost(si->taddr,si->tohost)) && (!fwdloop(si->tohost))) {
+X          forward= 1;
+X          si->fwdcount++;
+X          sendmessage(si,&ri,si->mode);
+X          if (fwderr == RE_OK)
+X            fwderr= ri.h.errno;
+X        }
+X      }
+X      else if (!strcmp(token,"write-and-forward-to-user")) {
+X        sscanf(line,"%*s %s",si->taddr);
+X        if ((striphost(si->taddr,si->tohost)) && (!fwdloop(si->tohost))) {
+X          si->fwdcount++;
+X          sendmessage(si,&ri,si->mode);
+X          if (fwderr == RE_OK)
+X            fwderr= ri.h.errno;
+X        }
+X      }
+X    }
+X    fclose(f);
+X    if (forward)
+X      return(fwderr);
+X  }
+X
+X  if (getuid() == ROOTUID)
+X    seteuid(DAEMONUID);
+X
+X  /* send to least idle user or all writable ttys, depending on mode.
+X   */
+X
+X  ltime= (time_t)0;
+X  notfound= 1;
+X  ttyerr= RE_OK;
+X
+X  while (u= getutent()) {
+X    if (!strcmp(u->ut_name,si->taddr)) {     /* match user */
+X      sprintf(ttyname,"/dev/%s",u->ut_line);
+X
+X      if (stat(ttyname,&stb) != -1) {
+X        notfound= 0;
+X        if (stb.st_mode & 022) /* see if we have permission */
+X          if (allttys) {
+X
+X            /* write to every possible tty
+X             */
+X
+X            strcpy(si->ttty,u->ut_line);
+X            if (ttyerr != RE_OK)
+X              ttywrite(si);
+X            else
+X              ttyerr= ttywrite(si);
+X          }
+X          else {
+X
+X            /* look for least idle terminal
+X             */
+X
+X            if (!ltime) {
+X              ltime= stb.st_mtime;
+X              strcpy(si->ttty,u->ut_line);
+X            }
+X            else if (stb.st_mtime > ltime) { /* less idle */
+X              ltime= stb.st_mtime;
+X              strcpy(si->ttty,u->ut_line);
+X            }
+X	  }
+X      }
+X    }
+X  }
+X  endutent();
+X
+X  if (allttys)
+X    return(ttyerr);
+X
+X  if (notfound)
+X    return(RE_NOTTHERE);
+X  else if (!ltime)
+X    return(RE_NOMSGS);
+X
+X  return(ttywrite(si));
+X}
+END_OF_write.c
+if test 6464 -ne `wc -c <write.c`; then
+    echo shar: \"write.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of archive 2 \(of 2\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked both archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+The Truly K00L don't have signatures.

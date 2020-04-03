@@ -1,0 +1,561 @@
+Path: funic!news.funet.fi!sunic!palantir.p.tvt.se!malmo.trab.se!kth.se!eru.mt.luth.se!bloom-beacon!micro-heart-of-gold.mit.edu!rutgers!usc!cs.utexas.edu!uunet!mcsun!uknet!slxsys!ibmpcug!dylan
+From: dylan@ibmpcug.co.uk (Matthew Farwell)
+Newsgroups: alt.sources
+Subject: icat for Xenix (and maybe SVR3)
+Message-ID: <1992Mar25.051403.21563@ibmpcug.co.uk>
+Date: 25 Mar 92 05:14:03 GMT
+Organization: The IBM PC User Group, UK.
+Lines: 552
+
+For all you people who want to read files without updating access
+times...
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create the files:
+#	README
+#	Makefile
+#	icat.1
+#	icat.c
+#	util.c
+#	util2.c
+#	util.h
+# This archive created: Wed Mar 25 05:10:02 1992
+export PATH; PATH=/bin:$PATH
+if test -f 'README'
+then
+	echo shar: will not over-write existing file "'README'"
+else
+cat << \SHAR_EOF > 'README'
+icat - display file using inode number
+only works with SVR3 filesystems
+
+This was written by me in a fit of boredom.  You can do what you like
+with it.  If you have any problems with it, I don't want to hear about
+them.
+
+Dylan <dylan@ibmpcug.co.uk>
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'Makefile'
+then
+	echo shar: will not over-write existing file "'Makefile'"
+else
+cat << \SHAR_EOF > 'Makefile'
+#
+# makefile for icat
+#
+
+SHELL = /bin/sh
+CC = gcc
+CFLAGS = -O
+LDFLAGS = -g
+LOADLIBES =
+CLEAN = core tags shar
+EXE = icat
+OBJ = icat.o util.o util2.o
+SRC = $(OBJ:.o=.c)
+HDR = util.h
+DIST = README Makefile icat.1 $(SRC) $(HDR)
+
+all: $(EXE)
+
+$(EXE): $(OBJ)
+	$(CC) $(LDFLAGS) $(OBJ) $(LOADLIBES) -o $@
+
+clean:
+	rm -f $(EXE) $(OBJ) $(CLEAN)
+
+strip: $(EXE)
+	strip $(EXE)
+
+tags: $(SRC) $(HDR)
+	ctags $(SRC) $(HDR)
+
+shar: $(DIST)
+	shar $(DIST) > shar
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'icat.1'
+then
+	echo shar: will not over-write existing file "'icat.1'"
+else
+cat << \SHAR_EOF > 'icat.1'
+.TH ICAT 1 "21 March 1992"
+.SH NAME
+icat - display files using the inode number
+.SH SYNOPSIS
+.B icat
+.RB [ \-f
+.IR filesystem ]
+.RI [ inum ]
+.SH DESCRIPTION
+.I icat
+is like cat, only it takes as it's argument an inode number, (and optionally
+a filesystem).  It only works for directories and regular files.
+.I filesystem
+must be a block special device.  Only works for SVR3 filesystems.
+
+.SH CREDITS
+.I icat
+was written by Matthew Farwell <dylan@ibmpcug.co.uk>.
+.SH BUGS
+Probably.
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'icat.c'
+then
+	echo shar: will not over-write existing file "'icat.c'"
+else
+cat << \SHAR_EOF > 'icat.c'
+/*
+ * icat.c - display an file using the inode number.
+ * only works for SVR3 filesystems.
+ *
+ * Written by: Matthew Farwell <dylan@ibmpcug.co.uk>
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/filsys.h>
+#include <sys/ino.h>
+
+#include "util.h"
+
+#undef NULL
+#define NULL 0
+
+#define DEFDEV		"/dev/root"
+#define FSSIZE		(sizeof (struct filsys))
+#define INSIZE		(sizeof (struct dinode))
+#define nerror(s1, s2)	do { errno=0; error((s1), (s2)); } while (0)
+
+char *progname = NULL;
+char *device = DEFDEV;
+
+int blocksize = 0;
+long filesize = 0;
+int poindisk = 0;
+char *buf = NULL;
+FILE *ifp = NULL;
+char *fbuf = NULL;
+char *sbuf = NULL;
+char *tbuf = NULL;
+
+static void find_blk();
+static void sind_blk();
+static void tind_blk();
+static void process();
+
+extern int getopt();
+
+static void usage()
+{
+	fprintf(stderr, "usage: %s [-f filsys] inum\n", progname);
+}
+
+int main(argc, argv)
+int argc;
+char **argv;
+{
+	int c, errflg=0;
+	struct filsys fs;
+	struct dinode din;
+	struct stat st;
+	int inum=0, ninode;
+	extern int optind;
+	extern char *optarg;
+
+	progname = basename(argv[0]);
+
+	while ((c=getopt(argc, argv, "df:")) != EOF) {
+		switch (c) {
+		case 'f':
+			device = optarg;
+			break;
+		default:
+			errflg++;
+			break;
+		}
+	}
+
+	if (errflg) {
+		usage();
+		exit(1);
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0 || (inum = xatoi(argv[0])) < 0) {
+		usage();
+		exit(1);
+	}
+
+	if (stat(device, &st) == -1) error("could not stat %s", device);
+	if ((st.st_mode & S_IFMT) != S_IFBLK)
+		nerror("%s is not block special", device);
+
+	/* read & throw away block 0 */
+
+	ifp = efopen(device, "rb");
+	if (fread((void *)&fs, FSSIZE, 1, ifp) != 1) 
+		error("could not read block 0", "");
+
+	/* read superblock */
+
+	if (fread((void *)&fs, FSSIZE, 1, ifp) != 1) 
+		error("could not read superblock", "");
+
+	if (fs.s_magic != S_S3MAGIC)
+		nerror("%s is not a valid filesystem", device);
+
+	blocksize = (fs.s_type == S_B512) ? 512 : 1024;
+	buf = emalloc(blocksize);
+	fbuf = emalloc(blocksize);
+	sbuf = emalloc(blocksize);
+	tbuf = emalloc(blocksize);
+	poindisk = blocksize/4;
+
+	/* number of blocks allocated for inodes includes the superblock(s) */
+	ninode = (fs.s_isize*blocksize - 2*FSSIZE) / INSIZE;
+
+	if (inum < 2)
+		nerror("Invalid inode number", "");
+
+	if (inum > ninode)
+		nerror("not that many inodes on partition %s", device);
+
+	/* seek to right inode & read it */
+	if (fseek(ifp, (long)(((inum-1)*INSIZE) + (2*FSSIZE)), 0) != 0)
+		error("fseek failed", "");
+
+	if (fread((void *)&din, INSIZE, 1, ifp) != 1) 
+		error("inode fread failed", "");
+
+	if (din.di_mode == 0) {
+		fprintf(stderr, "%s: %d is unallocated\n", progname, inum);
+		exit(1);
+	}
+
+	switch (S_IFMT & din.di_mode) {
+	case S_IFDIR:
+	case S_IFREG:
+		/* ok */
+		break;
+	default:
+		fprintf(stderr, "%s: inode %d is not a regular file or directory\n", progname, inum);
+		exit(1);
+	}
+
+	filesize = din.di_size;
+
+	process(din.di_addr, 10, 3);
+
+	/* indirect block */
+	find_blk(&din.di_addr[30], 1, 3);
+
+	/* double-indirect block */
+	sind_blk(&din.di_addr[33], 1, 3);
+
+	/* triple-indirect block */
+	tind_blk(&din.di_addr[36], 1, 3);
+
+	/*
+	 * if we get here, we have a very very large file
+	 * not sure what actually happens when you have a filesize
+	 * greater than the maximum
+	 */
+	nerror("my, thats a big one, but it's too long for me", "");
+
+	return 0;
+}
+
+static void process(p, num, step)
+char *p;
+int num;
+int step;
+{
+	char *t;
+	unsigned long addr, addr1, addr2, addr3;
+	int i;
+
+	for (i=0 ; i<num ; i++) {
+		t = &p[i*step];
+		addr1 = (unsigned char)t[0];
+		addr2 = (unsigned char)t[1] << 8;
+		addr3 = (unsigned char)t[2] << 16;
+		addr = addr1 + addr2 + addr3;
+		if (filesize < blocksize) {
+			if (filesize != 0) {
+				if (fseek(ifp, addr*blocksize, 0) != 0)
+					error("fseek failed", "");
+
+				if (fread((void *)buf, filesize, 1, ifp) != 1)
+					error("block fread failed", "");
+
+				if (fwrite((void *)buf, filesize, 1, stdout) != 1)
+					error("fwrite failed", "");
+			}
+			exit(0);
+		}
+
+		if (fseek(ifp, addr*blocksize, 0) != 0)
+			error("fseek failed", "");
+
+		if (fread((void *)buf, blocksize, 1, ifp) != 1)
+			error("block fread failed", "");
+
+		if (fwrite((void *)buf, blocksize, 1, stdout) != 1)
+			error("fwrite failed", "");
+
+		filesize -= blocksize;
+	}
+}
+
+static void find_blk(p, num, step)
+char *p;
+int num;
+int step;
+{
+	char *t;
+	unsigned long addr, addr1, addr2, addr3;
+	int i;
+
+	for (i=0 ; i<num ; i++) {
+		t = &p[i*step];
+		addr1 =(unsigned char)t[0]; 
+		addr2 = (unsigned char)t[1] << 8;
+		addr3 = (unsigned char)t[2] << 16;
+		addr = addr1 + addr2 + addr3;
+		if (fseek(ifp, addr*blocksize, 0) != 0)
+			error("fseek failed", "");
+
+		if (fread((void *)fbuf, blocksize, 1, ifp) != 1)
+			error("first indirect fread failed", "");
+
+		process(fbuf, poindisk, 4);
+	}
+}
+
+static void sind_blk(p, num, step)
+char *p;
+int num;
+int step;
+{
+	char *t;
+	unsigned long addr, addr1, addr2, addr3;
+	int i;
+
+	for (i=0 ; i<num ; i++) {
+		t = &p[i*step];
+		addr1 =(unsigned char)t[0]; 
+		addr2 = (unsigned char)t[1] << 8;
+		addr3 = (unsigned char)t[2] << 16;
+		addr = addr1 + addr2 + addr3;
+		if (fseek(ifp, addr*blocksize, 0) != 0)
+			error("fseek failed", "");
+
+		if (fread((void *)sbuf, blocksize, 1, ifp) != 1)
+			error("second indirect fread failed", "");
+
+		find_blk(sbuf, poindisk, 4);
+	}
+}
+
+static void tind_blk(p, num, step)
+char *p;
+int num;
+int step;
+{
+	char *t;
+	unsigned long addr, addr1, addr2, addr3;
+	int i;
+
+	for (i=0 ; i<num ; i++) {
+		t = &p[i*step];
+		addr1 =(unsigned char)t[0]; 
+		addr2 = (unsigned char)t[1] << 8;
+		addr3 = (unsigned char)t[2] << 16;
+		addr = addr1 + addr2 + addr3;
+		if (fseek(ifp, addr*blocksize, 0) != 0)
+			error("fseek failed", "");
+
+		if (fread((void *)tbuf, blocksize, 1, ifp) != 1)
+			error("third indirect fread failed", "");
+
+		sind_blk(tbuf, poindisk, 4);
+	}
+}
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'util.c'
+then
+	echo shar: will not over-write existing file "'util.c'"
+else
+cat << \SHAR_EOF > 'util.c'
+/*
+ * util.c - part of icat
+ *
+ * written by Matthew Farwell <dylan@ibmpcug.co.uk>
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "util.h"
+
+#undef NULL
+#define NULL 0
+
+extern char *basename(s)
+char *s;
+{
+	char *p;
+
+	if (s == NULL) return NULL;
+
+	p = strrchr(s, '/');
+	if (p != NULL) p++;
+	else p = s;
+
+	return p;
+}
+
+
+/*
+ * normal atoi, but returns -1 if first char is not a digit
+ */
+
+extern int xatoi(s)
+char *s;
+{
+	if (s == NULL) return -1;
+
+	while (isspace(*s)) s++;
+
+	if (isdigit(*s)) return atoi(s);
+	else return -1;
+}
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'util2.c'
+then
+	echo shar: will not over-write existing file "'util2.c'"
+else
+cat << \SHAR_EOF > 'util2.c'
+/*
+ * util2.c - part of icat
+ *
+ * All functions in this file were stolen from the Cnews distribution, and
+ * were written Henry Spencer and/or Geoff Collyer.  Ideas may have been
+ * taken from Kernighan & Pike.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+
+#include "util.h"
+
+#undef NULL
+#define NULL 0
+
+/*
+ * error - print best error message possible and exit
+ */
+
+extern void error(s1, s2)
+char *s1;
+char *s2;
+{
+	warning(s1, s2);
+	exit(1);
+}
+
+static char message[] = "can't open '%s' mode ";
+
+extern FILE *efopen(file, mode)
+char *file;
+char *mode;
+{
+	FILE *f;
+	char fullmsg[(sizeof (message)) + 10];	/* should be plenty */
+
+	errno = 0;
+	f = fopen(file, mode);
+	if (f == NULL) {
+		(void)strcpy(fullmsg, message);
+		(void)strncat(fullmsg, mode, 10);
+		error(fullmsg, file);
+		/* NOTREACHED */
+	}
+
+	return f;
+}
+
+extern void *emalloc(size)
+size_t size;
+{
+	void *p = malloc(size);
+	if (p == NULL) {
+		perror("malloc");
+		exit(1);
+	}
+
+	return p;
+}
+
+/*
+ * warning - print best error message possible and clear errno
+ */
+
+extern void warning(s1, s2)
+char *s1;
+char *s2;
+{
+	register int saverrno = errno;
+	extern char *progname;
+
+	(void) fflush(stdout);				/* hack */
+	if (progname != NULL)
+		fprintf(stderr, "%s: ", progname);
+	fprintf(stderr, s1, s2);
+	if (saverrno != 0)
+		fprintf(stderr, " (%s)", strerror(saverrno));
+	fprintf(stderr, "\n");
+	(void) fflush(stderr);
+	errno = 0;
+}
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'util.h'
+then
+	echo shar: will not over-write existing file "'util.h'"
+else
+cat << \SHAR_EOF > 'util.h'
+extern char *basename();
+extern FILE *efopen();
+extern void *emalloc();
+extern void error();
+extern void warning();
+extern int xatoi();
+SHAR_EOF
+fi # end of overwriting check
+#	End of shell archive
+exit 0
+-- 
+'If there is a hung parliament, and John Major and Neil Kinnock have
+both been hung, then I am willing to take over.  Vote Insanity - you
+know it makes sense' - Screaming Lord Sutch

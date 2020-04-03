@@ -1,0 +1,2256 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: Sound Blaster V2: part 3 of 4
+Message-ID: <-tbjjhfthinman@netcom.com>
+Date: 27 Mar 92 05:24:52 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 2247
+
+
+#!/bin/sh
+# This is part 03 of SoundBlaster_V2
+# ============= stream.c ==============
+if test -f 'stream.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping stream.c (File already exists)'
+else
+echo 'x - extracting stream.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'stream.c' &&
+X
+X#include <sys/types.h>
+X#include <sys/param.h>
+X#include <sys/sysmacros.h>
+X#include <sys/stream.h>
+X#include <sys/stropts.h>
+X#include <sys/dir.h>
+X#include <sys/signal.h>
+X#include <sys/user.h>
+X#include <sys/errno.h>
+X#include <sys/conf.h>
+X#include <sys/file.h>
+X
+X#include <sys/immu.h>
+X#include <sys/region.h>
+X#include <sys/proc.h>	
+X
+Xextern int ipl;
+X
+Xextern int lbolt;
+Xint wakeup ();
+X
+Xstatic int midi_write_flush ();
+Xstatic int midi_put_byte ();
+Xstatic int dsp_command ();
+X
+Xstatic void sbout_midi ();
+X
+X/* minor numbers */
+X#define SB_CMS_NUM  0
+X#define SB_FM_NUM   1
+X#define SB_DSP_NUM  2
+X#define SB_MIDI_NUM 3
+X#define SB_RESET_NUM 4
+X#define NSB 5
+X
+X#define SB_IO_PORT 0x220
+X
+X#define SB_BASE (('s')<<8)
+X
+X/* DSP (DAC and ADC) Chip(s) */
+X#define DSP_RESET   (SB_IO_PORT + 0x06)
+X#define DSP_RDDATA  (SB_IO_PORT + 0x0A)
+X#define DSP_WRDATA  (SB_IO_PORT + 0x0C)
+X#define DSP_COMMAND (SB_IO_PORT + 0x0C)
+X#define DSP_STATUS  (SB_IO_PORT + 0x0C)
+X#define DSP_RDAVAIL (SB_IO_PORT + 0x0E)
+X
+X#define FALSE 0
+X#define TRUE 1
+X
+X
+X#define MIDI_OUT_CHUNK 60
+X
+Xstruct sb {
+X	int minor_num;
+X	mblk_t *msg;
+X	queue_t *qptr;
+X	int busy;
+X	int wanted;
+X	int opened;
+X
+X	int count;
+X	unsigned char buf[4];
+X	int midi_out_waiting_for_first_io;
+X	int midi_out_last_time;
+X	int midi_out_used;
+X	char midi_out_buf[MIDI_OUT_CHUNK];
+X
+X	int time_id;
+X	mblk_t *midi_in_buf;
+X	int midi_last_recv_time;
+X
+X	int need_active_sense;
+X	int midi_last_xmit_time;
+X
+X	int sbout_timeid;
+X};
+X
+Xstruct sb sb_sb[NSB];
+Xint nsb = NSB;
+X
+Xint sbintr ();
+Xint sbtimer ();
+X
+X#ifdef LDRV
+X#include "ldrv.h"
+X
+Xextern struct streamtab sbinfo;
+X
+Xinitfunc (op, ldp)
+Xint op;
+Xstruct ldrvarg *ldp;
+X{
+X	struct cdevsw *cp;
+X	int x, y;
+X
+X	switch (op) {
+X	case LDRV_LOAD_OP:
+X		printf ("Sound Blaster installed\n");
+X		cp = &cdevsw[ldp->majornum];
+X		cp->d_str = &sbinfo;
+X		/* vector, priority, func */
+X		ldrv_set_intr (5, 5, sbintr);
+X		return (0);
+X	case LDRV_UNLOAD_OP:
+X		if (ldp->force == 0 && !sbidle ()) {
+X			printf ("Sound Blaster not idle: can't unload\n");
+X			return (-1);
+X		}
+X		printf ("Sound Blaster unloading\n");
+X		return (0);
+X	default:
+X		printf ("unknown op %d\n", op);
+X		return (0);
+X	}
+X}
+X
+Xint
+Xsbidle ()
+X{
+X	int i;
+X
+X	for (i = 0; i < NSB; i++)
+X		if (sb_sb[i].opened)
+X			return (0);
+X	return (1);
+X}
+X#endif /* LDRV */
+X
+Xstatic struct module_info minfo = {
+X	0, "sb", 0, INFPSZ, 150, 50
+X};
+X
+Xstatic int sbopen (), sbclose (), sbwput ();
+X
+Xstatic struct qinit rinit = {
+X	NULL, NULL, sbopen, sbclose, NULL, &minfo, NULL
+X};
+X
+Xstatic struct qinit winit = {
+X	sbwput, NULL, NULL, NULL, NULL, &minfo, NULL
+X};
+X
+Xstruct streamtab sbinfo = { &rinit, &winit, NULL, NULL };
+X
+X/* called at splstr () */
+Xstatic int
+Xsbopen (q, dev, flag, sflag)
+Xqueue_t *q; /* read queue */
+Xdev_t dev;
+Xint flag;
+Xint sflag;
+X{
+X	struct sb *sb;
+X	int i;
+X
+X	/* check for non-driver open */
+X	if (sflag)
+X		return (OPENFAIL);
+X
+X	if (minor (dev) >= NSB)
+X		return (OPENFAIL);
+X
+X	if (minor (dev) == SB_RESET_NUM) {
+X		sb_full_reset ();
+X		return (OPENFAIL);
+X	}
+X
+X	if (q->q_ptr) {
+X		u.u_error = EBUSY;
+X		return (OPENFAIL);
+X	}
+X
+X	if (dsp_reset () < 0)
+X		return (OPENFAIL);
+X
+X	sb = &sb_sb[minor(dev)];
+X	sb->minor_num = minor (dev);
+X	sb->qptr = WR(q);
+X	q->q_ptr = (char *)sb;
+X	WR(q)->q_ptr = (char *)sb;
+X
+X	sb->opened = 1;
+X
+X	switch (sb->minor_num) {
+X	case SB_MIDI_NUM:
+X		sb->midi_out_waiting_for_first_io = 1;
+X		sb->count = 0;
+X
+X		sb->midi_last_recv_time = -1;
+X
+X		if (flag & FREAD) {
+X			inb (DSP_RDAVAIL);
+X			dsp_command (0x31); /* turn on midi input */
+X		}
+X
+X		if (flag & FWRITE) {
+X			sb->need_active_sense = 1;
+X			midi_put_byte (sb, 0xfe);
+X		}
+X
+X		if (sb->time_id == 0)
+X			sb->time_id = timeout (sbtimer, 0, 1);
+X
+X		break;
+X	}
+X
+X	return (dev);
+X}
+X
+X/* called at splstr () */
+Xstatic int
+Xsbclose (q)
+Xqueue_t *q;
+X{
+X	struct sb *sb;
+X	int s;
+X
+X	sb = (struct sb *)q->q_ptr;
+X
+X	s = splstr ();
+X	while (sb->msg) {
+X		sb->wanted = 1;
+X		if (sleep (sb, (PZERO + 1) | PCATCH)) {
+X			/* I wish this would work, but it doesn't
+X			 * look like new signals are delivered when
+X			 * a process is exiting
+X			 */
+X			if (sb->msg) {
+X				freemsg (sb->msg);
+X				sb->msg = NULL;
+X			}
+X		}
+X	}
+X
+X	if (sb->midi_in_buf) {
+X		freemsg (sb->midi_in_buf);
+X		sb->midi_in_buf = NULL;
+X	}
+X
+X	if (sb->time_id) {
+X		untimeout (sb->time_id);
+X		sb->time_id = 0;
+X	}
+X
+X	if (sb->need_active_sense)
+X		midi_put_byte (sb, 0xfe);
+X
+X	sb->need_active_sense = 0;
+X
+X	splx (s);
+X
+X	sb->opened = 0;
+X}
+X
+X/* called at spl0 () */
+Xstatic int
+Xsbwput (q, mp)
+Xqueue_t *q;
+Xmblk_t *mp;
+X{
+X	struct sb *sb;
+X	int s;
+X
+X	sb = (struct sb *)q->q_ptr;
+X
+X	switch (mp->b_datap->db_type) {
+X	default:
+X		printf ("sbwput: unknown\n");
+X		freemsg (mp);
+X		break;
+X
+X	case M_FLUSH:
+X		if (*mp->b_rptr & FLUSHW) {
+X			flushq (q, FLUSHDATA);
+X			s = splstr ();
+X			if (sb->msg) {
+X				freemsg (sb->msg);
+X				sb->msg = NULL;
+X				if (sb->wanted) {
+X					sb->wanted = 0;
+X					wakeup (sb);
+X				}
+X			}
+X			splx (s);
+X		}
+X
+X		if (*mp->b_rptr & FLUSHR) {
+X			flushq (RD(q), FLUSHDATA);
+X			*mp->b_rptr &= ~FLUSHW;
+X			qreply (q, mp);
+X		} else {
+X			freemsg (mp);
+X		}
+X		break;
+X		
+X	case M_IOCTL:
+X	case M_DATA:
+X		putq (q, mp);
+X		s = splstr ();
+X		if (sb->busy == 0)
+X			sbout (sb);
+X		splx (s);
+X		break;
+X	}
+X}
+X
+X/* called at splstr (), and by timeout */
+Xint
+Xsbout (sb)
+Xstruct sb *sb;
+X{
+X	switch (sb->minor_num) {
+X	case SB_MIDI_NUM:
+X		sbout_midi (sb);
+X		break;
+X	}
+X}
+X
+X/* called at splstr (), and by timeout */
+Xstatic void
+Xsbout_midi (sb)
+Xstruct sb *sb;
+X{
+X	int code;
+X	int t;
+X	int scheduled_time;
+X	int current_time;
+X	int delta;
+X	int c;
+X	int s;
+X	queue_t *q;
+X	mblk_t *bp;
+X	
+X	s = splstr ();
+X
+X	q = sb->qptr;
+X
+X	sb->busy = 0;
+X
+X	while (1) {
+X		if ((bp = sb->msg) == NULL
+X		    && (bp = sb->msg = getq (q)) == NULL) {
+X			if (sb->midi_out_used)
+X				midi_write_flush (sb);
+X
+X			if (sb->wanted) {
+X				sb->wanted = 0;
+X				wakeup (sb);
+X			}
+X			splx (s);
+X			return;
+X		}
+X
+X		if (bp->b_datap->db_type == M_IOCTL) {
+X			sb->msg = NULL;
+X			sb_do_ioctl (sb, bp);
+X			continue;
+X		}
+X
+X		while (sb->count < 4 && bp->b_rptr < bp->b_wptr)
+X			sb->buf[sb->count++] = *bp->b_rptr++;
+X
+X		if (sb->count < 4) {
+X			bp = sb->msg->b_cont;
+X			sb->msg->b_cont = NULL;
+X			freeb (sb->msg);
+X			sb->msg = bp;
+X			continue;
+X		}
+X
+X		code = sb->buf[0];
+X		t = (int)sb->buf[1]
+X			| ((int)sb->buf[2] << 8)
+X				| ((int)sb->buf[3] << 16);
+X
+X		/* all of this hair is to arrange for bytes to
+X		 * be sent out as soon after their scheduled time
+X		 * as possible.  If, for some reason, output is
+X		 * delayed for a while, then when it picks up again,
+X		 * all of the overdue bytes are sent as quickly as
+X		 * possible, and then the normal timing resumes
+X		 */
+X		if (sb->midi_out_waiting_for_first_io) {
+X			sb->midi_out_waiting_for_first_io = 0;
+X			current_time = (lbolt * 10) & 0xffffff;
+X			sb->midi_out_last_time = current_time;
+X		} else {
+X			scheduled_time = sb->midi_out_last_time + t;
+X		recheck:
+X			current_time = (lbolt * 10) & 0xffffff;
+X
+X			delta = (scheduled_time - current_time) & 0xffffff;
+X			if (delta > 20 && (delta & 0x800000) == 0) {
+X				if (sb->midi_out_used) {
+X					midi_write_flush (sb);
+X					goto recheck;
+X				}
+X				sb->busy = 1;
+X				sb->sbout_timeid = timeout (sbout, sb,
+X							    (delta + 5) / 10);
+X				splx (s);
+X				return;
+X			}
+X		}
+X
+X		sb->midi_out_buf[sb->midi_out_used++] = code;
+X		sb->midi_out_last_time += t;
+X		if (sb->midi_out_used >= MIDI_OUT_CHUNK) {
+X			midi_write_flush (sb);
+X			sb->busy = 1;
+X			sb->sbout_timeid = timeout (sbout, sb, 3);
+X			splx (s);
+X			return;
+X		}
+X
+X		sb->count = 0;
+X	}
+X	/* NOTREACHED */
+X}
+X
+X/* called at splstr () */
+Xsb_do_ioctl (sb, mp)
+Xstruct sb *sb;
+Xmblk_t *mp;
+X{
+X	struct iocblk *iocp;
+X	queue_t *q;
+X
+X	q = sb->qptr;
+X
+X	iocp = (struct iocblk *)mp->b_rptr;
+X	
+X	switch (iocp->ioc_cmd) {
+X	default:
+X		mp->b_datap->db_type = M_IOCNAK;
+X		qreply (q, mp);
+X		break;
+X	}
+X}
+X
+X/* called at splstr () */
+Xstatic int
+Xmidi_write_flush (sb)
+Xstruct sb *sb;
+X{
+X	int i;
+X
+X	/* no sleeping allowed */
+X	for (i = 0; i < sb->midi_out_used; i++) {
+X		if (midi_put_byte (sb, sb->midi_out_buf[i]) == FALSE)
+X			break;
+X	}
+X	sb->midi_out_used = 0;
+X}
+X
+Xstatic int
+Xmidi_put_byte (sb, val)
+Xstruct sb *sb;
+Xint val;
+X{
+X	if (dsp_command (0x38) == FALSE
+X	    || dsp_command (val) == FALSE)
+X		return (FALSE);
+X	sb->midi_last_xmit_time = lbolt;
+X	return (TRUE);
+X}
+X
+X/* this routine must not sleep, and must be called at a low enough
+X * interrupt priority that lbolt is being incremented.
+X */
+Xstatic int
+Xdsp_command (val)
+Xint val;
+X{
+X	int start_lbolt;
+X	int delta;
+X	int i;
+X
+X	start_lbolt = lbolt;
+X
+X	for (i = 0; i < 1000000; i++) {
+X		if ((inb (DSP_STATUS) & 0x80) == 0) {
+X			outb(DSP_COMMAND, val);
+X			return (TRUE);
+X		}
+X		delta = lbolt - start_lbolt;
+X		if (delta > 3)
+X			break;
+X	}
+X	return (FALSE);
+X}
+X
+Xdsp_reset()
+X{
+X	int s;
+X
+X	s = splstr ();
+X
+X	outb(DSP_RESET, 0x01);
+X	tenmicrosec();
+X	outb(DSP_RESET, 0x00);
+X	
+X	timeout (wakeup, dsp_reset, 2);
+X	if (sleep (dsp_reset, (PZERO+1) | PCATCH))
+X		return (-1);
+X
+X	if ((inb (DSP_RDAVAIL) & 0x80) == 0)
+X		return (-1);
+X
+X	if (inb (DSP_RDDATA) != 0xaa)
+X		return (-1);
+X
+X	return (0);
+X}
+X
+Xint
+Xsbintr ()
+X{
+X	int code;
+X	struct sb *sb;
+X	mblk_t *bp;
+X	static int count;
+X	int delta, now;
+X
+X	sb = &sb_sb[SB_MIDI_NUM];
+X
+X	code = inb (DSP_RDDATA);
+X	inb(DSP_RDAVAIL); /* acknowledge interrupt */
+X	
+X	/* ignore real-time messages */
+X	if ((code & 0xf8) == 0xf8)
+X		return;
+X	
+X	if ((bp = sb->midi_in_buf) == NULL) {
+X		bp = sb->midi_in_buf = allocb (60, BPRI_HI);
+X		if (bp == NULL)
+X			return;
+X	}
+X	
+X	if (bp->b_wptr + 4 > bp->b_datap->db_lim)
+X		return;
+X	
+X	now = lbolt;
+X
+X	if (sb->midi_last_recv_time == -1)
+X		delta = 0;
+X	else
+X		delta = (now - sb->midi_last_recv_time) * 10;
+X
+X	sb->midi_last_recv_time = now & 0xffffff;
+X
+X	*(int *)bp->b_wptr = code | (delta << 8);
+X	bp->b_wptr += 4;
+X}
+X
+Xsbtimer ()
+X{
+X	int s;
+X	struct sb *sb;
+X	queue_t *q;
+X	int delta;
+X
+X	s = splstr ();
+X
+X	sb = &sb_sb[SB_MIDI_NUM];
+X	q = RD(sb->qptr);
+X
+X	if (sb->midi_in_buf && canput (q->q_next)) {
+X		putnext (q, sb->midi_in_buf);
+X		sb->midi_in_buf = NULL;
+X	}
+X
+X	/* send active sense, if needed.  We must transmit this or
+X	 * real data every 300 milliseconds to keep the midi device happy
+X	 */
+X	if (sb->need_active_sense) {
+X		delta = lbolt - sb->midi_last_xmit_time;
+X		if (delta > 25)
+X			midi_put_byte (sb, 0xfe);
+X	}
+X
+X	sb->time_id = timeout (sbtimer, 0, 1);
+X
+X	splx (s);
+X}
+X
+Xsb_full_reset ()
+X{
+X	int s;
+X	struct sb *sb;
+X
+X	s = splstr ();
+X
+X	dsp_reset ();
+X
+X	sb = &sb_sb[SB_MIDI_NUM];
+X	if (sb->msg) {
+X		freemsg (sb->msg);
+X		sb->msg = NULL;
+X	}
+X	if (sb->qptr)
+X		flushq (sb->qptr, FLUSHDATA);
+X
+X	untimeout (sb->sbout_timeid);
+X	
+X	wakeup (sb);
+X	wakeup (dsp_reset);
+X
+X	splx (s);
+X}
+X	
+X
+SHAR_EOF
+chmod 0600 stream.c ||
+echo 'restore of stream.c failed'
+Wc_c="`wc -c < 'stream.c'`"
+test 10247 -eq "$Wc_c" ||
+	echo 'stream.c: original size 10247, current size' "$Wc_c"
+fi
+# ============= apps/Makefile ==============
+if test ! -d 'apps'; then
+    echo 'x - creating directory apps'
+    mkdir 'apps'
+fi
+if test -f 'apps/Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/Makefile (File already exists)'
+else
+echo 'x - extracting apps/Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/Makefile' &&
+X# 
+X#                 Programs using Sound Blaster(tm) Driver
+X#                     (Copyright 1991, Brian Smith)
+X#
+X
+XSHELL=/bin/sh
+XCC= gcc -fpcc-struct-return
+XCFLAGS = # -O -DESIX
+XLIBS= -lc_s # -lc instead
+X
+XPROGRAMS= play_snd set_speed play_cmf record_snd snd_norm play_instr
+XTESTS= play_cleanup tst_fm_open tst_fm_note get_instr tst_instr
+X
+Xall: $(PROGRAMS) $(TESTS)
+X
+Xrecord_snd: record_snd.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o record_snd record_snd.c $(LIBS)
+X
+Xplay_snd: play_snd.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o play_snd play_snd.c $(LIBS)
+X
+Xplay_cleanup: play_cleanup.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o play_cleanup play_cleanup.c $(LIBS)
+X
+Xplay_instr: play_instr.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o play_instr play_instr.c $(LIBS)
+X
+Xget_instr: get_instr.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o get_instr get_instr.c $(LIBS)
+X
+Xset_speed: set_speed.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o set_speed set_speed.c $(LIBS)
+X
+Xtst_fm_open: tst_fm_open.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o tst_fm_open tst_fm_open.c $(LIBS)
+X
+Xtst_fm_note: tst_fm_note.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o tst_fm_note tst_fm_note.c $(LIBS)
+X
+Xplay_cmf: play_cmf.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o play_cmf play_cmf.c $(LIBS)
+X
+Xtst_instr: tst_instr.c /usr/include/sys/sb.h
+X	$(CC) $(CFLAGS) -o tst_instr tst_instr.c $(LIBS)
+X
+Xsnd_norm: snd_norm.c
+X	$(CC) $(CFLAGS) -o snd_norm snd_norm.c $(LIBS)
+X
+Xinstall: $(PROGRAMS)
+X	for i in $(PROGRAMS); do \
+X	mcs -d $$i ; \
+X	strip $$i ; \
+X	(echo $$i | cpio -pdlmv /usr/local/bin) ; \
+X	done
+X
+Xclean:
+X	/bin/rm -f $(PROGRAMS) $(TESTS)
+SHAR_EOF
+chmod 0644 apps/Makefile ||
+echo 'restore of apps/Makefile failed'
+Wc_c="`wc -c < 'apps/Makefile'`"
+test 1597 -eq "$Wc_c" ||
+	echo 'apps/Makefile: original size 1597, current size' "$Wc_c"
+fi
+# ============= apps/get_instr.1 ==============
+if test -f 'apps/get_instr.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/get_instr.1 (File already exists)'
+else
+echo 'x - extracting apps/get_instr.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/get_instr.1' &&
+X.TH GET_INSTR 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xget_instr \- decodes and prints instrument info from CMF files
+X.SH SYNOPSIS
+X.B get_instr
+X[
+X.I file
+X]
+X.PP
+XThe argument must be the CMF file to be examined.
+X.SH DESCRIPTION
+X.B get_instr
+Xreads the portion of the CMF file detailing the instruments used, and
+Xthen prints out the breakdown of that information.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0444 apps/get_instr.1 ||
+echo 'restore of apps/get_instr.1 failed'
+Wc_c="`wc -c < 'apps/get_instr.1'`"
+test 377 -eq "$Wc_c" ||
+	echo 'apps/get_instr.1: original size 377, current size' "$Wc_c"
+fi
+# ============= apps/get_instr.c ==============
+if test -f 'apps/get_instr.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/get_instr.c (File already exists)'
+else
+echo 'x - extracting apps/get_instr.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/get_instr.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <unistd.h>
+X#include <sys/sb.h>
+X#include <stdio.h>
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int cmf_fd;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* open cmf file */
+X    cmf_fd = open(argv[1], O_RDONLY);
+X    if (cmf_fd == -1)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* verify that file is a cmf file */
+X    if (!verify_cmf(cmf_fd))
+X    {
+X        printf("file was not a cmf file\n");
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* print out info on instruments in cmf file */
+X    print_instruments(cmf_fd);
+X
+X    return(0);
+X}
+X
+X
+X/* check for "CTMF" in first four bytes of file */
+Xint verify_cmf(fd)
+Xint fd;
+X{
+X    char idbuf[5];
+X
+X    /* get id */
+X    lseek(fd, 0, SEEK_SET);
+X    if (read(fd, idbuf, 4) != 4)
+X        return(FALSE);
+X    
+X    /* compare to standard id */
+X    idbuf[4] = (char)0;
+X    if (strcmp(idbuf, "CTMF") != 0)
+X        return(FALSE);
+X    
+X    return(TRUE);
+X}
+X
+Xint print_instruments(fd)
+Xint fd;
+X{
+X    int offset;
+X    int num_instruments;
+X    int i;
+X    int j;
+X    unsigned char tmp_byte;
+X    unsigned char instrument_buf[16];
+X
+X#define lobyte(X)   (((unsigned char *)&X)[0])
+X#define hibyte(X)   (((unsigned char *)&X)[1])
+X
+X    /* get offset of instrument block */
+X    offset = 0;
+X    lseek(fd, 0x06, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(offset) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(offset) = tmp_byte;
+X
+X    /* get number of instruments */
+X    num_instruments = 0;
+X    lseek(fd, 0x24, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(num_instruments) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(num_instruments) = tmp_byte;
+X
+X    /* read each instrument */
+X    lseek(fd, offset, SEEK_SET);
+X    for (i=0; i< num_instruments; i++)
+X    {
+X        read(fd, instrument_buf, 16);
+X        printf("instrument: 0x%02x\n", i);
+X
+X        for (j=0; j<16; j++)
+X            printf("0x%02x ", (unsigned int)instrument_buf[j]);
+X        printf("\n");
+X
+X        /* byte 0 */
+X        printf("\tModulator: 0x%02x\n", (unsigned int)instrument_buf[0]);
+X
+X        /* byte 1 */
+X        printf("\tCarrier Sound Characteristic\n");
+X        if (instrument_buf[1] & (1<<7))
+X            printf("\tPitch Vibrato: On\n");
+X        else
+X            printf("\tPitch Vibrato: Off\n");
+X        if (instrument_buf[1] & (1<<6))
+X            printf("\tAmplitude Vibrato: On\n");
+X        else
+X            printf("\tAmplitude Vibrato: Off\n");
+X        if (instrument_buf[1] & (1<<5))
+X            printf("\tSustaining Sound: On\n");
+X        else
+X            printf("\tSustaining Sound: Off\n");
+X        if (instrument_buf[1] & (1<<4))
+X            printf("\tEnvelope Scaling: On\n");
+X        else
+X            printf("\tEnvelope Scaling: Off\n");
+X        printf("\tFrequency Multiplier: 0x%02x\n", instrument_buf[1] & 0x0F);
+X
+X        /* byte 2 */
+X        printf("\tModulator Level Scaling: 0x%02x\n", instrument_buf[2] >> 4);
+X        printf("\tModulator Output Level: 0x%02x\n", instrument_buf[2] & 0x3f);
+X
+X        /* byte 3 */
+X        printf("\tCarrier Level Scaling: 0x%02x\n", instrument_buf[3] >> 4);
+X        printf("\tCarrier Output Level: 0x%02x\n", instrument_buf[3] & 0x3f);
+X
+X        /* byte 4 */
+X        printf("\tModulator Attack Rate 0x%02x\n", instrument_buf[5] >> 4);
+X        printf("\tModulator Decay Rate 0x%02x\n", instrument_buf[5] & 0xF);
+X
+X        /* byte 5 */
+X        printf("\tCarrier Attack Rate 0x%02x\n", instrument_buf[5] >> 4);
+X        printf("\tCarrier Decay Rate 0x%02x\n", instrument_buf[5] & 0xF);
+X
+X        /* byte 6 */
+X        printf("\tModulator Sustain Level 0x%02x\n", instrument_buf[6] >> 4);
+X        printf("\tModulator Release Level 0x%02x\n", instrument_buf[6] >> 4);
+X
+X        /* byte 7 */
+X        printf("\tCarrier Sustain Level 0x%02x\n", instrument_buf[7] >> 4);
+X        printf("\tCarrier Release Level 0x%02x\n", instrument_buf[7] >> 4);
+X
+X        /* byte 8 */
+X        printf("\tModulator Wave Select 0x%02x\n", instrument_buf[8] & 0x03);
+X
+X        /* byte 9 */
+X        printf("\tCarrier Wave Select 0x%02x\n", instrument_buf[9] & 0x03);
+X
+X        /* byte A */
+X        printf("\tModulator FeedBack 0x%02x\n",
+X            (instrument_buf[0xA] >> 1) & 0x07);
+X    }
+X
+X    return(0);
+X}
+SHAR_EOF
+chmod 0644 apps/get_instr.c ||
+echo 'restore of apps/get_instr.c failed'
+Wc_c="`wc -c < 'apps/get_instr.c'`"
+test 4475 -eq "$Wc_c" ||
+	echo 'apps/get_instr.c: original size 4475, current size' "$Wc_c"
+fi
+# ============= apps/mfplay.c ==============
+if test -f 'apps/mfplay.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/mfplay.c (File already exists)'
+else
+echo 'x - extracting apps/mfplay.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/mfplay.c' &&
+X#include <stdio.h>
+X#include <ctype.h>
+X#include <math.h>
+X
+X#include "../sb.h"
+X
+X#include "midifile.h"
+X
+Xint sflag;
+X
+Xstruct noteinfo {
+X	int time;
+X	int chan;
+X	int pitch;
+X	int vol;
+X};
+X
+Xstruct noteinfo *notes;
+Xint nnotes;
+Xint nnotes_allocated;
+X
+Xnotecmp (a, b)
+Xstruct noteinfo *a, *b;
+X{
+X	if (a->time != b->time)
+X		return (a->time - b->time);
+X
+X	if (a->vol == 0 && b->vol != 0)
+X		return (-1);
+X
+X	if (a->vol != 0 && b->vol == 0)
+X		return (1);
+X
+X	return (a->chan - b->chan);
+X}
+X
+Xsortnotes ()
+X{
+X	int i;
+X	struct noteinfo *np;
+X
+X	qsort (notes, nnotes, sizeof (struct noteinfo), notecmp);
+X}
+X
+Xdouble timescale = 1.2;
+X
+Xadd_note (time, chan, pitch, vol)
+X{
+X	struct noteinfo *np;
+X	if (nnotes >= nnotes_allocated) {
+X		if (nnotes_allocated == 0) {
+X			nnotes_allocated = 1000;
+X			notes = (struct noteinfo *)
+X				malloc (nnotes_allocated
+X					* sizeof (struct noteinfo));
+X		} else {
+X			nnotes_allocated *= 2;
+X			notes = (struct noteinfo *)
+X				realloc (notes,
+X					 nnotes_allocated
+X					 * sizeof (struct noteinfo));
+X		}
+X		if (notes == NULL) {
+X			fprintf (stderr, "out of memory\n");
+X			exit (1);
+X		}
+X	}
+X
+X	np = &notes[nnotes++];
+X	np->time = floor (time * timescale + 0.5);
+X	np->chan = chan;
+X	np->pitch = pitch;
+X	np->vol = vol;
+X}
+X
+Xunsigned char simple_instrument[16] = {
+X	0x21, 0x11, 0x11, 0x00, 0xa3, 0xc4, 0x43, 0x22, 
+X	0x02, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00,
+X};
+X
+X#define NOTEON(chan, fnum, octave) \
+X	(((chan) & 0xf) \
+X	 | (((fnum) & 0x3ff) << 8) \
+X	 | (((octave) & 7) << 18) \
+X	 | (1 << 21))
+X
+X#define NOTEOFF(chan) (chan)
+X
+Xdouble freqtbl[128];
+Xint fnumtbl[128];
+Xint blocktbl[128];
+X
+X#define NCHAN 9
+Xint busy[NCHAN + 1];
+X
+Xint fd;
+X
+XNote_On (np)
+Xstruct noteinfo *np;
+X{
+X	int chan;
+X	int first_free;
+X
+X	if (np->pitch == 0)
+X		return;
+X
+X	first_free = -1;
+X
+X	for (chan = 0; chan < NCHAN; chan++) {
+X		if (busy[chan] == np->pitch)
+X			break;
+X		if (busy[chan] == 0 && first_free == -1)
+X			first_free = chan;
+X	}
+X
+X	if (chan == NCHAN) {
+X		if (first_free == -1)
+X			return;
+X		chan = first_free;
+X	}
+X
+X	busy[chan] = np->pitch;
+X
+X	ioctl (fd, FM_IOCTL_NOTE_ON,
+X	       NOTEON (chan, fnumtbl[np->pitch],
+X		       blocktbl[np->pitch]));
+X}
+X
+XNote_Off (np)
+Xstruct noteinfo *np;
+X{
+X	int chan;
+X
+X	for (chan = 0; chan < NCHAN; chan++) {
+X		if (busy[chan] == np->pitch) {
+X			busy[chan] = 0;
+X			ioctl (fd, FM_IOCTL_NOTE_OFF, NOTEOFF (chan));
+X		}
+X	}
+X}
+X
+Xfmplay ()
+X{
+X	sb_fm_character set_voice;
+X	int i;
+X	int midinote;
+X	int block, note;
+X	struct noteinfo *np;
+X
+X
+X	if ((fd = open ("/dev/sbfm", 0)) < 0) {
+X		fprintf (stderr, "can't open /dev/sbfm\n");
+X		exit (1);
+X	}
+X
+X	for (i = 0; i < 9; i++) {
+X		set_voice.voice_num = i;
+X		memcpy (set_voice.data, simple_instrument, 16);
+X		
+X		if (ioctl (fd, FM_IOCTL_SET_VOICE, &set_voice) < 0) {
+X			perror ("ioctl set voice");
+X			exit (1);
+X		}
+X	}
+X
+X	/* midi note 0 is c 2 octaves below the bottom of the piano */
+X	/* note 69 is A440 */
+X
+X	for (midinote = 0; midinote < 128; midinote++) {
+X		freqtbl[midinote] = 440 * pow (2.0, (midinote - 69) / 12.0);
+X	}
+X
+X	midinote = 12;
+X	for (block = 0; block < 8; block++) {
+X		for (note = 0; note < 12; note++) {
+X			blocktbl[midinote] = block;
+X			fnumtbl[midinote] = freqtbl[midinote]
+X				/ (50000 * pow (2.0, block - 20.0));
+X			midinote++;
+X		}
+X	}
+X			
+X	for (i = 0, np = notes; i < nnotes; i++, np++) {
+X		if (millitime () < np->time) {
+X			screen_flush ();
+X			while (millitime () < np->time)
+X				;
+X		}
+X
+X		if (np->vol == 0) {
+X			Note_Off (np);
+X			screen_Note_Off (np);
+X		} else {
+X			Note_On (np);
+X			screen_Note_On (np);
+X		}
+X	}
+X}
+X
+Xmidiput (f, code, delta)
+XFILE *f;
+X{
+X	putc (code, f);
+X	putc (delta, f);
+X	putc (delta >> 8, f);
+X	putc (delta >> 16, f);
+X}
+X
+Xmidiplay (f)
+XFILE *f;
+X{
+X	int curtime;
+X	int delta;
+X	int i;
+X	struct noteinfo *np;
+X
+X	curtime = 0;
+X
+X	/* all notes off */
+X	midiput (f, 0xb0, 0);
+X	midiput (f, 123, 0);
+X	midiput (f, 0, 0);
+X
+X	for (i = 0, np = notes; i < nnotes; i++, np++) {
+X		midiput (f, 0x90, np->time - curtime);
+X		midiput (f, np->pitch, 0);
+X		midiput (f, np->vol, 0);
+X		curtime = np->time;
+X	}
+X}
+X
+Xchar screen_notes[128];
+X
+Xscreen_Note_On (np)
+Xstruct noteinfo *np;
+X{
+X	int col;
+X	static int beenhere;
+X
+X	if (beenhere == 0) {
+X		beenhere = 1;
+X		printf ("\033[1;1H\033[J");
+X	}
+X
+X	if (sflag) {
+X		screen_notes[np->pitch] = 1;
+X		col = np->pitch - 24;
+X		
+X		if (col >= 0 && col < 79) {
+X			printf ("\033[1;%dH*\033[1;1H", col);
+X			fflush (stdout);
+X		}
+X	}
+X}
+X
+Xscreen_Note_Off (np)
+Xstruct noteinfo *np;
+X{
+X	int col;
+X
+X	if (sflag) {
+X		screen_notes[np->pitch] = 0;
+X
+X		col = np->pitch - 24;
+X		if (col >= 0 && col < 79) {
+X			printf ("\033[1;%dH \033[1;1H", col);
+X			fflush (stdout);
+X		}
+X	}
+X}
+X
+Xscreen_flush ()
+X{
+X	if (sflag)
+X		fflush ();
+X}
+X
+Xmillitime ()
+X{
+X	static int start;
+X	char buf[100];
+X
+X	if (start == 0)
+X		start = times (buf);
+X	return ((times (buf) - start) * 10);
+X}
+X
+Xstatic FILE *F;
+X
+Xfilegetc()
+X{
+X	return(getc(F));
+X}
+X
+Xvoid
+Xusage ()
+X{
+X	fprintf (stderr, "usage: mfplay [-m] file\n");
+X	exit (1);
+X}
+X
+Xint mflag;
+X
+Xmain(argc,argv)
+Xchar **argv;
+X{
+X	int c;
+X	extern int optind;
+X	char *name;
+X
+X	while ((c = getopt (argc, argv, "ms")) != EOF) {
+X		switch (c) {
+X		case 's':
+X			sflag = 1;
+X			break;
+X		case 'm':
+X			mflag = 1;
+X			break;
+X		default:
+X			usage ();
+X		}
+X	}
+X
+X	if (optind >= argc)
+X		usage ();
+X
+X	name = argv[optind++];
+X
+X	if (optind != argc)
+X		usage ();
+X
+X	if ((F = fopen (name, "r")) == NULL) {
+X		fprintf (stderr, "can't open %s\n", name);
+X		exit (1);
+X	}
+X
+X	initfuncs();
+X	Mf_getc = filegetc;
+X	midifile();
+X	sortnotes ();
+X
+X	if (mflag) {
+X		FILE *midif;
+X		if ((midif = fopen ("/dev/sbmidi", "w")) == NULL) {
+X			fprintf (stderr, "can't open /dev/sbmidi\n");
+X			exit (1);
+X		}
+X		midiplay (midif);
+X	} else {
+X		fmplay ();
+X	}
+X
+X	fclose(F);
+X	exit(0);
+X}
+X
+Xerror(s)
+Xchar *s;
+X{
+X	fprintf(stderr,"Error: %s\n",s);
+X}
+X
+Xtxt_header(format,ntrks,division)
+X{
+X}
+X
+Xtxt_trackstart()
+X{
+X}
+X
+Xtxt_trackend()
+X{
+X}
+X
+Xtxt_noteon(chan,pitch,vol)
+X{
+X	add_note (Mf_currtime, chan+1, pitch, vol);
+X}
+X
+Xtxt_noteoff(chan,pitch,vol)
+X{
+X	add_note (Mf_currtime, chan+1, pitch, 0);
+X}
+X
+Xtxt_pressure(chan,pitch,press)
+X{
+X}
+X
+Xtxt_parameter(chan,control,value)
+X{
+X}
+X
+Xtxt_pitchbend(chan,msb,lsb)
+X{
+X}
+X
+Xtxt_program(chan,program)
+X{
+X}
+X
+Xtxt_chanpressure(chan,press)
+X{
+X}
+X
+Xtxt_sysex(leng,mess)
+Xchar *mess;
+X{
+X}
+X
+Xtxt_metamisc(type,leng,mess)
+Xchar *mess;
+X{
+X}
+X
+Xtxt_metaspecial(type,leng,mess)
+Xchar *mess;
+X{
+X}
+X
+Xtxt_metatext(type,leng,mess)
+Xchar *mess;
+X{
+X}
+X
+Xtxt_metaseq(num)
+X{
+X}
+X
+Xtxt_metaeot()
+X{
+X}
+X
+Xtxt_keysig(sf,mi)
+X{
+X}
+X
+Xtxt_tempo(tempo)
+Xlong tempo;
+X{
+X}
+X
+Xtxt_timesig(nn,dd,cc,bb)
+X{
+X}
+X
+Xtxt_smpte(hr,mn,se,fr,ff)
+X{
+X}
+X
+Xtxt_arbitrary(leng,mess)
+Xchar *mess;
+X{
+X}
+X
+Xprtime()
+X{
+X	printf("Time=%ld  ",Mf_currtime);
+X}
+X
+Xinitfuncs()
+X{
+X	Mf_error = error;
+X	Mf_header =  txt_header;
+X	Mf_starttrack =  txt_trackstart;
+X	Mf_endtrack =  txt_trackend;
+X	Mf_on =  txt_noteon;
+X	Mf_off =  txt_noteoff;
+X	Mf_pressure =  txt_pressure;
+X	Mf_controller =  txt_parameter;
+X	Mf_pitchbend =  txt_pitchbend;
+X	Mf_program =  txt_program;
+X	Mf_chanpressure =  txt_chanpressure;
+X	Mf_sysex =  txt_sysex;
+X	Mf_metamisc =  txt_metamisc;
+X	Mf_seqnum =  txt_metaseq;
+X	Mf_eot =  txt_metaeot;
+X	Mf_timesig =  txt_timesig;
+X	Mf_smpte =  txt_smpte;
+X	Mf_tempo =  txt_tempo;
+X	Mf_keysig =  txt_keysig;
+X	Mf_sqspecific =  txt_metaspecial;
+X	Mf_text =  txt_metatext;
+X	Mf_arbitrary =  txt_arbitrary;
+X}
+SHAR_EOF
+chmod 0644 apps/mfplay.c ||
+echo 'restore of apps/mfplay.c failed'
+Wc_c="`wc -c < 'apps/mfplay.c'`"
+test 7045 -eq "$Wc_c" ||
+	echo 'apps/mfplay.c: original size 7045, current size' "$Wc_c"
+fi
+# ============= apps/mfplay.1 ==============
+if test -f 'apps/mfplay.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/mfplay.1 (File already exists)'
+else
+echo 'x - extracting apps/mfplay.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/mfplay.1' &&
+X.TH MFPLAY 1 "15 January 1992"
+X.UC 4
+X.SH NAME
+Xmfplay \- play MIDI file or raw input on Sound Blaster synthesizer
+X.SH SYNOPSIS
+X.B mfplay
+X.B [
+X.I -ms
+X.B ]
+X.I file
+X.SH DESCRIPTION
+X.B mfplay
+Xreads a MIDI file and
+Xplays it on the Sound Blaster synthesizer chips
+Xor the SB MIDI output port.
+XThe
+X.B -m
+Xflag means use the raw MIDI output instead of the Sound Blaster synth chips.
+XThe 
+X.B -s
+Xflag causes an ASCII screen representation of the music
+Xto appear.
+X.SH BUGS
+XThis program was written using an old version of the 'midifile'
+Xlibrary by Tim J. Thompson.
+XIt needs to be upgraded to the recent 'mf2t' version floating
+Xaround.
+XIt also needs to be upgraded to use better patches
+Xand the 4-byte MIDI format given by the Sound Blaster driver.
+XAlso, a mode that reads raw MIDI and plays on the
+Xsynth chips would be nice.
+X.SH AUTHOR
+X.PP
+XPace Willisson
+SHAR_EOF
+chmod 0644 apps/mfplay.1 ||
+echo 'restore of apps/mfplay.1 failed'
+Wc_c="`wc -c < 'apps/mfplay.1'`"
+test 841 -eq "$Wc_c" ||
+	echo 'apps/mfplay.1: original size 841, current size' "$Wc_c"
+fi
+# ============= apps/play_cmf.1 ==============
+if test -f 'apps/play_cmf.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_cmf.1 (File already exists)'
+else
+echo 'x - extracting apps/play_cmf.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_cmf.1' &&
+X.TH PLAY_CMF 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xplay_cmf \- decodes and plays a CMF music file.
+X.SH SYNOPSIS
+X.B play_cmf
+X[
+X.I file
+X]
+X.PP
+XThe argument must be the CMF file to be played.
+X.SH DESCRIPTION
+X.B play_cmf
+XAttempts to play a CMF file.
+X.SH BUGS
+XMany CMF files attempt to use Control Change events not understood by the
+Xauthor.  Therefore, the program does not implement whatever these
+Xcontrol changes are supposed to do.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0444 apps/play_cmf.1 ||
+echo 'restore of apps/play_cmf.1 failed'
+Wc_c="`wc -c < 'apps/play_cmf.1'`"
+test 450 -eq "$Wc_c" ||
+	echo 'apps/play_cmf.1: original size 450, current size' "$Wc_c"
+fi
+# ============= apps/play_cleanup.1 ==============
+if test -f 'apps/play_cleanup.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_cleanup.1 (File already exists)'
+else
+echo 'x - extracting apps/play_cleanup.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_cleanup.1' &&
+X.TH PLAY_CLEANUP 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xplay_cleanup \- Cleans up after a very abnormal exit from play_snd
+X.SH SYNOPSIS
+X.B play_cleanup
+X.PP
+XNo arguments are necessary.
+X.SH DESCRIPTION
+XIf play_snd exits without destroying the shared memory segment,
+Xfurther invocations will fail until the segment is destroyed.  This
+Xprogram destroys that memory segment.  This should not be needed,
+Xbecause play_snd cleans up after getting eof and SIGINT.  It cannot,
+Xhowever, catch SIGKILL.
+X.B play_cleanup
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0444 apps/play_cleanup.1 ||
+echo 'restore of apps/play_cleanup.1 failed'
+Wc_c="`wc -c < 'apps/play_cleanup.1'`"
+test 526 -eq "$Wc_c" ||
+	echo 'apps/play_cleanup.1: original size 526, current size' "$Wc_c"
+fi
+# ============= apps/play_cleanup.c ==============
+if test -f 'apps/play_cleanup.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_cleanup.c (File already exists)'
+else
+echo 'x - extracting apps/play_cleanup.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_cleanup.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/types.h>
+X#include <sys/ipc.h>
+X#include <sys/shm.h>
+X
+X#define NUMBUFS     2
+X#define SHM_BUFSIZ  (8*4096)
+X#define SHM_KEY     1796
+X
+Xtypedef struct {
+X    int     not_last_segment[NUMBUFS];
+X    int     unlocked[NUMBUFS];
+X    char    buf[NUMBUFS*SHM_BUFSIZ];
+X}   buf_struct;
+X
+X
+Xmain()
+X{
+X    int rc;
+X    int shmid;
+X
+X    shmid = shmget(SHM_KEY, sizeof(buf_struct), IPC_CREAT | 0644);
+X    if (shmid == -1)
+X    {
+X        perror("creating shared-mem buffer");
+X        exit(-1);
+X    }
+X
+X    rc = shmctl(shmid, IPC_RMID, 0);
+X    if (rc == -1)
+X        perror("removing segment");
+X
+X    exit(0);
+X}
+SHAR_EOF
+chmod 0444 apps/play_cleanup.c ||
+echo 'restore of apps/play_cleanup.c failed'
+Wc_c="`wc -c < 'apps/play_cleanup.c'`"
+test 767 -eq "$Wc_c" ||
+	echo 'apps/play_cleanup.c: original size 767, current size' "$Wc_c"
+fi
+# ============= apps/play_snd.1 ==============
+if test -f 'apps/play_snd.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_snd.1 (File already exists)'
+else
+echo 'x - extracting apps/play_snd.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_snd.1' &&
+X.TH PLAY_SND 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xplay_snd \- plays a raw 8-bit sound file
+X.SH SYNOPSIS
+X.B play_snd
+X[
+X.I file
+X]
+X.PP
+XThe argument must be the sound file to be played.
+X.SH DESCRIPTION
+X.B play_snd
+XPlays raw 8-bit sound files, using shared memory and two processes
+Xto double buffer reads and writes.  Feel free to use SIGINT (usually
+Xcontrol-C) to interrupt the play.  Do NOT, however, use SIGKILL or any
+Xother signal to terminate the program.  This leaves unwanted
+Xleft-overs, in the form of a shared memory segment.  Use play_cleanup
+Xif this happens accidentally.
+X.sp .5
+XUse set_speed to change the playing rate of the samples.
+X.sp .5
+X.B play_snd
+Xcan run with guaranteed real-time performance if the binary
+Xis setuid to root.  It will not violate security.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0644 apps/play_snd.1 ||
+echo 'restore of apps/play_snd.1 failed'
+Wc_c="`wc -c < 'apps/play_snd.1'`"
+test 792 -eq "$Wc_c" ||
+	echo 'apps/play_snd.1: original size 792, current size' "$Wc_c"
+fi
+# ============= apps/play_snd.c ==============
+if test -f 'apps/play_snd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_snd.c (File already exists)'
+else
+echo 'x - extracting apps/play_snd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_snd.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X * March 1992 - Lance Norskog
+X * hack to set priority high if super-user : ROOTHACK
+X * 
+X */
+X
+X#include <sys/fcntl.h>
+X#include <sys/types.h>
+X#include <sys/ipc.h>
+X#include <sys/lock.h>			/* ROOTHACK */
+X#include <sys/shm.h>
+X#include <sys/sb.h>
+X#include <signal.h>
+X#include <errno.h>
+X#include <stdio.h>
+X
+X#define NUMBUFS     4
+X#define SHM_BUFSIZ  (8*4096)
+X#define SHM_KEY     1796
+X
+Xtypedef struct {
+X    char    buf[NUMBUFS*SHM_BUFSIZ];
+X    int     write_waiting;
+X    int     read_waiting;
+X    int     locked[NUMBUFS];
+X    int     length[NUMBUFS];
+X}   buf_struct;
+X
+X
+X/* GLOBALS */
+Xint shmid;
+Xbuf_struct *buffers;
+Xint sound_fd;
+X
+Xvoid sigusr_handler()
+X{
+X    return;
+X}
+X
+X
+Xvoid cleanup()
+X{
+X    shmctl(shmid, IPC_RMID, 0);
+X    exit(0);
+X}
+X
+Xvoid detach()
+X{
+X    shmdt(buffers);
+X    exit(0);
+X}
+X
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int i;
+X    int infile;
+X    int child_pid;
+X    int buf_num;
+X    int rc;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <sound file>\n", argv[0]);
+X        printf("\tif <sound file> is \"-\", then %s will play from stdin\n",
+X            argv[0]);
+X        exit(-1);
+X    }
+X
+X    nice(-15);				/* ROOTHACK */
+X    plock(PROCLOCK);			/* ROOTHACK */
+X    setuid(getuid());			/* ROOTHACK */
+X
+X    if (strcmp(argv[1], "-") == 0)
+X        infile = 0;
+X    else
+X    {
+X        infile = open(argv[1], O_RDONLY);
+X        if (infile == -1)
+X        {
+X            perror("opening data file");
+X            printf("usage: %s <sound file>\n", argv[0]);
+X            printf("\tif <sound file> is \"-\", then %s will play from stdin\n",
+X                argv[0]);
+X            exit(-1);
+X        }
+X    }
+X
+X    /* open device */
+X    sound_fd = open("/dev/sbdsp", O_WRONLY);
+X    if (sound_fd == -1)
+X    {
+X        perror("opening SoundBlaster device");
+X        exit(-1);
+X    }
+X
+X    /* create shared memory segment */
+X    shmid = shmget(SHM_KEY, sizeof(buf_struct), IPC_CREAT | IPC_EXCL | 0644);
+X    if (shmid == -1)
+X    {
+X        perror("creating shared-mem buffer");
+X        exit(-1);
+X    }
+X
+X    /* attach handler for signal */
+X    if (sigset(SIGUSR1, sigusr_handler) == SIG_IGN)
+X	    sigset(SIGUSR1, SIG_IGN);
+X    for(i = 1; i < SIGUSR1; i++)
+X	    if (sigset(i, cleanup) == SIG_IGN)
+X		    sigset(i, SIG_IGN);
+X
+X    /* start read process */
+X    child_pid = fork();
+X    switch (child_pid)
+X    {
+X        case 0:
+X            start_read(infile);
+X            exit(0);
+X        case -1:
+X            perror("forking reader process");
+X            cleanup();
+X    }
+X
+X    /* attach shared memory segment */
+X    buffers = (buf_struct *)shmat(shmid, 0, 0);
+X    if (buffers == (buf_struct *)-1)
+X    {
+X        perror("attaching shared memory");
+X        if (buffers->read_waiting)
+X            kill(child_pid, SIGKILL);
+X        cleanup();
+X    }
+X
+X    /* start writing stuff in buffers */
+X    while(1)
+X    {
+X        /* wait until buffer is locked for us, or flush and break on eof */
+X        if (!buffers->locked[buf_num])
+X        {
+X            buffers->write_waiting = 1;
+X            sigpause(SIGUSR1);
+X            continue;
+X        }
+X
+X        /* not waiting now */
+X        buffers->write_waiting = 0;
+X
+X        /* eof check */
+X        if (buffers->length[buf_num] <= 0)
+X            break;
+X
+X        /* write out data in buffer */
+X        rc = write(sound_fd, buffers->buf + (buf_num*SHM_BUFSIZ),
+X            buffers->length[buf_num]);
+X        if (rc != buffers->length[buf_num])
+X        {
+X            if ((errno == EINTR) || (errno == 0))
+X                continue;
+X
+X            perror("writing to sound blaster");
+X            kill(child_pid, SIGKILL);
+X            cleanup();
+X        }
+X
+X        /* unlock buffer for child's use */
+X        buffers->locked[buf_num] = 0;
+X        if (buffers->read_waiting)
+X            kill(child_pid, SIGUSR1);
+X
+X        /* go to next buffer */
+X        buf_num++;
+X        buf_num %= NUMBUFS;
+X    }
+X
+X
+X    cleanup();
+X    return(0);
+X}
+X
+Xint start_read(infile)
+Xint infile;
+X{
+X    buf_struct *buffers;
+X    int buf_num = 0;
+X
+X    /* attach handler for signal */
+X    sigset(SIGUSR1, sigusr_handler);
+X    sigset(SIGINT, detach);
+X    sigset(SIGHUP, detach);
+X
+X    /* attach shared memory */
+X    buffers = (buf_struct *)shmat(shmid, 0, 0);
+X    if (buffers == (buf_struct *)-1)
+X    {
+X        perror("attaching shared memory");
+X        exit(0);
+X    }
+X
+X    /* init shared mem stuff */
+X    buffers->read_waiting = 0;
+X    for (buf_num=0; buf_num < NUMBUFS; buf_num++)
+X        buffers->locked[buf_num] = 0;
+X
+X    /* start reading into buffers */
+X    buf_num = 0;
+X    sleep(1);
+X    while(1)
+X    {
+X        /* wait for current buffer to become unlocked */
+X        if (buffers->locked[buf_num])
+X        {
+X            buffers->read_waiting = 1;
+X            sigpause(SIGUSR1);
+X            continue;
+X        }
+X
+X        /* not waiting any more */
+X        buffers->read_waiting = 0;
+X
+X        /* actually read data */
+X        buffers->length[buf_num] =
+X            read(infile, buffers->buf + (buf_num*SHM_BUFSIZ), SHM_BUFSIZ);
+X        if (buffers->length[buf_num] == -1) 
+X        {
+X            if (errno == EINTR)
+X                continue;
+X            else
+X            {
+X                perror("reading from input file\n");
+X                detach();
+X            }
+X        }
+X        else if (buffers->length[buf_num] == 0)
+X        {
+X            buffers->locked[buf_num] = 1;
+X
+X            /* wake up parent */
+X            if (buffers->write_waiting)
+X                kill(getppid(), SIGUSR1);
+X
+X            break;
+X        }
+X
+X        /* lock buffer for parent's use */
+X        buffers->locked[buf_num] = 1;
+X                
+X        /* wake up parent */
+X        if (buffers->write_waiting)
+X            kill(getppid(), SIGUSR1);
+X
+X        /* go to next buffer */
+X        buf_num++;
+X        buf_num %= NUMBUFS;
+X    }
+X        
+X
+X    /* wake up parent */
+X    if (buffers->write_waiting)
+X        kill(getppid(), SIGUSR1);
+X
+X    /* detach shared memory */
+X    shmdt(buffers);
+X
+X    return(0);
+X}
+SHAR_EOF
+chmod 0644 apps/play_snd.c ||
+echo 'restore of apps/play_snd.c failed'
+Wc_c="`wc -c < 'apps/play_snd.c'`"
+test 6022 -eq "$Wc_c" ||
+	echo 'apps/play_snd.c: original size 6022, current size' "$Wc_c"
+fi
+# ============= apps/record_snd.1 ==============
+if test -f 'apps/record_snd.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/record_snd.1 (File already exists)'
+else
+echo 'x - extracting apps/record_snd.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/record_snd.1' &&
+X.TH RECORD_SND 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xrecord_snd \- records a raw 8-bit sound file
+X.SH SYNOPSIS
+X.B record_snd
+X[
+X.I file
+X]
+X.PP
+XThe argument must be the sound file to contain the recording.
+X.SH DESCRIPTION
+X.B record_snd
+XRecords raw 8-bit sound files, using shared memory and two processes
+Xto double buffer reads and writes.  Use SIGINT (usually control-C) to
+Xstop the recording.  Do NOT, however, use SIGKILL or any other signal
+Xto terminate the program.  This leaves unwanted left-overs, in the
+Xform of a shared memory segment.  Use play_cleanup if this happens
+Xaccidentally.
+X.sp .5
+XUse set_speed to change the recording rate of the samples.
+X.sp .5
+X.B play_snd
+Xcan run with guaranteed real-time performance if the binary
+Xis setuid to root.  It will not violate security.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0644 apps/record_snd.1 ||
+echo 'restore of apps/record_snd.1 failed'
+Wc_c="`wc -c < 'apps/record_snd.1'`"
+test 805 -eq "$Wc_c" ||
+	echo 'apps/record_snd.1: original size 805, current size' "$Wc_c"
+fi
+# ============= apps/record_snd.c ==============
+if test -f 'apps/record_snd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/record_snd.c (File already exists)'
+else
+echo 'x - extracting apps/record_snd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/record_snd.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X * March 1992 - Lance Norskog
+X * hack to set priority high if super-user : ROOTHACK
+X * 
+X */
+X
+X#include <sys/fcntl.h>
+X#include <sys/types.h>
+X#include <sys/ipc.h>
+X#include <sys/shm.h>
+X#include <sys/lock.h>			/* ROOTHACK */
+X#include <sys/sb.h>
+X#include <signal.h>
+X#include <errno.h>
+X#include <stdio.h>
+X
+X#define NUMBUFS     4
+X#define SHM_BUFSIZ  (8*4096)
+X#define SHM_KEY     1796
+X
+Xtypedef struct {
+X    char    buf[NUMBUFS*SHM_BUFSIZ];
+X    int     write_waiting;
+X    int     read_waiting;
+X    int     locked[NUMBUFS];
+X    int     length[NUMBUFS];
+X}   buf_struct;
+X
+X
+X/* GLOBALS */
+Xint shmid;
+Xbuf_struct *buffers;
+X
+Xvoid sigusr_handler()
+X{
+X    return;
+X}
+X
+X
+Xvoid cleanup()
+X{
+X    printf("cleanup\n");
+X    shmctl(shmid, IPC_RMID, 0);
+X    exit(0);
+X}
+X
+Xvoid detach()
+X{
+X    printf("detaching\n");
+X    shmdt(buffers);
+X    exit(0);
+X}
+X
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int i;
+X    int outfile;
+X    int sound_fd;
+X    int child_pid;
+X    int buf_num;
+X    int rc;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <new sound file>\n", argv[0]);
+X        printf("\tif <sound file> is \"-\", then %s will record to stdout\n",
+X            argv[0]);
+X        exit(-1);
+X    }
+X
+X    nice(-15);				/* ROOTHACK */
+X    plock(PROCLOCK);			/* ROOTHACK */
+X    setuid(getuid());			/* ROOTHACK */
+X
+X    if (strcmp(argv[1], "-") == 0)
+X        outfile = 1;
+X    else
+X    {
+X        outfile = open(argv[1], O_WRONLY | O_CREAT, 0666);
+X        if (outfile == -1)
+X        {
+X            perror("opening output file");
+X            printf("usage: %s <output sound file>\n", argv[0]);
+X            printf("\tif <sound file> is \"-\", %s will record to stdout\n",
+X                argv[0]);
+X            exit(-1);
+X        }
+X    }
+X
+X    /* open device */
+X    sound_fd = open("/dev/sbdsp", O_RDONLY);
+X    if (sound_fd == -1)
+X    {
+X        perror("opening SoundBlaster device");
+X        exit(-1);
+X    }
+X    if (ioctl(sound_fd, DSP_IOCTL_RESET) == -1)
+X    {
+X        perror("trying to reset DSP");
+X        exit(-1);
+X    }
+X    if (ioctl(sound_fd, DSP_IOCTL_VOICE, 0) == -1)
+X    {
+X        perror("trying to set voice on");
+X        exit(-1);
+X    }
+X
+X    /* create shared memory segment */
+X    shmid = shmget(SHM_KEY, sizeof(buf_struct), IPC_CREAT | IPC_EXCL | 0644);
+X    if (shmid == -1)
+X    {
+X        perror("creating shared-mem buffer");
+X        exit(-1);
+X    }
+X
+X    /* attach handler for signal */
+X    if (sigset(SIGUSR1, sigusr_handler) == SIG_IGN)
+X	    sigset(SIGUSR1, SIG_IGN);
+X    for(i = 1; i < SIGUSR1; i++)
+X	    if (sigset(i, cleanup) == SIG_IGN)
+X		    sigset(i, SIG_IGN);
+X
+X    /* start read process */
+X    child_pid = fork();
+X    switch (child_pid)
+X    {
+X        case 0:
+X            start_read(sound_fd);
+X            exit(0);
+X        case -1:
+X            perror("forking read process");
+X            cleanup();
+X    }
+X
+X    /* attach shared memory segment */
+X    buffers = (buf_struct *)shmat(shmid, 0, 0);
+X    if (buffers == (buf_struct *)-1)
+X    {
+X        perror("attaching shared memory");
+X        if (buffers->read_waiting)
+X            kill(child_pid, SIGKILL);
+X        cleanup();
+X    }
+X
+X    /* start writing stuff from buffers */
+X    while(1)
+X    {
+X        /* wait until buffer is locked for us, or flush and break on eof */
+X        if (!buffers->locked[buf_num])
+X        {
+X            buffers->write_waiting = 1;
+X            sigpause(SIGUSR1);
+X            continue;
+X        }
+X
+X        /* not waiting now */
+X        buffers->write_waiting = 0;
+X
+X        /* eof check */
+X        if (buffers->length[buf_num] <= 0)
+X            break;
+X
+X        /* write out data in buffer */
+X        rc = write(outfile, buffers->buf + (buf_num*SHM_BUFSIZ),
+X            buffers->length[buf_num]);
+X        if (rc != buffers->length[buf_num])
+X        {
+X            if ((errno == EINTR) || (errno == 0))
+X                continue;
+X
+X            perror("writing to output file");
+X            kill(child_pid, SIGKILL);
+X            cleanup();
+X        }
+X
+X        /* unlock buffer for child's use */
+X        buffers->locked[buf_num] = 0;
+X        if (buffers->read_waiting)
+X            kill(child_pid, SIGUSR1);
+X
+X        /* go to next buffer */
+X        buf_num++;
+X        buf_num %= NUMBUFS;
+X    }
+X
+X
+X    printf("done\n");
+X    cleanup();
+X    return(0);
+X}
+X
+Xint start_read(sound_fd)
+Xint sound_fd;
+X{
+X    buf_struct *buffers;
+X    int buf_num = 0;
+X
+X    /* attach handler for signal */
+X    sigset(SIGUSR1, sigusr_handler);
+X    sigset(SIGINT, detach);
+X    sigset(SIGHUP, detach);
+X
+X    /* attach shared memory */
+X    buffers = (buf_struct *)shmat(shmid, 0, 0);
+X    if (buffers == (buf_struct *)-1)
+X    {
+X        perror("attaching shared memory");
+X        exit(0);
+X    }
+X
+X    for (buf_num=0; buf_num < NUMBUFS; buf_num++)
+X        buffers->locked[buf_num] = 0;
+X
+X    /* start reading into buffers */
+X    buf_num = 0;
+X    sleep(1);
+X    while(1)
+X    {
+X        /* wait for current buffer to become unlocked */
+X        if (buffers->locked[buf_num])
+X        {
+X            buffers->read_waiting = 1;
+X            sigpause(SIGUSR1);
+X            continue;
+X        }
+X
+X        /* not waiting any more */
+X        buffers->read_waiting = 1;
+X
+X        /* actually read data */
+X        buffers->length[buf_num] =
+X            read(sound_fd, buffers->buf + (buf_num*SHM_BUFSIZ), SHM_BUFSIZ);
+X        if (buffers->length[buf_num] == -1) 
+X        {
+X            if (errno == EINTR)
+X                continue;
+X            else
+X            {
+X                perror("reading from SoundBlaster\n");
+X                detach();
+X            }
+X        }
+X        else if (buffers->length[buf_num] == 0)
+X        {
+X            buffers->locked[buf_num] = 1;
+X
+X            /* wake up parent */
+X            if (buffers->write_waiting)
+X                kill(getppid(), SIGUSR1);
+X
+X            break;
+X        }
+X
+X        /* lock buffer for parent's use */
+X        buffers->locked[buf_num] = 1;
+X                
+X        /* wake up parent */
+X        if (buffers->write_waiting)
+X            kill(getppid(), SIGUSR1);
+X
+X        /* go to next buffer */
+X        buf_num++;
+X        buf_num %= NUMBUFS;
+X    }
+X        
+X
+X    /* wake up parent */
+X    kill(getppid(), SIGUSR1);
+X
+X    /* detach shared memory */
+X    shmdt(buffers);
+X
+X    return(0);
+X}
+SHAR_EOF
+chmod 0644 apps/record_snd.c ||
+echo 'restore of apps/record_snd.c failed'
+Wc_c="`wc -c < 'apps/record_snd.c'`"
+test 6278 -eq "$Wc_c" ||
+	echo 'apps/record_snd.c: original size 6278, current size' "$Wc_c"
+fi
+true || echo 'restore of apps/play_cmf.c failed'
+echo End of part 3, continue with part 4
+exit 0

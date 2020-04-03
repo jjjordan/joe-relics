@@ -1,0 +1,197 @@
+Xref: funic alt.sources:3478 alt.security:5219 news.admin:10315
+Path: funic!fuug!mcsun!uunet!think.com!ames!pasteur!dog.ee.lbl.gov!overload.lbl.gov!lll-winken!taco!rock!fletcher.cs.unca.edu!mcmahan
+From: mcmahan@fletcher.cs.unca.edu (Scott McMahan -- Genesis mailing list owner)
+Newsgroups: alt.sources,alt.security,news.admin
+Subject: News Group Readership Monitoring
+Message-ID: <1992Mar24.150505.18563@rock.concert.net>
+Date: 24 Mar 92 15:05:05 GMT
+Sender: news@rock.concert.net
+Organization: University of North Carolina at Asheville
+Lines: 186
+
+Recently, I've been installing news locally, and the Computer
+Center here got involved and are dedicating a VAX to news.
+
+The VMS software, however, has a program which lets you monitor
+which groups are being read by whom, if you are running the system.
+It was brought to my attention when the guy running it asked if the
+UNIX c-news/nntp package had a similar feature.
+
+It had never occurred to me that anyone would be snooping through my
+.newsrc looking at what I was reading! And the guy asking didn't think
+there was anything wrong with doing it, either, even after I pointed
+out changing a couple of lines could turn a general report of what is
+being read at your site to a line by line description of what everyone
+is reading.
+
+I've never seen this topic discussed on Usenet before, so I'd like to
+heighten everyone's awareness of what systems people are capable of 
+doing, without necessarily your knowlege.
+
+Do any sites regularly do this?
+
+Does anyone actually condone this invasion of privacy?
+
+Ways to keep yourself safe? Don't put your .newsrc in an obvious
+place (like ".newsrc"), and even encrypt it between news sessions.
+
+An example of how it can be done in UNIX is this perl script I whipped
+up in a very small amount of time. And I don't even really know perl!
+It uses the Brute Force method, and I'm sure there are more elegant 
+ways of doing it.  It requires no special privileges to run, but if you
+ran it as root you could override everyone's permissions and get a really 
+accurate total.
+
+If you changed a couple of lines, you could probably get a line-by-line 
+of who reads what.
+
+Note that this software is presented in the spirit of Crack, the password
+cracker utility -- it is designed to raise awareness. *Anybody* could 
+put this together, and the bad guys (whoever they are is up to your 
+own interpretation -- the person running your system could be using this).
+It isn't designed for malicious purposes, but if you wanted to use it for
+them it would be very trivial to concoct this on your own, even easier than
+a password cracker!
+
+
+#!/usr/local/bin/perl
+###############################################################################
+#			       newsuse
+# Program designed to see which groups are read more on your system.
+# Perl's dynamic arrays are used to make this easier.
+#
+# This software was written in 3-92 by Scott McMahan when he learned about
+# how easy it was for systems people to gain an insight into people's private
+# business. It is made public in the spirit of Crack, the password cracking
+# utility, since if you really wanted one of these utility programs you could
+# write it yourelf.
+#
+# This is designed to show people that it can, and probably *is* done, more
+# than for any actual use.
+#
+###############################################################################
+
+
+###############################################################################
+# User defined variables -- ones to alter to site specifics.                  #
+###############################################################################
+$active = "</var/news/usr/lib/news/active"; # News active file
+$passwd = "</etc/passwd";                   # For usernames and home dirs
+$newsrc = ".newsrc";                        # what user's newsrc is called
+###############################################################################
+
+# You'll probably want to run it verbosely...
+$verbose = 1;
+
+# Create arrays of all the group names, and zero totals for 
+# totals array. What's going on here is taking advantage of 
+# Perl's dynamic arrays to create a *HUGE* array of all the 
+# group names (strings) and an array of numbers for each 
+# group. Thus, the number of people reading groupname[n]
+# is groupnumber[n] where n < max.
+
+$count = 0; # Recycle varaibles! :) This is a *general* counter.
+
+if ($verbose == 1) {print "Opening active file...\n";}
+open(Active, $active);
+
+while (<Active>) {
+  split;
+  @groupname[$count] = @_[0];
+  @groupnumber[$count] = 0;
+  $count++;
+}
+
+$max = $count;
+close(Active);
+if ($verbose == 1) { print "Total groups in active file: $max read in...\n";}
+
+###############################################################################
+#			      Main Loop                                       #
+###############################################################################
+
+open(Passwd, $passwd);
+while(<Passwd>) {
+
+  split(/\:/);
+  $user = @_[0];
+  $directory = @_[5];
+
+  if ($verbose == 1) { 
+  print "Got user $user with HOME = $directory, checking...\n";}
+
+  if (-r $directory) { 
+    
+    if (-r "$directory/$newsrc") {  
+				      
+
+      ################################################################
+      # Inner loop to scan newsrc file                               #
+      ################################################################
+
+      if ($verbose == 1) { print "Opening $user's $newsrc file...\nScan: ";}
+      open(Newsrc, "$directory/$newsrc");
+      while (<Newsrc>) {
+
+	if (/:/) {
+
+	  split( /:/ );
+	  if ($verbose == 1) { 
+            print ".";
+            }
+
+	  $count = 0;
+
+	  ########################################################
+	  # Loop to look up found newsgroup in array & inc total #
+	  ########################################################
+
+	  while ($count < $max) {
+	    if (@groupname[$count] eq @_[0]) {
+	      @groupnumber[$count] = @groupnumber[$count] + 1;  
+	    }                         
+	    $count++;
+          } 	  
+	}
+      }
+      close (Newsrc);
+      if ($verbose == 1) { print "\n"; }
+    }
+
+      ################################################################
+      # End newsrc scan loop                                         #
+      ################################################################
+
+    # Go here if newsrc isn't readable
+
+    else {
+      if ($verbose == 1) { print "Can't read $user --> $newsrc file.\n"; }
+    }
+  }
+
+  # Go here if directory isn't readable
+
+  else {
+   if ($verbose == 1) { print "Can't read $user --> $directory (home directory).\n";}
+  }
+}
+
+close(Passwd);
+
+###############################################################################
+#			    End Main Loop                                     #
+###############################################################################
+
+# totals -- output
+
+$count = 0;
+
+printf "%20s      %s", "Newsgroup", "No. subscribed";
+print "----------------------------------------";
+
+while ($count < $max) {
+  if (@groupnumber[$count] > 0) { 
+    printf "%20s      %s", @groupname[$count], @groupnumber[$count];
+  }
+  $count++;
+}

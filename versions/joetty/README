@@ -1,0 +1,92 @@
+                              JOETTY - BETA TEST
+
+	This is my implementation of curses which I'm ultimately going to
+use for my rewrite of JOE (Joe's Own Editor).  Since I have this done and
+since it's seperable from JOE, I'm releasing it.  It has a number of
+features which I think make it much better than other versions of curses:
+
+	* It has scrolling functions which actually use the terminal's
+scrolling commands.  Multiple calls to the scrolling functions are buffered
+so that the minimum amount of scrolling is done to the terminal.
+
+	* It handles all of the weird termcap ideosyncrasies.  For example,
+JOETTY will be perfectly happy with this as a termcap entry:
+
+vt|vt000|Broken Vt100:\
+	:co#80:li#24:ho=\E[H:up=\E[A:
+
+	JOETTY will use ho and repeated LFs to move down, will retype
+characters from its buffer to move right and will use CR and retyped
+characters to move left.  (try this with vi or gnu-emacs....)
+
+	Actually, one of the reasons I'm releasing this before JOE is
+finished, is to find out if it will work with every weird terminal.  Please
+let me know if you find problems. 
+
+	* The screen refresh automatically gets deferred if there is
+typeahead
+
+	* No typeahead is lost when entering or exiting or when doing shell
+escapes/suspends
+
+	* Key sequences defined in termcap for arrow keys, functions keys
+and some other special keys are converted to single integer codes. 
+
+	* Modifications to the screen are buffered such that a brute force
+scan of the screen buffer is not done if only a few simple changes are made. 
+This saves a lot of CPU time. 
+
+	* Uses the winsize/ttysize structure to get the screen size if your
+UNIX supports it
+
+	* Uses the environment variables ROWS and COLS to override the
+termcap and winsize/ttysize method of getting the screen size
+
+	* The screen automatically gets refreshed when you read characters
+from the keyboard.  The only time you ever have to explicitly refresh the
+screen is when you're doing animation or if you need to put a PLEASE WAIT -
+ACCESSING DISK message on the screen.
+
+	* No confusing window support.  It does have functions to save and
+restore areas of the screen - so you can implement windows yourself.
+
+	* It's generally much easier to use.  Here's a complete program
+which draws a box around the screen, lets you type characters to the screen
+and exits when you press X.  It also checks for and executes shell escapes/
+suspends (press !).
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+#include "types.h"
+#include "tty.h"
+#include "cap.h"
+#include "scrn.h"
+
+main()
+{
+SCRN *t=topen(0);	/* Open the screen.  This sets up everything */
+int x=1,y=1,c;
+if(!t) return;		/* Abort if there was an error... */
+
+tbox(t,1,1,t->co-2,t->li-2);	/* Draw a box around the screen */
+
+do
+ {
+ tsetpos(t,x,y);		/* Set the displayed cursor position */
+ c=tgetc(t);			/* Get a character from the keyboard */
+ if(c==KEYUP && y) --y;		/* Check for arrow keys... */
+ else if(c==KEYDOWN && y!=t->li-1) ++y;
+ else if(c==KEYRIGHT && x!=t->co-1) ++x;
+ else if(c==KEYLEFT && x) --x;
+ else if(c=='X') tclose(t,0);	/* Check for exiting... */
+ else if(c=='!')
+  if(!(t=tsusp(t))) exit(1);	/* Check for shell escape... */
+ else if(c>=' ' && c<='~' && x!=t->co-1)
+  tputc(t,x,y,c), ++x;		/* Write normal chars to screen */
+ }
+ while(!leave);
+}
+
+=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Joseph H. Allen (rcarter@wpi.wpi.edu)

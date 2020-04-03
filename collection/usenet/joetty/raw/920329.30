@@ -1,0 +1,1998 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: SOX: part 4 of 4
+Message-ID: <btbjnwfthinman@netcom.com>
+Date: 27 Mar 92 05:27:45 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 1989
+
+
+#!/bin/sh
+# This is part 04 of soundtools_v4
+# ============= stat.c ==============
+if test -f 'stat.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping stat.c (File already exists)'
+else
+echo 'x - extracting stat.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'stat.c' &&
+X
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools statistics "effect" file.
+X *
+X * Build various statistics on file and print them.
+X * No output.
+X */
+X
+X#include "st.h"
+X
+X/* Private data for STAT effect */
+Xtypedef struct statstuff {
+X	long	min, max, mean;		/* amplitudes */
+X	long	dmin, dmax, dmean;	/* deltas */
+X	long	last;			/* previous sample */
+X	int	first;
+X	int	total;
+X	int	volume;
+X} *stat_t;
+X
+X#define	abs(val)	(((val) < 0) ? -(val) : (val))
+X
+X/*
+X * Process options
+X */
+Xstat_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	stat_t stat = (stat_t) effp->priv;
+X
+X	stat->volume = 0;
+X	if (n)
+X		if (strcmp(argv[0], "-V"))
+X			stat->volume = 1;
+X		else
+X			fail("Summary effect takes no options.");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xstat_start(effp)
+Xeff_t effp;
+X{
+X	stat_t stat = (stat_t) effp->priv;
+X
+X	stat->min = stat->dmin = 0x7fffffff;
+X	stat->max = stat->dmax = 0x80000000;
+X	stat->first = 1;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xstat_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	stat_t stat = (stat_t) effp->priv;
+X	int len, done;
+X	long samp, delta;
+X	
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X	for(done = 0; done < len; done++) {
+X		/* work in absolute levels for both sample and delta */
+X		samp = *ibuf++;
+X	        *obuf++ = samp;
+X
+X		samp = abs(samp);
+X		if (samp < stat->min)
+X			stat->min = samp;
+X		if (samp > stat->max)
+X			stat->max = samp;
+X		if (stat->first) {
+X			stat->first = 0;
+X			stat->mean = samp;
+X			stat->dmean = 0;
+X		} else  {
+X			/* overflow avoidance */
+X			if ((stat->mean > 0x20000000) || (samp > 0x20000000))
+X				stat->mean = stat->mean/2 + samp/2;
+X			else
+X				stat->mean = (stat->mean + samp)/2;
+X
+X			delta = abs(samp - stat->last);
+X			if (delta < stat->dmin)
+X				stat->dmin = delta;
+X			if (delta > stat->dmax)
+X				stat->dmax = delta;
+X			/* overflow avoidance */
+X			if ((delta > 0x20000000) || (stat->dmean > 0x20000000))
+X				stat->dmean = stat->dmean/2 + delta/2;
+X			else
+X				stat->dmean = (stat->dmean + delta)/2;
+X		}
+X		stat->last = samp;
+X	}
+X	/* Process all samples */
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xstat_stop(effp)
+Xeff_t effp;
+X{
+X	stat_t stat = (stat_t) effp->priv;
+X	double amp, range;
+X
+X	stat->min   = RIGHT(stat->min, 16);
+X	stat->max   = RIGHT(stat->max, 16);
+X	stat->mean  = RIGHT(stat->mean, 16);
+X	stat->dmin  = RIGHT(stat->dmin, 16);
+X	stat->dmax  = RIGHT(stat->dmax, 16);
+X	stat->dmean = RIGHT(stat->dmean, 16);
+X
+X	range = 32767.0;
+X
+X	amp = - stat->min;
+X	if (amp < stat->max)
+X		amp = stat->max;
+X	/* Just print the volume adjustment */
+X	if (stat->volume) {
+X		fprintf(stderr, "%.3f\n", 32767.0/amp);
+X		return;
+X	}
+X	/* print them out */
+X	fprintf(stderr, "Maximum amplitude: %.3f\n", stat->max/range);
+X	fprintf(stderr, "Minimum amplitude: %.3f\n", stat->min/range);
+X	fprintf(stderr, "Mean    amplitude: %.3f\n", stat->mean/range);
+X
+X	fprintf(stderr, "Maximum delta:     %.3f\n", stat->dmax/range);
+X	fprintf(stderr, "Minimum delta:     %.3f\n", stat->dmin/range);
+X	fprintf(stderr, "Mean    delta:     %.3f\n", stat->dmean/range);
+X
+X	fprintf(stderr, "Volume adjustment: %.3f\n", 32767.0/amp);
+X}
+X
+X
+X
+X
+SHAR_EOF
+chmod 0644 stat.c ||
+echo 'restore of stat.c failed'
+Wc_c="`wc -c < 'stat.c'`"
+test 3469 -eq "$Wc_c" ||
+	echo 'stat.c: original size 3469, current size' "$Wc_c"
+fi
+# ============= vibro.c ==============
+if test -f 'vibro.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping vibro.c (File already exists)'
+else
+echo 'x - extracting vibro.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'vibro.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Vibro effect file.
+X *
+X * Modeled on world-famous Fender(TM) Amp Vibro knobs.
+X * 
+X * Algorithm: generate a sine wave ranging from
+X * 0 + depth to 1.0, where signal goes from -1.0 to 1.0.
+X * Multiply signal with sine wave.  I think.
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+X/* Private data for Vibro effect */
+Xtypedef struct vibrostuff {
+X	float 		speed;
+X	float 		depth;
+X	short		*sinetab;		/* sine wave to apply */
+X	int		mult;			/* multiplier */
+X	unsigned	length;			/* length of table */
+X	int		counter;		/* current counter */
+X} *vibro_t;
+X
+X/*
+X * Process options
+X */
+Xvibro_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	vibro_t vibro = (vibro_t) effp->priv;
+X
+X	vibro->depth = 0.5;
+X	if ((n == 0) || !sscanf(argv[0], "%f", &vibro->speed) ||
+X		((n == 2) && !sscanf(argv[1], "%f", &vibro->depth)))
+X		fail("Usage: vibro speed [ depth ]");
+X	if ((vibro->speed <= 0.001) || (vibro->speed > 30.0) || 
+X			(vibro->depth < 0.0) || (vibro->depth > 1.0))
+X		fail("Vibro: speed must be < 30.0, 0.0 < depth < 1.0");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xvibro_start(effp)
+Xeff_t effp;
+X{
+X	vibro_t vibro = (vibro_t) effp->priv;
+X
+X	vibro->length = effp->ininfo.rate / vibro->speed;
+X	if (! (vibro->sinetab = (short*) malloc(vibro->length * sizeof(short))))
+X		fail("Vibro: Cannot malloc %d bytes",
+X			vibro->length * sizeof(short));
+X
+X	sine(vibro->sinetab, vibro->length, vibro->depth);
+X	vibro->counter = 0;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xvibro_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	vibro_t vibro = (vibro_t) effp->priv;
+X	register counter, tablen;
+X	int len, done;
+X	register long mult;
+X	register short *sinetab;
+X	long l;
+X
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X
+X	sinetab = vibro->sinetab;
+X	counter = vibro->counter;
+X	tablen = vibro->length;
+X	for(done = 0; done < len; done++) {
+X		l = *ibuf++;
+X		/* 24x8 gives 32-bit result */
+X		*obuf++ = ((l / 256) * sinetab[counter++ % tablen]);
+X	}
+X	vibro->counter = counter;
+X	/* processed all samples */
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xvibro_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+X/* This was very painful.  We need a sine library. */
+X
+Xsine(buf, len, depth)
+Xshort *buf;
+Xint len;
+Xfloat depth;
+X{
+X	int i;
+X	int scale = depth * 128;
+X	int base = (1.0 - depth) * 128;
+X	double val;
+X
+X	for (i = 0; i < len; i++) {
+X		val = sin((float)i/(float)len * 2.0 * M_PI);
+X		buf[i] = (val + 1.0) * scale + base * 2;
+X	}
+X/*
+X	for (i = 0; i < len; i++)
+X		fprintf(stderr, "%d\n", buf[i]);
+X*/
+X}
+X
+X
+X
+X
+SHAR_EOF
+chmod 0644 vibro.c ||
+echo 'restore of vibro.c failed'
+Wc_c="`wc -c < 'vibro.c'`"
+test 2920 -eq "$Wc_c" ||
+	echo 'vibro.c: original size 2920, current size' "$Wc_c"
+fi
+# ============= echo.c ==============
+if test -f 'echo.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping echo.c (File already exists)'
+else
+echo 'x - extracting echo.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'echo.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X** 	Echo effect. based on:
+X**
+X** echoplex.c - echo generator
+X**
+X** Copyright (C) 1989 by Jef Poskanzer.
+X**
+X** Permission to use, copy, modify, and distribute this software and its
+X** documentation for any purpose and without fee is hereby granted, provided
+X** that the above copyright notice appear in all copies and that both that
+X** copyright notice and this permission notice appear in supporting
+X** documentation.  This software is provided "as is" without express or
+X** implied warranty.
+X*/
+X
+X/*
+X * Sound Tools echo effect file.
+X */
+X
+X#include "st.h"
+X#include <math.h>
+X
+X#define FADE_THRESH 10
+X#define MYBUFSIZ 256
+X#define DELAYBUFSIZ ( 50 * MAXRATE )
+X#define MAXDELAYS 30
+X
+Xstruct echoplex {
+X	int	counter;			
+X	int	numdelays;
+X	long	*delaybuf;
+X	float	delay[MAXDELAYS], atten[MAXDELAYS];
+X	long	samples[MAXDELAYS], maxsamples;
+X	long	pl, ppl, pppl;
+X};
+X
+X/* Private data for SKEL file */
+Xtypedef struct echostuff {
+X	struct	echoplex *echoplex;
+X} *echo_t;
+X
+X#define abs(a) ((a) >= 0 ? (a) : -(a))
+X
+Xlong clip24();
+X
+Xdouble atof();
+X
+Xextern writing;
+X
+X/*
+X * Process options
+X */
+Xecho_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	echo_t echo = (echo_t) effp->priv;
+X	struct echoplex *e;
+X	int i;
+X
+X	echo->echoplex = (struct echoplex *) malloc(sizeof(struct echoplex));
+X	e = echo->echoplex;
+X	e->numdelays = 0;
+X	e->maxsamples = 0;
+X
+X	if ((n == 0) || (n & 1))
+X		fail("Usage: echo delay attenuation [ delay attenuation ... ]");
+X
+X	i = 0;
+X	while (i < n) {
+X		e->delay[e->numdelays] = atof( argv[i++] );
+X		e->atten[e->numdelays] = atof( argv[i++] );
+X		e->numdelays++;
+X	}
+X}
+X
+X/*
+X * Prepare for processing.
+X */
+Xecho_start(effp)
+Xeff_t effp;
+X{
+X	echo_t echo = (echo_t) effp->priv;
+X	struct	echoplex *e = echo->echoplex;
+X	int i;
+X
+X	for(i = 0; i < e->numdelays; i++) {
+X		e->samples[i] = e->delay[i] * effp->ininfo.rate;
+X		if ( e->samples[i] < 1 )
+X		    fail(" delay must positive, aye!");
+X		if ( e->samples[i] > DELAYBUFSIZ )
+X			fail("Echo: delay must be less than %g seconds",
+X				DELAYBUFSIZ / (float) effp->ininfo.rate );
+X		if ( e->atten[i] < 0.0 )
+X		    fail("attenuation must positive, aye!\n" );
+X		if ( e->samples[i] > e->maxsamples )
+X		    e->maxsamples = e->samples[i];
+X	}
+X	if (! (e->delaybuf = (long *) malloc(sizeof (long) * e->maxsamples)))
+X		fail("Echo: Cannot malloc %d bytes\n", 
+X			sizeof(long) * e->maxsamples);
+X	for ( i = 0; i < e->maxsamples; ++i )
+X		e->delaybuf[i] = 0;
+X	e->pppl = e->ppl = e->pl = 0x7fffff;		/* fade-outs */
+X	e->counter = 0;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xecho_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	echo_t echo = (echo_t) effp->priv;
+X	struct	echoplex *e = echo->echoplex;
+X	int len, done;
+X	int i, j;
+X	
+X	long l;
+X
+X	i = e->counter;
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X	for(done = 0; done < len; done++) {
+X		/* Store delays as 24-bit signed longs */
+X		l = *ibuf++ / 256;
+X		for ( j = 0; j < e->numdelays; ++j )
+X			l = l + 
+Xe->delaybuf[( i + e->maxsamples - e->samples[j]) % e->maxsamples] * e->atten[j];
+X		l = clip24(l);
+X		e->delaybuf[i] = l;
+X		*obuf++ = l * 256;
+X		i++;		/* XXX need a % maxsamples here ? */
+X		i %= e->maxsamples;
+X	}
+X	e->counter = i;
+X	/* processed all samples */
+X}
+X
+X/*
+X * Drain out echo lines. 
+X */
+Xecho_drain(effp, obuf, osamp)
+Xeff_t effp;
+Xlong *obuf;
+Xlong *osamp;
+X{
+X	echo_t echo = (echo_t) effp->priv;
+X	struct	echoplex *e = echo->echoplex;
+X	long l;
+X	int i, j, done;
+X
+X	i = e->counter;
+X	done = 0;
+X	/* drain out delay samples */
+X	do {
+X		l = 0;
+X		for ( j = 0; j < e->numdelays; ++j )
+X			l += 
+Xe->delaybuf[(i + e->maxsamples - e->samples[j]) % e->maxsamples] * e->atten[j];
+X		l = clip24(l);
+X		e->delaybuf[i] = l;
+X		obuf[done++] = l * 256;
+X		e->pppl = e->ppl;
+X		e->ppl = e->pl;
+X		e->pl = l;
+X		i++;		/* need a % maxsamples here ? */
+X		i %= e->maxsamples;
+X	} while((done < *osamp) && 
+X		((abs(e->pl) + abs(e->ppl) + abs(e->pppl)) > FADE_THRESH));
+X	e->counter = i;
+X	*osamp = done;
+X	/* drain will not be called again */
+X}
+X
+X/*
+X * Clean up echo effect.
+X */
+Xecho_stop(effp)
+Xeff_t effp;
+X{
+X	echo_t echo = (echo_t) effp->priv;
+X
+X	free((char *) echo->echoplex);
+X	echo->echoplex = (struct echoplex *) -1;   /* guaranteed core dump */
+X}
+X
+Xlong
+Xclip24(l)
+Xlong l;
+X{
+X	if (l >= ((long)1 << 24))
+X		return ((long)1 << 24) - 1;
+X	else if (l <= -((long)1 << 24))
+X		return -((long)1 << 24) + 1;
+X	else
+X		return l;
+X}
+X
+X
+SHAR_EOF
+chmod 0644 echo.c ||
+echo 'restore of echo.c failed'
+Wc_c="`wc -c < 'echo.c'`"
+test 4666 -eq "$Wc_c" ||
+	echo 'echo.c: original size 4666, current size' "$Wc_c"
+fi
+# ============= rate.c ==============
+if test -f 'rate.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping rate.c (File already exists)'
+else
+echo 'x - extracting rate.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'rate.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools rate change effect file.
+X */
+X
+X#include "st.h"
+X#include <math.h>
+X
+X/*
+X * Least Common Multiple Linear Interpolation 
+X *
+X * Find least common multiple of the two sample rates.
+X * Construct the signal at the LCM by interpolating successive
+X * input samples as straight lines.  Pull output samples from
+X * this line at output rate.
+X *
+X * Of course, actually calculate only the output samples.
+X *
+X * LCM must be 32 bits or less.  Two prime number sample rates
+X * between 32768 and 65535 will yield a 32-bit LCM, so this is 
+X * stretching it.
+X */
+X
+X/*
+X * Algorithm:
+X *  
+X *  Generate a master sample clock from the LCM of the two rates.
+X *  Interpolate linearly along it.  Count up input and output skips.
+X *
+X *  Input:   |inskip |       |       |       |       |
+X *                                                                      
+X *                                                                      
+X *                                                                      
+X *  LCM:     |   |   |   |   |   |   |   |   |   |   |
+X *                                                                      
+X *                                                                      
+X *                                                                      
+X *  Output:  |  outskip  |           |           | 
+X *
+X *                                                                      
+X */
+X
+X
+X/* Private data for Lerp via LCM file */
+Xtypedef struct ratestuff {
+X	u_l	lcmrate;		/* least common multiple of rates */
+X	u_l	inskip, outskip;	/* LCM increments for I & O rates */
+X	u_l	total;
+X	u_l	intot, outtot;		/* total samples in terms of LCM rate */
+X	long	lastsamp;
+X} *rate_t;
+X
+X/*
+X * Process options
+X */
+Xrate_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	if (n)
+X		fail("Rate effect takes no options.");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xrate_start(effp)
+Xeff_t effp;
+X{
+X	rate_t rate = (rate_t) effp->priv;
+X	
+X	rate->lcmrate = lcm(effp->ininfo.rate, effp->outinfo.rate);
+X	/* Cursory check for LCM overflow.  
+X	 * If both rate are below 65k, there should be no problem.
+X	 * 16 bits x 16 bits = 32 bits, which we can handle.
+X	 */
+X/*
+X	This is bogus, need a test for 32-bit overflow.
+X
+X	if ((rate->lcmrate / gcd(effp->ininfo.rate, effp->outinfo.rate)) !=
+X		(effp->ininfo.rate * effp->outinfo.rate))
+Xfprintf(stderr, "Rate effect: Least Common Multiple overflowed!\n");
+X*/
+X	rate->inskip = rate->lcmrate / effp->ininfo.rate;
+X	rate->outskip = rate->lcmrate / effp->outinfo.rate; 
+X	rate->total = rate->intot = rate->outtot = 0;
+X	rate->lastsamp = 0;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xrate_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	rate_t rate = (rate_t) effp->priv;
+X	int len, done;
+X	int skip;
+X	long *istart = ibuf;
+X	long last;
+X	
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	float f;
+X	double d;
+X
+X	done = 0;
+X	if (rate->total == 0) {
+X		/* Emit first sample.  We know the fence posts meet. */
+X		*obuf = *ibuf++;
+X		/* Count up until have right input samples */
+X			rate->lastsamp = *obuf++ >> 16;
+X		done = 1;
+X		rate->total = 1;
+X		/* advance to second output */
+X		rate->outtot += rate->outskip;
+X		/* advance input range to span next output */
+X		while ((rate->intot + rate->inskip) <= rate->outtot){
+X			last = *ibuf++ / 65536;
+X			rate->intot += rate->inskip;
+X		}
+X	}
+X	/* number of output samples the input can feed */
+X	len = (*isamp * rate->inskip) / rate->outskip;
+X	if (len > *osamp)
+X		len = *osamp;
+X	last = rate->lastsamp;
+X	for(; done < len; done++) {
+X		*obuf = last;
+X		*obuf += ((float)((*ibuf / 65536)  - last)* ((float)rate->outtot - 
+X				rate->intot))/rate->inskip;
+X		*obuf *= 65536;
+X		obuf++;
+X		/* advance to next output */
+X		rate->outtot += rate->outskip;
+X		/* advance input range to span next output */
+X		while ((rate->intot + rate->inskip) <= rate->outtot){
+X			last = *ibuf++ >> 16;
+X			rate->intot += rate->inskip;
+X			if (ibuf - istart == *isamp)
+X				goto out;
+X		}
+X		/* long samples with high LCM's overrun counters! */
+X		if (rate->outtot == rate->intot)
+X			rate->outtot = rate->intot = 0;
+X	}
+Xout:
+X	*isamp = ibuf - istart;
+X	*osamp = len;
+X	rate->lastsamp = last;
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xrate_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+SHAR_EOF
+chmod 0644 rate.c ||
+echo 'restore of rate.c failed'
+Wc_c="`wc -c < 'rate.c'`"
+test 4689 -eq "$Wc_c" ||
+	echo 'rate.c: original size 4689, current size' "$Wc_c"
+fi
+# ============= band.c ==============
+if test -f 'band.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping band.c (File already exists)'
+else
+echo 'x - extracting band.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'band.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Bandpass effect file.
+X *
+X * Algorithm:  2nd order recursive filter.
+X * Formula stolen from MUSIC56K, a toolkit of 56000 assembler stuff.
+X * Quote:
+X *   This is a 2nd order recursive band pass filter of the form.                
+X *   y(n)= a * x(n) - b * y(n-1) - c * y(n-2)   
+X *   where :    
+X *        x(n) = "IN"           
+X *        "OUT" = y(n)          
+X *        c = EXP(-2*pi*cBW/S_RATE)             
+X *        b = -4*c/(1+c)*COS(2*pi*cCF/S_RATE)   
+X *   if cSCL=2 (i.e. noise input)               
+X *        a = SQT(((1+c)*(1+c)-b*b)*(1-c)/(1+c))                
+X *   else       
+X *        a = SQT(1-b*b/(4*c))*(1-c)            
+X *   endif      
+X *   note :     cCF is the center frequency in Hertz            
+X *        cBW is the band width in Hertz        
+X *        cSCL is a scale factor, use 1 for pitched sounds      
+X *   use 2 for noise.           
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+X/* Private data for Bandpass effect */
+Xtypedef struct bandstuff {
+X	float	center;
+X	float	width;
+X	double	A, B, C;
+X	double	out1, out2;
+X	short	noise;
+X	/* 50 bytes of data, 52 bytes long for allocation purposes. */
+X} *band_t;
+X
+X/*
+X * Process options
+X */
+Xband_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	band_t band = (band_t) effp->priv;
+X
+X	band->noise = 0;
+X	if (n > 0 && !strcmp(argv[0], "-n")) {
+X		band->noise = 1;
+X		n--;
+X		argv++;
+X	}
+X	if ((n < 1) || !sscanf(argv[0], "%f", &band->center))
+X		fail("Usage: band [ -n ] center [ width ]");
+X	band->width = band->center / 2;
+X	if ((n >= 2) && !sscanf(argv[1], "%f", &band->width))
+X		fail("Usage: band [ -n ] center [ width ]");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xband_start(effp)
+Xeff_t effp;
+X{
+X	band_t band = (band_t) effp->priv;
+X	if (band->center > effp->ininfo.rate/2)
+X		fail("Band: center must be < minimum data rate/2\n");
+X
+X	band->C = exp(-2*M_PI*band->width/effp->ininfo.rate);
+X	band->B = -4*band->C/(1+band->C)*
+X		cos(2*M_PI*band->center/effp->ininfo.rate);
+X	if (band->noise)
+X		band->A = sqrt(((1+band->C)*(1+band->C)-band->B *
+X			band->B)*(1-band->C)/(1+band->C));
+X	else
+X		band->A = sqrt(1-band->B*band->B/(4*band->C))*(1-band->C);
+X	band->out1 = band->out2 = 0.0;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xband_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	band_t band = (band_t) effp->priv;
+X	register counter, tablen;
+X	int len, done;
+X	register long mult;
+X	register short *sinetab;
+X	double d;
+X	long l;
+X
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X
+X	/* yeah yeah yeah registers & integer arithmetic yeah yeah yeah */
+X	for(done = 0; done < len; done++) {
+X		l = *ibuf++;
+X		d = (band->A * l - band->B * band->out1) - band->C * band->out2;
+X		band->out2 = band->out1;
+X		band->out1 = d;
+X		*obuf++ = d;
+X	}
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xband_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+SHAR_EOF
+chmod 0644 band.c ||
+echo 'restore of band.c failed'
+Wc_c="`wc -c < 'band.c'`"
+test 3255 -eq "$Wc_c" ||
+	echo 'band.c: original size 3255, current size' "$Wc_c"
+fi
+# ============= lowp.c ==============
+if test -f 'lowp.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping lowp.c (File already exists)'
+else
+echo 'x - extracting lowp.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'lowp.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Low-Pass effect file.
+X *
+X * Algorithm:  1nd order filter.
+X * From Fugue source code:
+X *
+X * 	output[N] = input[N] * A + input[N-1] * B
+X *
+X * 	A = 2.0 * pi * center
+X * 	B = exp(-A / frequency)
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+X/* Private data for Lowpass effect */
+Xtypedef struct lowpstuff {
+X	float	center;
+X	double	A, B;
+X	double	in1;
+X} *lowp_t;
+X
+X/*
+X * Process options
+X */
+Xlowp_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	lowp_t lowp = (lowp_t) effp->priv;
+X
+X	if ((n < 1) || !sscanf(argv[0], "%f", &lowp->center))
+X		fail("Usage: lowp center");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xlowp_start(effp)
+Xeff_t effp;
+X{
+X	lowp_t lowp = (lowp_t) effp->priv;
+X	if (lowp->center > effp->ininfo.rate*2)
+X		fail("Lowpass: center must be < minimum data rate*2\n");
+X
+X	lowp->A = (M_PI * 2.0 * lowp->center) / effp->ininfo.rate;
+X	lowp->B = exp(-lowp->A / effp->ininfo.rate);
+X	lowp->in1 = 0.0;
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xlowp_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	lowp_t lowp = (lowp_t) effp->priv;
+X	register counter, tablen;
+X	int len, done;
+X	register long mult;
+X	register short *sinetab;
+X	double d, d1;
+X	long l;
+X
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X
+X	/* yeah yeah yeah registers & integer arithmetic yeah yeah yeah */
+X	for(done = 0; done < len; done++) {
+X		l = *ibuf++;
+X		d = lowp->A * (l / 65536) + lowp->B * (lowp->in1 / 65536);
+X		d *= 0.8;
+X		if (d > 32767)
+X			d = 32767;
+X		if (d < - 32767)
+X			d = - 32767;
+X		lowp->in1 = l;
+X		*obuf++ = d * 65536;
+X	}
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xlowp_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+SHAR_EOF
+chmod 0644 lowp.c ||
+echo 'restore of lowp.c failed'
+Wc_c="`wc -c < 'lowp.c'`"
+test 2067 -eq "$Wc_c" ||
+	echo 'lowp.c: original size 2067, current size' "$Wc_c"
+fi
+# ============= handlers.c ==============
+if test -f 'handlers.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping handlers.c (File already exists)'
+else
+echo 'x - extracting handlers.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'handlers.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X#include "st.h"
+X
+X/*
+X * Sound Tools file format and effect tables.
+X */
+X
+X/* File format handlers. */
+X
+Xchar *rawnames[] = {
+X	"raw",
+X/*?	"sou", /* */
+X	(char *) 0
+X};
+Xextern rawstartread(), rawread();
+Xextern rawstartwrite(), rawwrite(), rawstopwrite();
+X
+Xchar *vocnames[] = {
+X	"voc",
+X	(char *) 0
+X};
+Xextern vocstartread(), vocread(), vocstopread();
+Xextern vocstartwrite(), vocwrite(), vocstopwrite();
+X
+Xchar *aunames[] = {
+X	"au",
+X#ifdef	NeXT
+X	"snd",
+X#endif
+X	(char *) 0
+X};
+Xextern austartread();
+Xextern austartwrite(), auwrite(), austopwrite();
+X
+Xchar *aiffnames[] = {
+X	"aiff",
+X	(char *) 0
+X};
+Xextern aiffstartread(), aiffread(), aiffstopread();
+Xextern aiffstartwrite(), aiffwrite(), aiffstopwrite();
+X
+Xchar *svxnames[] = {
+X	"8svx",
+X	(char *) 0
+X};
+Xextern svxstartread(), svxread(), svxstopread();
+Xextern svxstartwrite(), svxwrite(), svxstopwrite();
+X
+Xchar *hcomnames[] = {
+X	"hcom",
+X	(char *) 0
+X};
+Xextern hcomstartread(), hcomread(), hcomstopread();
+Xextern hcomstartwrite(), hcomwrite(), hcomstopwrite();
+X
+Xchar *sndtnames[] = {
+X	"sndt",
+X#ifdef	DOS
+X	"snd",
+X#endif
+X	(char *) 0
+X}; 
+Xextern sndtstartread();
+Xextern sndtstartwrite(), sndtwrite(), sndtstopwrite();
+X
+Xchar *sndrnames[] = {
+X	"sndr",
+X	(char *) 0
+X};
+Xextern sndrstartwrite();
+X
+Xchar *ubnames[] = {
+X	"ub",
+X	"sou",
+X#ifdef	MAC
+X	"snd",
+X#endif
+X	(char *) 0
+X};
+Xextern ubstartread();
+Xextern ubstartwrite();
+X
+Xchar *sbnames[] = {
+X	"sb",
+X	(char *) 0
+X};
+Xextern sbstartread();
+Xextern sbstartwrite();
+X
+Xchar *uwnames[] = {
+X	"uw",
+X	(char *) 0
+X};
+Xextern uwstartread();
+Xextern uwstartwrite();
+X
+Xchar *swnames[] = {
+X	"sw",
+X	(char *) 0
+X};
+Xextern swstartread();
+Xextern swstartwrite();
+X
+Xchar *ulnames[] = {
+X	"ul",
+X	(char *) 0
+X};
+Xextern ulstartread();
+Xextern ulstartwrite();
+X
+X
+Xchar *sfnames[] = {
+X	"sf",
+X	(char *) 0
+X};
+Xextern sfstartread();
+Xextern sfstartwrite();
+X
+Xextern nothing();
+X
+Xformat_t formats[] = {
+X	{rawnames, rawstartread, rawread, nothing, 	/* Raw format */
+X		rawstartwrite, rawwrite, nothing},
+X	{vocnames, vocstartread, vocread, vocstopread,  /* Sound Blaster .VOC */
+X		vocstartwrite, vocwrite, vocstopwrite},
+X	{aunames, austartread, rawread, nothing, 	/* SPARC .AU w/header */
+X		austartwrite, auwrite, austopwrite},	
+X	{ubnames, ubstartread, rawread, nothing, 	/* unsigned byte raw */
+X		ubstartwrite, rawwrite, nothing},	/* Relies on raw */
+X	{sbnames, sbstartread, rawread, nothing, 	/* signed byte raw */
+X		sbstartwrite, rawwrite, nothing},	
+X	{uwnames, uwstartread, rawread, nothing, 	/* unsigned word raw */
+X		uwstartwrite, rawwrite, nothing},	
+X	{swnames, swstartread, rawread, nothing, 	/* signed word raw */
+X		swstartwrite, rawwrite, nothing},
+X	{ulnames, ulstartread, rawread, nothing, 	/* u-law byte raw */
+X		ulstartwrite, rawwrite, nothing},	
+X	{aiffnames, aiffstartread, rawread, nothing,    /* SGI/Amiga AIFF */
+X		aiffstartwrite, aiffwrite, aiffstopwrite},
+X	{svxnames, svxstartread, svxread, svxstopread,      /* Amiga 8SVX */
+X		svxstartwrite, svxwrite, svxstopwrite},
+X	{hcomnames, hcomstartread, hcomread, hcomstopread, /* Mac FSSD/HCOM */
+X		hcomstartwrite, hcomwrite, hcomstopwrite},
+X	{sfnames, sfstartread, rawread, nothing, 	/* IRCAM Sound File */
+X		sfstartwrite, rawwrite, nothing},	/* Relies on raw */
+X	{sndtnames, sndtstartread, rawread, nothing,    /* Sndtool Sound File */
+X		sndtstartwrite, sndtwrite, sndtstopwrite},
+X	{sndrnames, sndtstartread, rawread, nothing,    /* Sounder Sound File */
+X		sndrstartwrite, rawwrite, nothing},
+X	0
+X};
+X
+X/* Effects handlers. */
+X
+Xextern null_drain();		/* dummy drain routine */
+X
+Xextern copy_getopts(), copy_start(), copy_flow(), copy_stop();
+Xextern avg_getopts(), avg_start(), avg_flow(), avg_stop();
+Xextern pred_getopts(), pred_start(), pred_flow(), pred_stop();
+Xextern stat_getopts(), stat_start(), stat_flow(), stat_stop();
+Xextern vibro_getopts(), vibro_start(), vibro_flow(), vibro_stop();
+Xextern band_getopts(), band_start(), band_flow(), band_stop();
+Xextern lowp_getopts(), lowp_start(), lowp_flow(), lowp_stop();
+Xextern echo_getopts(), echo_start(), echo_flow(), echo_drain(), echo_stop();
+Xextern rate_getopts(), rate_start(), rate_flow(), rate_stop();
+X
+X/*
+X * EFF_CHAN means that the number of channels can change.
+X * EFF_RATE means that the sample rate can change.
+X * The first effect which can handle a data rate change, stereo->mono, etc.
+X * is the default handler for that problem.
+X * 
+X * EFF_MCHAN just means that the effect is coded for multiple channels.
+X */
+X
+Xeffect_t effects[] = {
+X	{"copy", EFF_MCHAN, 
+X		copy_getopts, copy_start, copy_flow, null_drain, nothing},
+X	{"avg", EFF_CHAN, 
+X		avg_getopts, avg_start, avg_flow, null_drain, avg_stop},
+X	{"pred", 0,
+X		pred_getopts, pred_start, pred_flow, null_drain, pred_stop},
+X	{"stat", EFF_MCHAN, 
+X		stat_getopts, stat_start, stat_flow, null_drain, stat_stop},
+X	{"vibro", 0, 
+X		vibro_getopts, vibro_start, vibro_flow, null_drain, nothing},
+X	{"echo", 0, 
+X		echo_getopts, echo_start, echo_flow, echo_drain, echo_stop},
+X	{"band", 0, 
+X		band_getopts, band_start, band_flow, null_drain, band_stop},
+X	{"lowp", 0, 
+X		lowp_getopts, lowp_start, lowp_flow, null_drain, lowp_stop},
+X	{"rate", EFF_RATE, 
+X		rate_getopts, rate_start, rate_flow, null_drain, nothing},
+X	0
+X};
+X
+SHAR_EOF
+chmod 0644 handlers.c ||
+echo 'restore of handlers.c failed'
+Wc_c="`wc -c < 'handlers.c'`"
+test 5408 -eq "$Wc_c" ||
+	echo 'handlers.c: original size 5408, current size' "$Wc_c"
+fi
+# ============= libst.c ==============
+if test -f 'libst.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping libst.c (File already exists)'
+else
+echo 'x - extracting libst.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libst.c' &&
+X/* libst.c - portable sound tools library
+X*/
+X
+X/*
+X** This routine converts from linear to ulaw.
+X**
+X** Craig Reese: IDA/Supercomputing Research Center
+X** Joe Campbell: Department of Defense
+X** 29 September 1989
+X**
+X** References:
+X** 1) CCITT Recommendation G.711  (very difficult to follow)
+X** 2) "A New Digital Technique for Implementation of Any
+X**     Continuous PCM Companding Law," Villeret, Michel,
+X**     et al. 1973 IEEE Int. Conf. on Communications, Vol 1,
+X**     1973, pg. 11.12-11.17
+X** 3) MIL-STD-188-113,"Interoperability and Performance Standards
+X**     for Analog-to_Digital Conversion Techniques,"
+X**     17 February 1987
+X**
+X** Input: Signed 16 bit linear sample
+X** Output: 8 bit ulaw sample
+X*/
+X
+X#define ZEROTRAP    /* turn on the trap as per the MIL-STD */
+X#define BIAS 0x84   /* define the add-in bias for 16 bit samples */
+X#define CLIP 32635
+X
+Xunsigned char
+Xst_linear_to_ulaw( sample )
+Xint sample;
+X    {
+X    static int exp_lut[256] = {0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
+X                               4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+X                               5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+X                               5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+X                               6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+X                               6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+X                               6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+X                               6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+X                               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7};
+X    int sign, exponent, mantissa;
+X    unsigned char ulawbyte;
+X
+X    /* Get the sample into sign-magnitude. */
+X    sign = (sample >> 8) & 0x80;		/* set aside the sign */
+X    if ( sign != 0 ) sample = -sample;		/* get magnitude */
+X    if ( sample > CLIP ) sample = CLIP;		/* clip the magnitude */
+X
+X    /* Convert from 16 bit linear to ulaw. */
+X    sample = sample + BIAS;
+X    exponent = exp_lut[( sample >> 7 ) & 0xFF];
+X    mantissa = ( sample >> ( exponent + 3 ) ) & 0x0F;
+X    ulawbyte = ~ ( sign | ( exponent << 4 ) | mantissa );
+X#ifdef ZEROTRAP
+X    if ( ulawbyte == 0 ) ulawbyte = 0x02;	/* optional CCITT trap */
+X#endif
+X
+X    return ulawbyte;
+X    }
+X
+X/*
+X** This routine converts from ulaw to 16 bit linear.
+X**
+X** Craig Reese: IDA/Supercomputing Research Center
+X** 29 September 1989
+X**
+X** References:
+X** 1) CCITT Recommendation G.711  (very difficult to follow)
+X** 2) MIL-STD-188-113,"Interoperability and Performance Standards
+X**     for Analog-to_Digital Conversion Techniques,"
+X**     17 February 1987
+X**
+X** Input: 8 bit ulaw sample
+X** Output: signed 16 bit linear sample
+X*/
+X
+Xint
+Xst_ulaw_to_linear_slow( ulawbyte )
+Xunsigned char ulawbyte;
+X    {
+X    static int exp_lut[8] = { 0, 132, 396, 924, 1980, 4092, 8316, 16764 };
+X    int sign, exponent, mantissa, sample;
+X
+X    ulawbyte = ~ ulawbyte;
+X    sign = ( ulawbyte & 0x80 );
+X    exponent = ( ulawbyte >> 4 ) & 0x07;
+X    mantissa = ulawbyte & 0x0F;
+X    sample = exp_lut[exponent] + ( mantissa << ( exponent + 3 ) );
+X    if ( sign != 0 ) sample = -sample;
+X
+X    return sample;
+X    }
+SHAR_EOF
+chmod 0644 libst.c ||
+echo 'restore of libst.c failed'
+Wc_c="`wc -c < 'libst.c'`"
+test 3471 -eq "$Wc_c" ||
+	echo 'libst.c: original size 3471, current size' "$Wc_c"
+fi
+# ============= misc.c ==============
+if test -f 'misc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping misc.c (File already exists)'
+else
+echo 'x - extracting misc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'misc.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools miscellaneous stuff.
+X */
+X
+Xchar *sizes[] = {
+X	"NONSENSE!",
+X	"bytes",
+X	"shorts",
+X	"longs",
+X	"32-bit floats",
+X	"64-bit floats",
+X	"IEEE floats"
+X};
+X
+Xchar *styles[] = {
+X	"NONSENSE!",
+X	"unsigned",
+X	"signed (2's complement)",
+X	"u-law",
+X	"a-law"
+X};
+X
+Xchar readerr[] = "Premature EOF while reading sample file.";
+Xchar writerr[] = "Error writing sample file.  You are probably out of disk space.";
+X
+X#include "st.h"
+X
+X/* Utilities */
+X
+X/* Read short, little-endian: little end first. VAX/386 style. */
+Xunsigned short
+Xrlshort(ft)
+Xft_t ft;
+X{
+X	unsigned char uc, uc2;
+X	uc  = getc(ft->fp);
+X	uc2 = getc(ft->fp);
+X	return (uc2 << 8) | uc;
+X}
+X
+X/* Read short, bigendian: big first. 68000/SPARC style. */
+Xunsigned short
+Xrbshort(ft)
+Xft_t ft;
+X{
+X	unsigned char uc, uc2;
+X	uc2 = getc(ft->fp);
+X	uc  = getc(ft->fp);
+X	return (uc2 << 8) | uc;
+X}
+X
+X/* Write short, little-endian: little end first. VAX/386 style. */
+Xunsigned short
+Xwlshort(ft, us)
+Xft_t ft;
+Xunsigned short us;
+X{
+X	putc(us, ft->fp);
+X	putc(us >> 8, ft->fp);
+X	if (ferror(ft->fp))
+X		fail(writerr);
+X}
+X
+X/* Write short, big-endian: big end first. 68000/SPARC style. */
+Xunsigned short
+Xwbshort(ft, us)
+Xft_t ft;
+Xunsigned short us;
+X{
+X	putc(us >> 8, ft->fp);
+X	putc(us, ft->fp);
+X	if (ferror(ft->fp))
+X		fail(writerr);
+X}
+X
+X/* Read long, little-endian: little end first. VAX/386 style. */
+Xunsigned long
+Xrllong(ft)
+Xft_t ft;
+X{
+X	unsigned char uc, uc2, uc3, uc4;
+X/*	if (feof(ft->fp))
+X		fail(readerr);		/* No worky! */
+X	uc  = getc(ft->fp);
+X	uc2 = getc(ft->fp);
+X	uc3 = getc(ft->fp);
+X	uc4 = getc(ft->fp);
+X	return ((long)uc4 << 24) | ((long)uc3 << 16) | ((long)uc2 << 8) | (long)uc;
+X}
+X
+X/* Read long, bigendian: big first. 68000/SPARC style. */
+Xunsigned long
+Xrblong(ft)
+Xft_t ft;
+X{
+X	unsigned char uc, uc2, uc3, uc4;
+X/*	if (feof(ft->fp))
+X		fail(readerr);		/* No worky! */
+X	uc  = getc(ft->fp);
+X	uc2 = getc(ft->fp);
+X	uc3 = getc(ft->fp);
+X	uc4 = getc(ft->fp);
+X	return ((long)uc << 24) | ((long)uc2 << 16) | ((long)uc3 << 8) | (long)uc4;
+X}
+X
+X/* Write long, little-endian: little end first. VAX/386 style. */
+Xunsigned long
+Xwllong(ft, ul)
+Xft_t ft;
+Xunsigned long ul;
+X{
+Xint datum;
+X
+X	datum = (ul) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul >> 8) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul >> 16) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul >> 24) & 0xff;
+X	putc(datum, ft->fp);
+X	if (ferror(ft->fp))
+X		fail(writerr);
+X}
+X
+X/* Write long, big-endian: big end first. 68000/SPARC style. */
+Xunsigned long
+Xwblong(ft, ul)
+Xft_t ft;
+Xunsigned long ul;
+X{
+Xint datum;
+X
+X	datum = (ul >> 24) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul >> 16) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul >> 8) & 0xff;
+X	putc(datum, ft->fp);
+X	datum = (ul) & 0xff;
+X	putc(datum, ft->fp);
+X	if (ferror(ft->fp))
+X		fail(writerr);
+X}
+X
+X/* Read and write words and longs in "machine format".  Swap if indicated. */
+X
+X/* Read short. */
+Xunsigned short
+Xrshort(ft)
+Xft_t ft;
+X{
+X	unsigned short us;
+X
+X/*	if (feof(ft->fp))
+X		fail(readerr);		/* No worky! */
+X	fread(&us, 2, 1, ft->fp);
+X	if (ft->swap)
+X		us = swapw(us);
+X	return us;
+X}
+X
+X/* Write short. */
+Xunsigned short
+Xwshort(ft, us)
+Xft_t ft;
+Xunsigned short us;
+X{
+X	if (ft->swap)
+X		us = swapw(us);
+X	if (fwrite(&us, 2, 1, ft->fp) != 1)
+X		fail(writerr);
+X}
+X
+X/* Read long. */
+Xunsigned long
+Xrlong(ft)
+Xft_t ft;
+X{
+X	unsigned long ul;
+X
+X/*	if (feof(ft->fp))
+X		fail(readerr);		/* No worky! */
+X	fread(&ul, 4, 1, ft->fp);
+X	if (ft->swap)
+X		ul = swapl(ul);
+X	return ul;
+X}
+X
+X/* Write long. */
+Xunsigned long
+Xwlong(ft, ul)
+Xft_t ft;
+Xunsigned long ul;
+X{
+X	if (ft->swap)
+X		ul = swapl(ul);
+X	if (fwrite(&ul, 4, 1, ft->fp) != 1)
+X		fail(writerr);
+X}
+X
+X/* Byte swappers */
+X
+Xunsigned short
+Xswapw(us)
+Xunsigned short us;
+X{
+X	return ((us >> 8) | (us << 8)) & 0xffff;
+X}
+X
+Xunsigned long
+Xswapl(ul)
+Xunsigned long ul;
+X{
+X	return (ul >> 24) | ((ul >> 8) & 0xff00) | ((ul << 8) & 0xff0000) | (ul << 24);
+X}
+X
+X/* dummy routine for do-nothing functions */
+Xint nothing() {;}
+X
+X/* dummy drain routine for effects */
+Xnull_drain(effp, obuf, osamp)
+Xeff_t effp;
+Xlong *obuf;
+Xlong *osamp;
+X{
+X	*osamp = 0;
+X}
+X
+X/* here for linear interp.  might be useful for other things */
+Xgcd(a, b) 
+Xint a, b;
+X{
+X	if (b == 0)
+X		return a;
+X	else
+X		return gcd(b, a % b);
+X}
+X
+Xlcm(a, b) 
+Xint a, b;
+X{
+X	int m;
+X
+X	return (a * b) / gcd(a, b);
+X}
+X
+X/* sine wave gen should be here, also */
+SHAR_EOF
+chmod 0644 misc.c ||
+echo 'restore of misc.c failed'
+Wc_c="`wc -c < 'misc.c'`"
+test 4503 -eq "$Wc_c" ||
+	echo 'misc.c: original size 4503, current size' "$Wc_c"
+fi
+# ============= getopt.c ==============
+if test -f 'getopt.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping getopt.c (File already exists)'
+else
+echo 'x - extracting getopt.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'getopt.c' &&
+X/*
+XDate: Tue, 25 Dec 84 19:20:50 EST
+XFrom: Keith Bostic <harvard!seismo!keith>
+XTo: genrad!sources
+XSubject: public domain getopt(3)
+X
+XThere have recently been several requests for a public
+Xdomain version of getopt(3), recently.  Thought this
+Xmight be worth reposting.
+X
+X		Keith Bostic
+X			ARPA: keith@seismo 
+X			UUCP: seismo!keith
+X
+X======================================================================
+XIn April of this year, Henry Spencer (utzoo!henry) released a public
+Xdomain version of getopt (USG, getopt(3)).  Well, I've been trying to
+Xport some USG dependent software and it didn't seem to work.  The problem
+Xended up being that the USG version of getopt has some external variables
+Xthat aren't mentioned in the documentation.  Anyway, to fix these problems,
+XI rewrote the public version of getopt.  It has the following advantages:
+X
+X	-- it includes those "unknown" variables
+X	-- it's smaller/faster 'cause it doesn't use the formatted
+X		output conversion routines in section 3 of the UNIX manual.
+X	-- the error messages are the same as S5's.
+X	-- it has the same side-effects that S5's has.
+X	-- the posted bug on how the error messages are flushed has been
+X		implemented.  (posting by Tony Hansen; pegasus!hansen)
+X
+XI won't post the man pages since Henry already did; a special note,
+Xit's not documented in the S5 manual that the options ':' and '?' are
+Xillegal.  It should be obvious, but I thought I'd mention it...
+XThis software was derived from binaries of S5 and the S5 man page, and is
+X(I think?) totally (I'm pretty sure?) compatible with S5 and backward
+Xcompatible to Henry's version.
+X
+X		Keith Bostic
+X			ARPA: keith@seismo 
+X			UUCP: seismo!keith
+X
+X*UNIX is a trademark of Bell Laboratories
+X
+X.. cut along the dotted line .........................................
+X*/
+X
+X#include <stdio.h>
+X#include "st.h"
+X
+X/*
+X * get option letter from argument vector
+X */
+Xint	optind = 1,		/* index into parent argv vector */
+X	optopt;			/* character checked for validity */
+Xchar	*optarg;		/* argument associated with option */
+X
+X#define BADCH	(int)'?'
+X#define EMSG	""
+X#define tell(s)	fputs(*nargv,stderr);fputs(s,stderr); \
+X		fputc(optopt,stderr);fputc('\n',stderr);return(BADCH);
+X
+Xgetopt(nargc,nargv,ostr)
+Xint	nargc;
+Xchar	**nargv,
+X	*ostr;
+X{
+X	static char	*place = EMSG;	/* option letter processing */
+X	static char	*lastostr = (char *) 0;
+X	register char	*oli;		/* option letter list index */
+X	char	*index();
+X
+X	/* LANCE PATCH: dynamic reinitialization */
+X	if (ostr != lastostr) {
+X		lastostr = ostr;
+X		place = EMSG;
+X	}
+X	if(!*place) {			/* update scanning pointer */
+X		if((optind >= nargc) || (*(place = nargv[optind]) != '-')
+X				|| ! *++place) {
+X			place = EMSG;
+X			return(EOF);
+X		}
+X		if (*place == '-') {	/* found "--" */
+X			++optind;
+X			return(EOF);
+X		}
+X	}				/* option letter okay? */
+X	if ((optopt = (int)*place++) == (int)':' || !(oli = index(ostr,optopt))) {
+X		if(!*place) ++optind;
+X		tell(": illegal option -- ");
+X	}
+X	if (*++oli != ':') {		/* don't need argument */
+X		optarg = NULL;
+X		if (!*place) ++optind;
+X	}
+X	else {				/* need an argument */
+X		if (*place) optarg = place;	/* no white space */
+X		else if (nargc <= ++optind) {	/* no arg */
+X			place = EMSG;
+X			tell(": option requires an argument -- ");
+X		}
+X	 	else optarg = nargv[optind];	/* white space */
+X		place = EMSG;
+X		++optind;
+X	}
+X	return(optopt);			/* dump back option letter */
+X}
+X
+X
+X
+SHAR_EOF
+chmod 0644 getopt.c ||
+echo 'restore of getopt.c failed'
+Wc_c="`wc -c < 'getopt.c'`"
+test 3333 -eq "$Wc_c" ||
+	echo 'getopt.c: original size 3333, current size' "$Wc_c"
+fi
+# ============= skel.c ==============
+if test -f 'skel.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping skel.c (File already exists)'
+else
+echo 'x - extracting skel.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'skel.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools skeleton file format driver.
+X */
+X
+X#include "st.h"
+X
+X/* Private data for SKEL file */
+Xtypedef struct skelstuff {
+X	int	rest;			/* bytes remaining in current block */
+X} *skel_t;
+X
+Xextern float volume, amplitude;
+Xextern int summary, verbose;
+X
+X/*
+X * Do anything required before you start reading samples.
+X * Read file header. 
+X *	Find out sampling rate, 
+X *	size and style of samples, 
+X *	mono/stereo/quad.
+X */
+Xskelstartread(ft) 
+Xft_t ft;
+X{
+X	skel_t sk = (skel_t) ft->priv;
+X
+X	/* If you need to seek around the input file. */
+X	if (! ft->seekable)
+X		fail("SKEL input file must be a file, not a pipe");
+X
+X	/*
+X	 * If your format specifies or your file header contains
+X	 * any of the following information. 
+X	 */
+X	ft->rate = 
+X	ft->size = BYTE or WORD ...;
+X	ft->style = UNSIGNED or SIGN2 ...;
+X	ft->channels = 1 or 2 or 4;
+X}
+X
+X/*
+X * Read up to len samples from file.
+X * Convert to signed longs.
+X * Place in buf[].
+X * Return number of samples read.
+X */
+X
+Xskelread(ft, buf, len) 
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	skel_t sk = (skel_t) ft->priv;
+X	int abs;
+X	float amp;
+X	int done = 0;
+X	
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	float f;
+X	double d;
+X
+X	for(; done < len; done++) {
+X		if no more samples
+X			break
+X		get a sample
+X		l = sample converted to signed long
+X		*buf++ = l;
+X	}
+X	return done;
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xskelstopread(ft) 
+Xft_t ft;
+X{
+X}
+X
+Xskelstartwrite(ft) 
+Xft_t ft;
+X{
+X	skel_t sk = (skel_t) ft->priv;
+X
+X	/* If you have to seek around the output file */
+X	if (! ft->seekable)
+X		fail("Output .skel file must be a file, not a pipe");
+X
+X	/* If your format specifies any of the following info. */
+X	ft->rate = 
+X	ft->size = BYTE or WORD ...;
+X	ft->style = UNSIGNED or SIGN2 ...;
+X	ft->channels = 1 or 2 or 4;
+X	/* Write file header, if any */
+X	
+X}
+X
+Xskelwrite(ft, buf, len) 
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	skel_t sk = (skel_t) ft->priv;
+X	register int datum;
+X	int abs;
+X	int done = 0;
+X
+X	while(len--)
+X		putc((*buf++ >> 24) ^ 0x80, ft->fp);
+X	/* If you cannot write out all of the supplied samples, */
+X	/*	fail("SKEL: Can't write all samples to %s", ft->filename); */
+X	
+X}
+X
+Xskelstopwrite(ft) 
+Xft_t ft;
+X{
+X	/* All samples are already written out. */
+X	/* If file header needs fixing up, for example it needs the */
+X 	/* the number of samples in a field, seek back and write them here. */
+X}
+X
+SHAR_EOF
+chmod 0644 skel.c ||
+echo 'restore of skel.c failed'
+Wc_c="`wc -c < 'skel.c'`"
+test 2696 -eq "$Wc_c" ||
+	echo 'skel.c: original size 2696, current size' "$Wc_c"
+fi
+# ============= skeleff.c ==============
+if test -f 'skeleff.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping skeleff.c (File already exists)'
+else
+echo 'x - extracting skeleff.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'skeleff.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools skeleton effect file.
+X */
+X
+X#include "st.h"
+X#include <math.h>
+X
+X/* Private data for SKEL file */
+Xtypedef struct skelstuff {
+X	int	rest;			/* bytes remaining in current block */
+X} *skel_t;
+X
+X/*
+X * Process options
+X */
+Xskel_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	if (n)
+X		fail("Copy effect takes no options.");
+X}
+X
+X/*
+X * Prepare processing.
+X */
+Xskel_start(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X	/* stuff data into delaying effects here */
+X}
+X
+X/*
+X * Processed signed long samples from ibuf to obuf.
+X * Return number of samples processed.
+X */
+X
+Xskel_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	skel_t skel = (skel_t) effp->priv;
+X	int len, done;
+X	
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	float f;
+X	double d;
+X
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X	for(done = 0; done < len; done++) {
+X		if no more samples
+X			break
+X		get a sample
+X		l = sample converted to signed long
+X		*buf++ = l;
+X	}
+X	*isamp = 
+X	*osamp = 
+X}
+X
+X/*
+X * Drain out remaining samples if the effect generates any.
+X */
+X
+Xskel_drain(effp, obuf, osamp)
+Xlong *obuf;
+Xint *osamp;
+X{
+X	*osamp = 0;
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X *	(free allocated memory, etc.)
+X */
+Xskel_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+X
+SHAR_EOF
+chmod 0644 skeleff.c ||
+echo 'restore of skeleff.c failed'
+Wc_c="`wc -c < 'skeleff.c'`"
+test 1648 -eq "$Wc_c" ||
+	echo 'skeleff.c: original size 1648, current size' "$Wc_c"
+fi
+exit 0

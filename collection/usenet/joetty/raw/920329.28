@@ -1,0 +1,1707 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: SOX: part 2 of 4
+Message-ID: <atbjkrfthinman@netcom.com>
+Date: 27 Mar 92 05:26:51 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 1698
+
+
+#!/bin/sh
+# This is part 02 of soundtools_v4
+# ============= sox.c ==============
+if test -f 'sox.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping sox.c (File already exists)'
+else
+echo 'x - extracting sox.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sox.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X#include "st.h"
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include <varargs.h>
+X#include <ctype.h>
+X#include <string.h>
+X
+X/*
+X * SOX main program.
+X *
+X * Rewrite for new nicer option syntax.  July 13, 1991.
+X * Rewrite for separate effects library.  Sep. 15, 1991.
+X */
+X
+Xfloat volume = 1.0;	/* expansion coefficient */
+Xint dovolume = 0;
+Xint clipped = 0;	/* Volume change clipping errors */
+X
+Xfloat amplitude = 1.0;	/* Largest sample so far in intermediate buffer */
+X
+Xint writing = 0;	/* are we writing to a file? */
+Xint verbose = 0;	/* be noisy on stderr */
+X
+Xlong ibuf[BUFSIZ];	/* Intermediate processing buffer */
+Xlong obuf[BUFSIZ];	/* Intermediate processing buffer */
+X
+Xlong volumechange();
+X
+X#ifdef	DOS
+Xchar writebuf[BUFSIZ];	/* output write buffer */
+X#endif
+X
+Xvoid	gettype(), report(), geteffect();
+X
+Xstruct soundstream informat, outformat;
+X
+Xchar *myname;
+Xextern errno;
+Xextern char *sys_errlist[];
+X
+Xft_t ft;
+Xstruct effect eff;
+Xchar *ifile, *ofile, *itype, *otype;
+Xextern char *optarg;
+Xextern int optind;
+X
+Xmain(n, args)
+Xint n;
+Xchar **args;
+X{
+X	myname = args[0];
+X	init();
+X	
+X	ifile = ofile = NULL;
+X
+X	/* Get input format options */
+X	ft = &informat;
+X	doopts(n, args);
+X	/* Get input file */
+X	if (optind >= n)
+X		usage("No input file?");
+X	ifile = args[optind];
+X	if (! strcmp(ifile, "-"))
+X		ft->fp = stdin;
+X	else if ((ft->fp = fopen(ifile, READBINARY)) == NULL)
+X		fail("Can't open input file '%s': %s", 
+X			ifile, sys_errlist[errno]);
+X	ft->filename = ifile;
+X	optind++;
+X
+X	/* Let -e allow no output file, just do an effect */
+X	if (optind < n) {
+X	    if (strcmp(args[optind], "-e")) {
+X		/* Get output format options */
+X		ft = &outformat;
+X		doopts(n, args);
+X		/* Get output file */
+X		if (optind >= n)
+X			usage("No output file?");
+X		ofile = args[optind];
+X		ft->filename = ofile;
+X		/*
+X		 * There are two choices here:
+X		 *	1) stomp the old file - normal shell "> file" behavior
+X		 *	2) fail if the old file already exists - csh mode
+X		 */
+X		if (! strcmp(ofile, "-"))
+X			ft->fp = stdout;
+X		else {
+X#ifdef	unix
+X		 	/*	
+X			 * Remove old file if it's a text file, but 
+X		 	 * preserve Unix /dev/sound files.  I'm not sure
+X			 * this needs to be here, but it's not hurting
+X			 * anything.
+X			 */
+X			if ((ft->fp = fopen(ofile, WRITEBINARY)) && 
+X				   (filetype(fileno(ft->fp)) == S_IFREG)) {
+X				fclose(ft->fp);
+X				unlink(ofile);
+X				creat(ofile, 0666);
+X				ft->fp = fopen(ofile, WRITEBINARY);
+X			}
+X#else
+X			ft->fp = fopen(ofile, WRITEBINARY);
+X#endif
+X			if (ft->fp == NULL)
+X				fail("Can't open output file '%s': %s", 
+X					ofile, sys_errlist[errno]);
+X#ifdef	DOS
+X			if (setvbuf (ft->fp,writebuf,_IOFBF,sizeof(writebuf)))
+X				fail("Can't set write buffer");
+X#endif
+X		}
+X		writing = 1;
+X	    }
+X	    optind++;
+X	}
+X
+X	/* ??? */
+X/*
+X	if ((optind < n) && !writing && !eff.name)
+X		fail("Can't do an effect without an output file!");
+X*/
+X
+X	/* Get effect name */
+X	if (optind < n) {
+X		eff.name = args[optind];
+X		optind++;
+X		geteffect(&eff);
+X		(* eff.h->getopts)(&eff, n - optind, &args[optind]);
+X	}
+X
+X	/* 
+X	 * If we haven't specifically set an output file 
+X	 * don't write a file; we could be doing a summary
+X	 * or a format check.
+X	 */
+X/*
+X	if (! ofile)
+X		usage("Must be given an output file name");
+X*/
+X	if (! ofile)
+X		writing = 0;
+X	/* Check global arguments */
+X	if (volume <= 0.0)
+X		fail("Volume must be greater than 0.0");
+X	informat.seekable  = (filetype(fileno(informat.fp)) == S_IFREG);
+X	outformat.seekable = (filetype(fileno(outformat.fp)) == S_IFREG); 
+X
+X	/* If file types have not been set with -t, set from file names. */
+X	if (! informat.filetype) {
+X		if (informat.filetype = strrchr(ifile, '/'))
+X			informat.filetype++;
+X		else
+X			informat.filetype = ifile;
+X		if (informat.filetype = strrchr(informat.filetype, '.'))
+X			informat.filetype++;
+X	}
+X	if (writing && ! outformat.filetype) {
+X		if (outformat.filetype = strrchr(ofile, '/'))
+X			outformat.filetype++;
+X		else
+X			outformat.filetype = ofile;
+X		if (outformat.filetype = strrchr(outformat.filetype, '.'))
+X			outformat.filetype++;
+X	}
+X
+X	process();
+X	statistics();
+X	exit(0);
+X}
+X
+Xdoopts(n, args)
+Xint n;
+Xchar **args;
+X{
+X	int c;
+X	char *str;
+X
+X	while ((c = getopt(n, args, "r:v:t:c:suUAbwlfdDxSV")) != -1) {
+X		switch(c) {
+X		case 't':
+X			if (! ft) usage("-t");
+X			ft->filetype = optarg;
+X			if (ft->filetype[0] == '.')
+X				ft->filetype++;
+X			break;
+X
+X		case 'r':
+X			if (! ft) usage("-r");
+X			str = optarg;
+X			if ((! sscanf(str, "%d", &ft->info.rate)) ||
+X					(ft->info.rate <= 0))
+X				fail("-r must be given a positive integer");
+X			break;
+X		case 'v':
+X			if (! ft) usage("-v");
+X			str = optarg;
+X			if ((! sscanf(str, "%e", &volume)) ||
+X					(volume <= 0))
+X				fail("Volume value '%s' is not a number",
+X					optarg);
+X			dovolume = 1;
+X			break;
+X
+X		case 'c':
+X			if (! ft) usage("-c");
+X			str = optarg;
+X			if (! sscanf(str, "%d", &ft->info.channels))
+X				fail("-c must be given a number");
+X			break;
+X		case 'b':
+X			if (! ft) usage("-b");
+X			ft->info.size = BYTE;
+X			break;
+X		case 'w':
+X			if (! ft) usage("-w");
+X			ft->info.size = WORD;
+X			break;
+X		case 'l':
+X			if (! ft) usage("-l");
+X			ft->info.size = LONG;
+X			break;
+X		case 'f':
+X			if (! ft) usage("-f");
+X			ft->info.size = FLOAT;
+X			break;
+X		case 'd':
+X			if (! ft) usage("-d");
+X			ft->info.size = DOUBLE;
+X			break;
+X		case 'D':
+X			if (! ft) usage("-D");
+X			ft->info.size = IEEE;
+X			break;
+X
+X		case 's':
+X			if (! ft) usage("-s");
+X			ft->info.style = SIGN2;
+X			break;
+X		case 'u':
+X			if (! ft) usage("-u");
+X			ft->info.style = UNSIGNED;
+X			break;
+X		case 'U':
+X			if (! ft) usage("-U");
+X			ft->info.style = ULAW;
+X			break;
+X		case 'A':
+X			if (! ft) usage("-A");
+X			ft->info.style = ALAW;
+X			break;
+X		
+X		case 'x':
+X			if (! ft) usage("-x");
+X			ft->swap = 1;
+X			break;
+X		
+X/*  stat effect does this ?
+X		case 'S':
+X			summary = 1;
+X			break;
+X*/
+X		case 'V':
+X			verbose = 1;
+X			break;
+X		}
+X	}
+X}
+X
+Xinit() {
+X
+X	/* init files */
+X	informat.info.rate      = outformat.info.rate  = 0.0;
+X	informat.info.size      = outformat.info.size  = -1;
+X	informat.info.style     = outformat.info.style = -1;
+X	informat.info.channels  = outformat.info.channels = -1;
+X	informat.swap      = 0;
+X	informat.filetype  = outformat.filetype  = (char *) 0;
+X	informat.fp        = stdin;
+X	outformat.fp       = stdout;
+X	informat.filename  = "input";
+X	outformat.filename = "output";
+X}
+X
+X/* 
+X * Process input file -> effect -> output file
+X *	one buffer at a time
+X */
+X
+Xprocess() {
+X	long isamp, osamp, istart;
+X	long i, idone, odone;
+X
+X	gettype(&informat);
+X	if (writing)
+X		gettype(&outformat);
+X	/* Read and write starters can change their formats. */
+X	(* informat.h->startread)(&informat);
+X	checkformat(&informat);
+X	report("Input file: using sample rate %d\n\tsize %s, style %s, %d %s",
+X		informat.info.rate, sizes[informat.info.size], 
+X		styles[informat.info.style], informat.info.channels, 
+X		(informat.info.channels > 1) ? "channels" : "channel");
+X	if (writing) {
+X		copyformat(&informat, &outformat);
+X		(* outformat.h->startwrite)(&outformat);
+X		checkformat(&outformat);
+X		cmpformats(&informat, &outformat);
+X	report("Output file: using sample rate %d\n\tsize %s, style %s, %d %s",
+X		outformat.info.rate, sizes[outformat.info.size], 
+X		styles[outformat.info.style], outformat.info.channels, 
+X		(outformat.info.channels > 1) ? "channels" : "channel");
+X	}
+X	/* Very Important: 
+X	 * Effect fabrication and start is called AFTER files open.
+X	 * Effect may write out data beforehand, and
+X	 * some formats don't know their sample rate until now.
+X	 */
+X	checkeffect();
+X	/* inform effect about signal information */
+X	eff.ininfo = informat.info;
+X	eff.outinfo = outformat.info;
+X	(* eff.h->start)(&eff);
+X	istart = 0;
+X	while((isamp = (*informat.h->read)(&informat,&ibuf[istart],
+X			(long) BUFSIZ-istart))>0) {
+X		long *ib = ibuf;
+X
+X		isamp += istart;
+X		/* Do volume before effect or after?  idunno */
+X		if (dovolume) for (i = 0; i < isamp; i++)
+X			ibuf[i] = volumechange(ibuf[i]);
+X		osamp = sizeof(obuf) / sizeof(long);
+X		/* Effect (i.e. rate change) may do different sizes I and O */
+X		while (isamp) {
+X			idone = isamp;
+X			odone = osamp;
+X			(* eff.h->flow)(&eff, ib, obuf, &idone, &odone);
+X			/* 
+X			 * kludge! 	
+X			 * Effect is stuck.  Start over with new buffer.
+X			 * This can drop samples at end of file. 
+X			 * No effects currently do this, but it could happen.
+X			 */
+X			if (idone == 0) {
+X				int i;
+X				for(i = isamp - 1; i; i--)
+X					ibuf[i] = ib[i];
+X				istart = isamp;
+X				isamp = 0;
+X				break;
+X			}
+X			if (writing) 
+X				(* outformat.h->write)(&outformat, obuf, (long) odone);
+X			isamp -= idone;
+X			ib += idone;
+X		}
+X	}
+X	/* Drain effect out */
+X	if (writing) {
+X		odone = sizeof(obuf) / sizeof(long);
+X		(* eff.h->drain)(&eff, obuf, &odone);
+X		if (odone > 0)
+X			(* outformat.h->write)(&outformat, obuf, (long) odone);
+X		/* keep calling it until it returns a partial buffer */
+X		while (odone == (sizeof(obuf) / sizeof(long))) {
+X			(* eff.h->drain)(&eff, obuf, &odone);
+X			if (odone)
+X			 (* outformat.h->write)(&outformat, obuf, (long) odone);
+X		}
+X	}
+X	/* Very Important: 
+X	 * Effect stop is called BEFORE files close.
+X	 * Effect may write out more data after. 
+X	 */
+X	(* eff.h->stop)(&eff);
+X	(* informat.h->stopread)(&informat);
+X	fclose(informat.fp);
+X	if (writing)
+X		(* outformat.h->stopwrite)(&outformat);
+X	if (writing)
+X		fclose(outformat.fp);
+X}
+X
+X/*
+X * Check that we have a known format suffix string.
+X */
+Xvoid
+Xgettype(formp)
+Xft_t formp;
+X{
+X	char **list;
+X	int i;
+X	extern format_t formats[];
+X
+X	if (! formp->filetype)
+Xfail("Must give file type for %s file, either as suffix or with -t option",
+Xformp->filename);
+X	for(i = 0; formats[i].names; i++) {
+X		for(list = formats[i].names; *list; list++) {
+X			char *s1 = *list, *s2 = formp->filetype;
+X			if (! strcmpcase(s1, s2))
+X				break;	/* not a match */
+X		}
+X		if (! *list)
+X			continue;
+X		/* Found it! */
+X		formp->h = &formats[i];
+X		return;
+X	}
+X	if (! strcmpcase(formp->filetype, "snd")) {
+X		verbose = 1;
+X		report("File type '%s' is used to name several different formats.", formp->filetype);
+X		report("If the file came from a Macintosh, it is probably");
+X		report("a .ub file with a sample rate of 11025 (or possibly 5012 or 22050).");
+X		report("Use the sequence '-t .ub -r 11025 file.snd'");
+X		report("If it came from a PC, it's probably a Soundtool file.");
+X		report("Use the sequence '-t .sndt file.snd'");
+X		report("If it came from a NeXT, it's probably a .au file.");
+X		fail("Use the sequence '-t .au file.snd'\n");
+X	}
+X	fail("File type '%s' of %s file is not known!",
+X		formp->filetype, formp->filename);
+X}
+X
+Xcopyformat(ft, ft2)
+Xft_t ft, ft2;
+X{
+X	int noise = 0;
+X	if (ft2->info.rate == 0.0) {
+X		ft2->info.rate = ft->info.rate;
+X		noise = 1;
+X	}
+X	if (outformat.info.size == -1) {
+X		ft2->info.size = ft->info.size;
+X		noise = 1;
+X	}
+X	if (outformat.info.style == -1) {
+X		ft2->info.style = ft->info.style;
+X		noise = 1;
+X	}
+X	if (outformat.info.channels == -1) {
+X		ft2->info.channels = ft->info.channels;
+X		noise = 1;
+X	}
+X	return noise;
+X}
+X
+Xcmpformats(ft, ft2)
+Xft_t ft, ft2;
+X{
+X	int noise = 0;
+X	float abs;
+X
+X}
+X
+X/* check that all settings have been given */
+Xcheckformat(ft) 
+Xft_t ft;
+X{
+X	if (ft->info.rate == 0.0)
+X		fail("Sampling rate for %s file was not given\n", ft->filename);
+X	if ((ft->info.rate < 100) || (ft->info.rate > 50000))
+X		fail("Sampling rate %d for %s file is bogus\n", 
+X			ft->info.rate, ft->filename);
+X	if (ft->info.size == -1)
+X		fail("Data size was not given for %s file\nUse one of -b/-w/-l/-f/-d/-D", ft->filename);
+X	if (ft->info.style == -1)
+X		fail("Data style was not given for %s file\nUse one of -s/-u/-U/-A", ft->filename);
+X	/* it's so common, might as well default */
+X	if (ft->info.channels == -1)
+X		ft->info.channels = 1;
+X	/*	fail("Number of output channels was not given for %s file",
+X			ft->filename); */
+X}
+X
+X/*
+X * If no effect given, decide what it should be.
+X */
+Xcheckeffect(effp)
+Xeff_t effp;
+X{
+X	int already = (eff.name != (char *) 0);
+X	char *rate = 0, *chan = 0;
+X	int i;
+X
+X	for (i = 0; effects[i].name; i++) {
+X		if (!chan && (effects[i].flags & EFF_CHAN))
+X			chan = effects[i].name;
+X		if (! rate && (effects[i].flags & EFF_RATE))
+X			rate = effects[i].name;
+X	}
+X
+X	if (eff.name && ! writing)
+X		return;
+X
+X	/* 
+X	 * Require mixdown for channel mismatch.
+X	 * XXX Doesn't handle channel expansion.  Need an effect for this.
+X	 * Require one of the rate-changers on a rate change.
+X	 * Override a rate change by explicitly giving 'copy' command.
+X	 */
+X	if (informat.info.channels != outformat.info.channels) {
+X		if (eff.name && !(eff.h->flags & EFF_CHAN))
+X			fail("Need to do change number of channels first.  Try the '%s' effect.", chan);
+X		if (! eff.name) {
+X			eff.name = chan;
+X			report(
+X"Changing %d input channels to %d output channels with '%s' effect\n",
+X			informat.info.channels, outformat.info.channels, chan);
+X			geteffect(&eff);
+X		}
+X	} 
+X	/* 
+X	 * Be liberal on rate difference errors.
+X	 * Note that the SPARC 8000-8192 problem
+X	 * comes in just under the wire.  XXX
+X	 *
+X 	 * Bogus.  Should just do a percentage.
+X	 */
+X	if (abs(informat.info.rate - outformat.info.rate) > 200) {
+X		if (eff.name && !(eff.h->flags & EFF_RATE))
+X		    fail("Need to do rate change first.  Try the '%s' effect.", 
+X			rate);
+X		if (! eff.name) {
+X			eff.name = rate;
+X			report(
+X"Changing sample rate %d to rate %d via noisy 'rate' effect\n",
+X			informat.info.rate, outformat.info.rate);
+X			geteffect(&eff);
+X		}
+X	}
+X	/* don't need to change anything */
+X	if (! eff.name)
+X		eff.name = "copy";
+X	if (! already) {
+X		geteffect(&eff);
+X		/* give default opts for manufactured effect */
+X		(eff.h->getopts)(&eff, 0, (char *) 0);
+X	}
+X}
+X
+X/*
+X * Check that we have a known effect name.
+X */
+Xvoid
+Xgeteffect(effp)
+Xeff_t effp;
+X{
+X	int i;
+X
+X	for(i = 0; effects[i].name; i++) {
+X		char *s1 = effects[i].name, *s2 = effp->name;
+X		while(*s1 && *s2 && (tolower(*s1) == tolower(*s2)))
+X			s1++, s2++;
+X		if (*s1 || *s2)
+X			continue;	/* not a match */
+X		/* Found it! */
+X		effp->h = &effects[i];
+X		return;
+X	}
+X	/* Guido Van Rossum fix */
+X	fprintf(stderr, "Known effects:");
+X	for (i = 0; effects[i].name; i++)
+X		fprintf(stderr, "\t%s\n", effects[i].name);
+X	fail("\nEffect '%s' is not known!", effp->name);
+X}
+X
+X/* Guido Van Rossum fix */
+Xstatistics() {
+X	if (dovolume && clipped > 0)
+X		report("Volume change clipped %d samples", clipped);
+X}
+X
+Xlong volumechange(y)
+Xlong y;
+X{
+X	double y1;
+X
+X	y1 = y * volume;
+X	if (y1 < -2147483647.0) {
+X		y1 = -2147483647.0;
+X		clipped++;
+X	}
+X	else if (y1 > 2147483647.0) {
+X		y1 = 2147483647.0;
+X		clipped++;
+X	}
+X
+X	return y1;
+X}
+X
+Xfiletype(fd)
+Xint fd;
+X{
+X	struct stat st;
+X
+X	fstat(fd, &st);
+X
+X	return st.st_mode & S_IFMT;
+X}
+X
+Xchar *usagestr = 
+X"[ -V -S ] [ fopts ] ifile [ fopts ] ofile [ effect [ effopts ] ]\nfopts: -r rate -v volume -c channels -s/-u/-U/-A -b/-w/-l/-f/-d/-D -x\neffects and effopts: various";
+X
+Xusage(opt)
+Xchar *opt;
+X{
+X#ifndef	DOS
+X	/* single-threaded machines don't really need this */
+X	fprintf(stderr, "%s: ", myname);
+X#endif
+X	fprintf(stderr, "Usage: %s", usagestr);
+X	if (opt)
+X		fprintf(stderr, "\nFailed at: %s\n", opt);
+X	exit(1);
+X}
+X
+Xvoid
+Xreport(va_alist) 
+Xva_dcl
+X{
+X	va_list args;
+X	char *fmt;
+X
+X	if (! verbose)
+X		return;
+X#ifndef	unix
+X	/* single-threaded machines don't really need this */
+X	fprintf(stderr, "%s: ", myname);
+X#endif
+X	va_start(args);
+X	fmt = va_arg(args, char *);
+X	vfprintf(stderr, fmt, args);
+X	va_end(args);
+X	fprintf(stderr, "\n");
+X}
+X
+Xfail(va_alist) 
+Xva_dcl
+X{
+X	va_list args;
+X	char *fmt;
+X
+X#ifndef	unix
+X	/* single-threaded machines don't really need this */
+X	fprintf(stderr, "%s: ", myname);
+X#endif
+X	va_start(args);
+X	fmt = va_arg(args, char *);
+X	vfprintf(stderr, fmt, args);
+X	va_end(args);
+X	fprintf(stderr, "\n");
+X	exit(2);
+X}
+X
+X
+Xstrcmpcase(s1, s2)
+Xchar *s1, *s2;
+X{
+X	while(*s1 && *s2 && (tolower(*s1) == tolower(*s2)))
+X		s1++, s2++;
+X	return *s1 - *s2;
+X}
+SHAR_EOF
+chmod 0644 sox.c ||
+echo 'restore of sox.c failed'
+Wc_c="`wc -c < 'sox.c'`"
+test 15788 -eq "$Wc_c" ||
+	echo 'sox.c: original size 15788, current size' "$Wc_c"
+fi
+# ============= raw.c ==============
+if test -f 'raw.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping raw.c (File already exists)'
+else
+echo 'x - extracting raw.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'raw.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools raw format file.
+X *
+X * Includes .ub, .uw, .sb, .sw, and .ul formats at end
+X */
+X
+X/*
+X * Notes: most of the headerless formats set their handlers to raw
+X * in their startread/write routines.  
+X *
+X */
+X
+X#include "st.h"
+X#include "libst.h"
+X
+Xextern int summary, verbose;
+X
+Xrawstartread(ft) 
+Xft_t ft;
+X{
+X}
+X
+Xrawstartwrite(ft) 
+Xft_t ft;
+X{
+X}
+X
+Xrawread(ft, buf, nsamp) 
+Xft_t ft;
+Xlong *buf, nsamp;
+X{
+X	register long datum;
+X	int abs;
+X	int done = 0;
+X
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	float f;
+X	double d;
+X
+X	switch(ft->info.size) {
+X		case BYTE: switch(ft->info.style) {
+X			case SIGN2:
+X				while(done < nsamp) {
+X					datum = getc(ft->fp);
+X					if (feof(ft->fp))
+X						return done;
+X					/* scale signed up to long's range */
+X					*buf++ = LEFT(datum, 24);
+X					done++;
+X				}
+X				return done;
+X			case UNSIGNED:
+X				while(done < nsamp) {
+X					datum = getc(ft->fp);
+X					if (feof(ft->fp))
+X						return done;
+X					/* Convert to signed */
+X					datum ^= 128;
+X					/* scale signed up to long's range */
+X					*buf++ = LEFT(datum, 24);
+X					done++;
+X				}
+X				return done;
+X			case ULAW:
+X				/* grab table from Posk stuff */
+X				while(done < nsamp) {
+X					datum = getc(ft->fp);
+X					if (feof(ft->fp))
+X						return done;
+X					datum = st_ulaw_to_linear(datum);
+X					/* scale signed up to long's range */
+X					*buf++ = LEFT(datum, 16);
+X					done++;
+X				}
+X				return done;
+X			case ALAW:
+X				fail("No A-Law support");
+X				return done;
+X			}
+X		case WORD: switch(ft->info.style) {
+X			case SIGN2:
+X				while(done < nsamp) {
+X					datum = rshort(ft);
+X					if (feof(ft->fp))
+X						return done;
+X					/* scale signed up to long's range */
+X					*buf++ = LEFT(datum, 16);
+X					done++;
+X				}
+X				return done;
+X			case UNSIGNED:
+X				while(done < nsamp) {
+X					datum = rshort(ft);
+X					if (feof(ft->fp))
+X						return done;
+X					/* Convert to signed */
+X					datum ^= 0x8000;
+X					/* scale signed up to long's range */
+X					*buf++ = LEFT(datum, 16);
+X					done++;
+X				}
+X				return done;
+X			case ULAW:
+X				fail("No U-Law support for shorts");
+X				return done;
+X			case ALAW:
+X				fail("No A-Law support");
+X				return done;
+X			}
+X		}
+X	fail("Drop through in rawread!");
+X}
+X
+Xvoid
+Xrawwrite(ft, buf, nsamp) 
+Xft_t ft;
+Xlong *buf, nsamp;
+X{
+X	register int datum;
+X	int abs;
+X	int done = 0;
+X
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	double d;
+X	
+X	switch(ft->info.size) {
+X		case BYTE: switch(ft->info.style) {
+X			case SIGN2:
+X				while(done < nsamp) {
+X					/* scale signed up to long's range */
+X					datum = RIGHT(*buf++, 24);
+X					putc(datum, ft->fp);
+X					done++;
+X				}
+X				return;
+X			case UNSIGNED:
+X				while(done < nsamp) {
+X					/* scale signed up to long's range */
+X					datum = RIGHT(*buf++, 24);
+X					/* Convert to unsigned */
+X					datum ^= 128;
+X					putc(datum, ft->fp);
+X					done++;
+X				}
+X				return;
+X			case ULAW:
+X				/* grab table from Posk stuff */
+X				while(done < nsamp) {
+X					/* scale signed up to long's range */
+X					datum = RIGHT(*buf++, 16);
+X					datum = st_linear_to_ulaw(datum);
+X					putc(datum, ft->fp);
+X					done++;
+X				}
+X				return;
+X			case ALAW:
+X				fail("No A-Law support");
+X				return;
+X			}
+X		case WORD: switch(ft->info.style) {
+X			case SIGN2:
+X				while(done < nsamp) {
+X					/* scale signed up to long's range */
+X					datum = RIGHT(*buf++, 16);
+X					wshort(ft, datum);
+X					done++;
+X				}
+X				return;
+X			case UNSIGNED:
+X				while(done < nsamp) {
+X					/* scale signed up to long's range */
+X					datum = RIGHT(*buf++, 16);
+X					/* Convert to unsigned */
+X					datum ^= 0x8000;
+X					wshort(ft, datum);
+X					done++;
+X				}
+X				return;
+X			case ULAW:
+X				fail("No U-Law support for shorts");
+X				return;
+X			case ALAW:
+X				fail("No A-Law support");
+X				return;
+X			}
+X		}
+X	/* My, there's a lot of code missing! */
+X	fail("Drop through in rawwrite!");
+X}
+X
+X
+X/*
+X * Set parameters to the fixed parameters known for this format,
+X * and change format to raw format.
+X */
+X
+Xstatic  rawdefaults();
+X
+X/* Signed byte */
+Xsbstartread(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = SIGN2;
+X	rawdefaults(ft);
+X}
+X
+Xsbstartwrite(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = SIGN2;
+X	rawdefaults(ft);
+X}
+X
+Xubstartread(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = UNSIGNED;
+X	rawdefaults(ft);
+X}
+X
+Xubstartwrite(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = UNSIGNED;
+X	rawdefaults(ft);
+X}
+X
+Xuwstartread(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = WORD;
+X	ft->info.style = UNSIGNED;
+X	rawdefaults(ft);
+X}
+X
+Xuwstartwrite(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = WORD;
+X	ft->info.style = UNSIGNED;
+X	rawdefaults(ft);
+X}
+X
+Xswstartread(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = WORD;
+X	ft->info.style = SIGN2;
+X	rawdefaults(ft);
+X}
+X
+Xswstartwrite(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = WORD;
+X	ft->info.style = SIGN2;
+X	rawdefaults(ft);
+X}
+X
+Xulstartread(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = ULAW;
+X	rawdefaults(ft);
+X}
+X
+Xulstartwrite(ft) 
+Xft_t ft;
+X{
+X	ft->info.size = BYTE;
+X	ft->info.style = ULAW;
+X	rawdefaults(ft);
+X}
+X
+Xstatic
+Xrawdefaults(ft)
+Xft_t ft;
+X{
+X	if (ft->info.rate == 0)
+X		ft->info.rate = 8000;
+X	if (ft->info.channels == -1);
+X		ft->info.channels = 1;
+X}
+X
+X
+SHAR_EOF
+chmod 0644 raw.c ||
+echo 'restore of raw.c failed'
+Wc_c="`wc -c < 'raw.c'`"
+test 5402 -eq "$Wc_c" ||
+	echo 'raw.c: original size 5402, current size' "$Wc_c"
+fi
+# ============= voc.c ==============
+if test -f 'voc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping voc.c (File already exists)'
+else
+echo 'x - extracting voc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'voc.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Sound Blaster VOC handler sources.
+X *
+X * Outstanding problem: the Sound Blaster DMA clock is 8 bits wide,
+X * giving spotty resolution above 10khz.  voctartwrite() should check
+X * the given output rate and make sure it's +-1% what the SB can
+X * actually do.  Other format drivers should do similar checks.
+X */
+X
+X#include "st.h"
+X
+X/* Private data for VOC file */
+Xtypedef struct vocstuff {
+X	long	rest;			/* bytes remaining in current block */
+X	int	rate;			/* rate code (byte) of this chunk */
+X	int	silent;			/* sound or silence? */
+X	int	srate;			/* rate code (byte) of silence */
+X	int	blockseek;		/* start of current output block */
+X	long	samples;		/* number of samples output */
+X} *vs_t;
+X
+X#define	VOC_TERM	0
+X#define	VOC_DATA	1
+X#define	VOC_CONT	2
+X#define	VOC_SILENCE	3
+X#define	VOC_MARKER	4
+X#define	VOC_TEXT	5
+X#define	VOC_LOOP	6
+X#define	VOC_LOOPEND	7
+X
+X#define	min(a, b)	(((a) < (b)) ? (a) : (b))
+X
+Xextern int summary, verbose;
+Xvoid getblock();
+X
+Xvocstartread(ft) 
+Xft_t ft;
+X{
+X	char header[20];
+X	vs_t v = (vs_t) ft->priv;
+X	int sbseek;
+X
+X	if (! ft->seekable)
+X		fail("VOC input file must be a file, not a pipe");
+X	if (fread(header, 1, 20, ft->fp) != 20)
+X		fail("unexpected EOF in VOC header");
+X	if (strncmp(header, "Creative Voice File\032", 19))
+X		fail("VOC file header incorrect");
+X
+X	sbseek = rlshort(ft);
+X	fseek(ft->fp, sbseek, 0);
+X
+X	v->rate = -1;
+X	v->rest = 0;
+X	getblock(ft);
+X	if (v->rate == -1)
+X		fail("Input .voc file had no sound!");
+X
+X	ft->info.rate = 1000000.0/(256 - v->rate);
+X	ft->info.size = BYTE;
+X	ft->info.style = UNSIGNED;
+X	ft->info.channels = 1;
+X}
+X
+Xvocread(ft, buf, len) 
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X	register int datum;
+X	int abs;
+X	float amp;
+X	int done = 0;
+X	
+X	char c;
+X	unsigned char uc;
+X
+X	unsigned long sblen;
+X
+X	if (v->rest == 0)
+X		getblock(ft);
+X	if (v->rest == 0)
+X		return 0;
+X
+X	if (v->silent) {
+X		/* Fill in silence */
+X		for(;v->rest && (done < len); v->rest--, done++)
+X			*buf++ = 0x80000000;
+X	} else {
+X		for(;v->rest && (done < len); v->rest--, done++) {
+X			long l;
+X			if ((l = getc(ft->fp)) == EOF) {
+X				fail("VOC input: short file"); /* */
+X				v->rest = 0;
+X				return 0;
+X			}
+X			l ^= 0x80;	/* convert to signed */
+X			*buf++ = LEFT(l, 24);
+X		}
+X	}
+X	return done;
+X}
+X
+X/* nothing to do */
+Xvocstopread(ft) 
+Xft_t ft;
+X{
+X}
+X
+Xvocstartwrite(ft) 
+Xft_t ft;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X	int rate;
+X
+X	if (! ft->seekable)
+X		fail("Output .voc file must be a file, not a pipe");
+X
+X	v->samples = 0;
+X
+X	/* File format name and a ^Z (aborts printing under DOS) */
+X	(void) fwrite("Creative Voice File\032\032", 1, 20, ft->fp);
+X	wlshort(ft, 26);			/* size of header */
+X	wlshort(ft, 0x10a);                     /* major/minor version number */
+X	wlshort(ft, 0x1129);			/* checksum of version number */
+X
+X	ft->info.size = BYTE;
+X	ft->info.style = UNSIGNED;
+X	ft->info.channels = 1;
+X}
+X
+Xvocwrite(ft, buf, len) 
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X	unsigned char uc;
+X	int abs;
+X	int done = 0;
+X
+X	v->rate = 256 - (1000000.0/(float)ft->info.rate);	/* Rate code */
+X	if (v->samples == 0) {
+X		/* No silence packing yet. */
+X		v->silent = 0;
+X		blockstart(&outformat);
+X	}
+X	v->samples += len;
+X	while(len--) {
+X		uc = RIGHT(*buf++, 24);
+X		uc ^= 0x80;
+X		putc(uc, ft->fp);
+X	}
+X}
+X
+Xvocstopwrite(ft) 
+Xft_t ft;
+X{
+X	blockstop(ft);
+X}
+X
+X/* Voc-file handlers */
+X
+X/* Read next block header, save info, leave position at start of data */
+Xvoid
+Xgetblock(ft)
+Xft_t ft;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X	unsigned char uc, block;
+X	unsigned long sblen;
+X	int i;
+X
+X	char c;
+X
+X	v->silent = 0;
+X	while (v->rest == 0) {
+X		if (feof(ft->fp))
+X			return;
+X		block = getc(ft->fp);
+X		if (block == VOC_TERM)
+X			return;
+X		if (feof(ft->fp))
+X			return;
+X		uc = getc(ft->fp);
+X		sblen = uc;
+X		uc = getc(ft->fp);
+X		sblen |= ((long) uc) << 8;
+X		uc = getc(ft->fp);
+X		sblen |= ((long) uc) << 16;
+X		switch(block) {
+X		case VOC_DATA: 
+X			uc = getc(ft->fp);
+X			if (uc == 0)
+X			   fail("File %s: Sample rate is zero?");
+X			if ((v->rate != -1) && (uc != v->rate))
+X			   fail("File %s: sample rate codes differ: %d != %d",
+X					v->rate, uc);
+X			v->rate = uc;
+X			uc = getc(ft->fp);
+X			if (uc != 0)
+X				fail("File %s: only interpret 8-bit data!");
+X			v->rest = sblen - 2;
+X			return;
+X		case VOC_CONT: 
+X			v->rest = sblen;
+X			return;
+X		case VOC_SILENCE: 
+X			{
+X			unsigned short period;
+X
+X			period = rlshort(ft);
+X			uc = getc(ft->fp);
+X			if (uc == 0)
+X				fail("File %s: Silence sample rate is zero");
+X			/* 
+X			 * Some silence-packed files have gratuitously
+X			 * different sample rate codes in silence.
+X			 * Adjust period.
+X			 */
+X			if ((v->rate != -1) && (uc != v->rate))
+X				period = (period * (256 - uc))/(256 - v->rate);
+X			else
+X				v->rate = uc;
+X			v->rest = period;
+X			v->silent = 1;
+X			return;
+X			}
+X		case VOC_MARKER:
+X			uc = getc(ft->fp);
+X			uc = getc(ft->fp);
+X			/* Falling! Falling! */
+X		case VOC_TEXT:
+X			{
+X			int i;
+X			/* Could add to comment in SF? */
+X			for(i = 0; i < sblen; i++)
+X				getc(ft->fp);
+X			}
+X			continue;	/* get next block */
+X		case VOC_LOOP:
+X		case VOC_LOOPEND:
+X			report("File %s: skipping repeat loop");
+X			for(i = 0; i < sblen; i++)
+X				getc(ft->fp);
+X			break;
+X		default:
+X			report("File %s: skipping unknown block code %d",
+X				ft->filename, block);
+X			for(i = 0; i < sblen; i++)
+X				getc(ft->fp);
+X		}
+X	}
+X}
+X
+X/* Start an output block. */
+Xblockstart(ft)
+Xft_t ft;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X
+X	v->blockseek = ftell(ft->fp);
+X	if (v->silent) {
+X		putc(VOC_SILENCE, ft->fp);	/* Silence block code */
+X		putc(0, ft->fp);		/* Period length */
+X		putc(0, ft->fp);		/* Period length */
+X		putc(v->rate, ft->fp);		/* Rate code */
+X	} else {
+X		putc(VOC_DATA, ft->fp);		/* Voice Data block code */
+X		putc(0, ft->fp);		/* block length (for now) */
+X		putc(0, ft->fp);		/* block length (for now) */
+X		putc(0, ft->fp);		/* block length (for now) */
+X		putc(v->rate, ft->fp);		/* Rate code */
+X		putc(0, ft->fp);		/* 8-bit raw data */
+X	}
+X}
+X
+X/* End the current data or silence block. */
+Xblockstop(ft) 
+Xft_t ft;
+X{
+X	vs_t v = (vs_t) ft->priv;
+X	long datum;
+X
+X	putc(0, ft->fp);			/* End of file block code */
+X	fseek(ft->fp, v->blockseek, 0);		/* seek back to block length */
+X	fseek(ft->fp, 1, 1);			/* seek forward one */
+X	if (v->silent) {
+X		datum = (v->samples) & 0xff;
+X		putc(datum, ft->fp);       /* low byte of length */
+X		datum = (v->samples >> 8) & 0xff;
+X		putc(datum, ft->fp);  /* high byte of length */
+X	} else {
+X		v->samples += 2;		/* adjustment: SBDK pp. 3-5 */
+X		datum = (v->samples) & 0xff;
+X		putc(datum, ft->fp);       /* low byte of length */
+X		datum = (v->samples >> 8) & 0xff;
+X		putc(datum, ft->fp);  /* middle byte of length */
+X		datum = (v->samples >> 16) & 0xff;
+X		putc(datum, ft->fp); /* high byte of length */
+X	}
+X}
+X
+SHAR_EOF
+chmod 0644 voc.c ||
+echo 'restore of voc.c failed'
+Wc_c="`wc -c < 'voc.c'`"
+test 6913 -eq "$Wc_c" ||
+	echo 'voc.c: original size 6913, current size' "$Wc_c"
+fi
+# ============= au.c ==============
+if test -f 'au.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping au.c (File already exists)'
+else
+echo 'x - extracting au.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'au.c' &&
+X/*
+X * September 25, 1991
+X * Copyright 1991 Guido van Rossum And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Guido van Rossum And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Sun format with header (SunOS 4.1; see /usr/demo/SOUND).
+X * NeXT uses this format also, but has more format codes defined.
+X * DEC uses a slight variation and swaps bytes.
+X * We only support the common formats.
+X * Output is always in big-endian (Sun/NeXT) order.
+X */
+X
+X#include "st.h"
+X
+X/* Magic numbers used in Sun and NeXT audio files */
+X#define SUN_MAGIC 	0x2e736e64		/* Really '.snd' */
+X#define SUN_INV_MAGIC	0x646e732e		/* '.snd' upside-down */
+X#define DEC_MAGIC	0x2e736400		/* Really '\0ds.' (for DEC) */
+X#define DEC_INV_MAGIC	0x0064732e		/* '\0ds.' upside-down */
+X#define SUN_HDRSIZE	24			/* Size of minimal header */
+X#define SUN_UNSPEC	((unsigned)(~0))	/* Unspecified data size */
+X#define SUN_ULAW	1			/* u-law encoding */
+X#define SUN_LIN_8	2			/* Linear 8 bits */
+X#define SUN_LIN_16	3			/* Linear 16 bits */
+X/* The other formats are not supported by sox at the moment */
+X
+X/* Private data used by writer */
+Xstruct aupriv {
+X	unsigned long data_size;
+X};
+X
+Xaustartread(ft) 
+Xft_t ft;
+X{
+X	/* The following 6 variables represent a Sun sound header on disk.
+X	   The numbers are written as big-endians.
+X	   Any extra bytes (totalling hdr_size - 24) are an
+X	   "info" field of unspecified nature, usually a string.
+X	   By convention the header size is a multiple of 4. */
+X	unsigned long magic;
+X	unsigned long hdr_size;
+X	unsigned long data_size;
+X	unsigned long encoding;
+X	unsigned long sample_rate;
+X	unsigned long channels;
+X
+X	register int i;
+X	unsigned char *buf;
+X
+X
+X	/* Check the magic word */
+X	magic = rlong(ft);
+X	if (magic == DEC_INV_MAGIC) {
+X		ft->swap = 1;
+X		report("Found inverted DEC magic word");
+X	}
+X	else if (magic == SUN_INV_MAGIC) {
+X		ft->swap = 1;
+X		report("Found inverted Sun/NeXT magic word");
+X	}
+X	else if (magic == SUN_MAGIC) {
+X		ft->swap = 0;
+X		report("Found Sun/NeXT magic word");
+X	}
+X	else if (magic == DEC_MAGIC) {
+X		ft->swap = 0;
+X		report("Found DEC magic word");
+X	}
+X	else
+X		fail("Sun/NeXT/DEC header doesn't start with magic word\nTry the '.ul' file type with '-t ul -r 8000 filename'");
+X
+X	/* Read the header size */
+X	hdr_size = rlong(ft);
+X	if (hdr_size < SUN_HDRSIZE)
+X		fail("Sun/NeXT header size too small.");
+X
+X	/* Read the data size; may be ~0 meaning unspecified */
+X	data_size = rlong(ft);
+X
+X	/* Read the encoding; there are some more possibilities */
+X	encoding = rlong(ft);
+X
+X	/* Translate the encoding into style and size parameters */
+X	switch (encoding) {
+X	case SUN_ULAW:
+X		ft->info.style = ULAW;
+X		ft->info.size = BYTE;
+X		break;
+X	case SUN_LIN_8:
+X		ft->info.style = SIGN2;
+X		ft->info.size = BYTE;
+X		break;
+X	case SUN_LIN_16:
+X		ft->info.style = SIGN2;
+X		ft->info.size = WORD;
+X		break;
+X	default:
+X		report("encoding: 0x%lx", encoding);
+X		fail("Unsupported encoding in Sun/NeXT header.\nOnly U-law, signed bytes, and signed words are supported.");
+X		/*NOTREACHED*/
+X	}
+X
+X	/* Read the sampling rate */
+X	sample_rate = rlong(ft);
+X	ft->info.rate = sample_rate;
+X
+X	/* Read the number of channels */
+X	channels = rlong(ft);
+X	ft->info.channels = channels;
+X
+X	/* Skip the info string in header; print it if verbose */
+X	hdr_size -= SUN_HDRSIZE; /* #bytes already read */
+X	if (hdr_size > 0) {
+X		buf = (unsigned char *) malloc(hdr_size + 1);
+X		for(i = 0; i < hdr_size; i++) {
+X			buf[i] = (unsigned char ) getc(ft->fp);
+X			if (feof(ft->fp))
+X				fail("Unexpected EOF in Sun/NeXT header info.");
+X		}
+X		buf[i] = 0;
+X		report("Input file %s: Sun header info: %s", ft->filename, buf);
+X	}
+X}
+X
+X/* When writing, the header is supposed to contain the number of
+X   data bytes written, unless it is written to a pipe.
+X   Since we don't know how many bytes will follow until we're done,
+X   we first write the header with an unspecified number of bytes,
+X   and at the end we rewind the file and write the header again
+X   with the right size.  This only works if the file is seekable;
+X   if it is not, the unspecified size remains in the header
+X   (this is legal). */
+X
+Xaustartwrite(ft) 
+Xft_t ft;
+X{
+X	struct aupriv *p = (struct aupriv *) ft->priv;
+X	int littlendian = 0;
+X	char *endptr;
+X
+X	p->data_size = 0;
+X	auwriteheader(ft, SUN_UNSPEC);
+X	endptr = (char *) &littlendian;
+X	*endptr = 1;
+X	if (littlendian == 1)
+X		ft->swap = 1;
+X}
+X
+Xauwrite(ft, buf, samp)
+Xft_t ft;
+Xlong *buf, samp;
+X{
+X	struct aupriv *p = (struct aupriv *) ft->priv;
+X	p->data_size += samp * ft->info.size;
+X	rawwrite(ft, buf, samp);
+X}
+X
+Xvoid
+Xaustopwrite(ft)
+Xft_t ft;
+X{
+X	struct aupriv *p = (struct aupriv *) ft->priv;
+X	if (!ft->seekable)
+X		return;
+X	if (fseek(ft->fp, 0L, 0) != 0)
+X		fail("Can't rewind output file to rewrite Sun header.");
+X	auwriteheader(ft, p->data_size);
+X}
+X
+Xauwriteheader(ft, data_size)
+Xft_t ft;
+Xunsigned long data_size;
+X{
+X	unsigned long magic;
+X	unsigned long hdr_size;
+X	unsigned long encoding;
+X	unsigned long sample_rate;
+X	unsigned long channels;
+X
+X	if (ft->info.style == ULAW && ft->info.size == BYTE)
+X		encoding = SUN_ULAW;
+X	else if (ft->info.style == SIGN2 && ft->info.size == BYTE)
+X		encoding = SUN_LIN_8;
+X	else if (ft->info.style == SIGN2 && ft->info.size == WORD)
+X		encoding = SUN_LIN_16;
+X	else
+X		fail("Unsupported output style/size for Sun/NeXT header.  \nOnly U-law, signed bytes, and signed words are supported.");
+X
+X	magic = SUN_MAGIC;
+X	wblong(ft, magic);
+X
+X	hdr_size = SUN_HDRSIZE;
+X	wblong(ft, hdr_size);
+X
+X	wblong(ft, data_size);
+X
+X	wblong(ft, encoding);
+X
+X	sample_rate = ft->info.rate;
+X	wblong(ft, sample_rate);
+X
+X	channels = ft->info.channels;
+X	wblong(ft, channels);
+X}
+SHAR_EOF
+chmod 0644 au.c ||
+echo 'restore of au.c failed'
+Wc_c="`wc -c < 'au.c'`"
+test 5672 -eq "$Wc_c" ||
+	echo 'au.c: original size 5672, current size' "$Wc_c"
+fi
+# ============= sf.c ==============
+if test -f 'sf.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping sf.c (File already exists)'
+else
+echo 'x - extracting sf.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sf.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools IRCAM SoundFile format handler.
+X * 
+X * Derived from: Sound Tools skeleton handler file.
+X */
+X
+X#include "st.h"
+X#include "sfheader.h"
+X
+X/* Private data for SF file */
+Xtypedef struct sfstuff {
+X	struct sfinfo info;
+X} *sf_t;
+X
+Xextern int summary, verbose;
+X
+X/*
+X * Do anything required before you start reading samples.
+X * Read file header. 
+X *	Find out sampling rate, 
+X *	size and style of samples, 
+X *	mono/stereo/quad.
+X */
+Xsfstartread(ft) 
+Xft_t ft;
+X{
+X	sf_t sf = (sf_t) ft->priv;
+X	int i;
+X	
+X	if (fread(&sf->info, 1, sizeof(sf->info), ft->fp) != sizeof(sf->info))
+X		fail("unexpected EOF in SF header");
+X	if (ft->swap) sf->info.sf_magic = swapl(sf->info.sf_magic);
+X	if (ft->swap) sf->info.sf_srate = swapl(sf->info.sf_srate);
+X	if (ft->swap) sf->info.sf_packmode = swapl(sf->info.sf_packmode);
+X	if (ft->swap) sf->info.sf_chans = swapl(sf->info.sf_chans);
+X	if (ft->swap) sf->info.sf_codes = swapl(sf->info.sf_codes);
+X	if (sf->info.sf_magic != SF_MAGIC)
+X		if (sf->info.sf_magic == swapl(SF_MAGIC))
+X			fail("SF %s file: can't read, it is probably byte-swapped");
+X		else
+X			fail("SF %s file: can't read, it is not an IRCAM SoundFile");
+X
+X	/*
+X	 * If your format specifies or your file header contains
+X	 * any of the following information. 
+X	 */
+X	ft->info.rate = sf->info.sf_srate;
+X	switch(sf->info.sf_packmode) {
+X		case SF_SHORT:
+X			ft->info.size = WORD;
+X			ft->info.style = SIGN2;
+X			break;
+X		case SF_FLOAT:
+X			ft->info.size = FLOAT;
+X			ft->info.style = SIGN2;
+X			break;
+X		default:
+X			fail("Soundfile input: unknown format 0x%x\n",
+X				sf->info.sf_packmode);
+X	}
+X	ft->info.channels = sf->info.sf_chans;
+X	/* Future: Read codes and print as comments. */
+X
+X	/* Skip all the comments */
+X	for(i = sizeof(struct sfinfo); i < SIZEOF_BSD_HEADER; i++)
+X		getc(ft->fp);
+X
+X}
+X
+Xsfstartwrite(ft) 
+Xft_t ft;
+X{
+X	sf_t sf = (sf_t) ft->priv;
+X	int i;
+X
+X	sf->info.sf_magic = SF_MAGIC;
+X	sf->info.sf_srate = ft->info.rate;
+X#ifdef	LATER
+X	/* 
+X	 * CSound sound-files have many formats. 
+X	 * We stick with the IRCAM short-or-float scheme.
+X	 */
+X	if (ft->info.size == WORD) {
+X		sf->info.sf_packmode = SF_SHORT;
+X		ft->info.style = SIGN2;		/* Default to signed words */
+X	} else if (ft->info.size == FLOAT)
+X		sf->info.sf_packmode = SF_FLOAT;
+X	else
+X		fail("SoundFile %s: must set output as signed shorts or floats",
+X			ft->filename);
+X#else
+X	if (ft->info.size == FLOAT) {
+X		sf->info.sf_packmode = SF_FLOAT;
+X		ft->info.size = FLOAT;
+X	} else {
+X		sf->info.sf_packmode = SF_SHORT;
+X		ft->info.size = WORD;
+X		ft->info.style = SIGN2;		/* Default to signed words */
+X	}
+X#endif
+X	sf->info.sf_chans = ft->info.channels;
+X	sf->info.sf_codes = SF_END;		/* No comments */
+X
+X	(void) fwrite(&sf->info, 1, sizeof(sf->info), ft->fp);
+X	/* Skip all the comments */
+X	for(i = sizeof(struct sfinfo); i < SIZEOF_BSD_HEADER; i++)
+X		putc(0, ft->fp);
+X
+X}
+X
+X/* Read and write are supplied by raw.c */
+X
+X
+X
+SHAR_EOF
+chmod 0644 sf.c ||
+echo 'restore of sf.c failed'
+Wc_c="`wc -c < 'sf.c'`"
+test 3148 -eq "$Wc_c" ||
+	echo 'sf.c: original size 3148, current size' "$Wc_c"
+fi
+true || echo 'restore of aiff.c failed'
+echo End of part 2, continue with part 3
+exit 0

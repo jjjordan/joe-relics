@@ -1,0 +1,2082 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: Sound Blaster V2: part 2 of 4
+Message-ID: <-tbj_gfthinman@netcom.com>
+Date: 27 Mar 92 05:24:23 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 2073
+
+
+#!/bin/sh
+# This is part 02 of SoundBlaster_V2
+# ============= sb.c ==============
+if test -f 'sb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping sb.c (File already exists)'
+else
+echo 'x - extracting sb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sb.c' &&
+X/* XXX make dsp_reset use sleep */
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X *
+X * Substantial changes by Pace Willisson, January 1992
+X * Merge my assembler handler stuff into Pace's version, March 1992
+X *	- Lance Norskog
+X */
+X
+X/* Notes:
+X *
+X * 1. never crash the kernel, no matter what sequence of system calls
+X *    the user program does.  Therefore, assume that practically every
+X *    routine is reentrant (although it's still ok to assume that a
+X *    hi level routine will not be interrupted by another hi level
+X *    routine unless it explicitly calls sleep).
+X *
+X * 2. never hang a process so it can't be killed.  We insure this by
+X *    never sleeping at a negative priority
+X */
+X
+X/* Data formats:
+X *
+X * Midi:
+X *
+X * The input and output midi data streams are the same:  The data is in
+X * 4 byte packets.  The least significant byte is the midi code, and the
+X * most significant three bytes is the delta in milliseconds between the
+X * previous code and this code.  This scheme allows
+X * you to make a simple recorder like this:
+X *
+X *     $ dd if=/dev/sbmidi of=mfile bs=4
+X *         ...play on keyboard...
+X *     ^C
+X *     $ cp mfile /dev/sbmidi
+X *         ...music is played back...
+X *
+X * I used 'dd' instead of cp so I would not lose the last bufferful of data
+X * when I interrupted it.  A fancy recorder would arrange for a more 
+X * graceful way to signal the end of recording.
+X *
+X * Note that this scheme records exactly the same information as if the
+X * 3 byte time was a delta from the start of the file, instead of from
+X * the previous byte.  This allows you to cut a section out of the middle
+X * of a file and play it by simply writing it out again.
+X * Also, you can concatenate two files
+X * for output (although you probably want a utility that would adjust the
+X * delta in the first packet of the second file to space the files out
+X * correctly).  
+X *
+X * A read on the midi device blocks until there is some data, then returns
+X * however much is available, even if it is less than the user asked for.
+X * This is similar to tty character devices.   You may also set the NDELAY
+X * flag either in open or with fcntl to cause read to be entirely 
+X * non-blocking.
+X *
+X * It whould be really nice if it were possible to use something like
+X * select(2) to get input from either the midi keyboard or the tty.
+X * Or to use midi input in an X-window client program.  I don't
+X * know how to pull that off short of converting this to a streams driver.
+X */
+X
+X#include <sys/types.h>
+X#include <sys/param.h>
+X#include <sys/file.h>
+X#include <sys/ioctl.h>
+X#include <sys/dir.h>
+X#include <sys/buf.h>
+X#include <sys/signal.h>
+X#include <sys/user.h>
+X#include <sys/sysmacros.h>
+X#include <sys/dma.h>
+X#include <sys/cmn_err.h>
+X#include <sys/errno.h>
+X#include <sys/conf.h>
+X#include "sb.h"
+X
+Xint wakeup ();
+X
+X/* defs needed because of ommisions ISC! */
+X#ifndef DMA_Rdmode
+X#define DMA_Rdmode 0x44
+X#endif
+X#ifndef DMA_Wrmode
+X#define DMA_Wrmode 0x48
+X#endif
+X#ifndef DMA_BLOCK
+X#define DMA_BLOCK 0
+X#endif
+X#ifndef DMA_NBLOCK
+X#define DMA_NBLOCK 1
+X#endif
+X
+Xextern ushort sb_dma_chan;
+Xextern ushort sb_interrupt;
+X
+X/* #define static */
+Xint sb_owns_dma;
+X
+X#ifdef	FASTINTR
+X/* Assembler interrupt handler common storage */
+Xlong	sb_next = 0;
+Xchar	sb_dmadir = 0;
+Xchar	sb_dmalow = 0;
+Xchar	sb_dmahigh = 0;
+Xchar	sb_dmapage = 0;
+Xchar	sb_dmalenh = 0;
+Xchar	sb_dmalenl = 0;
+Xshort	sb_dspstat = 0;
+Xshort	sb_dspcmd = 0;
+Xshort	sb_dspdata = 0;
+Xchar	sb_dspdir = 0;
+Xchar	sb_dsplenh = 0;
+Xchar	sb_dsplenl = 0;
+X
+Xunsigned long sb_poke_save;
+Xextern  sb_asmintr();
+Xstatic  void sb_prep_dma();
+X#endif
+X
+Xint sb_didprep = 0;
+Xint sb_didstart = 0;
+X
+Xstatic int dsp_reset ();
+Xstatic int dsp_speed ();
+Xstatic int dsp_voice ();
+Xstatic void sb_start_dma ();
+Xstatic int fm_reset ();
+Xstatic int midi_write_flush ();
+X
+X/* GLOBALS */
+Xstatic struct sb_stat_type sb_status;          /* Soundblaster Status */
+Xextern time_t lbolt;
+X
+X
+X#ifdef LDRV
+X#include "ldrv.h"
+X
+Xint sbopen (), sbclose (), sbread (), sbwrite (), sbioctl (), sbintr ();
+X
+Xinitfunc (op, ldp)
+Xstruct ldrvarg *ldp;
+X{
+X	struct cdevsw *cp;
+X	int x, y;
+X
+X	sb_dma_chan = 1;
+X	sb_interrupt = 5;
+X
+X	switch (op) {
+X	case LDRV_LOAD_OP:
+X		printf ("Sound Blaster installed\n");
+X		cp = &cdevsw[ldp->majornum];
+X		cp->d_open = sbopen;
+X		cp->d_close = sbclose;
+X		cp->d_read = sbread;
+X		cp->d_write = sbwrite;
+X		cp->d_ioctl = sbioctl;
+X		/* second arg is priority */
+X		ldrv_set_intr (sb_interrupt, 5, sbintr);
+X		sbinit ();
+X		return (0);
+X	case LDRV_UNLOAD_OP:
+X		if (!sbidle ()) {
+X			printf ("Sound Blaster not idle: can't unload\n");
+X			return (-1);
+X		}
+X		printf ("Sound Blaster unloading\n");
+X		return (0);
+X	default:
+X		printf ("unknown op %d\n", op);
+X		return (0);
+X	}
+X}
+X
+Xint
+Xsbidle ()
+X{
+X	if (sb_status.dsp_open_for_reading
+X	    || sb_status.dsp_open_for_writing
+X	    || sb_status.fm_open
+X	    || sb_status.cms_open
+X	    || sb_status.midi_open_for_reading
+X	    || sb_status.midi_open_for_writing)
+X		return (0);
+X
+X	dsp_reset ();
+X	return (1);
+X}
+X#endif /* LDRV */
+X
+X/* The board supports these sampling rates:
+X *
+X * Input:  8-bit only   4khz to 12khz
+X * Output: 8-bit        4khz to 23khz
+X *         4-bit ADPCM  4khz to 12khz
+X *         2-bit ADPCM  4khz to 13khz
+X *         2.6 ADPCM    4khz to 11khz
+X */
+X
+X/* The board uses DMA for the DAC and ADC.  To deal with the poor real-time
+X * preformance of unix at the user process level, we implement a double
+X * buffering scheme in the kernel.  There are two buffers of DSP_BUF_SIZE
+X * bytes.  For writes, one gets filled by the user program while the 
+X * other is drained by the board.  The variable dsp_hi is always 0 or 1,
+X * telling which buffer is current for the user process.  dsp_low tells
+X * the current buffer for the interrupt routine.  Since the user may
+X * fill up the buffer using a series of write calls, the variable dsp_hi_used
+X * tells how many bytes have been filled in so far.  When a user write
+X * fills the buffer, the flag dsp_full[dsp_hi] is set, and then dsp_hi
+X * is toggled.  dsp_full[x] is set to 0 by the interrupt routine when
+X * it is done draining the buffer.  Normally, the user program will be
+X * writing faster than the board can drain, so when switching buffers,
+X * it blocks until dsp_full[x] is 0.  If the user gets behind, the 
+X * interrupt routine will notice that dsp_full[x] is 0 when it wants
+X * to swich buffers, so it will shut down.  This will cause a gap in 
+X * the output.  When the user eventually writes some more, dsp_write()
+X * will restart the interrupt level processing.
+X *
+X * There is an ioctl to flush out a partial buffer, when that is desired.
+X * The buffer is not automatically flushed during when the device is closed,
+X * since that is likely to cause a confusing delay of a few seconds when
+X * the user tries to kill the program.
+X *
+X * Reading works pretty much the same way.  This time, dsp_full is set by
+X * the interrupt routine and reset by the user level.  dsp_hi_used tells
+X * how many bytes of the current buffer have been passed to the user.
+X * As a special feature, the interrupt routine can set a flag if it 
+X * overruns the buffers, and this will ultimately cause EIO to be 
+X * returned to one of the user's read calls.  This lets the user know 
+X * that some samples were missed.
+X */
+X
+X/* The IBM-PC dma hardware cannot do transfers that cross a 64k boundary.
+X * Therefore, we allocate 3 buffers, all in a space of less than 64k.  
+X * Therefore, we know that at most one of the buffers crosses a boundary,
+X * and that the other two are safe.
+X */
+X/* XXX move to space.c */
+X#define DSP_BUF_SIZE 16384 /* must be less than 64k/3 */
+Xunsigned char dsp_buf_space[DSP_BUF_SIZE * 3];
+Xstatic unsigned char *dsp_buf[2];
+X
+X/* physical addresses for dma_buf[] */
+Xstatic paddr_t dsp_buf_phys[2];
+X
+X/* for each buffer, set by the writer, reset by reader */
+Xstatic int dsp_full[2];
+X
+X /* current buffer for hi and low levels */
+Xstatic int dsp_hi;
+Xstatic int dsp_low;
+X
+X/* number of bytes already written/read in buffer */
+Xstatic int dsp_used[2];
+X
+X/* set when interrupt routine should do wakeup (dsp_buf) */
+Xstatic int dsp_wanted;
+X
+X/* these are used to implement the input overrun error */
+Xstatic int dsp_waiting_for_first_read;
+Xstatic int dsp_error;
+X
+Xstatic int sb_interrupt_pending;
+X
+X#define DSP_LOOP_LIMIT_MILLISECONDS 5
+X
+Xstatic int dsp_loop_limit;
+Xstatic void
+Xdsp_compute_loop_limit ()
+X{
+X	int i;
+X	int start, delta;
+X
+X	/* try to set dsp_loop_limit to about DSP_LOOP_LIMIT_MILLISECONDS */
+X	dsp_loop_limit = 10000000;
+X	start = lbolt;
+X	/* this loop should do the same amount of work 
+X	 * as the loop in dsp_command.  The difference is that here
+X	 * we break when the dsp is not ready (which will never 
+X	 * happen, since we just reset it), but in dsp_command, we 
+X	 * break as soon as it is ready
+X	 */
+X	for (i = 0; i < dsp_loop_limit; i++)
+X		if ((inb (DSP_STATUS) & 0x80) != 0)
+X			break;
+X
+X	delta = lbolt - start;
+X
+X	if (delta > 0)
+X		delta--;
+X
+X	if (delta == 0) {
+X		printf ("warning: error setting dsp_loop_limit\n");
+X		dsp_loop_limit = 1000000; /* works on a 25Mhz 486, no cache */
+X	} else {
+X		dsp_loop_limit = DSP_LOOP_LIMIT_MILLISECONDS
+X			* (dsp_loop_limit / delta);
+X	}
+X	printf ("dsp_loop_limit set to %d (%d)\n", dsp_loop_limit, delta);
+X}
+X
+X/*
+X * reset DSP chip, and return TRUE if successful
+X */
+Xstatic int 
+Xdsp_reset()
+X{
+X	int i;
+X	register unsigned char rc;
+X	int s;
+X
+X	s = spl5 ();
+X	if (sb_owns_dma)
+X		dma_resid (sb_dma_chan); /* disable dma */
+X	sb_interrupt_pending = 0;
+X	dsp_full[0] = 0;
+X	dsp_full[1] = 0;
+X	dsp_hi = 0;
+X	dsp_low = 0;
+X	dsp_used[0] = 0;
+X	dsp_used[1] = 0;
+X	dsp_wanted = 0;
+X#ifdef	FASTINTR
+X	sb_next = 0;
+X#endif
+X	wakeup (dsp_buf);
+X	splx (s);
+X
+X	/* reset dsp */
+X	outb(DSP_RESET, 0x01);
+X	tenmicrosec();
+X	outb(DSP_RESET, 0x00);
+X	for (i=0; i<200; i++) {
+X		rc = inb(DSP_RDAVAIL);
+X		if (rc & 128) {
+X			rc = inb(DSP_RDDATA);
+X			if (rc == 0xAA)
+X				break;
+X		}
+X	}
+X
+X	if (i>=200) {
+X		cmn_err(CE_WARN,
+X			"SoundBlaster(tm) DSP failed initialization\n");
+X		return (FALSE);
+X	}
+X
+X	dsp_voice (FALSE);
+X
+X	/* reset sampling speed */
+X	dsp_speed();
+X
+X	return(TRUE);
+X}
+X
+X/* this routine must not sleep */
+Xstatic int
+Xdsp_command (val)
+Xint val;
+X{
+X	int i;
+X
+X	if (dsp_loop_limit == 0)
+X		dsp_loop_limit = 10000;
+X
+X	for (i = 0; i < dsp_loop_limit; i++) {
+X		if ((inb (DSP_STATUS) & 0x80) == 0) {
+X			outb(DSP_COMMAND, val);
+X			return (TRUE);
+X		}
+X	}
+Xprintf("dsp_command: fail\n");
+X	return (FALSE);
+X}
+X
+X/*
+X * program the DSP's time constant: the sampling/output rate
+X */
+Xstatic int 
+Xdsp_speed()
+X{
+X	char time_constant;
+X
+X	time_constant = (char)(256 - (1000000/sb_status.dsp_speed));
+X
+X	if (dsp_command (DSPCMD_TIME) == FALSE /* SET_TIME_CONSTANT */
+X	    || dsp_command (time_constant) == FALSE) {
+X		return (FALSE);
+X	}
+X	
+X	return(TRUE);
+X}
+X
+X
+Xstatic int no_sound_blaster;
+X
+X#define crosses_64k_boundary(a,b) ((((paddr_t)(a) & 0xffff) + (b)) >= 0x10000)
+X
+X/*
+X * called at OS startup time to initialize the SoundBlaster
+X */
+Xint
+Xsbinit()
+X{
+X	unsigned char *p;
+X	paddr_t kp;
+X	
+X	/* Was checking logical addresses, not physical addresses! */
+X	p = dsp_buf_space;
+X	kp = kvtophys (p);
+X	if (crosses_64k_boundary (kp, DSP_BUF_SIZE)) {
+X		p += DSP_BUF_SIZE;
+X		kp += DSP_BUF_SIZE;
+X	}
+X	dsp_buf[0] = p;
+X	dsp_buf_phys[0] = kp;
+X	p += DSP_BUF_SIZE;
+X	kp += DSP_BUF_SIZE;
+X	if (crosses_64k_boundary (kp, DSP_BUF_SIZE)) {
+X		p += DSP_BUF_SIZE;
+X		kp += DSP_BUF_SIZE;
+X	}
+X	dsp_buf[1] = p;
+X	dsp_buf_phys[1] = kp;
+X	
+X	if (crosses_64k_boundary (dsp_buf_phys[0], DSP_BUF_SIZE)
+X	    || crosses_64k_boundary (dsp_buf_phys[1], DSP_BUF_SIZE)) {
+X		printf ("soundblaster configuration error: bad buffers\n");
+X		no_sound_blaster = 1;
+X		return;
+X	}
+X
+X	sb_status.dsp_speed = 11000;
+X	sb_status.dsp_compression = ADCPM_8;
+X
+X	if (dsp_reset() == TRUE) {
+X		cmn_err(CE_CONT,
+X			"SoundBlaster(tm) is recognized and initialized\n");
+X		dsp_compute_loop_limit ();
+X	} else {
+X		cmn_err(CE_WARN, "SoundBlaster(tm) initialization failed\n");
+X		no_sound_blaster = 1;
+X	}
+X
+X
+X	return(0);
+X}
+X
+X
+X/*
+X * turn the dsp voice on if param is true
+X */
+Xstatic int
+Xdsp_voice(on)
+Xint on;
+X{
+X	return (dsp_command (on ? DSPCMD_SPKON : DSPCMD_SPKOFF));
+X}
+X
+X
+X/*
+X * grabs the DSP chip for a process.
+X * sets u.u_error to EBUSY if already opened by other device
+X */
+Xstatic void 
+Xdsp_open(flag)
+Xint flag;
+X{
+X	/* note that if dma_single is on (DMAEXCL in mtune)
+X	 * (which is it by default in most kernels), then
+X	 * this will effectively lock out the floppy for as long
+X	 * as the dsp is opened.  Similarly, if the floppy is
+X	 * currently in use, then dsp_open will fail here.
+X	 *
+X	 * If you give the second argument DMA_BLOCK, then dma_alloc
+X	 * will sleep at negative (uninterruptable) priority here
+X	 * until someone calls dma_relse.
+X	 */
+X	if (dma_alloc (sb_dma_chan, DMA_NBLOCK) == 0) {
+X		u.u_error = EBUSY;
+X		return;
+X	}
+X
+X	/* hardware does not support simultaneous dma and midi input */
+X	if (sb_status.midi_open_for_reading) {
+X		u.u_error = EBUSY;
+X		goto err;
+X	}
+X
+X	/* hardware does not support simultaneous dma input and output */
+X	if ((flag & FREAD) != 0
+X	    && (flag & FWRITE) != 0) {
+X		u.u_error = EINVAL;
+X		goto err;
+X	}
+X
+X	if (sb_status.dsp_open_for_reading == 0
+X	    && sb_status.dsp_open_for_writing == 0
+X	    && sb_status.midi_open_for_reading == 0
+X	    && sb_status.midi_open_for_writing == 0) {
+X		if (dsp_reset () == FALSE) {
+Xprintf("dsp_open fail #1");
+X			u.u_error = EIO;
+X			goto err;
+X		}
+X	}
+X
+X	if (sb_status.dsp_open_for_writing == 0
+X	    && (flag & FWRITE) != 0) {
+X		if (sb_status.dsp_open_for_reading) {
+X			u.u_error = EBUSY;
+X			goto err;
+X		}
+X		sb_status.dsp_open_for_writing = 1;
+X
+X		if (dsp_voice (TRUE) == FALSE) {
+Xprintf("dsp_open fail #2");
+X			u.u_error = EIO;
+X			goto err;
+X		}
+X	}
+X
+X	if (sb_status.dsp_open_for_reading == 0
+X	    && (flag & FREAD) != 0) {
+X		if (sb_status.dsp_open_for_writing) {
+X			u.u_error = EBUSY;
+X			goto err;
+X		}
+X		sb_status.dsp_open_for_reading = 1;
+X
+X		dsp_waiting_for_first_read = 1;
+X		sb_start_dma (B_READ);
+X	}
+X
+X/* Poke hard interrupt handler into right address */
+X#ifdef	FASTINTR
+X	{
+X	unsigned char * trap, *handler;
+X	unsigned long * ltrap;
+X	extern ivctM0();	/* start of interrupt jump table */
+X
+X	trap = (unsigned char *) ivctM0;		
+X	trap = &trap[sb_interrupt * 12];	/* find our interrupt */
+X	handler = (unsigned char *) sb_asmintr;
+X	trap += 5;				/* move after prep */
+X	ltrap = (unsigned long *) trap;
+X	sb_poke_save = *ltrap;
+X	*ltrap = handler - (trap + 4);		/* it's a relative jump */
+X	}
+X#endif
+X	sb_owns_dma = 1;
+X	return;
+X   err:
+X	sb_status.dsp_open_for_reading = 0;
+X	sb_status.dsp_open_for_writing = 0;
+X	dma_relse (sb_dma_chan);
+X}
+X
+Xstatic void
+Xmidi_open (flag)
+Xint flag;
+X{
+X	/* hardware does not support DMA and midi input at the same time,
+X	 * but it is possible to do midi input and output at the same time,
+X	 * and it is marginal to do midi output with DMA (but that causes
+X	 * the dma to have gaps when the midi bytes are being sent)
+X	 */
+X
+X	if ((flag & FREAD) != 0
+X	    && (sb_status.dsp_open_for_reading
+X		|| sb_status.dsp_open_for_writing)) {
+X		u.u_error = EBUSY;
+X		return;
+X	}
+X
+X	if (sb_status.midi_open_for_reading == 0
+X	    && sb_status.midi_open_for_writing == 0
+X	    && sb_status.dsp_open_for_reading == 0
+X	    && sb_status.dsp_open_for_writing == 0) {
+X		if (dsp_reset () == FALSE) {
+X			u.u_error = EIO;
+X			return;
+X		}
+X	}
+X
+X	if ((flag & FREAD) != 0
+X	    && sb_status.midi_open_for_reading == 0) {
+X		midi_in_in = 0;
+X		midi_in_out = 0;
+X		midi_in_waiting_for_first_io = 1;
+X		
+X		/* ack old interrupt, if any */
+X		inb (DSP_RDAVAIL);
+X		/* turn on midi input interrupts */
+X		if (dsp_command (DSPCMD_MIDIIN) == FALSE) {
+X			u.u_error = EIO;
+X			return;
+X		}
+X		sb_interrupt_pending = 1;
+X		sb_status.midi_open_for_reading = 1;
+X	}
+X
+X	if ((flag & FWRITE) != 0
+X	    && sb_status.midi_open_for_writing == 0) {
+X		midi_out_waiting_for_first_io = 1;
+X		sb_status.midi_open_for_writing = 1;
+X	}
+X}
+X
+Xstatic void 
+Xfm_open(flag)
+Xint flag;
+X{
+X	if (fm_reset() == FALSE) {
+X		u.u_error = EIO;
+X		return;
+X	}
+X		
+X	sb_status.fm_open = 1;
+X}
+X
+X/*
+X * multiplexes opens to dsp_open(), fm_open(), and cms_open()
+X * depending upon which minor dev was used
+X */
+Xint
+Xsbopen(dev, flag)
+Xdev_t dev;
+Xint flag;
+X{
+X	if (no_sound_blaster) {
+X		u.u_error = ENXIO;
+X		return;
+X	}
+X
+X	switch (minor (dev)) {
+X        case SB_FM_NUM:
+X		fm_open (flag);
+X		break;
+X        case SB_DSP_NUM:
+X		dsp_open (flag);
+X		break;
+X	case SB_MIDI_NUM:
+X		midi_open (flag);
+X		break;
+X        default:
+X		u.u_error = ENXIO;
+X		break;
+X	}
+X	
+X	return(0);
+X}
+X
+X
+X/*
+X * Release and reset the dsp chip
+X */
+Xstatic void 
+Xdsp_close()
+X{
+X	int s;
+X
+X	/* resetting the dsp can't hurt midi output, and we know there
+X	 * can't be any midi input going on, since that is not allowed
+X	 * when the dsp is opened
+X	 */
+X	/* Sleep until output done */
+X	if (sb_status.dsp_open_for_writing) {
+X		s = spl5 ();
+X		/* if a partial write remaining */
+X		dsp_full[dsp_hi] = (dsp_used[dsp_hi] > 0);
+X		if (!sb_interrupt_pending && dsp_full[dsp_hi]) {
+X			/* ASSERT(dsp_low == dsp_hi); */
+X			sb_start_dma (B_WRITE);
+X		}
+X#ifdef	FASTINTR
+X		else if (! sb_next && dsp_full[dsp_hi])
+X			sb_prep_dma (B_WRITE, dsp_hi);
+X#endif
+X		if (dsp_full[dsp_hi]) {
+X			dsp_wanted = 1;
+X			/* PCATCH to avoid device-busy bug */
+X			sleep (dsp_buf, PZERO+1 | PCATCH); 
+X			/* if it didn't finish, forget it. */
+X			/* dsp_reset & re-init should take care of things. */
+X		}
+X		splx (s);
+X	}
+X
+X	dsp_reset();
+X	sb_status.dsp_open_for_reading  = 0;
+X	sb_status.dsp_open_for_writing  = 0;
+X
+X	if (sb_owns_dma)
+X		dma_relse (sb_dma_chan);
+X	sb_owns_dma = 0;
+X
+X#ifdef	FASTINTR
+X	{
+X	unsigned char * trap, *handler;
+X	unsigned long * ltrap;
+X	extern ivctM0();	/* start of interrupt jump table */
+X
+X	/* Restore normal interrupt handler */
+X	trap = (unsigned char *) ivctM0;		
+X	trap = &trap[sb_interrupt * 12];	/* find our interrupt */
+X	handler = (unsigned char *) sb_asmintr;
+X	trap += 5;
+X	ltrap = (unsigned long *) trap;
+X	*ltrap = sb_poke_save;
+X	}
+X#endif
+X
+X}
+X
+X#define midi_putc(c) (midi_out_buf[midi_out_used++] = (c), \
+X		      (midi_out_used >= MIDI_OUT_CHUNK) \
+X		      ? midi_write_flush () : TRUE)
+X
+Xstatic void
+Xmidi_close ()
+X{
+X	int note;
+X
+X	/* my keyboard does not respond properly to all-notes-off, so
+X	 * here we turn off each note explicitly
+X	 */
+X	if (sb_status.midi_open_for_writing) {
+X		for (note = 0; note < 128; note++) {
+X			/* this is "note-on, velocity 0" */
+X			if (midi_putc (0x90) == FALSE
+X			    || midi_putc (note) == FALSE
+X			    || midi_putc (0) == FALSE)
+X				break;
+X		}
+X		midi_write_flush ();
+X	}
+X
+X	/* turn off midi input interrupts, if necessary */
+X	if (sb_status.midi_open_for_reading)
+X		dsp_command (DSPCMD_MIDIIN);
+X
+X	sb_status.midi_open_for_reading = 0;
+X	sb_status.midi_open_for_writing = 0;
+X
+X	if (sb_status.dsp_open_for_reading == 0
+X	    && sb_status.dsp_open_for_writing == 0)
+X		dsp_reset ();
+X}
+X
+X/*
+X * Release and reset the fm chip
+X */
+Xstatic void
+Xfm_close()
+X{
+X	sb_status.fm_open = 0;
+X	fm_reset();
+X}
+X
+X
+X/*
+X * Multiplexes between the closes for dsp, fm, and cms chips
+X */
+Xint
+Xsbclose(dev)
+Xdev_t dev;
+X{
+X	switch (minor (dev)) {
+X	case SB_FM_NUM:
+X		fm_close();
+X		break;
+X	case SB_DSP_NUM:
+X		dsp_close();
+X		break;
+X	case SB_MIDI_NUM:
+X		midi_close ();
+X		break;
+X	default:
+X		u.u_error = ENXIO;
+X		break;
+X	}
+X    
+X	return(0);
+X}
+X
+Xstatic void
+Xdsp_write ()
+X{
+X	int count;
+X	int s;
+X
+X	/* this could only be triggered if another process is also
+X	 * writing to the board.  Note that this can happen even if
+X	 * we were to enforce an exclusive open in dsp_open since
+X	 * a process can fork and both parent and child can write
+X	 * on the same descriptor.
+X	 */
+X	s = spl5 ();
+X	while (dsp_full[dsp_hi]) {
+X		dsp_wanted = 1;
+X		sleep (dsp_buf, PZERO+1);
+X	}
+X	splx (s);
+X
+X	/* XXX change to use iomove */
+X	while (u.u_count > 0) {
+X		count = u.u_count;
+X		if (count > DSP_BUF_SIZE - dsp_used[dsp_hi])
+X			count = DSP_BUF_SIZE - dsp_used[dsp_hi];
+X		/* ignore address errors */
+X		iomove (dsp_buf[dsp_hi] + dsp_used[dsp_hi], count, B_WRITE);
+X		dsp_used[dsp_hi] += count;
+X		if (dsp_used[dsp_hi] == DSP_BUF_SIZE) {
+X			s = spl5 ();
+X			dsp_full[dsp_hi] = 1;
+X			if (sb_interrupt_pending == 0)
+X				sb_start_dma (B_WRITE);
+X#ifdef	FASTINTR
+X			/* if asm hasn't already started one */
+X			else if (! sb_next)
+X				sb_prep_dma  (B_WRITE, dsp_hi);
+X#endif
+X			dsp_hi ^= 1;
+X			dsp_used[dsp_hi] = 0;
+X
+X			/* wait until the interrupt routine drains
+X			 * this buffer before we start using it
+X			 */
+X			while (dsp_full[dsp_hi]) {
+X				dsp_wanted = 1;
+X				sleep (dsp_buf, PZERO+1);
+X			}
+X			splx (s);
+X		}
+X	}
+X}
+X
+X/* for the flush ioctl */
+Xstatic int
+Xdsp_flush ()
+X{
+X	int s;
+X	int val;
+X
+X	/* flush out any partial buffer */
+X	if (dsp_used[dsp_hi] != 0) {
+X		dsp_full[dsp_hi] = 1;
+X		if (sb_interrupt_pending == 0)
+X			sb_start_dma (B_WRITE);
+X#ifdef	FASTINTR
+X		else if (! sb_next)
+X			sb_prep_dma  (B_WRITE, dsp_hi);
+X#endif
+X	}
+X
+X	s = spl5 ();
+X	while ((dsp_full[0] || dsp_full[1])
+X	       && sb_interrupt_pending) {
+X		dsp_wanted = 1;
+X		sleep (dsp_buf, PZERO+1);
+X	}
+X	splx (s);
+X
+X	return (0);
+X}
+X
+X/*
+X * Here is the midi output timing strategy.  We read the midi
+X * data stream up until the next pause of more than about 20 milliseconds
+X * (or until we get 60 bytes).
+X *
+X * Then we dump these bytes out as quickly as possible.  This loop
+X * keeps any user processes from running, but it is at spl0, so 
+X * timer interrupt still work.  It takes about 20 milliseconds to
+X * dump out 60 bytes.
+X *
+X * If we did a whole 60 bytes, then we better pause a little to let
+X * other processes run.  It is most likely that if we are trying to
+X * send data that fast, then it probably isn't really music - either
+X * the file is trash, or perhaps we are downloading samples.  In
+X * either case, it won't matter if we introduce a gap.
+X */
+Xstatic int
+Xmidi_write_flush ()
+X{
+X	int i;
+X
+X	/* dsp_command does not sleep, so no other process
+X	 * will try to do a flush at the same time
+X	 */
+X	for (i = 0; i < midi_out_used; i++) {
+X		if (dsp_command (DSPCMD_MIDIOUT) == FALSE
+X		    || dsp_command (midi_out_buf[i]) == FALSE)
+X			return (FALSE);
+X	}
+X
+X	if (midi_out_used >= MIDI_OUT_CHUNK) {
+X		midi_out_used = 0;
+X		timeout (wakeup, midi_write_flush, 3);
+X		sleep (midi_write_flush, PZERO+1);
+X	} else {
+X		midi_out_used = 0;
+X	}
+X
+X	return (TRUE);
+X}
+X
+Xstatic void
+Xmidi_write ()
+X{
+X	int code;
+X	int t;
+X	int scheduled_time;
+X	int current_time;
+X	int delta;
+X	int c;
+X	
+X	midi_out_used = 0;
+X	while (u.u_count >= 4) {
+X		/* I don't think there is a need to convert this to
+X		 * iomove, since midi output is fairly slow 
+X		 */
+X		if ((code = cpass ()) < 0)
+X			break;
+X
+X		if ((c = cpass ()) < 0)
+X			break;
+X		t = c;
+X		if ((c = cpass ()) < 0)
+X			break;
+X		t |= (c << 8);
+X		if ((c = cpass ()) < 0)
+X			break;
+X		t |= (c << 16);
+X
+X		/* all of this hair is to arrange for bytes to
+X		 * be sent out as soon after their scheduled time
+X		 * as possible.  If, for some reason, output is
+X		 * delayed for a while, then when it picks up again,
+X		 * all of the overdue bytes are sent as quickly as
+X		 * possible, and then the normal timing resumes
+X		 */
+X		if (midi_out_waiting_for_first_io) {
+X			midi_out_waiting_for_first_io = 0;
+X			current_time = (lbolt * 10) & 0xffffff;
+X			midi_out_last_time = current_time;
+X		} else {
+X			scheduled_time = midi_out_last_time + t;
+X		recheck:
+X			current_time = (lbolt * 10) & 0xffffff;
+X
+X			delta = (scheduled_time - current_time) & 0xffffff;
+X			if (delta > 20 && (delta & 0x800000) == 0) {
+X				if (midi_out_used) {
+X					if (midi_write_flush () == FALSE)
+X						goto bad;
+X				} else {
+X					timeout (wakeup, midi_write,
+X						 (delta + 5) / 10);
+X					sleep (midi_write, PZERO+1);
+X				}
+X				goto recheck;
+X			}
+X		}
+X		midi_out_last_time += t;
+X
+X		if (midi_putc (code) == FALSE)
+X			goto bad;
+X	}
+X	if (midi_out_used) {
+X		if (midi_write_flush () == FALSE)
+X			goto bad;
+X	}
+X	return;
+X
+X bad:
+X	u.u_error = EIO;
+X	return;
+X}
+X
+Xint
+Xsbintr ()
+X{
+X	unsigned char code;
+X
+X	if (sb_interrupt_pending) {
+X		sb_interrupt_pending = 0;
+X
+X		if (sb_status.midi_open_for_reading) {
+X			code = inb (DSP_RDDATA);
+X			printf("midi input: 0x%x\n", code);
+X#ifndef	FASTINTR
+X			inb(DSP_RDAVAIL); /* acknowledge interrupt */
+X#endif
+X			sb_interrupt_pending = 1;
+X
+X			/* ignore real-time messages */
+X			if ((code & 0xf8) != 0xf8) {
+X				midi_in_buf[midi_in_in++] = ((lbolt * 10) << 8)
+X					| code;
+X
+X				if (midi_in_wanted) {
+X					midi_in_wanted = 0;
+X					wakeup (midi_in_buf);
+X				}
+X			}
+X		} else if (sb_status.dsp_open_for_writing) {
+X#ifdef	FASTINTR
+X			/* assembler handler already started another transfer */
+X			if (sb_next) {
+X				sb_interrupt_pending = 1;
+X				sb_didprep++;
+X			}
+X#endif
+X#ifndef	FASTINTR
+X			/* acknowledge interrupt */
+X			inb(DSP_RDAVAIL);
+X#endif
+X			dsp_full[dsp_low] = 0;
+X			dsp_low ^= 1;
+X#ifdef	FASTINTR
+X			if (dsp_full[dsp_low])
+X				if (sb_next)
+X					sb_prep_dma (B_WRITE, dsp_low);
+X				else
+X					sb_start_dma (B_WRITE);
+X			sb_next = 0;
+X#endif
+X#ifndef	FASTINTR
+X			if (dsp_full[dsp_low])
+X				sb_start_dma (B_WRITE);
+X#endif
+X			dsp_used[dsp_low] = 0;
+X			if (dsp_wanted) {
+X				dsp_wanted = 0;
+X				wakeup (dsp_buf);
+X			}
+X		} else if (sb_status.dsp_open_for_reading) {
+X			/* ack interrupt */
+X#ifndef	FASTINTR
+X			inb(DSP_RDAVAIL); /* acknowledge interrupt */
+X#endif
+X			dsp_full[dsp_low] = 1;
+X			dsp_low ^= 1;
+X			if (dsp_full[dsp_low])
+X				dsp_error = EIO; /* overrun */
+X			dsp_full[dsp_low] = 0;
+X			sb_start_dma (B_READ);
+X			if (dsp_wanted) {
+X				dsp_wanted = 0;
+X				wakeup (dsp_buf);
+X			}
+X		}
+X	}
+X}
+X
+Xstatic void
+Xsb_start_dma (flag)
+Xint flag;
+X{
+X	int bsize = (flag == B_READ) ? DSP_BUF_SIZE : dsp_used[dsp_low];
+X
+X	dma_param(SB_DMA_CHAN,
+X		  (flag == B_READ) ? DMA_Rdmode : DMA_Wrmode,
+X		  dsp_buf_phys[dsp_low],
+X		  bsize - 1);
+X	
+X	dma_enable(SB_DMA_CHAN);
+X
+X	/* prep SoundBlaster for 8-bit DMA and length */
+X	dsp_command ((flag == B_READ) ? DSPCMD_READ : DSPCMD_WRITE);
+X	dsp_command (bsize - 1);
+X	dsp_command ((bsize - 1) >> 8);
+X
+X	sb_interrupt_pending = 1;
+X	sb_didstart++;
+X}
+X
+X#ifdef	FASTINTR
+X/* set up variables for assembler handler to start next dma */
+Xstatic void
+Xsb_prep_dma (flag, which)
+Xint flag, which;
+X{
+X	int bsize = (flag == B_READ) ? DSP_BUF_SIZE : dsp_used[which];
+X
+X	sb_dmadir  = ((flag == B_READ) ? DMA_Rdmode : DMA_Wrmode);
+X	sb_dmadir |= SB_DMA_CHAN;
+X	sb_dmalow  = dsp_buf_phys[which];
+X	sb_dmahigh = dsp_buf_phys[which] >> 8;
+X	sb_dmapage = dsp_buf_phys[which] >> 16;
+X	sb_dmalenl = (bsize - 1);
+X	sb_dmalenh = (bsize - 1) >> 8;
+X	
+X	/* prep SoundBlaster for 8-bit DMA and length */
+X	sb_dspdata = DSP_RDAVAIL;
+X	sb_dspstat = DSP_STATUS;
+X	sb_dspcmd  = DSP_COMMAND;
+X
+X	sb_dspdir  = ((flag == B_READ) ? DSPCMD_READ : DSPCMD_WRITE);
+X	sb_dsplenl = (bsize - 1);
+X	sb_dsplenh = (bsize - 1) >> 8;
+X	
+X	/* There is another transfer to start, set up now. */
+X	sb_next = 1;	
+X}
+X#endif
+X
+X/*
+X * multiplexes writes to dsp, cm/s and fm chips
+X */
+Xint
+Xsbwrite(dev)
+Xint dev;
+X{
+X	switch (minor (dev)) {
+X        case SB_CMS_NUM:
+X		cmn_err(CE_CONT, "sbwrite(): error, cms device accessed\n");
+X		u.u_error = ENXIO;
+X		break;
+X        case SB_FM_NUM:
+X		u.u_error = ENXIO;
+X		break;
+X        case SB_DSP_NUM:
+X		dsp_write();
+X		break;
+X	case SB_MIDI_NUM:
+X		midi_write ();
+X		break;
+X        default:
+X		u.u_error = ENXIO;
+X	}
+X	return(0);
+X}
+X
+X
+X/*
+X * Starts the DMA read from the Soundblaster
+X */
+Xstatic int
+Xdsp_read()
+X{
+X	int s;
+X	int count;
+X
+X	if (dsp_waiting_for_first_read) {
+X		/* reset the flags associated with trapping overruns */
+X		s = spl5 ();
+X		dsp_waiting_for_first_read = 0;
+X		dsp_error = 0;
+X		dsp_full[0] = 0;
+X		dsp_full[1] = 0;
+X		splx (s);
+X	}
+X
+X	while (u.u_count > 0) {
+X		if (dsp_error) {
+X			u.u_error = dsp_error;
+X			return;
+X		}
+X
+X		s = spl5 ();
+X		while (dsp_full[dsp_hi] == 0) {
+X			dsp_wanted = 1;
+X			sleep (dsp_buf, PZERO+1);
+X		}
+X		splx (s);
+X
+X		count = u.u_count;
+X		if (count > DSP_BUF_SIZE - dsp_used[dsp_hi])
+X			count = DSP_BUF_SIZE - dsp_used[dsp_hi];
+X		
+X		iomove (dsp_buf[dsp_hi] + dsp_used[dsp_hi], count, B_READ);
+X		if (u.u_error)
+X			return;
+X		dsp_used[dsp_hi] += count;
+X		if (dsp_used[dsp_hi] >= DSP_BUF_SIZE) {
+X			dsp_full[dsp_hi] = 0;
+X			dsp_hi ^= 1;
+X			dsp_used[dsp_hi] = 0;
+X		}
+X	}
+X}
+X
+Xstatic int
+Xmidi_read ()
+X{
+X	int val;
+X	int s;
+X	int code, t;
+X	int lbolt_low_bits;
+X
+X	if (u.u_count < 4) {
+X		u.u_error = EINVAL;
+X		return;
+X	}
+X
+X	if (midi_in_in == midi_in_out) {
+X		if (u.u_fmode & FNDELAY)
+X			return;
+X
+X		s = spl5 ();
+X		while (midi_in_in == midi_in_out) {
+X			midi_in_wanted = 1;
+X			sleep (midi_in_buf, PZERO+1);
+X		}
+X		splx (s);
+X	}
+X
+X	while (u.u_count >= 4 && midi_in_out != midi_in_in) {
+X		code = midi_in_buf[midi_in_out] & 0xff;
+X		lbolt_low_bits = (midi_in_buf[midi_in_out] >> 8) & 0xffffff;
+X		midi_in_out++;
+X
+X		if (midi_in_waiting_for_first_io) {
+X			midi_in_waiting_for_first_io = 0;
+X			t = 0;
+X		} else {
+X			t = lbolt_low_bits - midi_in_last_time;
+X		}
+X		midi_in_last_time = lbolt_low_bits;
+X
+X		val = code | (t << 8);
+X
+X		/* I don't think midi input comes in fast enough to justify
+X		 * buffering this stuff and using iomove here
+X		 */
+X		if (passc (val) < 0
+X		    || passc (val >> 8) < 0
+X		    || passc (val >> 16) < 0
+X		    || passc (val >> 24) < 0)
+X			break;
+X	}
+X}
+X
+X/*
+X * multiplexes read/writes to different functions
+X */
+Xint
+Xsbread(dev)
+Xint dev;
+X{
+X	switch (minor (dev)) {
+X	case SB_CMS_NUM:
+X		u.u_error = ENXIO;
+X		break;
+X	case SB_FM_NUM:
+X		u.u_error = ENXIO;
+X		break;
+X	case SB_DSP_NUM:
+X		dsp_read();
+X		break;
+X	case SB_MIDI_NUM:
+X		midi_read ();
+X		break;
+X	default:
+X		u.u_error = ENXIO;
+X	}
+X	return(0);
+X}
+X
+X/*
+X * minor control function for the dsp
+X */
+Xstatic void
+Xdsp_ioctl(cmd, arg1, arg2)
+Xint cmd;
+Xcaddr_t arg1, arg2;
+X{
+X	switch(cmd) {
+X        case DSP_IOCTL_RESET:
+X		if (dsp_reset() == FALSE)
+X			u.u_error = EIO;
+X		break;
+X        case DSP_IOCTL_SPEED:
+X		sb_status.dsp_speed = (int)arg1;
+X		if (dsp_speed() == FALSE)
+X			u.u_error = EIO;
+X		break;
+X        case DSP_IOCTL_VOICE:
+X		if (dsp_voice((int)arg1) == FALSE)
+X			u.u_error = EIO;
+X		break;
+X	case DSP_IOCTL_FLUSH:
+X		if (dsp_flush () == FALSE)
+X			u.u_error = EIO;
+X		break;
+X        default:
+X		u.u_error = ENXIO;
+X		break;
+X	}
+X}
+X
+X
+Xstatic void
+Xthirtymicrosec ()
+X{
+X	tenmicrosec();
+X	tenmicrosec();
+X	tenmicrosec();
+X}
+X
+X/*
+X * turns a note/key off
+X */
+Xstatic void
+Xfm_key_off(voice_num)
+Xint voice_num;
+X{
+X	unsigned char reg_num;
+X    
+X	/* error checking to avoid munching kernel */
+X	if ((voice_num < 0) || (voice_num >= MAX_FM_NOTES)) {
+X		u.u_error = EINVAL;
+X		return;
+X	}
+X    
+X	/* turn voice off */
+X	reg_num = (unsigned char)0xB0 + (unsigned char)voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "turning off voice for voice %d\n", voice_num);
+X	cmn_err(CE_CONT, "reg_num is %x\n", reg_num);
+X#endif
+X	outb(FM_SELECT, reg_num);
+X	tenmicrosec();
+X	outb(FM_REG, 0);
+X	thirtymicrosec ();
+X}
+X
+X/*
+X * turns a key on, with the frequency and octave so indicated in the
+X * low 2 bytes of the data integer
+X */
+Xstatic void
+Xfm_key_on(usr_note)
+Xint usr_note;
+X{
+X	register unsigned char reg_num;
+X
+X#if 0
+X	cmn_err(CE_CONT,
+X		"turning on voice for voice %d\n", note_num(usr_note));
+X	cmn_err(CE_CONT,
+X		"fnum_low (dec): %d\n", fnum_low(usr_note));
+X	cmn_err(CE_CONT,
+X		"fnum_low (hex): %x\n", fnum_low(usr_note));
+X	cmn_err(CE_CONT,
+X		"keyon_blk_fnum (dec): %d\n", keyon_blk_fnum(usr_note));
+X	cmn_err(CE_CONT,
+X		"keyon_blk_fnum (hex): %x\n", keyon_blk_fnum(usr_note));
+X#endif
+X
+X	/* put out first byte */
+X	reg_num = (unsigned char)0xA0 + note_num(usr_note);
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "reg_num is %x\n", reg_num);
+X#endif
+X	outb(FM_SELECT, reg_num);
+X	tenmicrosec();
+X	outb(FM_REG, fnum_low(usr_note));
+X	thirtymicrosec ();
+X
+X	/* put out second byte */
+X	reg_num = (unsigned char)0xB0 + note_num(usr_note);
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "reg_num is %x\n", reg_num);
+X#endif
+X	outb(FM_SELECT, reg_num);
+X	tenmicrosec();
+X	outb(FM_REG, keyon_blk_fnum(usr_note));
+X	thirtymicrosec ();
+X}
+X
+X/* at this point, it just turns all notes to off */
+Xstatic int
+Xfm_reset()
+X{
+X    int i;
+X
+X    /* must be initialized? */
+X    outb(FM_SELECT, 1);
+X    tenmicrosec();
+X    outb(FM_REG, 0);
+X    thirtymicrosec ();
+X
+X    /* dispense for time being */
+X    for (i=0; i<MAX_FM_NOTES; i++)
+X	    fm_key_off(i);
+X
+X    return (TRUE);
+X}
+X
+X
+X/*
+X * set characteristics on a voice
+X */
+Xstatic void
+Xfm_set_voice(usr_character)
+Xsb_fm_character *usr_character;
+X{
+X	register unsigned char op_cell_num;
+X	int cell_offset;
+X	sb_fm_character voice_data;
+X	int i;
+X
+X	/* copy in characteristics */
+X	if (copyin(usr_character, &voice_data, sizeof(sb_fm_character)) == -1)
+X	{
+X#ifdef DEBUG
+X		cmn_err(CE_CONT, "fm_set_voice(): bad address\n");
+X#endif
+X		u.u_error = EFAULT;
+X		return;
+X	}
+X
+X	/* echo voice characteristics */
+X#ifdef DEBUG
+X	cmn_err(CE_CONT,
+X		"setting voice number %d\n", voice_data.voice_num);
+X	cmn_err(CE_CONT,
+X		"setting voice number(hex) %x\n", voice_data.voice_num);
+X	cmn_err(CE_CONT, "data: ");
+X	for (i=0; i<16; i++)
+X		cmn_err(CE_CONT, "%x ", (unsigned int)voice_data.data[i]);
+X	cmn_err(CE_CONT, "\n");
+X#endif
+X
+X	/* check on voice_num range */
+X	if ((voice_data.voice_num >= MAX_FM_NOTES)
+X	    || (voice_data.voice_num < 0)) {
+X		cmn_err(CE_CONT,
+X			"fm_set_voice(): voice number out of range\n");
+X		u.u_error = EFAULT;
+X		return;
+X	}
+X	cell_offset = voice_data.voice_num%3
+X		+ ((voice_data.voice_num / 3) << 3);
+X
+X	/* set sound characteristic */
+X	op_cell_num = 0x20 + (char)cell_offset;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 20-35 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[0]);
+X	thirtymicrosec ();
+X
+X	op_cell_num += 3;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 20-35 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[1]);
+X	thirtymicrosec ();
+X
+X	/* set level/output */
+X	op_cell_num = 0x40 + (char)cell_offset;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 40-55 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[2]);
+X	thirtymicrosec ();
+X
+X	op_cell_num += 3;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 40-55 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[3]);
+X	thirtymicrosec ();
+X
+X	/* set Attack/Decay */
+X	op_cell_num = 0x60 + (char)cell_offset;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 60-75 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[4]);
+X	thirtymicrosec ();
+X
+X	op_cell_num += 3;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 60-75 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[5]);
+X	thirtymicrosec ();
+X
+X	/* set Sustain/Release */
+X	op_cell_num = 0x80 + (char)cell_offset;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 80-95 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[6]);
+X	thirtymicrosec ();
+X
+X	op_cell_num += 3;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 80-95 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[7]);
+X	thirtymicrosec ();
+X
+X	/* set Wave Select */
+X	op_cell_num = 0xE0 + (char)cell_offset;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for E0-F5 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[8]);
+X	thirtymicrosec ();
+X
+X	op_cell_num += 3;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for E0-F5 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[9]);
+X	thirtymicrosec ();
+X
+X	/* set Feedback/Selectivity */
+X	op_cell_num = (unsigned char)0xC0
+X		+ (unsigned char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for C0-C8 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[10]);
+X	thirtymicrosec ();
+X}
+X
+X
+X/*
+X * set characteristics on an opcell
+X */
+Xstatic void
+Xfm_set_opcell(usr_character)
+Xsb_fm_character *usr_character;
+X{
+X	register unsigned char op_cell_num;
+X	int cell_offset;
+X	sb_fm_character voice_data;
+X	int i;
+X
+X	/* copy in characteristics */
+X	if (copyin(usr_character, &voice_data, sizeof(sb_fm_character)) == -1)
+X	{
+X#ifdef DEBUG
+X		cmn_err(CE_CONT, "bad address\n");
+X#endif
+X		u.u_error = EFAULT;
+X		return;
+X	}
+X
+X	/* echo voice characteristics */
+X#ifdef DEBUG
+X	cmn_err(CE_CONT,
+X		"setting opcell number %d\n", voice_data.voice_num);
+X	cmn_err(CE_CONT,
+X		"setting opcell number(hex) %x\n", voice_data.voice_num);
+X	cmn_err(CE_CONT, "data: ");
+X	for (i=0; i<8; i++)
+X		cmn_err(CE_CONT, "%x ", (unsigned int)voice_data.data[i]);
+X	cmn_err(CE_CONT, "\n");
+X#endif
+X
+X	/* check on opcell range */
+X	if ((voice_data.voice_num >= 2*MAX_FM_NOTES)
+X	    || (voice_data.voice_num < 0)) {
+X		cmn_err(CE_CONT, "opcell number out of range\n");
+X		u.u_error = EFAULT;
+X		return;
+X	}
+X	
+X	/* set sound characteristic */
+X	op_cell_num = 0x20 + (char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 20-35 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[0]);
+X	thirtymicrosec ();
+X
+X	/* set level/output */
+X	op_cell_num = 0x40 + (char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 40-55 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[1]);
+X	thirtymicrosec ();
+X
+X	/* set Attack/Decay */
+X	op_cell_num = 0x60 + (char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 60-75 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[2]);
+X	thirtymicrosec ();
+X
+X	/* set Sustain/Release */
+X	op_cell_num = 0x80 + (char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for 80-95 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[3]);
+X	thirtymicrosec ();
+X
+X	/* set Wave Select */
+X	op_cell_num = 0xE0 + (char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for E0-F5 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[4]);
+X	thirtymicrosec ();
+X
+X	/* set Feedback/Selectivity */
+X	op_cell_num = (unsigned char)0xC0
+X		+ (unsigned char)voice_data.voice_num;
+X#ifdef DEBUG
+X	cmn_err(CE_CONT, "op_cell for C0-C8 = %x\n", op_cell_num);
+X#endif
+X	outb(FM_SELECT, op_cell_num);
+X	tenmicrosec();
+X	outb(FM_REG, voice_data.data[5]);
+X	thirtymicrosec ();
+X}
+X
+X/*
+X * set the register which contains the keyon/off for rhythm, and depth flags
+X */
+Xstatic void
+Xfm_set_rhythm(new_rhythm)
+Xint new_rhythm;
+X{
+X	/* herf it in */
+X	outb(FM_SELECT, 0xBD);
+X	tenmicrosec();
+X	outb(FM_REG, lobyte(new_rhythm));
+X	thirtymicrosec ();
+X}
+X
+X
+X/*
+X * The only control for the FM chips.  The rest belongs in user code.
+X */
+Xstatic void
+Xfm_ioctl(cmd, arg1, arg2)
+Xint cmd;
+Xcaddr_t arg1, arg2;
+X{
+X	switch(cmd) {
+X        case FM_IOCTL_RESET:
+X		fm_reset();
+X		break;
+X        case FM_IOCTL_NOTE_ON:
+X		fm_key_on((int)arg1);
+X		break;
+X        case FM_IOCTL_NOTE_OFF:
+X		fm_key_off((int)arg1);
+X		break;
+X        case FM_IOCTL_SET_VOICE:
+X		fm_set_voice((sb_fm_character *)arg1);
+X		break;
+X        case FM_IOCTL_SET_OPCELL:
+X		fm_set_opcell((sb_fm_character *)arg1);
+X		break;
+X        case FM_IOCTL_SET_RHYTHM:
+X		fm_set_rhythm((int)arg1);
+X		break;
+X        default:
+X		break;
+X	}
+X}
+X
+X 
+X/*
+X * multiplex ioctl to different sub-devices (minor numbers)
+X */
+Xint
+Xsbioctl(dev, cmd, arg1, arg2)
+Xint dev;
+Xint cmd;
+Xcaddr_t arg1, arg2;
+X{
+X    switch (minor (dev)) {
+X    case SB_CMS_NUM:
+X            cmn_err(CE_CONT, "sbioctl cms\n");
+X            break;
+X    case SB_FM_NUM:
+X            fm_ioctl(cmd, arg1, arg2);
+X            break;
+X    case SB_DSP_NUM:
+X            dsp_ioctl(cmd, arg1, arg2);
+X            break;
+X    default:
+X            u.u_error = ENXIO;
+X	    break;
+X    }
+X    return(0);
+X}
+X
+SHAR_EOF
+chmod 0644 sb.c ||
+echo 'restore of sb.c failed'
+Wc_c="`wc -c < 'sb.c'`"
+test 38978 -eq "$Wc_c" ||
+	echo 'sb.c: original size 38978, current size' "$Wc_c"
+fi
+# ============= sb.h ==============
+if test -f 'sb.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping sb.h (File already exists)'
+else
+echo 'x - extracting sb.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sb.h' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#ifdef	INKERNEL
+X#ifndef NBPP
+X#include <sys/immu.h>
+X#endif
+X#endif
+X
+X#if !defined(TRUE) || !defined(FALSE)
+X#define FALSE 0
+X#define TRUE  1
+X#endif
+X
+X/* minor numbers */
+X#define SB_CMS_NUM  0
+X#define SB_FM_NUM   1
+X#define SB_DSP_NUM  2
+X#define SB_MIDI_NUM 3
+X
+X/* These are hard wired for speed */
+X#define SB_DMA_CHAN 1
+X#define SB_IO_PORT 0x220
+X
+X/* C/MS (not supported) */
+X#define CMS_DATA1   (SB_IO_PORT + 0x00)
+X#define CMS_REG1    (SB_IO_PORT + 0x01)
+X#define CMS_DATA2   (SB_IO_PORT + 0x02)
+X#define CMS_REG2    (SB_IO_PORT + 0x03)
+X
+X/* FM Chips */
+X#define FM_SELECT   (SB_IO_PORT + 0x08)
+X#define FM_REG      (SB_IO_PORT + 0x09)
+X#define MAX_FM_NOTES 9
+X
+X/* DSP (DAC and ADC) Chip(s) */
+X#define DSP_RESET   (SB_IO_PORT + 0x06)
+X#define DSP_RDDATA  (SB_IO_PORT + 0x0A)
+X#define DSP_WRDATA  (SB_IO_PORT + 0x0C)
+X#define DSP_COMMAND (SB_IO_PORT + 0x0C)
+X#define DSP_STATUS  (SB_IO_PORT + 0x0C)
+X#define DSP_RDAVAIL (SB_IO_PORT + 0x0E)
+X
+X/* compression types */
+X#define ADCPM_8     0
+X#define ADCPM_4     1
+X#define ADCPM_2_6   2
+X#define ADCPM_2     3
+X
+X/* ioctl numbers for DSP */
+X#define DSP_IOCTL_RESET 00
+X#define DSP_IOCTL_SPEED 01
+X#define DSP_IOCTL_VOICE 02
+X#define DSP_IOCTL_FLUSH 03
+X
+X/* ioctl numbers for FM */
+X#define FM_IOCTL_RESET      00
+X#define FM_IOCTL_NOTE_ON    01
+X#define FM_IOCTL_NOTE_OFF   02
+X#define FM_IOCTL_SET_VOICE  03
+X#define FM_IOCTL_SET_OPCELL 04
+X#define FM_IOCTL_SET_RHYTHM 05
+X
+X#define	DSPCMD_TIME	0x40
+X#define	DSPCMD_SPKON	0xd1
+X#define	DSPCMD_SPKOFF	0xd3
+X#define	DSPCMD_MIDIIN	0x31
+X#define	DSPCMD_MIDIOUT	0x38
+X#define DSPCMD_READ	0x24
+X#define DSPCMD_WRITE	0x14
+X
+X/* struct for setting a note/voice/key on */
+Xtypedef int sb_fm_note;
+X#define note_num(X) (((unsigned char *)&X)[0])
+X#define fnum_low(X) (((unsigned char *)&X)[1])
+X#define keyon_blk_fnum(X) (((unsigned char *)&X)[2])
+X
+Xtypedef struct {
+X    unsigned char   voice_num;
+X    unsigned char   data[16];
+X} sb_fm_character;
+X
+X#ifdef INKERNEL
+Xstruct sb_stat_type {
+X    char unsigned   cms_open;           /* whether in read/write */
+X    char unsigned   cms_waiting;        /* number of procs waiting to open */
+X    char unsigned   fm_open;            /* whether in read/write */
+X    char unsigned   fm_waiting;         /* number of procs waiting to open */
+X    char unsigned   dsp_open_for_reading;
+X    char unsigned   dsp_open_for_writing;
+X    unsigned int    dsp_speed;          /* sample read/write HZ */
+X    char unsigned   dsp_compression;    /* compression protocol */
+X    char unsigned   midi_open_for_reading;
+X    char unsigned   midi_open_for_writing;
+X    
+X
+X};
+X
+Xunsigned int midi_in_buf[256];
+Xunsigned char midi_in_in, midi_in_out;
+Xint midi_in_wanted;
+X
+Xint midi_in_waiting_for_first_io;
+Xint midi_out_waiting_for_first_io;
+Xint midi_in_last_time;
+Xint midi_out_last_time;
+X
+X#define MIDI_OUT_CHUNK 60
+Xunsigned char midi_out_buf[MIDI_OUT_CHUNK];
+Xint midi_out_used;
+X
+X#endif
+X
+SHAR_EOF
+chmod 0644 sb.h ||
+echo 'restore of sb.h failed'
+Wc_c="`wc -c < 'sb.h'`"
+test 3005 -eq "$Wc_c" ||
+	echo 'sb.h: original size 3005, current size' "$Wc_c"
+fi
+# ============= patchlevel.h ==============
+if test -f 'patchlevel.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping patchlevel.h (File already exists)'
+else
+echo 'x - extracting patchlevel.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'patchlevel.h' &&
+X#define	PATCHLEVEL	2
+SHAR_EOF
+chmod 0644 patchlevel.h ||
+echo 'restore of patchlevel.h failed'
+Wc_c="`wc -c < 'patchlevel.h'`"
+test 21 -eq "$Wc_c" ||
+	echo 'patchlevel.h: original size 21, current size' "$Wc_c"
+fi
+# ============= sb_asm.s ==============
+if test -f 'sb_asm.s' -a X"$1" != X"-c"; then
+	echo 'x - skipping sb_asm.s (File already exists)'
+else
+echo 'x - extracting sb_asm.s (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sb_asm.s' &&
+X#ifdef	FASTINTR
+X	/ 
+X	/ Sound Blaster low-level interrupt handler
+X	/ All sorts of unknown kernel junk carefully pruned to allow 
+X	/ real-time sound channel to work without that damn clicking.
+X	/
+X	/ Wotta pain.  The 386 kernel assembler portion is overstuffed.
+X	/
+X	/ Rewritten for I/O port caching
+X	/
+X	/ Rewritten to push non-code register saves to end.
+X	/
+X	/ Rewritten to intersperse DMA and DSP port programming.
+X	/
+X	/ didn't work.  try rearranging as per CT-VOICE driver
+X	/
+X	/ Lance Norskog, September 1991
+X	/
+X	.globl	sb_next
+X	.globl	sb_dmalow
+X	.globl	sb_dmahigh
+X	.globl	sb_dmapage
+X	.globl	sb_dmalenh
+X	.globl	sb_dmalenl
+X	.globl	sb_dspstat
+X	.globl	sb_dspcmd
+X	.globl	sb_dspdata
+X	.globl	sb_dsplenh
+X	.globl	sb_dsplenl
+X	.align	4
+X	.globl	sb_asmintr
+Xsb_asmintr:
+X	pushl		%eax
+X	pushl		%edx
+X	pushl  		%ds
+X	movw   		$0x160,%ax
+X	movw   		%ax,%ds
+X
+X	/
+X	/ acknowledge interrupt to DSP
+X	/
+X	movw		sb_dspdata,%dx
+X	inb		(%dx)
+X
+X	/
+X	/ start next DMA if there is one
+X	/
+X	movl		sb_next,%eax
+X	testl		%eax,%eax
+X	jz		do_handler
+X	/
+X	/ set up DMA channel
+X	/
+X	.globl	sbasm_mark
+Xsbasm_mark:
+X/	movw		sb_dspcmd,%dx	/ sneak in first DSP command
+X/	movb		sb_dspdir,%al
+X/	outb		(%dx)
+X	movw		$0x0a,%dx		/ set mask for channel 1
+X	movb		$0x5,%al
+X	outb		(%dx)
+X	movw		$0x0c,%dx		/ clear DMA F/F
+X	movb		$0x0,%al
+X	outb		(%dx)
+X	movw		$0xb,%dx		/ set dma read/write direction
+X	movb		sb_dmadir,%al
+X	outb		(%dx)
+X	movw		$0x02,%dx		/ set low byte of address
+X	movb		sb_dmalow,%al
+X	outb		(%dx)
+X	movw		$0x02,%dx		/ set high byte of address
+X	movb		sb_dmahigh,%al
+X	outb		(%dx)
+X	movw		$0x83,%dx		/ set page byte of address
+X	movb		sb_dmapage,%al
+X	outb		(%dx)
+X	movw		$0x03,%dx		/ set DMA length low byte
+X	movb		sb_dmalenl,%al
+X	outb		(%dx)
+X/ 	movw		$0x03,%dx		/ set DMA length high byte
+X	movb		sb_dmalenh,%al
+X	outb		(%dx)
+X	movw		$0x0a,%dx		/ Start channel 1!
+X	movb		$0x1,%al
+X	outb		(%dx)
+X	/ set DSP stuff
+X	movw		sb_dspstat,%dx		/ poll DSP port
+Xpoll1:
+X	inb		(%dx)
+X	testb		$0x80,%al
+X	jnz		poll1
+X	movw		sb_dspcmd,%dx
+X	movb		sb_dspdir,%al
+X	outb		(%dx)
+X	movw		sb_dspstat,%dx
+Xpoll2:
+X	inb		(%dx)
+X	testb		$0x80,%al
+X	jnz		poll2
+X	movw		sb_dspcmd,%dx		/ set DSP length low byte
+X	movb		sb_dsplenl,%al
+X	outb		(%dx)
+X 	movw		sb_dspstat,%dx
+Xpoll3:
+X 	inb		(%dx)
+X 	testb		$0x80,%al
+X 	jnz		poll3
+X					/ fall through from start DMA
+X	movw		sb_dspcmd,%dx		/ set DSP length high byte
+X	movb		sb_dsplenh,%al
+X	outb		(%dx)
+X
+X	/
+X	/ much pre-handler kernel junk pruned
+X	/
+Xdo_handler:
+X/	extern short cmdport[9];
+X/	outb(cmdport[0], PIC_NSEOI);
+X/	if (vect > 7)
+X/		outb(cmdport[1], PIC_NSEOI);
+X	movw		cmdport,%dx
+X	movb		$0x20,%al
+X	outb		(%dx)
+X	movw		sb_interrupt,%ax
+X/ if sb_interrupt < 8, jump over EOI to second PIC
+X	cmpw		$8,%ax
+X	jl		done_prep
+X	movw		cmdport+2,%dx
+X	movb		$0x20,%al
+X	outb		(%dx)
+Xdone_prep:
+X	popl  		%ds
+X	popl		%edx
+X	popl		%eax
+X	pushal 
+X/ change 1
+X	lidt   		%cs:idtdsc1	/ set up kernel context registers ...
+X	pushl  		%ds
+X	pushl  		%es
+X	pushl  		%fs
+X	pushl  		%gs
+X	movw   		$0x160,%ax
+X	movw   		%ax,%ds
+X	movw   		%ax,%es
+X	movl   		%esp,%ebp
+X	pushl  		$0x2
+X	popfl  
+X	xorw   		%ax,%ax
+X	movw   		%ax,%fs
+X	movw   		%ax,%gs
+X	movl   		0x30(%ebp),%edi		/ get interrupt number
+X	pushl  		%edi			/ push as argument
+X	call   		sbintr			/ call C handler
+X	addl   		$0x4,%esp		/ pop argument
+X	/
+X	/ much post-handler junk pruned
+X	/
+X	testl  		$0x20000,0x40(%ebp)	/ decides how to return ...
+X	jnz    		ret_user
+X	movl   		0x3c(%ebp),%eax
+X	testw  		$0x4,%ax
+X	jz     		do_ret
+X	jmp    		ret_user
+X#endif
+SHAR_EOF
+chmod 0644 sb_asm.s ||
+echo 'restore of sb_asm.s failed'
+Wc_c="`wc -c < 'sb_asm.s'`"
+test 3408 -eq "$Wc_c" ||
+	echo 'sb_asm.s: original size 3408, current size' "$Wc_c"
+fi
+true || echo 'restore of stream.c failed'
+echo End of part 2, continue with part 3
+exit 0

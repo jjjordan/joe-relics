@@ -1,0 +1,114 @@
+Xref: funic alt.sources:3476 alt.security:5215 news.admin:10310
+Path: funic!news.funet.fi!sunic!palantir.p.tvt.se!malmo.trab.se!kth.se!eru.mt.luth.se!bloom-beacon!micro-heart-of-gold.mit.edu!wupost!cs.utexas.edu!swrinde!mips!pacbell.com!network.ucsd.edu!nic!netlabs!lwall
+From: lwall@netlabs.com (Larry Wall)
+Newsgroups: alt.sources,alt.security,news.admin
+Subject: Re: News Group Readership Monitoring
+Message-ID: <1992Mar25.075422.11590@netlabs.com>
+Date: 25 Mar 92 07:54:22 GMT
+References: <1992Mar24.150505.18563@rock.concert.net>
+Sender: news@netlabs.com
+Organization: NetLabs, Inc.
+Lines: 101
+Nntp-Posting-Host: scalpel.netlabs.com
+
+In article <1992Mar24.150505.18563@rock.concert.net> mcmahan@fletcher.cs.unca.edu (Scott McMahan -- Genesis mailing list owner) writes:
+: It had never occurred to me that anyone would be snooping through my
+: .newsrc looking at what I was reading! And the guy asking didn't think
+: there was anything wrong with doing it, either, even after I pointed
+: out changing a couple of lines could turn a general report of what is
+: being read at your site to a line by line description of what everyone
+: is reading.
+: 
+: I've never seen this topic discussed on Usenet before, so I'd like to
+: heighten everyone's awareness of what systems people are capable of 
+: doing, without necessarily your knowlege.
+: 
+: Do any sites regularly do this?
+
+That sort of dredging is what basically what the Arbitron listings are
+based on, as it happens.  So lots of sites do it...
+
+: Does anyone actually condone this invasion of privacy?
+
+Do you have a guilty conscience?  :-)
+
+There's actually a use for this.  Suppose you post an article to your
+favorite corporate newsgroup, and you want to make sure everyone who
+ought to read it reads it.  How do you know who isn't properly keeping
+up on their news?
+
+: Ways to keep yourself safe? Don't put your .newsrc in an obvious
+: place (like ".newsrc"), and even encrypt it between news sessions.
+
+There are several other ways to find out what newsgroups you read, if
+your system administrator is nosey.  If you're really worried about root,
+you'd better consult the Orange Book.  And there's always the Copper Room
+approach, but that makes for some slight connectivity problems...
+
+Personally, if I were going to read a scurrilous newsgroup, I'd cd into
+the spool directory and say "less *".
+
+: An example of how it can be done in UNIX is this perl script I whipped
+: up in a very small amount of time. And I don't even really know perl!
+: It uses the Brute Force method, and I'm sure there are more elegant 
+: ways of doing it.  It requires no special privileges to run, but if you
+: ran it as root you could override everyone's permissions and get a really 
+: accurate total.
+: 
+: If you changed a couple of lines, you could probably get a line-by-line 
+: of who reads what.
+: 
+: Note that this software is presented in the spirit of Crack, the password
+: cracker utility -- it is designed to raise awareness. *Anybody* could 
+: put this together, and the bad guys (whoever they are is up to your 
+: own interpretation -- the person running your system could be using this).
+: It isn't designed for malicious purposes, but if you wanted to use it for
+: them it would be very trivial to concoct this on your own, even easier than
+: a password cracker!
+
+Oddly enough, I published a similar program in Unix World a few months ago.
+If you want blackmail fodder, run this over alt.binaries.pictures.erotica.
+
+#!/usr/bin/perl
+
+die "Usage: readership newsgroup\n" unless @ARGV == 1;
+$ngtodo = shift;
+
+open(ACTIVE, "/usr/lib/news/active") || die "Can't open active file: $!\n";
+while (<ACTIVE>) {
+    ($ngname, $max, $min, $flags) = split(/\s+0*/);
+    last if $ngname eq $ngtodo;
+}
+
+die "Invalid newsgroup: $ngtodo" unless $ngname eq $ngtodo;
+$available = $max - $min + 1;
+print STDERR "$available articles available\n";
+
+while (($login,$pw,$uid,$gid,$quota,$comment,$gcos,$dir,$shell) = getpwent) {
+    next unless $shell =~ /sh/;
+    next if $dir eq '/';
+
+    $who = sprintf("%-15s", $login);
+    if (!open(NEWSRC, "$dir/.newsrc")) {
+	print "$who no .newsrc\n";
+	next;
+    }
+
+    while (<NEWSRC>) {
+	last if /^$ngtodo:/o;
+    }
+
+    if (!s/^$ngtodo:\s*//o) {
+	print "$who not subscribed\n";
+	next;
+    }
+
+    s/^1-/$min-/;
+    s/-/../g;
+    eval "\@read = ($_)";
+
+    print "$who ", int(@read * 100 / $available), "%\n";
+}
+
+Larry Wall
+lwall@netlabs.com

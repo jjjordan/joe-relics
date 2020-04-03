@@ -1,0 +1,2120 @@
+Path: funic!fuug!mcsun!uunet!centerline!noc.near.net!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOETTY Part 3 of 3
+Message-ID: <1992Mar27.054329.11708@wpi.WPI.EDU>
+Date: 27 Mar 92 05:43:29 GMT
+Organization: Worcester Polytechnic Institute
+Lines: 2111
+
+Archive-name: JOETTYbeta3
+Submitted-by: rcarter@wpi.wpi.edu
+
+X";
+X
+Xstatic C nums[]="\
+XcodBdCdFdNdTdVitknlilmpbsgsstwugvtws\
+X";
+X
+Xstatic C strs[]="\
+XALCCCMDCDLDOICK1K2K3K4K5LERISFSRUPaealasbcblbtcdcechclcmcrcsctcvdcdldmdodseced\
+Xeiesfffsgegogthdhohui1i2i3iPicifimipisk0k1k2k3k4k5k6k7k8k9kAkCkDkEkFkHkIkLkMkN\
+XkPkRkSkTkakbkdkekhklkokrksktkul0l1l2l3l4l5l6l7l8l9lellmambmdmemhmkmlmmmompmrmu\
+XndnlnwpOpcpfpkplpopspxr1r2r3rcrfrirprssascsesfsosrsttatitetitsucueupusvbvevivs\
+Xwi\
+X";
+X
+XCAP *getcap(name)
+XC *name;
+X{
+XC *tp, *pp;
+XI x,y,c,z;
+XFILE *fd;
+XC namebuf[512], *npbuf[32];
+XCAP *cap=(CAP *)malloc(sizeof(CAP));
+Xmemset(cap->nums,-1,sizeof(cap->nums));
+Xmemset(cap->flgs,0,sizeof(cap->flgs));
+Xmemset(cap->strs,0,sizeof(cap->strs));
+Xif(!name) if(!(name=getenv("TERM")))
+X {
+X free(cap);
+X return 0;
+X }
+X
+Xtp=getenv("TERMCAP");
+X
+Xif(tp?tp[0]=='/':0)
+X strcpy(namebuf,tp), cap->tbuf[0]=0;
+Xelse
+X {
+X if(tp) strcpy(cap->tbuf,tp); else cap->tbuf[0]=0;
+X if(tp=getenv("TERMPATH"))
+X  strcpy(namebuf,tp);
+X else if(tp=getenv("HOME"))
+X  strcpy(namebuf,tp), strcat(namebuf,"/"), strcat(namebuf,TERMPATH);
+X else
+X  strcpy(namebuf,TERMPATH);
+X }
+X
+Xfor(x=0,y=0;namebuf[x];)
+X {
+X while(namebuf[x]==' ' || namebuf[x]=='\t') ++x;
+X npbuf[y++]=namebuf+x;
+X while(namebuf[x] && namebuf[x]!=' ' && namebuf[x]!='\t') ++x;
+X if(namebuf[x]) namebuf[x++]=0;
+X }
+Xnpbuf[y]=0;
+X
+Xy=0; fd=0; tp=cap->tbuf;
+Xgoto match;
+X
+Xnextfile:
+Xif(fd) fclose(fd), fd=0;
+Xif(!npbuf[y])
+X {
+X free(cap);
+X return 0;
+X }
+X/* printf("Opening file %s\n",npbuf[y]); */
+Xfd=fopen(npbuf[y++],"r");
+X
+Xnextline:
+Xif(!fd) goto nextfile;
+Xx=0;
+X
+Xwhile((c=getc(fd))!= -1)
+X if(c=='\n')
+X  if(x?tp[x-1]=='\\':0) --x;
+X  else break;
+X else if(c=='\r') ;
+X else
+X  if(tp-cap->tbuf+x!=ENTRYLEN-2) tp[x++]=c;
+X
+Xif(!x) goto nextfile;
+Xelse tp[x]=0;
+X
+Xmatch:
+X/* Check if any names at tp matches */
+Xif(*tp=='#') goto nextline;
+Xx=0;
+Xmatchloop:
+Xfor(z=x;tp[z] && tp[z]!='|' && tp[z]!=':';++z);
+Xc= tp[z]; tp[z]=0;
+Xif(strcmp(name,tp+x))
+X {
+X if(!c || c==':') goto nextline;
+X tp[z]=c; x=z+1; goto matchloop;
+X }
+Xtp[z]=c;
+X
+X/* printf("Found match\n"); */
+X
+Xx=strlen(tp);
+Xdo
+X {
+X tp[x]=0;
+X while(x) if(tp[--x]==':') break;
+X }
+X while(x && (!tp[x+1] || tp[x+1]==':'));
+X
+Xif(tp[x+1]=='t' && tp[x+2]=='c' && tp[x+3]=='=')
+X {
+X name=tp+x+4;
+X tp=name+strlen(name)+1;
+X if(y) --y;
+X/*  printf("Found tc=\n"); */
+X goto nextfile;
+X }
+X
+Xdoline:
+X/* printf("%s\n",tp); */
+X/* Process line at tp */
+Xpp=tp;
+Xloop:
+Xwhile(*pp && *pp!=':') ++pp;
+Xif(*pp)
+X {
+X *pp=0;
+X ++pp;
+X if(pp[0]==' ' || pp[0]=='\t') goto loop;
+X if(pp[2]=='#')
+X  {
+X  x=0; z= -1;
+X  y=sizeof(nums)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>nums[z*2]*256+nums[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<nums[z*2]*256+nums[z*2+1]) y=z;
+X   else
+X    {
+X    cap->nums[z]=atoi(pp+3);
+X    goto loop;
+X    }
+X   }
+X  }
+X else if(pp[2]=='=')
+X  {
+X  x=0; z= -1;
+X  y=sizeof(strs)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>strs[z*2]*256+strs[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<strs[z*2]*256+strs[z*2+1]) y=z;
+X   else
+X    {
+X    cap->strs[z]=pp+3;
+X    goto loop;
+X    }
+X   }
+X  }
+X else if(pp[2]=='@')
+X  {
+X  x=0; z= -1; y=sizeof(flgs)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>flgs[z*2]*256+flgs[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<flgs[z*2]*256+flgs[z*2+1]) y=z;
+X   else
+X    {
+X    cap->flgs[z]=0;
+X    goto loop;
+X    }
+X   }
+X  x=0; z= -1; y=sizeof(strs)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>strs[z*2]*256+strs[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<strs[z*2]*256+strs[z*2+1]) y=z;
+X   else
+X    {
+X    cap->strs[z]=0;
+X    goto loop;
+X    }
+X   }
+X  x=0; z= -1; y=sizeof(nums)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>nums[z*2]*256+nums[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<nums[z*2]*256+nums[z*2+1]) y=z;
+X   else
+X    {
+X    cap->nums[z]= -1;
+X    goto loop;
+X    }
+X   }
+X  }
+X else
+X  {
+X  x=0; z= -1;
+X  y=sizeof(flgs)/2;
+X  while(z!=(x+y)/2)
+X   {
+X   z=(x+y)/2;
+X   if(pp[0]*256+pp[1]>flgs[z*2]*256+flgs[z*2+1]) x=z;
+X   else if(pp[0]*256+pp[1]<flgs[z*2]*256+flgs[z*2+1]) y=z;
+X   else
+X    {
+X    cap->flgs[z]=1;
+X    goto loop;
+X    }
+X   }
+X  }
+X/* printf("Unknown capability: %c%c\n",pp[0],pp[1]); */
+X goto loop;
+X }
+X
+Xif(tp!=cap->tbuf)
+X {
+X for(--tp;tp!=cap->tbuf;--tp) if(!tp[-1]) break;
+X goto doline;
+X }
+Xreturn cap; /* We're done! */
+X}
+X
+Xstatic C escape(s)
+XC **s;
+X{
+XC c= *(*s)++;
+Xif(c=='^' && **s)
+X if(**s!='?') return 037&*(*s)++;
+X else return (*s)++, 127;
+Xelse if(c=='\\' && **s)
+X switch(c= *((*s)++))
+X  {
+X case '0': case '1': case '2': case'3': case '4': case '5': case '6': case '7':
+X           c-='0';
+X           if(**s>='0' && **s<='7') c=(c<<3)+*((*s)++)-'0';
+X           if(**s>='0' && **s<='7') c=(c<<3)+*((*s)++)-'0';
+X           return c;
+X case 'e':
+X case 'E': return 27;
+X case 'n':
+X case 'l': return 10;
+X case 'r': return 13;
+X case 't': return 9;
+X case 'b': return 8;
+X case 'f': return 12;
+X case 's': return 32;
+X default: return c;
+X  }
+Xelse return c;
+X}
+X
+X
+XV texec(s,out,outptr,pad,div,l,x,y)
+XC *s, *pad, *outptr;
+XI div,l,x,y;
+XV (*out)();
+X{
+XI c, tenth=0;
+Xwhile(*s>='0' && *s<='9') tenth=tenth*10+*(s++)-'0';
+Xtenth*=10;
+Xif(*s=='.') ++s, tenth+= *(s++)-'0';
+Xif(*s=='*') ++s, tenth*=l;
+Xwhile(c= *s++)
+X if(c=='%' && *s)
+X  switch(c= escape(&s))
+X   {
+X  case '+': if(*s) x+= escape(&s);
+X  case '.': out(outptr,x); x=y; break;
+X  case 'd': if(x<10) goto one;
+X  case '2': if(x<100) goto two;
+X  case '3': c='0'; while(x>=100) ++c, x-=100; out(outptr,c);
+X       two: c='0'; while(x>=10) ++c, x-=10; out(outptr,c);
+X       one: out(outptr,'0'+x); x=y; break;
+X  case 'r': c=x; x=y; y=c; break;
+X  case 'i': ++x; ++y; break;
+X  case 'n': x^=0140; y^=0140; break;
+X  case 'D': x=x-2*(x&15); break;
+X  case 'B': x=16*(x/10)+x%10; break;
+X  case '>': if(x>escape(&s)) x+=escape(&s); else escape(&s);
+X   default: out(outptr,'%'); out(outptr,c);
+X   }
+X else --s, out(outptr,escape(&s));
+Xif(pad) while(tenth>=div) for(s=pad;*s;++s) out(outptr,*s), tenth-=div;
+Xelse while(tenth>=div) out(outptr,0), tenth-=div;
+X}
+X
+Xstatic I total;
+X
+Xstatic V cst()
+X{
+X++total;
+X}
+X
+XI tcost(s,pad,div,l,x,y)
+XC *s, *pad;
+XI div,l,x,y;
+X{
+Xtotal=0;
+Xif(!s) return 0;
+Xtexec(s,cst,NULL,pad,div,l,x,y);
+Xreturn total;
+X}
+X
+XV rmcap(cap)
+XCAP *cap;
+X{
+Xfree(cap);
+X}
+X
+Xstatic C ss[1024];
+Xstatic C *ssp;
+Xstatic V cpl(ptr,c)
+XC *ptr;
+XC c;
+X{
+X*ssp++=c;
+X}
+X
+XC *tcompile(s,x,y,l)
+XC *s;
+XI x,y,*l;
+X{
+X*l=0;
+Xssp=ss;
+Xtexec(s,cpl,NULL,NULL,10000,0,x,y);
+X*ssp=0;
+X*l=ssp-ss;
+Xreturn ss;
+X}
+X
+XV tshow(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X if(*s>=128) printf("M-"), *s-=128;
+X if(*s>=32 && *s<=126) printf("%c",*s);
+X else if(*s<32) printf("^%c",*s+'@');
+X else if(*s==127) printf("^?");
+X s++;
+X }
+Xprintf("\n");
+X}
+END_OF_FILE
+if test 7350 -ne `wc -c <'termcap.c'`; then
+    echo shar: \"'termcap.c'\" unpacked with wrong size!
+fi
+# end of 'termcap.c'
+fi
+if test -f 'test.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'test.c'\"
+else
+echo shar: Extracting \"'test.c'\" \(831 characters\)
+sed "s/^X//" >'test.c' <<'END_OF_FILE'
+X#include "types.h"
+X#include "tty.h"
+X#include "cap.h"
+X#include "scrn.h"
+X
+Xmain()
+X{
+XSCRN *t=topen(0);	/* Open the screen.  This sets up everything */
+Xint x=1,y=1,c;
+Xif(!t) return;		/* Abort if there was an error... */
+X
+Xtbox(t,1,1,t->co-2,t->li-2);	/* Draw a box around the screen */
+X
+Xdo
+X {
+X tsetpos(t,x,y);		/* Set the displayed cursor position */
+X c=tgetc(t);			/* Get a character from the keyboard */
+X if(c==KEYUP && y) --y;		/* Check for arrow keys... */
+X else if(c==KEYDOWN && y!=t->li-1) ++y;
+X else if(c==KEYRIGHT && x!=t->co-1) ++x;
+X else if(c==KEYLEFT && x) --x;
+X else if(c=='X') tclose(t,0);	/* Check for exiting... */
+X else if(c=='!')
+X  {
+X  if(!(t=tsusp(t))) exit(1);	/* Check for shell escape... */
+X  }
+X else if(c>=' ' && c<='~' && x!=t->co-1)
+X  tputc(t,x,y,c), ++x;		/* Write normal chars to screen */
+X }
+X while(!leave);
+X}
+END_OF_FILE
+if test 831 -ne `wc -c <'test.c'`; then
+    echo shar: \"'test.c'\" unpacked with wrong size!
+fi
+# end of 'test.c'
+fi
+if test -f 'tty.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tty.h'\"
+else
+echo shar: Extracting \"'tty.h'\" \(5148 characters\)
+sed "s/^X//" >'tty.h' <<'END_OF_FILE'
+X/* TTY interface header file
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X/* V aopen(V);  Open the tty (attached to stdin) for use inside of JOE
+X *
+X * (1) fflush(stdout)
+X *
+X * (2) Save the current state of the tty
+X *
+X * (3) Disable CR/LF/NL input translations,
+X *     Disable all output processing,
+X *     Disable echo and line editing, and
+X *     Place tty in character at a time mode.
+X *     (basically, disable all processing except for XON/XOFF if it's set)
+X *
+X * (4) Set this new tty state without loosing any typeahead
+X *
+X * (5) Store the baud rate in the global variable 'baud'
+X *
+X * (6) Divide the baud rate into the constant DIVIDEND and store the result
+X *     in the global variable 'upc'.  This should come out to the number
+X *     of microseconds needed to send each character.  The constant 'DIVIDEND'
+X *     should be chosen so that 'upc' reflects the real throughput of the
+X *     tty, not the theoretical best throughput.
+X *
+X * (7) Create an output buffer of a size which depends on 'upc' and the
+X *     constant 'TIMES'.  'TIMES' is the number of times per second JOE
+X *     should check for typeahead.  Since we only check for typehead after
+X *     the output buffer is flushed, 'upc' and the size of the output buffer
+X *     determine how often this occurs.  So for example if 'upc'==1000 (~9600
+X *     baud) and 'TIMES'==3, the output buffer size is set to 333 characters.
+X *     Each time this buffer is completely flushed, 1/3 of a second will go by.
+X */
+XV aopen();
+Xextern unsigned long upc;
+Xextern unsigned long baud;
+X
+X#define TIMES 3
+X#define DIVIDEND 11000000
+X
+X/* V aclose(V);  Restore the tty back to its original mode.
+X *
+X * (1) aflush()
+X *
+X * (2) Restore the original tty mode which aopen() had saved.  Do this without
+X *     loosing any typeahead.
+X */
+XV aclose();
+X
+X/* V aflush(V);  Flush the output buffer and check for typeahead.
+X *
+X * (1) write() any character in the output buffer to the tty.  Sleep for the
+X *     amount of time it should take for all of these characters to get
+X *     to the tty.  This is so that any buffering between the editor and the
+X *     tty is defeated.  If this is not done, the screen update will not be
+X *     able to defer for typeahead.
+X *
+X *     The best way to do this (and it's currently only possible in BSD) is to
+X *     set a timer for the necessary amount, write the characters to the tty,
+X *     and then sleep until the timer expires.
+X *
+X *     If this can't be done, it's usually ok to 'write' and then to sleep for
+X *     the necessary amount of time.  However, you will notice delays in the
+X *     screen update if the 'write' actually takes any significant amount of
+X *     time to execute (it usually takes none since all it usually does is
+X *     write to an operating system buffer).
+X *
+X * (2) If the global variable 'leave' is not set and if the global variable
+X *     'have' is not set, check for typeahead.  If there is any, set the global
+X *     variable 'have'.  This absolutely must not read any characters from the
+X *     'tty' if 'leave' is set or typeahead will be lost when the editor exists
+X *     or does a shell escape.
+X */
+XV aflush();
+X
+Xextern I have;
+Xextern I leave;
+X
+X/* C anext(V);  Flush the output and get the next character from the tty
+X *
+X * (1) aflush()
+X *
+X * (2) Read the next input character
+X *     If the input closed, call 'tsignal' with 0 as its argument.
+X *
+X * (3) Clear 'have'
+X */
+XC anext();
+X
+X/* V eputc(C c);  Write a character to the output buffer.  If it becomes
+X * full, call aflush()
+X */
+XV eputc();
+X
+X/* V eputs(C *s);  Write a string to the output buffer.  Any time the
+X * output buffer gets full, call aflush()
+X */
+XV eputs();
+X
+X/* V sigjoe(V);  Set the signal handling for joe.  I.E., ignore all
+X * signals the user can generate from the keyboard and trap the software
+X * terminate and hangup signals.
+X */
+XV sigjoe();
+X
+X/* V signorm(V);  Set the signal handling for the shell.  I.E., set the
+X * signals back to their default actions.
+X */
+XV signorm();
+X
+X/* V tsignal(I n);  Signal handler.  This is called if the editor gets a
+X * hangup signal, termination signal or if the input closes.  It is called
+X * with 'n' set to the number of the caught signal or 0 if the input closed.
+X */
+XV tsignal();
+X
+X/* V getsize(I *x,I *y);  Get size of screen from ttysize/winsize structure */
+XV getsize();
+X
+X/* V shell(V);  Run the shell in the environment variable SHELL */
+XV shell();
+X
+X/* V susp(V);  Suspend the process, of the UNIX can't do it, call shell() */
+XV susp();
+END_OF_FILE
+if test 5148 -ne `wc -c <'tty.h'`; then
+    echo shar: \"'tty.h'\" unpacked with wrong size!
+fi
+# end of 'tty.h'
+fi
+if test -f 'ttybad.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttybad.c'\"
+else
+echo shar: Extracting \"'ttybad.c'\" \(2407 characters\)
+sed "s/^X//" >'ttybad.c' <<'END_OF_FILE'
+X/* Cruddy but portable terminal interface
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include "types.h"
+X#include "tty.h"
+X
+XI have=0;
+XI leave=0;
+Xunsigned long baud=38400;
+Xunsigned long upc=DIVIDEND/baud;
+X
+XV eputs(s)
+XC *s;
+X{
+Xfputs(s,stdout);
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xputchar(c);
+X}
+X
+XV sigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGQUIT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGINT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+Xfflush(stdout);
+Xsystem("/bin/stty raw -echo");
+X}
+X
+XV aclose()
+X{
+Xfflush(stdout);
+Xsystem("/bin/stty cooked echo");
+X}
+X
+XV aflush()
+X{
+Xfflush(stdout);
+X}
+X
+XC anext()
+X{
+XC c;
+Xif(read(fileno(stdin),&c,1)<1) tsignal(0);
+Xreturn c;
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 2407 -ne `wc -c <'ttybad.c'`; then
+    echo shar: \"'ttybad.c'\" unpacked with wrong size!
+fi
+# end of 'ttybad.c'
+fi
+if test -f 'ttybsd.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttybsd.c'\"
+else
+echo shar: Extracting \"'ttybsd.c'\" \(4712 characters\)
+sed "s/^X//" >'ttybsd.c' <<'END_OF_FILE'
+X/* TTY interface for BSD UNIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <sgtty.h>
+X#include <fcntl.h>
+X#include <stdio.h>
+X#include <signal.h>
+X#include <sys/time.h>
+X#include "types.h"
+X#include "tty.h"
+X
+X#ifndef HZ
+X#define HZ 10			/* Clock ticks/second */
+X#endif
+X
+X/* The original tty state */
+X
+Xstatic struct sgttyb oarg;
+Xstatic struct tchars otarg;
+Xstatic struct ltchars oltarg;
+X
+X/* The output buffer, index and size. */
+X
+Xstatic C *obuf=0;
+Xstatic U obufp=0;
+Xstatic U obufsiz;
+X
+X/* The baud rate */
+X
+Xunsigned long baud;
+Xunsigned long upc;
+X
+X/* Code to baud-rate conversion table */
+X
+Xstatic U speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+X};
+X
+X/* Input buffer, typeahead indication flag and editor is about to exit flag */
+X
+XI have=0;
+Xstatic C havec;
+XI leave=0;
+X
+XV sigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGINT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGQUIT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+XI x;
+Xstruct sgttyb arg;
+Xstruct tchars targ;
+Xstruct ltchars ltarg;
+Xfflush(stdout);
+Xioctl(fileno(stdin),TIOCGETP,&arg);
+Xioctl(fileno(stdin),TIOCGETC,&targ);
+Xioctl(fileno(stdin),TIOCGLTC,&ltarg);
+Xoarg=arg; otarg=targ; oltarg=ltarg;
+Xarg.sg_flags=( (arg.sg_flags&~(ECHO|CRMOD) ) | CBREAK) ;
+Xtarg.t_intrc= -1;
+Xtarg.t_quitc= -1;
+Xtarg.t_eofc= -1;
+Xtarg.t_brkc= -1;
+Xltarg.t_suspc= -1;
+Xltarg.t_dsuspc= -1;
+Xltarg.t_rprntc= -1;
+Xltarg.t_flushc= -1;
+Xltarg.t_werasc= -1;
+Xltarg.t_lnextc= -1;
+Xioctl(fileno(stdin),TIOCSETN,&arg);
+Xioctl(fileno(stdin),TIOCSETC,&targ);
+Xioctl(fileno(stdin),TIOCSLTC,&ltarg);
+Xbaud=9600;
+Xupc=0;
+Xfor(x=0;x!=30;x+=2)
+X if(arg.sg_ospeed==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  upc=DIVIDEND/speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*upc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(C *)malloc(obufsiz);
+X}
+X
+XV aclose()
+X{
+Xaflush();
+Xioctl(fileno(stdin),TIOCSETN,&oarg);
+Xioctl(fileno(stdin),TIOCSETC,&otarg);
+Xioctl(fileno(stdin),TIOCSLTC,&oltarg);
+X}
+X
+Xstatic I yep;
+Xstatic dosig() { yep=1; } 
+X
+XV aflush()
+X{
+Xif(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  signal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(stdout),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  signal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(stdout),obuf,obufp);
+X obufp=0;
+X }
+Xif(!have && !leave)
+X {
+X fcntl(fileno(stdin),F_SETFL,FNDELAY);
+X if(read(fileno(stdin),&havec,1)==1) have=1;
+X fcntl(fileno(stdin),F_SETFL,0);
+X }
+X}
+X
+XC anext()
+X{
+Xaflush();
+Xif(have) have=0;
+Xelse if(read(fileno(stdin),&havec,1)<1) tsignal(0);
+Xreturn havec;
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+XV eputs(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 4712 -ne `wc -c <'ttybsd.c'`; then
+    echo shar: \"'ttybsd.c'\" unpacked with wrong size!
+fi
+# end of 'ttybsd.c'
+fi
+if test -f 'ttyhpux.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttyhpux.c'\"
+else
+echo shar: Extracting \"'ttyhpux.c'\" \(4080 characters\)
+sed "s/^X//" >'ttyhpux.c' <<'END_OF_FILE'
+X/* TTY interface for HPUX (AT&T SV + BSD EXTENSIONS)
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <fcntl.h>
+X#include <time.h>
+X#include <sys/param.h>
+X#include <termio.h>
+X#include "types.h"
+X#include "tty.h"
+X
+X#ifndef HZ
+X#define HZ 10
+X#endif
+X
+Xstatic struct termio oldterm;
+X
+Xstatic C *obuf=0;
+Xstatic U obufp=0;
+Xstatic U obufsiz;
+X
+Xunsigned long upc;
+Xunsigned long baud;
+X
+XI have=0;
+Xstatic C havec;
+XI leave=0;
+X
+Xstatic U speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+X};
+X
+XV sigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGINT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGQUIT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+XI x;
+Xstruct termio newterm;
+Xfflush(stdout);
+Xioctl(fileno(stdin),TCGETA,&oldterm);
+Xnewterm=oldterm;
+Xnewterm.c_lflag=0;
+Xnewterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+Xnewterm.c_oflag=0;
+Xnewterm.c_cc[VMIN]=1;
+Xnewterm.c_cc[VTIME]=0;
+Xioctl(fileno(stdin),TCSETAW,&newterm);
+Xupc=0;
+Xbaud=9600;
+Xfor(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  upc=DIVIDEND/speeds[x+1];
+X  baud=speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*upc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(C *)malloc(obufsiz);
+X}
+X
+XV aclose()
+X{
+Xaflush();
+Xioctl(fileno(stdin),TCSETAW,&oldterm);
+X}
+X
+Xstatic I yep;
+X
+Xstatic V dosig() { yep=1; } 
+X
+XV aflush()
+X{
+Xif(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  signal(SIGALRM,(V (*)())dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(stdout),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  signal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(stdout),obuf,obufp);
+X obufp=0;
+X }
+Xif(!have && !leave)
+X {
+X fcntl(fileno(stdin),F_SETFL,O_NDELAY);
+X if(read(fileno(stdin),&havec,1)==1) have=1;
+X fcntl(fileno(stdin),F_SETFL,0);
+X }
+X}
+X
+XC anext()
+X{
+Xaflush();
+Xif(have) have=0;
+Xelse if(read(fileno(stdin),&havec,1)<1) tsignal(0);
+Xreturn havec;
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+XV eputs(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 4080 -ne `wc -c <'ttyhpux.c'`; then
+    echo shar: \"'ttyhpux.c'\" unpacked with wrong size!
+fi
+# end of 'ttyhpux.c'
+fi
+if test -f 'ttymsdos.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttymsdos.c'\"
+else
+echo shar: Extracting \"'ttymsdos.c'\" \(1945 characters\)
+sed "s/^X//" >'ttymsdos.c' <<'END_OF_FILE'
+X/* TTY interface for MSDOS using TURBO-C
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <conio.h>
+X#include <bios.h>
+X#include "types.h"
+X#include "tty.h"
+X
+Xunsigned long baud=38400;
+Xunsigned long upc;
+XI have=0;
+XI leave=0;
+X
+XV eputs(s)
+XC *s;
+X{
+Xfputs(s,stdout);
+Xif(!have) have=bioskey(1);
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xputchar(c);
+Xif(!have) have=bioskey(1);
+X}
+X
+XV sigjoe()
+X{
+X}
+X
+XV signorm()
+X{
+X}
+X
+XV aopen()
+X{
+Xfflush(stdout);
+Xupc=DIVIDEND/baud;
+X}
+X
+XV aclose()
+X{
+Xaflush();
+X}
+X
+XV aflush()
+X{
+Xfflush(stdout);
+Xif(!have) have=bioskey(1);
+X}
+X
+XC anext()
+X{
+Xreturn getch();
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XC *s=getenv("COMSPEC");
+Xif(s) system(s);
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosig);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 1945 -ne `wc -c <'ttymsdos.c'`; then
+    echo shar: \"'ttymsdos.c'\" unpacked with wrong size!
+fi
+# end of 'ttymsdos.c'
+fi
+if test -f 'ttyposix.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttyposix.c'\"
+else
+echo shar: Extracting \"'ttyposix.c'\" \(4358 characters\)
+sed "s/^X//" >'ttyposix.c' <<'END_OF_FILE'
+X/* TTY interface for POSIX
+X   Copyright (C) 1991 Joseph H. Allen
+X   (Contributed by Mike Lijewski)
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License along with
+XJOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+XMass Ave, Cambridge, MA 02139, USA.  */ 
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <fcntl.h>
+X#include <sys/time.h>
+X#include <sys/param.h>
+X#include <termios.h>
+X#include <unistd.h>
+X#include "types.h"
+X#include "tty.h"
+X
+X#ifndef HZ
+X#define HZ 10
+X#endif
+X
+Xstatic struct termios oldterm;
+X
+Xstatic C *obuf=0;
+Xstatic U obufp=0;
+Xstatic U obufsiz;
+Xunsigned long upc;
+Xunsigned long baud;
+XI have=0;
+XI leave=0;
+Xstatic C havec;
+X
+Xstatic speed_t speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400,B19200,19200,
+XB38400,38400
+X};
+X
+XV esignal(a,b)
+XI a;
+XV (*b)();
+X{
+Xstruct sigaction action;
+Xsigemptyset(&actions.sa_mask);
+Xaction.sa_handler=b;
+Xsigaction(a,&action,NULL);
+X}
+X
+XV sigjoe()
+X{
+Xesignal(SIGHUP,tsignal);
+Xesignal(SIGTERM,tsignal);
+Xesignal(SIGPIPE,SIG_IGN);
+Xesignal(SIGINT,SIG_IGN);
+Xesignal(SIGQUIT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xesignal(SIGHUP,SIG_DFL);
+Xesignal(SIGTERM,SIG_DFL);
+Xesignal(SIGQUIT,SIG_DFL);
+Xesignal(SIGPIPE,SIG_DFL);
+Xesignal(SIGINT,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+XI x;
+Xspeed_t bd;
+Xstruct termios newterm;
+Xfflush(stdout);
+Xtcdrain(STDOUT_FILENO);
+Xtcgetattr(STDIN_FILENO,&oldterm);
+Xnewterm=oldterm;
+Xnewterm.c_lflag&=0;
+Xnewterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+Xnewterm.c_oflag&=0;
+Xnewterm.c_cc[VMIN]=1;
+Xnewterm.c_cc[VTIME]=0;
+Xtcsetattr(STDIN_FILENO,TCSANOW,&newterm);
+Xupc=0;
+Xbd=cfgetospeed(&newterm);
+Xbaud=9600;
+Xfor(x=0;x!=34;x+=2)
+X if(bd==speeds[x])
+X  {
+X  upc=DIVIDEND/speeds[x+1];
+X  baud=speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*upc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(C *)malloc(obufsiz);
+X}
+X
+XV aclose()
+X{
+Xaflush();
+Xtcsetattr(STDIN_FILENO,TCSANOW,&oldterm);
+X}
+X
+Xstatic I yep;
+X
+Xstatic V dosig() { yep=1; } 
+X
+XV aflush()
+X{
+Xif(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  action.sa_handler=dosig;
+X  esignal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(stdout),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  esignal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(stdout),obuf,obufp);
+X obufp=0;
+X }
+Xif(!have && !leave)
+X {
+X fcntl(STDIN_FILENO,F_SETFL,O_NDELAY);
+X if(read(STDIN_FILENO,&havec,1)==1) have=1;
+X fcntl(STDIN_FILENO,F_SETFL,0);
+X }
+X}
+X
+XC anext()
+X{
+Xaflush();
+Xif(have) have=0;
+Xelse if(read(STDIN_FILENO,&havec,1)<1) tsignal(0);
+Xreturn havec;
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+XV eputs(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 4358 -ne `wc -c <'ttyposix.c'`; then
+    echo shar: \"'ttyposix.c'\" unpacked with wrong size!
+fi
+# end of 'ttyposix.c'
+fi
+if test -f 'ttysv.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttysv.c'\"
+else
+echo shar: Extracting \"'ttysv.c'\" \(3672 characters\)
+sed "s/^X//" >'ttysv.c' <<'END_OF_FILE'
+X/* TTY interface for SYS V UNIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <fcntl.h>
+X#include <time.h>
+X#include <sys/param.h>
+X#include <termio.h>
+X#include "types.h"
+X#include "tty.h"
+X
+Xstatic struct termio oldterm;
+X
+X#ifndef HZ
+X#define HZ 10
+X#endif
+X
+Xstatic C *obuf=0;
+Xstatic U obufp=0;
+Xstatic U obufsiz;
+X
+Xunsigned long baud;
+Xunsigned long upc;
+X
+Xstatic U speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+X};
+X
+Xextern I leave=0;
+Xstatic I havec;
+Xextern I have=0;
+X
+XV sigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGINT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGQUIT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+XI x;
+Xstruct termio newterm;
+Xfflush(stdout);
+Xioctl(fileno(stdin),TCGETA,&oldterm);
+Xnewterm=oldterm;
+Xnewterm.c_lflag=0;
+Xnewterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+Xnewterm.c_oflag=0;
+Xnewterm.c_cc[VMIN]=1;
+Xnewterm.c_cc[VTIME]=0;
+Xioctl(fileno(stdin),TCSETAW,&newterm);
+Xupc=0;
+Xbaud=9600;
+Xfor(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  upc=DIVIDEND/speeds[x+1];
+X  baud=speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*upc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(C *)malloc(obufsiz);
+X}
+X
+XV aclose()
+X{
+Xaflush();
+Xioctl(fileno(stdin),TCSETAW,&oldterm);
+X}
+X
+XV aflush()
+X{
+Xif(obufp)
+X {
+X write(fileno(stdout),obuf,obufp);
+X obufp=0;
+X }
+X/* Oh well, nothing but a second timer in SYS V */
+Xif(!have && !leave)
+X {
+X fcntl(fileno(stdin),F_SETFL,O_NDELAY);
+X if(read(fileno(stdin),&havec,1)==1) have=1;
+X fcntl(fileno(stdin),F_SETFL,0);
+X }
+X}
+X
+XC anext()
+X{
+Xaflush();
+Xif(have) have=0;
+Xelse if(read(fileno(stdin),&havec,1)<1) tsignal(0);
+Xreturn havec;
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+XV eputs(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 3672 -ne `wc -c <'ttysv.c'`; then
+    echo shar: \"'ttysv.c'\" unpacked with wrong size!
+fi
+# end of 'ttysv.c'
+fi
+if test -f 'ttyxenix.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ttyxenix.c'\"
+else
+echo shar: Extracting \"'ttyxenix.c'\" \(3623 characters\)
+sed "s/^X//" >'ttyxenix.c' <<'END_OF_FILE'
+X/* Terminal interface for XENIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <termio.h>
+X#include "types.h"
+X#include "tty.h"
+X
+X/* Original state of the tty */
+X
+Xstatic struct termio oldterm;
+X
+X/* Output buffer, index and size */
+X
+Xstatic C *obuf=0;
+Xstatic U obufp=0;
+Xstatic U obufsiz;
+X
+X/* Baud rate */
+X
+Xunsigned long upc;
+Xunsigned long baud;
+X
+X/* Baud rate code to baud rate translation table */
+X
+Xstatic U speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+X};
+X
+X/* Typeahead and editor is about to exit flag */
+X
+XI have=0;
+XI leave=0;
+X
+XV sigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGINT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGQUIT,SIG_IGN);
+X}
+X
+XV signorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+X}
+X
+XV aopen()
+X{
+XI x;
+Xstruct termio newterm;
+Xfflush(stdout);
+Xioctl(fileno(stdin),TCGETA,&oldterm);
+Xnewterm=oldterm;
+Xnewterm.c_lflag=0;
+Xnewterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+Xnewterm.c_oflag=0;
+Xnewterm.c_cc[VMIN]=1;
+Xnewterm.c_cc[VTIME]=0;
+Xioctl(fileno(stdin),TCSETAW,&newterm);
+Xupc=0;
+Xbaud=9600;
+Xfor(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  upc=DIVIDEND/speeds[x+1];
+X  baud=speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*upc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(C *)malloc(obufsiz);
+X}
+X
+XV aclose()
+X{
+Xaflush();
+Xioctl(fileno(stdin),TCSETAW,&oldterm);
+X}
+X
+XV aflush()
+X{
+Xif(obufp)
+X {
+X write(fileno(stdout),obuf,obufp);
+X if(obufp*upc/1000) nap(obufp*upc/1000);
+X obufp=0;
+X }
+Xif(!have && !leave) if(rdchk(fileno(stdin))>0) have=1;
+X}
+X
+XC anext()
+X{
+XC c;
+Xaflush();
+Xif(read(fileno(stdin),&c,1)<1) tsignal(0);
+Xhave=0;
+Xreturn c;
+X}
+X
+XV eputc(c)
+XC c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+XV eputs(s)
+XC *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+XV getsize(x,y)
+XI *x, *y;
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#endif
+X#endif
+X*x=0; *y=0;
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+X#endif
+X#endif
+X}
+X
+XV shell()
+X{
+XI x;
+XC *s=getenv("SHELL");
+Xif(!s) return;
+Xprintf("You are at the command shell.  Type 'exit' to continue\n");
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,NULL);
+X _exit(0);
+X }
+X}
+X
+Xstatic I gotsig;
+X
+Xstatic V dosi()
+X{
+Xgotsig=1;
+X}
+X
+XV susp()
+X{
+X#ifdef SIGCONT
+Xgotsig=0;
+Xprintf("You have suspended the program.  Type \'fg\' to continue\n");
+Xsignal(SIGCONT,dosi);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!gotsig) sigpause(0);
+Xsignal(SIGCONT,SIG_DFL);
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 3623 -ne `wc -c <'ttyxenix.c'`; then
+    echo shar: \"'ttyxenix.c'\" unpacked with wrong size!
+fi
+# end of 'ttyxenix.c'
+fi
+if test -f 'types.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'types.h'\"
+else
+echo shar: Extracting \"'types.h'\" \(1160 characters\)
+sed "s/^X//" >'types.h' <<'END_OF_FILE'
+X/* TYPDEF FILE
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X/* Basic Types */
+X
+Xtypedef unsigned char C;	/* A character */
+Xtypedef int I;			/* Small number/Status return */
+Xtypedef unsigned int U;		/* Max difference between two pointers */
+Xtypedef unsigned long SZ;	/* Max size of file */
+Xtypedef int V;			/* Void */
+X
+X/* Structures */
+X
+Xtypedef struct cap CAP;
+Xtypedef struct scrn SCRN;
+X
+XV *malloc();
+XV *calloc();
+XV *realloc();
+XC *getenv();
+XC *strcpy();
+XI strcmp();
+XC *strcat();
+END_OF_FILE
+if test 1160 -ne `wc -c <'types.h'`; then
+    echo shar: \"'types.h'\" unpacked with wrong size!
+fi
+# end of 'types.h'
+fi
+echo shar: End of shell archive.
+exit 0
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

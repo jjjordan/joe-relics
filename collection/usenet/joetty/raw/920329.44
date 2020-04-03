@@ -1,0 +1,1793 @@
+Path: funic!fuug!mcsun!uknet!cam-cl!nntp-serv!tdw
+From: tdw@uk.ac.cam.cl (Tim Wilson)
+Newsgroups: alt.sources
+Subject: A wrapper to make using getopt(3) easier
+Message-ID: <TDW.92Mar26181231@ely.uk.ac.cam.cl>
+Date: 26 Mar 92 18:12:31 GMT
+Sender: news@cl.cam.ac.uk (The news facility)
+Organization: University of Cambridge Computer Laboratory, UK
+Lines: 1783
+
+Autogetopt is Yet Another Options Parser.
+Autogetopt differs from others I have seen posted recently:
+
+ + It is a small and simple wrapper for getopt(3).
+
+ + It makes getopt(3) easier to use in two ways:
+
+   1. The motivation for getopt was to eliminate the duplication of
+      information that occurs with getopt: the options are listed in
+      _four_ places:
+        +    the argument to getopt,
+        +    the case statement for processing the options,
+        +    the usage message, and
+        +    the help message.
+      And these can easily get inconsistent.
+
+   2. Autogetopt has automatic usage and help messages.
+
+I've used autogetopt in all the programs I have written in the last
+year, except for one that required a yacc-based options parser!
+
+
+Internet FTP
+  Host:       ftp.cl.cam.ac.uk (128.232.0.56 and 128.16.4.56)
+  Directory:  niftp
+  File:       tdw_misc.tar.Z
+  Name:       anonymous or ftp
+  Password:   your email address
+
+Janet NIFTP
+  Host:       uk.ac.cam.cl.swan
+  No directory
+  File:       tdw_misc.tar.Z
+  Username:   guest
+  Password:   your email address
+
+This file may also contain other programs, since local system
+administration policy permits me only one file for making
+miscellaneous programs available by FTP.  Sorry.
+
+
+Enjoy,
+Tim
+--
+Tim Wilson		University of Cambridge Computer Laboratory, UK
+------------------------------ Cut here ------------------------------
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 1)."
+# Contents:  ChangeLog MANIFEST Makefile README autogetopt.3
+#   autogetopt.c autogetopt.h patchlevel.h strtoul.3 strtoul.c
+# Wrapped by tdw@linton.cl.cam.ac.uk on Thu Mar 26 16:46:40 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ChangeLog' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ChangeLog'\"
+else
+echo shar: Extracting \"'ChangeLog'\" \(96 characters\)
+sed "s/^X//" >'ChangeLog' <<'END_OF_FILE'
+XThu Mar 26 16:46:59 1992  Tim Wilson  (tdw at linton.cl.cam.ac.uk)
+X
+X	* Version 1.00 released.
+X
+X
+END_OF_FILE
+if test 96 -ne `wc -c <'ChangeLog'`; then
+    echo shar: \"'ChangeLog'\" unpacked with wrong size!
+fi
+# end of 'ChangeLog'
+fi
+if test -f 'MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'MANIFEST'\"
+else
+echo shar: Extracting \"'MANIFEST'\" \(669 characters\)
+sed "s/^X//" >'MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X-----------------------------------------------------------
+X ChangeLog                  1	History file.
+X MANIFEST                   1	This shipping list.
+X Makefile                   1	Maintenance commands.
+X README                     1	Miscellaneous information.
+X autogetopt.3               1	Manual page for autogetopt.
+X autogetopt.c               1	Wrapper for easy use of getopt(3).
+X autogetopt.h               1	Definitions for autogetopt.c.
+X patchlevel.h               1	Help sequence patches.
+X strtoul.3                  1	Manual page for strtoul.c.
+X strtoul.c                  1	BSD implementation of ANSI C library function.
+END_OF_FILE
+if test 669 -ne `wc -c <'MANIFEST'`; then
+    echo shar: \"'MANIFEST'\" unpacked with wrong size!
+fi
+# end of 'MANIFEST'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(569 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+X# Release 1.00.
+X# Last edited: Thu Mar 26 17:42:16 1992 by Tim Wilson
+X# $Id: Makefile,v 0.0 1992/03/26 16:43:06 tdw Exp $
+X
+X
+X           SRCS	= README Makefile ChangeLog \
+X                  patchlevel.h \
+X                  autogetopt.3 autogetopt.c autogetopt.h \
+X                  strtoul.c strtoul.3
+X
+X      SHARFILES	= $(SRCS)
+X
+Xall:
+X	@echo "Please select an explicit target"
+X
+Xshar: $(SHARFILES)
+X	makekit -m
+X
+Xclean:
+X	rm -f Part?? MANIFEST.BAK *~
+X
+X
+X# This target only works when strtoul is in libc.
+X
+Xtest: autogetopt
+X
+Xautogetopt:
+X	$(CC) -o autogetopt -DTEST autogetopt.c
+END_OF_FILE
+if test 569 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(2324 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+X$Id: README,v 0.0 1992/03/26 16:43:47 tdw Exp $
+X
+XWELCOME TO AUTOGETOPT RELEASE 1.00.
+X
+XThis is the first general posting of autogetopt. 
+X
+XPlease report bugs, enhancement, suggestions and comments to the
+Xauthor (address below).
+X
+XAutogetopt is documented in the accompanying manual page in file
+X`autogetopt.3'.  The header file `autogetopt.h' also contains many
+Xcomments. 
+X
+X
+XINSTALLATION
+X
+XTo use autogetopt, put autogetopt.h where your program can #include
+Xit, and alter your Makefile to compile autogetopt.c and link with
+Xautogetopt.o.  You'll need to read the man pages for getopt(3) and
+Xautogetopt(3).
+X
+XAutogetopt uses the ANSI standard function strtoul(3).  
+XIf your C library does not have it, you can use the BSD version
+Xdistributed with autogetopt.  (I've also included the man page.)
+X
+XYou might find your C library does not have getopt(3) (eg older BSD
+Xsystems); there are several freely available versions (eg from GNU,
+XX11 release 4).
+X
+X
+XAVAILABILITY
+X
+XThe latest version of autogetopt is available by Internet FTP and Janet NIFTP:
+X
+XFTP
+X  Host:       ftp.cl.cam.ac.uk (128.232.0.56 and 128.16.4.56)
+X  Directory:  niftp
+X  File:       tdw_misc.tar.Z
+X  Name:       anonymous or ftp
+X  Password:   your email address
+X
+XNIFTP
+X  Host:       uk.ac.cam.cl.swan
+X  No directory
+X  File:       tdw_misc.tar.Z
+X  Username:   guest
+X  Password:   your email address
+X
+XThis file may also contain other programs, since local system
+Xadministration policy permits me only one file for making
+Xmiscellaneous programs available by FTP.  Sorry.
+X
+X
+XCOPYRIGHT
+X
+XAutogetopt is copyright (C) 1992 T D Wilson.  All rights reserved.
+XPermission to copy without fee all or part of this material is granted
+Xprovided that the copies are not made or distributed for direct
+Xcommercial advantage, the copyright notice and the title and date
+Xappear, and notice is given that copying is by permission of the
+Xauthor.  To copy otherwise, or to republish, requires specific
+Xpermission.  
+X
+X
+XNO WARRANTY
+X
+XT D Wilson makes no representations about the suitability
+Xof this software for any purpose.  It is provided "as is" without
+Xexpress or implied warranty.
+X
+X
+XAUTHOR
+X
+XInternet email address:
+X    tdw@cl.cam.ac.uk
+X
+XPostal address:
+X    Tim Wilson
+X    University of Cambridge Computer Laboratory
+X    New Museums Site
+X    Pembroke Street
+X    Cambridge CB2 3QG
+X    England
+END_OF_FILE
+if test 2324 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'autogetopt.3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'autogetopt.3'\"
+else
+echo shar: Extracting \"'autogetopt.3'\" \(8956 characters\)
+sed "s/^X//" >'autogetopt.3' <<'END_OF_FILE'
+X.\" autogetopt.3 -- A simple option parser based on getopt(3)
+X.\"
+X.\" Last edited: Thu Mar 26 17:10:07 1992 by Tim Wilson
+X.\"
+X.\" Modification summary:
+X.\"  26 Mar 92	Tim Wilson	Created, based on comments in source files
+X.\"
+X.\" There is an RCS ident at the end of this man page.
+X.\"
+X.TH autogetopt 3 "Release 1.00" "Tim Wilson's subroutines"
+X.SH NAME
+Xautogetopt \- A simple option parser based on getopt(3).
+X.SH SYNTAX
+X.B
+X#include "autogetopt.h"
+X.PP
+X.B
+Xvoid autogetopt (argc, argv, progname, opts)
+X.br
+X.B
+Xint argc;
+X.br
+X.B
+Xchar *argv[];
+X.br
+X.B
+Xconst char *progname;
+X.br
+X.B
+Xconst struct autogetopt *opts;
+X.PP
+X.B
+Xvoid autogetopt_usage (progname, opts)
+X.br
+X.B
+Xconst char *progname;
+X.br
+X.B
+Xconst struct autogetopt *opts;
+X.SH DESCRIPTION
+XThe
+X.B autogetopt
+Xsubroutine is a wrapper for
+X.BR getopt (3).
+XThe main purpose of
+X.B autogetopt
+Xis to make
+X.B getopt
+Xeasier to use, not to add features.
+XA problem with
+X.B getopt
+Xis that
+Xthe options letters generally appear in 
+X.I four
+Xplaces:
+X.IP \(bu
+Xthe argument to
+X.BR getopt ,
+X.IP \(bu
+Xthe case statement for processing the options,
+X.IP \(bu
+Xthe usage message, and
+X.IP \(bu
+Xthe help message.
+X.PP
+XIf a program has several options, it is easy for these
+Xfour to become inconsistent.  
+XWith
+X.BR autogetopt ,
+Xthe options letters are listed only once.
+X.B Autogetopt
+Xbuilds the options string for 
+X.B getopt
+Xand performs the other functions from one
+Xlist of option letters, thus eliminating the possibility of inconsistency.
+X.PP
+XThe arguments to 
+X.B autogetopt
+Xare:
+X.TP
+X.IR argc ", " argv
+XThe argument vector, as received by
+X.B main
+X(see 
+X.BR execve (2)).
+X.TP
+X.I progname
+XThe name of the program, for use in error messages.
+XIf
+X.I progname
+Xis \s-2NULL\s+2, 
+X.I argv[0]
+Xis taken as the program name.
+X.TP
+X.I opts
+XThis structure (described below) contains
+Xthe options (to be parsed using
+X.BR getopt (3))
+Xand other information.
+X.PP
+XIf
+X.B autogetopt
+Xdetects a usage error (for example, an unrecognised option letter),
+Xit prints a usage message and calls
+X.BR exit (3)
+Xpassing an exit code of 2.
+X.PP
+XIf the only argument in
+X.I argv
+Xis 
+X.RB ` \-? "', " autogetopt
+Xprints a help message and calls
+X.BR exit (3)
+Xpassing an exit code of 2.
+X.PP
+X.B Autogetopt_usage
+Xsimply prints a usage message appropriate to the options described
+Xin
+X.IR opts .
+X.PP
+XThe options are described by an array of the following structures
+X(the fields are described in more detail below):
+X.PP
+X.RS
+X.PD 0
+Xstruct autogetopt_option
+X.PP
+X{
+X.TP 25
+X  char letter;
+X/* NUL marks end of list */
+X.TP
+X  char *name;
+X/* Name of argument, or NULL */
+X.TP
+X  char *variablep;
+X/* Pointer to value */
+X.TP
+X  unsigned flags;
+X/* OR together flags below */
+X.TP
+X  int (*converter) ();
+X/* Function to receive argument */
+X.TP
+X  char *description;
+X/* Description (for help msg) */
+X.PP
+X};
+X.RE
+X.PD
+X.TP
+X.B letter
+XThe character identifying the option.
+X.B Getopt
+Xdoes not permit the colon (:), question mark (?),
+Xor \s-2NUL\s+2 (\e0) to be used as an option letter.
+XThe character \s-2NUL\s+2 marks the end of the array of
+Xoptions.
+X.TP
+X.B name
+XIf and only if the option takes an argument, 
+Xthis is the name of the argument, usually one word.
+XIt will be printed in usage and help messages.
+XIf the option does not take an argument, this field is \s-2NULL\s+2.
+X.TP
+X.B variablep
+XThe standard argument converters (explained below)
+Xexpect this field to point to the variable to receive the value of
+Xthe option.  
+XTo supply a default value, initialize the variable.
+XA user-supplied converter may interpret
+X.B variablep
+Xin any way it likes.
+XFor example, it may point to a structure containing 
+Xa list of acceptable values, and space for the result.
+X.TP
+X.B flags
+XThis field gives additional information about the option.
+XIts value is formed by ORing together zero or more of the
+Xfollowing values:
+X.RS
+X.TP 22
+X\s-2AUTOGETOPT_MANDATORY\s+2
+XThe `option' must be supplied.
+X.TP
+X\s-2AUTOGETOPT_MULTI\s+2
+XThe option may occur multiple times; by default, options may only
+Xoccur once.
+X.RE
+X.TP
+X.B converter
+XThis function is called when 
+X.B autogetopt
+Xsees the option.
+X.B Autogetopt
+Xpasses the converter the following arguments:
+X.RS
+X.TP 22
+X.I char *arg
+XThe value of
+X.I optarg
+Xfrom
+X.BR getopt .
+X.TP
+X.I const struct autogetopt_option *p
+XA pointer to the option structure.
+XThe converter will usually want to refer to the
+X.B variablep
+Xfield.
+X.TP
+X.I const char *progname
+XThe name of the program, for use in error messages.
+XThis comes from the
+X.I progname
+Xargument to
+X.BR autogetopt .
+X.RE
+X.PP
+XThere are some standard converters supplied for convenience,
+Xdescribed below.
+X.TP
+X.B description
+XThis is the help text for this option.
+X.PP
+XFor example, the following option structures:
+X.PP
+X.RS
+Xstatic int debug = 0;
+X.br
+Xstatic char *output = "a.out";
+X.PP
+Xstatic struct autogetopt_option options[] = {
+X.br
+X\&...
+X.br
+X  { 'g', NULL, &debug, 0, autogetopt_count, "Compile for debugging" },
+X.br
+X  { 'o', "object-file", &output, 0, autogetopt_string,
+X.br
+X         "Final result of compilation (default a.out)" },
+X.br
+X\&...
+X.br
+X  { 0, } / * End of list * /
+X.br
+X};
+X.RE
+X.PP
+Xdescribe
+X.IP \(bu
+Xa
+X.RB ` \-g '
+Xflag that may occur at most once; if it is seen the variable
+X.B debug
+Xwill have the value 1.
+X.IP \(bu
+XA
+X.RB ` \-o '
+Xoption that takes an argument and may occur at most once;
+Xif it is seen the variable
+X.B output
+Xwill be set to point to the argument.
+X.PP
+XThe
+X.I opts
+Xargument of
+X.B autogetopt
+Xis a pointer to the following structure:
+X.PP
+X.RS
+X.PD 0
+Xstruct autogetopt
+X.br
+X{
+X.TP 25
+X  struct autogetopt_option *options;
+X/* Options; see above */
+X.TP
+X  const char *tail;
+X/* Non-option args, eg "files..." */
+X.TP
+X  const char *help;
+X/* Long form help message */
+X.PP
+X};
+X.PD
+X.RE
+X.TP
+X.B options
+XThe list of option structures, as described above.
+X.TP
+X.B tail
+XThis string is printed at the end usage messages to describe remaining
+Xarguments.   
+X.B tail
+Xshould not end with a newline.
+X.B tail
+Xmay be \s-2NULL\s+2.
+X.TP
+X.B help
+XIf non-\s-2NULL\s+2, this string is printed at the end of the help
+Xmessage.  If present, it should end with a newline.
+X.PP
+XFor example, the following values:
+X.PP
+X.RS
+Xstatic struct autogetopt usage = {
+X.br
+X  options,			/ * See previous example * /
+X.br
+X  "recipe_files...",
+X.br
+X  "This is the Hackercorp Cookie Compiler, version 42.\en\e
+X.br
+XSee user manual for recipe syntax.\en"
+X.br
+X} ;
+X.RE
+X.PP
+Xwould result in a help message like:
+X.PP
+X.RS
+Xusage: hcc [-g] [-o object-file] recipe_files...
+X.br
+X -g              Compile for debugging
+X.br
+X -o object-file  Final result of compilation (default a.out)
+X.br
+XThis is the Hackercorp Cookie Compiler, version 42.
+X.br
+XSee user manual for recipe syntax.
+X.RE
+X.SH "STANDARD CONVERTERS"
+XThe following standard converters are provided:
+X.TP
+X.B autogetopt\_int
+X.PD 0
+X.TP
+X.B autogetopt_unsigned
+X.TP
+X.B autogetopt_long
+X.TP
+X.B autogetopt_ulong
+X.PD
+XThese four converters use
+X.BR strtol (3)
+Xor
+X.BR strtoul (3)
+X(for the unsigned converters).  They ignore overflow.
+XThe
+X.B variablep
+Xfield in the option structure should point to a variable of the
+Xappropriate type.
+X.TP
+X.B autogetopt_count
+XThe variable pointed to by
+X.B variablep
+Xis incremented by one.
+XThe variable should be of type
+X.BR int ,
+XThis converter is often used for switch type options that
+Xdo not take an argument.
+X.TP
+X.B autogetopt_string
+XThis converter sets the variable to point to the argument string
+Xin
+X.IR argv .
+X.SH DIAGNOSTICS
+X.TP
+X.B
+XThe `\-\fIx\fP' option must occur exactly once.
+XA mandatory (but not multiple) option was seen more than once.
+X.TP
+X.B
+XThe `\-\fIx\fP' option must occur at most once.
+XAn option without the multiple flag was seen more than once.
+X.TP
+X.B
+XThe `\-\fIx\fP' option is required.
+XA mandatory option was omitted.
+X.TP
+X.B
+XThe `\-\fIx\fP' option requires a number in C syntax.
+X.PD 0
+X.TP
+X.B
+XThe `\-\fIx\fP' option requires an unsigned number in C syntax.
+X.PD
+XMessages printed by the standard numerical convertors 
+Xif their argument is not a number in the right format
+X(see
+X.BR strtol (3)).
+X.SH BUGS
+XThe
+X.RB ` \-? '
+Xnotation for requesting help is susceptible to globbing,
+Xbut the safe
+X.RB ` \-\e? '
+Xis fiddly.
+X.PP
+XAt most 100 option letters are used; any excess are quietly ignored.
+XThis may be construed as a style guideline: if your command has more
+Xthen 100 different single-letter options, a different user interface
+Xis probably advisable.
+X.SH SEE ALSO
+Xgetopt(3),
+Xstrtol(3)
+X.SH AUTHOR
+XTim Wilson, University of Cambridge Computer Laboratory, UK.
+XInternet:
+X.IR tdw@cl.cam.ac.uk .
+X.PP
+X.SH COPYRIGHT
+XCopyright (C) 1992 T D Wilson.  All rights reserved.
+XPermission to copy without fee all or part of this material is granted
+Xprovided that the copies are not made or distributed for direct
+Xcommercial advantage, the copyright notice and the title and date
+Xappear, and notice is given that copying is by permission of the
+Xauthor.  To copy otherwise, or to republish, requires specific
+Xpermission.  
+XT\ D\ Wilson makes no representations about the suitability
+Xof this software for any purpose.  It is provided ``as is'' without
+Xexpress or implied warranty.
+X.PP
+X$Id: autogetopt.3,v 0.0 1992/03/26 16:44:26 tdw Exp $
+END_OF_FILE
+if test 8956 -ne `wc -c <'autogetopt.3'`; then
+    echo shar: \"'autogetopt.3'\" unpacked with wrong size!
+fi
+# end of 'autogetopt.3'
+fi
+if test -f 'autogetopt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'autogetopt.c'\"
+else
+echo shar: Extracting \"'autogetopt.c'\" \(13478 characters\)
+sed "s/^X//" >'autogetopt.c' <<'END_OF_FILE'
+X/*
+X * autogetopt.c	-- Wrapper to make using getopt less verbose
+X *
+X * $Id: autogetopt.c,v 0.4 1991/09/26 19:50:21 tdw Exp $
+X *
+X * Last edited: Thu Sep 26 20:48:51 1991 by Tim Wilson (tdw@cl.cam.ac.uk)
+X *
+X * Modification summary:
+X *   5 Sep 1991	tdw	New structure, now including tail & general help
+X *   4 Apr 1991	tdw	Created
+X *
+X * Note:
+X *
+X * Some versions of Ultrix and SunOS don't have strtoul in libc.
+X * See strtoul.c in this directory.
+X *
+X * To do:
+X *
+X *   Allow multiple instances of the same option letter in the
+X *   option specification: autogetopt would call them in turn
+X *   until one accepted the option.
+X *
+X * Bugs:
+X *
+X *   No overflow detection on some provided convertors.
+X *   Hardcoded values of MAX_INT etc (since Wanda doesn't provide them).
+X *   Make error messages distinguish whether long or int expected (etc)
+X */
+X
+X#include <assert.h>
+X#include <stdio.h>
+X#include <string.h>
+X#include "autogetopt.h"
+X
+X#ifdef __STDC__
+X#include <stdlib.h>
+X#ifdef sun				/* Sun's stdlib omits strtol (sigh) */
+Xextern long strtol (const char *s, char **eptr, int base);
+X#endif
+X#else
+Xextern void exit ();
+Xextern long strtol ();
+Xextern unsigned long strtoul ();
+X#endif
+X
+X/* Prototypes for local functions */
+X
+X#if defined(__STDC__) || defined(__cplusplus)
+X# define __(s) s
+X#else
+X# define __(s) ()
+X#endif
+X
+Xstatic void describe __((const struct autogetopt_option options[]));
+Xstatic void usage __((const char *progname, const struct autogetopt *opts));
+Xstatic void verbose_usage __((const char *progname,
+X			      const struct autogetopt *opts));
+Xstatic int get_ulong __((char *arg, const struct autogetopt_option *option,
+X			 unsigned long *dest, const char *progname));
+Xstatic int get_long __((char *arg, const struct autogetopt_option *option,
+X			long *dest, const char *progname));
+X
+X#undef __
+X
+X
+X/*
+X *----------------------------------------------------------------------
+X *
+X * describe -- Verbose options listing
+X *
+X *   options:	the autogetopt options list
+X *
+X * Returns -- void
+X *
+X * Side effects -- output on stderr.
+X *
+X * Dumps contents of options list in user-friendly format, one option
+X * per line.
+X *  
+X *----------------------------------------------------------------------
+X */
+X
+Xstatic void
+Xdescribe (options)
+X     const struct autogetopt_option options[];
+X{
+X  const struct autogetopt_option *a;
+X  int seen_mand = 0;
+X  int seen_multi = 0;
+X  int max_name_width = 0;
+X
+X  for (a = options; a->letter; a++)
+X    if (a->name)
+X      if (strlen (a->name) > max_name_width)
+X	max_name_width = strlen (a->name);
+X  
+X  for (a = options; a->letter; a++)
+X    (void) fprintf (stderr, "  -%c %-*s  %c%c  %s\n",
+X		    a->letter,
+X		    max_name_width,
+X		    a->name ? a->name : "",
+X		    (a->flags & AUTOGETOPT_MANDATORY
+X		     ? (seen_mand = 1, '+') : ' '),
+X		    (a->flags & AUTOGETOPT_MULTI
+X		     ? (seen_multi = 1, '*') : ' '),
+X		    a->description);
+X  if (seen_mand)
+X    (void) fputs ("[+] This option is required.\n", stderr);
+X  if (seen_multi)
+X    (void) fputs ("[*] This option may occur more than once.\n", stderr);
+X  
+X  return;
+X}
+X
+X
+X/*
+X *----------------------------------------------------------------------
+X *
+X * usage -- Print summary of options
+X *
+X *   progname:	program name for usage message.
+X *   opts:	the autogetopt structure
+X *
+X * Returns -- void
+X *
+X * Side effects -- output on stderr.
+X *
+X * Prints message like `usage: prog [-a apple] [-b] files...'
+X * by scanning autogetopt structure.
+X *  
+X *----------------------------------------------------------------------
+X */
+X
+Xstatic void
+Xusage (progname, opts)
+X     const char *progname;
+X     const struct autogetopt *opts;
+X{
+X  const struct autogetopt_option *a;
+X  (void) fprintf (stderr, "usage: %s", progname);
+X  for (a = opts->options; a->letter; a++)
+X    {
+X      int optional = ! (a->flags & AUTOGETOPT_MANDATORY);
+X      (void) fputc (' ', stderr);
+X      if (optional)
+X	(void) fputc ('[', stderr);
+X      (void) fprintf (stderr, "-%c", a->letter);
+X      if (a->name)
+X	(void) fprintf (stderr, " %s", a->name);
+X      if (optional)
+X	(void) fputc (']', stderr);
+X    }
+X  if (opts->tail)
+X    (void) fprintf (stderr, " %s", opts->tail);
+X  (void) fputc ('\n', stderr);
+X
+X  return;
+X}
+X
+X
+X/*
+X *----------------------------------------------------------------------
+X *
+X * autogetopt_usage -- Display helpful message 
+X *
+X *   progname:	program name for usage message.
+X *   opts:	the autogetopt structure
+X *
+X * Returns -- void
+X *
+X * Side effects -- output on stderr
+X *  
+X *----------------------------------------------------------------------
+X */
+X  
+Xvoid
+Xautogetopt_usage (progname, opts)
+X     const char *progname;
+X     const struct autogetopt *opts;
+X{
+X  usage (progname, opts);
+X  (void) fprintf (stderr, "%s: Try `%s -\\?' for help.\n", progname, progname);
+X  return;
+X}
+X
+X/*
+X *----------------------------------------------------------------------
+X *
+X * verbose_usage -- Give all the help we can
+X *
+X *   progname:	program name for usage message
+X *   opts:	the autogetopt structure
+X *
+X * Returns -- void
+X *
+X * Side effects -- output on stderr
+X *
+X *----------------------------------------------------------------------
+X */
+X
+Xstatic void
+Xverbose_usage (progname, opts)
+X     const char *progname;
+X     const struct autogetopt *opts;
+X{
+X  usage (progname, opts);
+X  describe (opts->options);
+X  if (opts->help)
+X    (void) fputs (opts->help, stderr);
+X}
+X  
+X
+X/*
+X *----------------------------------------------------------------------
+X *
+X * autogetopt -- Parse options using getopt
+X *
+X *   argc:	) See execve(2)
+X *   argv:	}
+X *   progname:	Program name or NULL
+X *   opts:	Table of options (see autogetopt.h) and help text
+X *
+X * Returns -- void
+X *
+X * Side effects --
+X *   Parses argv using getopt; see getopt(3).
+X *   If unrecognised options are present, or the help option is present,
+X *   prints help on stderr and exit(3)s.
+X *  
+X *----------------------------------------------------------------------
+X */
+X  
+Xvoid 
+Xautogetopt (argc, argv, progname, opts)
+X     int argc;
+X     char *argv[];
+X     const char *progname;
+X     const struct autogetopt *opts;
+X{
+X  /* Max number of options each with `:' for arg, plus `?', plus NULL */
+X  char optstring[AUTOGETOPT_MAX_OPTIONS * 2 + 1 + 1];
+X  int seen_opt[AUTOGETOPT_MAX_OPTIONS + 1];
+X  int i, c, *count, error = 0;
+X  char *s;
+X  const struct autogetopt_option *a;
+X
+X  extern int getopt ();
+X  extern char *optarg;
+X  /* extern int optind, opterr; */
+X
+X  /*
+X   * If progname not given, supply default.
+X   */
+X
+X  if (! progname)
+X    progname = argv[0];
+X
+X  /*
+X   * If there is one argument, "-?", print long form usage and exit.
+X   */
+X
+X  if (argc == 2 && strcmp (argv[1], "-?") == 0)
+X    {
+X      verbose_usage (progname, opts);
+X      exit (AUTOGETOPT_USAGE_EXIT_STATUS);
+X      /* NOTREACHED */
+X    }
+X
+X  /*
+X   * Compose option string.
+X   * Always include `?'
+X   */
+X
+X  for (a = opts->options, s = optstring, i = 0;
+X       i < AUTOGETOPT_MAX_OPTIONS && a->letter;
+X       a++, i++)
+X    {
+X      *s++ = a->letter;
+X      if (a->name)			/* Name of option implies option */
+X	*s++ = ':';
+X      seen_opt[i] = 0;
+X    }
+X  *s++ = '?';
+X  *s++ = '\0';				/* Terminate option string */
+X
+X  /* Scan options */
+X
+X  while ((c = getopt (argc, argv, optstring)) != EOF)
+X    {
+X      if (c == '?')
+X	error = 1;
+X      else
+X	{
+X	  for (a = opts->options, count = seen_opt; a->letter; a++, count++)
+X	    if (c == a->letter)
+X	      {
+X		if (*count		/* Seen this already? */
+X		    && ((a->flags & AUTOGETOPT_MULTI) != AUTOGETOPT_MULTI))
+X		  {			/* Not allowed more than once  */
+X		    error = 1;
+X		    if (a->flags & AUTOGETOPT_MANDATORY)
+X		      (void) fprintf (stderr,
+X"%s: The `-%c' option must occur exactly once.\n",
+X			       progname, a->letter);
+X		    else
+X		      (void) fprintf (stderr,
+X"%s: The `-%c' option must occur at most once.\n",
+X			       progname, a->letter);
+X		  }
+X		if (! (*a->converter) (optarg, a, progname))
+X		  error = 1;
+X		else
+X		  (*count)++;		/* Seen this option */
+X		break;
+X	      }
+X	  assert (a->letter);
+X	}
+X    }
+X
+X  /* Check mandatory options were given */
+X      
+X  for (a = opts->options, count = seen_opt; a->letter; a++, count++)
+X    {
+X      if (*count == 0 && (a->flags & AUTOGETOPT_MANDATORY))
+X	{
+X	  (void) fprintf (stderr, "%s: The `-%c' option is required.\n",
+X			  progname, a->letter);
+X	  error = 1;
+X	}
+X    }
+X
+X  if (error)
+X    {
+X      autogetopt_usage (progname, opts);
+X      exit (AUTOGETOPT_USAGE_EXIT_STATUS);
+X    }
+X
+X  return;
+X}
+X
+X
+X
+X/************************************************************************\
+X*									 *
+X* Standard argyment parsers						 *
+X*									 *
+X\************************************************************************/
+X
+X/*
+X * Subroutines of the converters
+X */
+X
+X#if 0
+X#define INT_MAX		0x7fffffff
+X#define INT_MIN		0x80000000
+X#define LONG_MAX	INT_MAX
+X#define LONG_MIN	INT_MIN
+X#define ULONG_MAX	0xffffffff
+X#endif
+X
+Xstatic int
+Xget_ulong (arg, option, dest, progname)
+X     char *arg;
+X     const struct autogetopt_option *option;
+X     unsigned long *dest;
+X     const char *progname;
+X{
+X  char *eptr;
+X  unsigned long value;
+X  int success;
+X
+X  value = strtoul (arg, &eptr, 0);
+X  if (*eptr)
+X    {
+X      (void) fprintf (stderr, "%s: \
+XThe `-%c' option requires an unsigned number in C syntax.\n",
+X		      progname, option->letter);
+X      success = 0;
+X    }
+X  else
+X    {
+X      *dest = value;
+X      success = 1;
+X    }
+X
+X  return success;
+X}
+X
+Xstatic int
+Xget_long (arg, option, dest, progname)
+X     char *arg;
+X     const struct autogetopt_option *option;
+X     long *dest;
+X     const char *progname;
+X{
+X  char *eptr;
+X  long value;
+X  int success;
+X
+X  value = strtol (arg, &eptr, 0);
+X  if (*eptr)
+X    {
+X      (void) fprintf (stderr, "%s: \
+XThe `-%c' option requires a number in C syntax.\n",
+X		      progname, option->letter);
+X      success = 0;
+X    }
+X  else
+X    {
+X      *dest = value;
+X      success = 1;
+X    }
+X
+X  return success;
+X}
+X
+X
+X/*
+X * Argument converters proper
+X */
+X
+Xint
+Xautogetopt_ulong (arg, a, progname)
+X     char *arg;
+X     const struct autogetopt_option *a;
+X     const char *progname;
+X{
+X  return get_ulong (arg, a, (unsigned long *) a->variable, progname);
+X}
+X
+X
+Xint
+Xautogetopt_long (arg, a, progname)
+X     char *arg;
+X     const struct autogetopt_option *a;
+X     const char *progname;
+X{
+X  return get_long (arg, a, (long *) a->variable, progname);
+X}
+X
+X
+Xint
+Xautogetopt_unsigned (arg, a, progname)
+X     char *arg;
+X     const struct autogetopt_option *a;
+X     const char *progname;
+X{
+X  unsigned long value;
+X  int success;
+X
+X  success = get_ulong (arg, a, &value, progname);
+X  if (success)
+X    *(unsigned *)a->variable = (unsigned) value; /* May be truncation */
+X
+X  return success;
+X}
+X      
+X
+Xint
+Xautogetopt_int(arg, a, progname)
+X     char *arg;
+X     const struct autogetopt_option *a;
+X     const char *progname;
+X{
+X  long value;
+X  int success;
+X
+X  success = get_long (arg, a, &value, progname);
+X  if (success)
+X    *(int *)a->variable = (int) value;	/* May be truncation */
+X
+X  return success;
+X}
+X
+X
+Xint
+Xautogetopt_count (arg, a, progname)
+X     char *arg;				/* ARGSUSED */
+X     const struct autogetopt_option *a;
+X     const char *progname;		/* ARGSUSED */
+X{
+X  ++*(int *)a->variable;
+X  return 1;
+X}
+X
+Xint
+Xautogetopt_string (arg, a, progname)
+X     char *arg;
+X     const struct autogetopt_option *a;
+X     const char *progname;		/* ARGSUSED */
+X{
+X  *(char **)a->variable = arg;
+X  return 1;
+X}
+X
+X#ifndef lint
+Xstatic char 
+X_rcsid[] = "$Header: /Nfs/oxley/pnd8/wanda.1.2/tdw/new/autogetopt/RCS/autogetopt.c,v 0.4 1991/09/26 19:50:21 tdw Exp $";
+X#endif
+X
+X
+X#ifdef TEST
+X/************************************************************************\
+X*									 *
+X* A simple test program							 *
+X*									 *
+X\************************************************************************/
+X
+Xstatic int flag = 0;
+Xstatic int last = 0;
+Xstatic long mand;
+Xstatic unsigned long mand_last;
+Xstatic char *str = "default";
+Xstatic int count = 0;
+X
+Xstatic struct autogetopt_option options[] = {
+X  { 'a', NULL, (char *) &flag, 0, autogetopt_count,
+X      "A simple flag" },
+X  { 'c', "last", (char *) &last, AUTOGETOPT_MULTI, autogetopt_int,
+X      "The last integer" },
+X  { '!', "mand", (char *) &mand, AUTOGETOPT_MANDATORY, autogetopt_long,
+X      "A mandatory long" },
+X  { 'Q', "mand_last", (char *) &mand_last,
+X      AUTOGETOPT_MULTI | AUTOGETOPT_MANDATORY, autogetopt_ulong,
+X      "A mandatory, multiple, long; only the last value retained" },
+X  { 's', "string", (char *) &str, 0, autogetopt_string,
+X      "A string-valued option (default \"default\")" },
+X  { '1', NULL, (char *) &count, AUTOGETOPT_MULTI, autogetopt_count,
+X      "Count the number of times flag is given" },
+X  { 0 }
+X};
+X
+Xstatic struct autogetopt opts = {
+X  options,
+X  "args...",
+X  "This is a test of autogetopt $Revision: 0.4 $\n\
+XThis is the second line of the help message.\n"
+X};
+X
+X
+Xint
+Xmain (argc, argv)
+X     int argc;
+X     char *argv[];
+X{
+X  int i;
+X  char *progname;
+X  extern int optind;			/* From getopt */
+X
+X  progname = strrchr(argv[0], '/');	/* Basename */
+X  if (progname) ++progname;		/* Skip `/' itself */
+X  else progname = argv[0];
+X
+X  autogetopt (argc, argv, progname, &opts);
+X
+X  printf ("flag = %d\n", flag);
+X  printf ("last = %d\n", last);
+X  printf ("mand = %ld\n", mand);
+X  printf ("mand_last = %lu\n", mand_last);
+X  printf ("str = `%s'\n", str);
+X  printf ("count = %d\n", count);
+X
+X  for (i = optind; i < argc; i++)
+X    puts (argv[i]);
+X
+X  return 0;
+X}
+X
+X#endif /* TEST */
+X
+X/*
+X * ``Keep code tidy''
+X * Local variables:
+X * comment-column: 40
+X * c-indent-level: 2
+X * c-continued-statement-offset: 2
+X * c-continued-brace-offset: 0
+X * c-brace-offset: 0
+X * c-brace-imaginary-offset: 0
+X * c-argdecl-indent: 5
+X * c-label-offset: -2
+X * End:
+X */
+X/* End of file autogetopt.c */
+END_OF_FILE
+if test 13478 -ne `wc -c <'autogetopt.c'`; then
+    echo shar: \"'autogetopt.c'\" unpacked with wrong size!
+fi
+# end of 'autogetopt.c'
+fi
+if test -f 'autogetopt.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'autogetopt.h'\"
+else
+echo shar: Extracting \"'autogetopt.h'\" \(7690 characters\)
+sed "s/^X//" >'autogetopt.h' <<'END_OF_FILE'
+X/*
+X * autogetopt.h	-- Wrapper to make using getopt less verbose
+X *
+X * $Id: autogetopt.h,v 0.5 1992/03/26 16:09:47 tdw Exp $
+X *
+X * Last edited: Thu Mar 26 17:09:36 1992 by Tim Wilson (tdw@cl.cam.ac.uk)
+X *
+X * Modification summary:
+X *   5 Sep 1991	tdw	New structure, now including tail & general help
+X *   4 Apr 1991	tdw	Created
+X *
+X * BUGS
+X *   No overflow detection on some provided convertors (since Wanda libraries 
+X *     don't support it)
+X *   Hardcoded values of MAX_INT etc (since Wanda include files don't provide
+X *     them)
+X *   `-?' notation (for requesting help) risks globbing, but `-\?' is fussy.
+X */
+X#ifndef _autogetopt_h_
+X#define _autogetopt_h_
+X
+X#ifndef __STDC__
+X#ifndef const
+X#define const /* as nothing */
+X#endif
+X#endif
+X
+X/*
+X * The following structure defines an option.
+X *
+X * The letter field identifies the option.  The restrictions mentioned
+X * in getopt(3) apply.  `?' may not be used -- autogetopt traps this
+X * and prints a usage message (and exits), like it does for
+X * unrecognized options.
+X *
+X * If (and only if) the option takes an argument, the name field must
+X * contain a short description of the argument.
+X *
+X * The variable field points to the variable to receive the value of
+X * the option.  At least, that's how the standard argument converters
+X * interpret this field, but since it is only interpreted by the
+X * converter function, a user-supplied converter may interpret this
+X * pointer in any way it likes.
+X *
+X * The converter field is a (pointer to a) function which will process
+X * the option (and argument), and update the variable associated with
+X * the option.  Some useful functions are defined below, or other
+X * client-defined functions may be used.
+X *
+X * The flags field allows some additional properties of the option to
+X * be specified by logically or-ing the constants given below.  Note
+X * that unless AUTOGETOPT_MULTI is specified, autogetopt will consider
+X * it an error if the option occurs more than once.
+X *
+X * Finally, the description field is used to contruct the long form
+X * usage message.
+X *
+X * The client may give a variable a default value by initializing it
+X * before calling autogetopt.
+X *
+X * Example:
+X *
+X * static int debug = 0;
+X * static char *output = "a.out";
+X * 
+X * static struct autogetopt_option options[] = {
+X * ...
+X *   { 'g', NULL, &debug, 0, autogetopt_count, "Compile for debugging" },
+X *   { 'o', "object-file", &output, 0, autogetopt_string,
+X *          "Final result of compilation (default a.out)" },
+X * ...
+X *   { 0, } / * End of list * /
+X * };
+X *
+X * If the user requested the long-form usage message (with -?), it
+X * would be something like this:
+X *
+X * usage: cc [-g] [-o object-file] ...
+X * ...
+X *  -g              Compile for debugging
+X *  -o object-file  Final result of compilation (default a.out)
+X * ...
+X */
+X 
+X
+Xstruct autogetopt_option
+X{
+X  char letter;				/* NUL marks end of list */
+X  char *name;				/* Name of argument, or NULL */
+X  char *variable;			/* Pointer to value */
+X  unsigned flags;			/* OR together flags below */
+X#ifdef __STDC__
+X  int (*converter) (char *arg, const struct autogetopt_option *p,
+X		    const char *progname); 
+X#else
+X  int (*converter) ();
+X#endif
+X  char *description;			/* Description (for help msg) */
+X};
+X
+X
+X/* Values for flag field */
+X
+X#define AUTOGETOPT_MANDATORY	0x01	/* `Option' must be supplied */
+X#define AUTOGETOPT_MULTI	0x02	/* Multiple instances allowed */
+X
+X
+X/*
+X * The following structure adds help text.
+X *
+X * The options field is a pointer to the options list (see above).
+X *
+X * The string pointed to by the tail field is printed after the
+X * options in usage messages.  It should contain the names of non-option
+X * arguments.  The tail field may be NULL.
+X *
+X * The help field is printed at the end of the long form usage message.
+X * The help field may be NULL.
+X *
+X * Example:
+X *
+X * static struct autogetopt usage = {
+X *   options,					/ * See previous example * /
+X *   "recipe_files...",
+X *   "This is the Hackercorp Cookie Compiler, version 42.\n\
+X * See man page for valid recipes.\n"
+X * };
+X *
+X * With this structure, the long-form usage message would look
+X * something like this:
+X *
+X * usage: cc [-g] [-o object-file] recipe_files...
+X *  -g              Compile for debugging
+X *  -o object-file  Final result of compilation (default a.out)
+X * This is the Hackercorp Cookie Compiler, version 42.
+X * See man page for valid recipes.
+X */
+X
+Xstruct autogetopt
+X{
+X  struct autogetopt_option *options;	/* Options; see above */
+X  const char *tail;			/* Non-option args, eg "files..." */
+X  const char *help;			/* Long form help message */
+X};
+X
+X
+X/* Some useful values for converter field.
+X   Any suitable functions may be used.
+X   Arg is the argument as returned by getopt.
+X   P indicates the option to be parsed. 
+X   If the converter returns 0, autogetopt exit()s.
+X
+X   The first argument is not const so that the "variable" field in
+X   the autogetopt structure doesn't have to be const -- so that the
+X   caller can alter the parsed elements of argv if desired. */
+X
+X#ifdef __STDC__
+X
+Xint
+X
+X  /* These four converters use strto{u,}l with base 0, but ignore overflow. */
+X
+X  autogetopt_int	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname),
+X  autogetopt_unsigned	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname),
+X  autogetopt_long	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname),
+X  autogetopt_ulong	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname),
+X
+X  /* Variable (of type int) is incremented each time option is seen.
+X     This is often used with options which do not take an argument.
+X     Any argument is silently ignored.  */
+X
+X  autogetopt_count	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname),
+X
+X  /* Variable (of type char *) points to argv string (not copy) */
+X
+X  autogetopt_string	(char *arg, const struct autogetopt_option *p,
+X			 const char *progname);
+X
+X
+X/*
+X * Parse arguments using getopt.
+X *
+X * argc and argv are passed on to getopt.
+X * progname is used in error messages.  If NULL, argv[0] is used.
+X * options specifies acceptable options.
+X * If non-NULL, tail is printed in usage message after options (eg "files...").
+X * Prints message and exit()s (with status
+X * AUTOGETOPT_USAGE_EXIT_STATUS) if it detects a usage error.
+X */
+X
+Xextern void
+Xautogetopt (int argc, char *argv[], const char *progname,
+X	    const struct autogetopt *opts);
+X
+X
+X/*
+X * Write usage message to stderr.  This is automatically invoked if
+X * autogetopt detects a usage error, but is also available for
+X * use during client checking (eg two incompatible options).
+X */
+X
+Xextern void
+Xautogetopt_usage (const char *progname, const struct autogetopt *opts);
+X
+X#else /* traditional */
+X
+Xextern int
+X  autogetopt_int (),
+X  autogetopt_unsigned (),
+X  autogetopt_long (),
+X  autogetopt_ulong (),
+X  autogetopt_count (),
+X  autogetopt_string ();
+Xextern void
+X  autogetopt (),
+X  autogetopt_usage ();
+X
+X#endif /* ! __STDC__ */
+X
+X/*
+X * This is the argument supplied to exit(3), which autogetopt calls
+X * when it detects a usage error.
+X */
+X
+X#define AUTOGETOPT_USAGE_EXIT_STATUS 2
+X
+X
+X/*
+X * An arbitrary limit on the number of options (due to lazy coding!)
+X * If you want to think positively, regard it as a mandatory style
+X * guideline: if your command has more than one hundred options, you
+X * should consider an alternative user interface.
+X */
+X
+X#define AUTOGETOPT_MAX_OPTIONS	100
+X
+X#endif /* _autogetopt_h_ */
+X/*
+X * ``Keep code tidy''
+X * Local variables:
+X * comment-column: 40
+X * c-indent-level: 2
+X * c-continued-statement-offset: 2
+X * c-continued-brace-offset: 0
+X * c-brace-offset: 0
+X * c-brace-imaginary-offset: 0
+X * c-argdecl-indent: 5
+X * c-label-offset: -2
+X * End:
+X */
+X/* End of file autogetopt.h */
+END_OF_FILE
+if test 7690 -ne `wc -c <'autogetopt.h'`; then
+    echo shar: \"'autogetopt.h'\" unpacked with wrong size!
+fi
+# end of 'autogetopt.h'
+fi
+if test -f 'patchlevel.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patchlevel.h'\"
+else
+echo shar: Extracting \"'patchlevel.h'\" \(83 characters\)
+sed "s/^X//" >'patchlevel.h' <<'END_OF_FILE'
+X/* 
+X * Define patch level for autogetopt.  See patch(1).
+X */
+X
+X#define PATCHLEVEL 0
+END_OF_FILE
+if test 83 -ne `wc -c <'patchlevel.h'`; then
+    echo shar: \"'patchlevel.h'\" unpacked with wrong size!
+fi
+# end of 'patchlevel.h'
+fi
+if test -f 'strtoul.3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'strtoul.3'\"
+else
+echo shar: Extracting \"'strtoul.3'\" \(3163 characters\)
+sed "s/^X//" >'strtoul.3' <<'END_OF_FILE'
+X.\" Copyright (c) 1990 The Regents of the University of California.
+X.\" All rights reserved.
+X.\"
+X.\" This code is derived from software contributed to Berkeley by
+X.\" Chris Torek.
+X.\"
+X.\" Redistribution and use in source and binary forms are permitted
+X.\" provided that: (1) source distributions retain this entire copyright
+X.\" notice and comment, and (2) distributions including binaries display
+X.\" the following acknowledgement:  ``This product includes software
+X.\" developed by the University of California, Berkeley and its contributors''
+X.\" in the documentation or other materials provided with the distribution
+X.\" and in all advertising materials mentioning features or use of this
+X.\" software. Neither the name of the University nor the names of its
+X.\" contributors may be used to endorse or promote products derived
+X.\" from this software without specific prior written permission.
+X.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X.\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X.\"
+X.\"	@(#)strtoul.3	5.1 (Berkeley) 5/15/90
+X.\"
+X.TH STRTOUL 3 "May 15, 1990"
+X.UC 7
+X.SH NAME
+Xstrtoul \- convert a string to an unsigned long integer
+X.SH SYNOPSIS
+X.B #include <stdlib.h>
+X.br
+X.B #include <limits.h>
+X.PP
+X.B "unsigned long strtoul(char *nptr, char **endptr, int base);
+X.SH DESCRIPTION
+X.B Strtoul
+Xconverts the string in
+X.I nptr
+Xto an
+X.B "unsigned long"
+Xvalue according to the given
+X.IR base ,
+Xwhich must be between 2 and 36 inclusive,
+Xor be the special value 0.
+X.PP
+XThe string may begin with an arbitrary amount of white space
+X(as determined by
+X.BR isspace ;
+Xsee
+X.IR ctype (3)),
+Xfollowed by a single optional `+' or `-' sign.
+XIf
+X.I base
+Xis zero or 16,
+Xthe string may then include a `0x' prefix,
+Xand the number will be read in base 16; otherwise, a zero
+X.I base
+Xis taken as 10 (decimal) unless the next character is `0',
+Xin which case it is taken as 8 (octal).
+X.PP
+XThe remainder of the string is converted to an
+X.B "unsigned long"
+Xvalue in the obvious manner,
+Xstopping at the end of the string
+Xor at the first character that does not produce a valid digit
+Xin the given base.
+X(In bases above 10, the letter `A' in either upper or lower case
+Xrepresents 10, `B' represents 11, and so forth, with `Z' representing 35.)
+X.PP
+XIf
+X.I endptr
+Xis non nil,
+X.B strtoul
+Xstores the address of the first invalid character in
+X.IR *endptr .
+XIf there were no digits at all, however,
+X.B strtoul
+Xstores the original value of
+X.I nptr
+Xin
+X.IR *endptr .
+X(Thus, if
+X.I *nptr
+Xis not '\e0' but
+X.IR **endptr
+Xis '\e0' on return, the entire string was valid.)
+X.SH RETURN VALUE
+X.B Strtoul
+Xreturns either the result of the conversion
+Xor, if there was a leading minus sign,
+Xthe negation of the result of the conversion,
+Xunless the original (non-negated) value would overflow;
+Xin the latter case,
+X.B strtoul
+Xreturns
+X.B ULONG_MAX
+Xand sets
+X.B errno
+Xto
+X.BR ERANGE .
+X.SH ERRORS
+X.TP
+X[ERANGE]
+XThe given string was out of range; the value converted has been clamped.
+X.SH SEE ALSO
+Xstrtol(3)
+X.SH STANDARDS
+X.B Strtoul
+Xconforms to ANSI X3.159-1989 (``ANSI C'').
+X.SH BUGS
+XIgnores the current locale.
+END_OF_FILE
+if test 3163 -ne `wc -c <'strtoul.3'`; then
+    echo shar: \"'strtoul.3'\" unpacked with wrong size!
+fi
+# end of 'strtoul.3'
+fi
+if test -f 'strtoul.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'strtoul.c'\"
+else
+echo shar: Extracting \"'strtoul.c'\" \(2533 characters\)
+sed "s/^X//" >'strtoul.c' <<'END_OF_FILE'
+X/*
+X * Copyright (c) 1990 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that: (1) source distributions retain this entire copyright
+X * notice and comment, and (2) distributions including binaries display
+X * the following acknowledgement:  ``This product includes software
+X * developed by the University of California, Berkeley and its contributors''
+X * in the documentation or other materials provided with the distribution
+X * and in all advertising materials mentioning features or use of this
+X * software. Neither the name of the University nor the names of its
+X * contributors may be used to endorse or promote products derived
+X * from this software without specific prior written permission.
+X * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X */
+X
+X#if defined(LIBC_SCCS) && !defined(lint)
+Xstatic char sccsid[] = "@(#)strtoul.c	5.2 (Berkeley) 5/17/90";
+X#endif /* LIBC_SCCS and not lint */
+X
+X#include <limits.h>
+X#include <ctype.h>
+X#include <errno.h>
+X#include <stdlib.h>
+X
+X/*
+X * Convert a string to an unsigned long integer.
+X *
+X * Ignores `locale' stuff.  Assumes that the upper and lower case
+X * alphabets and digits are each contiguous.
+X */
+Xunsigned long
+Xstrtoul(nptr, endptr, base)
+X	char *nptr, **endptr;
+X	register int base;
+X{
+X	register char *s = nptr;
+X	register unsigned long acc;
+X	register int c;
+X	register unsigned long cutoff;
+X	register int neg = 0, any, cutlim;
+X
+X	/*
+X	 * See strtol for comments as to the logic used.
+X	 */
+X	do {
+X		c = *s++;
+X	} while (isspace(c));
+X	if (c == '-') {
+X		neg = 1;
+X		c = *s++;
+X	} else if (c == '+')
+X		c = *s++;
+X	if ((base == 0 || base == 16) &&
+X	    c == '0' && (*s == 'x' || *s == 'X')) {
+X		c = s[1];
+X		s += 2;
+X		base = 16;
+X	}
+X	if (base == 0)
+X		base = c == '0' ? 8 : 10;
+X	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+X	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
+X	for (acc = 0, any = 0;; c = *s++) {
+X		if (isdigit(c))
+X			c -= '0';
+X		else if (isalpha(c))
+X			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+X		else
+X			break;
+X		if (c >= base)
+X			break;
+X		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
+X			any = -1;
+X		else {
+X			any = 1;
+X			acc *= base;
+X			acc += c;
+X		}
+X	}
+X	if (any < 0) {
+X		acc = ULONG_MAX;
+X		errno = ERANGE;
+X	} else if (neg)
+X		acc = -acc;
+X	if (endptr != 0)
+X		*endptr = any ? s - 1 : nptr;
+X	return (acc);
+X}
+END_OF_FILE
+if test 2533 -ne `wc -c <'strtoul.c'`; then
+    echo shar: \"'strtoul.c'\" unpacked with wrong size!
+fi
+# end of 'strtoul.c'
+fi
+echo shar: End of archive 1 \(of 1\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have the archive.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

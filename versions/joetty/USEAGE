@@ -1,0 +1,225 @@
+=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+INITAILIZING,
+EXITING,
+SHELL ESCAPE and
+REDRAWING the screen
+
+Use these include files:
+
+	#include "types.h"
+	#include "tty.h"
+	#include "scrn.h"
+
+To initialize JOETTY, do this:
+
+	SCRN *t;
+	if(!(t=topen(0))) exit(1);
+
+From then on, 't' refers to the open screen.
+
+To shutdown JOETTY and restore the TTY to it's original state, do this:
+
+	tclose(t);
+
+This will also set the global variable 'leave', which when set is internally
+used to prevent typeahead checking and the loss of typeahead which can
+result from it.  You should set 'leave' yourself the moment you know that
+the program is about to exit.  This way, if you call any other JOETTY
+functions, they also will not do typeahead checking.  
+
+To suspend the program (or call a shell if your UNIX can't do that), use this
+function:
+
+	if(!(t=tsusp(t))) exit(1);
+
+Tclose and tsusp do not automatically clear the screen or set the cursor
+position to a nice place for the shell to take over.  You should do these
+yourself before calling tsusp or tclose.
+
+Use this function to redraw the screen:
+
+	tredraw(t);
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+SIMPLE CHANGES TO THE SCREEN,
+SETTING THE DISPLAYED CURSOR POSITION,
+GETTING THE SCREEN SIZE,
+and READING FROM THE KEYBOARD
+
+Use these functions to make simple changes to the screen:
+
+	tputc(t,x,y,c);			Write c to the screen x & y position
+	tputs(t,x,y,"Hello");		Write a string to the screen
+	tprintf(t,x,y,"The number is %d",5);	Formatted output to the screen
+
+Never write past the right edge or bottem of the screen, no clipping or
+error check is done.  The dimensions of the screen can be gotten with: 
+
+	t->li		Number of lines on the screen
+	t->co		Number of columns on the screen
+
+The screen coordinate system is as follows:  The top left of the screen is
+x=0, y=0.  Increase x to move more to the right.  Increase y to move lower.
+
+The displayed cursor position is set independantly from writing to the
+screen.  To set it use:
+
+	tsetpos(t,x,y);
+
+you can also get the current displayed cursor position with:
+
+	int x,y;
+	tgetpos(t,&x,&y);
+
+Finally to refresh the screen and read from the keyboard, use this function:
+
+	c=tgetc(t);
+
+Key sequences defined in the termcap entry are translated into these single
+integer codes by 'tgetc':
+
+	KEYUP, KEYDOWN, KEYLEFT, KEYRIGHT,
+	KEYF0 - KEYF9,
+	KEYHOME, KEYEND, KEYINS, KEYDEL, KEYPGUP, KEYPGDN
+
+(See the scrn.h file for the correspondance between these and the termcap
+entry names)
+
+The TTY will be set-up to do no input translations other than these.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+SETTING THE ATTRIBUTES
+
+All functions which write to the screen use the currently set attribute
+bits.  The bits are:
+
+	INVERSE, UNDERLINE, BOLD, DIM and BLINK
+
+To read the current attribute bits use:
+
+	int attr=tgetattr(t);
+
+To set the current attribute bits use:
+
+	tsetattr(t,INVERSE|DIM);
+
+To get a list of the attributes available for this terminal use:
+
+	int available=tavattr(t);
+
+this will return the sum of the available attrbute bits.
+
+For any of the screen modification functions which take a single character
+as their argument, you may OR the attribute bits in with the character.
+For example:
+
+	tputc(t,x,y,c|INVERSE);
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+MORE ADVANCED SCREEN CHANGES
+
+To fill a rectangle on the screen use:
+
+	trect(t,x,y,width,height,c);
+
+where 'c' is the character which is used to fill the rectangle (the current
+attributes are ORed in with this character).
+
+To draw a box on the screen use:
+
+	tbox(t,x,y,width,height);
+
+This draws with the characters set in the global variables boxl, boxr,
+boxt, boxb, boxll, boxlr, boxul, and boxur.  Each of these chartacters may
+have attribute values ORed in with them.  All of the characters get the
+current attributes ORed in.
+
+To save a rectangular area from the screen use:
+
+	int *area=tsave(t,x,y,width,height);
+
+this allocates space using malloc for the buffer.
+
+To restore a rectangular area to the screen use:
+
+	trestore(t,x,y,width,height,area);
+
+trestore does not free the malloc block allocated with tsave.  Do this
+yourself with:
+
+	free(area);
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+SCROLLING
+
+Scroll a region on the screen upwards with:
+
+	tscrollup(t,top,bot,amount);
+
+Where top is the first line of the region, bot is 1 after the last line of
+the region and amount is the number of lines to scroll upwards.  The new
+lines will be filled with spaces with no attributes set. 
+
+Similarly to scroll down use:
+
+	tscrolldn(t,top,bot,amount);
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+DIRECTLY ACCESSING THE SCREEN BUFFER
+
+To access the screen buffer directly use this macro:
+
+	int c=TDIRECT(t,x,y);
+
+	to read from it or
+
+	TDIRECT(t,x,y)=c;
+
+	to write to it.
+
+To access a saved area (as returned by tsave) directly, use:
+
+	int c=area[x+y*width];
+
+	to read from it or
+
+	area[x+y*width]=('A'|INVERSE);
+
+	to write to it
+
+NOTE:  if you only need to make a few simple changes to the screen, it is
+better to use 'tputc', 'tputs' and 'tprintf'.  The output from these are
+buffered so that a brute force scan of the screen buffer is not always needed.
+
+NOTE:  after you make changes directly to the screen buffer, you must
+indicate that it has been changed.  Otherwise, the screen refresh will not
+occur (even if you call trefresh directly).  To do this use:
+
+	t->upd=1;
+
+NOTE:  before reading or writing to the screen buffer, you must first flush
+any buffered simple changes which were made by 'tputc', 'tputs' and
+'tprintf' to the screen buffer.  To do this use:
+
+	tdumpq(t);
+
+Finally, you should only directly access the screen buffer if you need to
+read it or if you need to make a lot of complex changes to it and if
+'tputc', 'tputs', 'tprintf', etc. are too slow.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+EXPLICIT REFRESH
+
+If for some reason you have to refresh the screen other than when 'tgetc'
+is called, you can call the refresh function directly with:
+
+	trefresh(t);
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Future extensions:
+
+	I will add insert and delete character in the next version
+
+	I may add a function to apply the Gosling algorithm to detect and
+execute optimal scrolling.
+
+	I may add support for multiple terminals.

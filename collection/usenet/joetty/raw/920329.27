@@ -1,0 +1,1412 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: SOX: part 1 of 4
+Message-ID: <atbjnpfthinman@netcom.com>
+Date: 27 Mar 92 05:26:25 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 1403
+
+
+
+
+		SOX: SOund eXchange
+		ST: Sound Tools
+
+
+
+SOX translates sound samples between different file formats,
+and performs various sound effects.
+
+This release understands "raw" files in various binary formats,
+Sound Blaster .VOC files, IRCAM SoundFile files, SUN Sparcstation 
+.au files, mutant DEC .au files, Amiga/SGI AIFF files, 
+Macintosh HCOM files, Sounder files, and Soundtool (DOS) files.
+
+The sound effects include changing the sample rate, adding echo 
+delay lines, applying low- and band-pass filtering, and the 
+infamous Fender Vibro effect.
+
+History:
+This is the fourth release of the Sound Tools.
+
+The first release was posted last summer as the "AUX" package.
+
+The second release, SoundKit, came out this past fall.  NeXT 
+objected to the name SoundKit and so it's now Sound Tools.
+
+The third release, Sound Tools, only went out in beta and
+Bill Neisius contributed several fixes and formats so I
+felt ST had graduated to another release.
+
+Installing:
+The Makefile needs one option set: -DSYSV if you're on a
+System V machine, or -DBSD if you're on a BSD-ish machine.
+
+After compiling, run 'tests'.  It should print nothing.  This
+indicates that the programs mostly work.  By reading the tests
+you may see how to make a sound sample file which you can play.
+'monkey.au' and 'monkey.voc' are a short lo-fi monkey screech
+in two supported file formats, to help you ensure Sound Tools works.
+
+SOX uses file suffices to determine the nature of a sound sample file.
+If it finds the suffix in its list, it uses the appropriate read
+or write handler to deal with that file.  You may override the suffix
+by giving a different type via the '-t type' argument.  See the manual
+page for more information.
+
+I hope to inspire the creation of a common base of sound processing
+tools for computer multimedia work, similar to the PBM toolkit for 
+image manipulation.
+
+The files I wrote are copyright Lance Norskog, and may be used for
+any purpose.   The U-Law translation and echo delay line code 
+come from Jef Poskanzer's SST package.  The .AU, .AIFF, 
+.HCOM formats, and numerous bug fixes were contributed by 
+Guido Van Rossum.  The 8SVX, Sounder, Soundtool (another name
+clash!) and many DOS fixes were contributed by Bill Neisius.
+
+Sound Tools may be used for any purpose.  Source
+distributions must include the copyright notices.  Binary
+distributions must include acknowledgements to the creators.
+
+Enjoy!
+
+	Creator & Maintainer:
+		Lance Norskog		thinman@netcom.com
+
+	Contributors:
+		Guido Van Rossum	guido@cwi.nl
+		Jef Poskanzer		jef@well.sf.ca.us
+		Bill Neisius		bill%solaria@hac2arpa.hac.com 
+
+
+		(your name could be here, too)
+#!/bin/sh
+# This is soundtools_v4, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 03/27/1992 04:44 UTC by thinman@netcom.com
+# Source directory /usr2/sound/st
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   2612 -rw-r--r-- README
+#   2493 -rw-r--r-- TODO
+#  10483 -rw-r--r-- sox.man
+#   6230 -rw-r--r-- st.man
+#   2153 -rw-r--r-- Makefile
+#   4895 -rw-r--r-- st.h
+#   3268 -rw-r--r-- libst.h
+#   3015 -rw-r--r-- sfheader.h
+#     21 -rw-r--r-- patchlevel.h
+#  15788 -rw-r--r-- sox.c
+#   5402 -rw-r--r-- raw.c
+#   6913 -rw-r--r-- voc.c
+#   5672 -rw-r--r-- au.c
+#   3148 -rw-r--r-- sf.c
+#  11106 -rw-r--r-- aiff.c
+#  11280 -rw-r--r-- hcom.c
+#   8144 -rw-r--r-- 8svx.c
+#   4033 -rw-r--r-- sndrtool.c
+#   1159 -rw-r--r-- copy.c
+#   2424 -rw-r--r-- avg.c
+#   5234 -rw-r--r-- pred.c
+#   3469 -rw-r--r-- stat.c
+#   2920 -rw-r--r-- vibro.c
+#   4666 -rw-r--r-- echo.c
+#   4689 -rw-r--r-- rate.c
+#   3255 -rw-r--r-- band.c
+#   2067 -rw-r--r-- lowp.c
+#   5408 -rw-r--r-- handlers.c
+#   3471 -rw-r--r-- libst.c
+#   4503 -rw-r--r-- misc.c
+#   3333 -rw-r--r-- getopt.c
+#   2696 -rw-r--r-- skel.c
+#   1648 -rw-r--r-- skeleff.c
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+X
+X
+X		ST: Sound Tools
+X
+X
+X
+XST translates sound samples between different file formats,
+Xand performs various sound effects.
+X
+XThis release understands "raw" files in various binary formats,
+XSound Blaster .VOC files, IRCAM SoundFile files, SUN Sparcstation 
+X.au files, mutant DEC .au files, Amiga/SGI AIFF files, 
+XMacintosh HCOM files, Sounder files, and Soundtool (DOS) files.
+X
+XThe sound effects include changing the sample rate, adding echo 
+Xdelay lines, applying low- and band-pass filtering, and the 
+Xinfamous Fender Vibro effect.
+X
+XHistory:
+XThis is the fourth release of the Sound Tools.
+X
+XThe first release was posted last summer as the "AUX" package.
+X
+XThe second release, SoundKit, came out this past fall.  NeXT 
+Xobjected to the name SoundKit and so it's now Sound Tools.
+X
+XThe third release, Sound Tools, only went out in beta and
+XBill Neisius contributed several fixes and formats so I
+Xfelt ST had graduated to another release.
+X
+XInstalling:
+XThe Makefile needs one option set: -DSYSV if you're on a
+XSystem V machine, or -DBSD if you're on a BSD-ish machine.
+X
+XAfter compiling, run 'tests'.  It should print nothing.  This
+Xindicates that the programs mostly work.  By reading the tests
+Xyou may see how to make a sound sample file which you can play.
+X'monkey.au' and 'monkey.voc' are a short lo-fi monkey screech
+Xin two supported file formats, to help you ensure Sound Tools works.
+X
+XSOX uses file suffices to determine the nature of a sound sample file.
+XIf it finds the suffix in its list, it uses the appropriate read
+Xor write handler to deal with that file.  You may override the suffix
+Xby giving a different type via the '-t type' argument.  See the manual
+Xpage for more information.
+X
+XI hope to inspire the creation of a common base of sound processing
+Xtools for computer multimedia work, similar to the PBM toolkit for 
+Ximage manipulation.
+X
+XThe files I wrote are copyright Lance Norskog, and may be used for
+Xany purpose.   The U-Law translation and echo delay line code 
+Xcome from Jef Poskanzer's SST package.  The .AU, .AIFF, 
+X.HCOM formats, and numerous bug fixes were contributed by 
+XGuido Van Rossum.  The 8SVX, Sounder, Soundtool (another name
+Xclash!) and many DOS fixes were contributed by Bill Neisius.
+X
+XSound Tools may be used for any purpose.  Source
+Xdistributions must include the copyright notices.  Binary
+Xdistributions must include acknowledgements to the creators.
+X
+XEnjoy!
+X
+X	Creator & Maintainer:
+X		Lance Norskog		thinman@netcom.com
+X
+X	Contributors:
+X		Guido Van Rossum	guido@cwi.nl
+X		Jef Poskanzer		jef@well.sf.ca.us
+X		Bill Neisius		bill%solaria@hac2arpa.hac.com 
+X
+X
+X		(your name could be here, too)
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 2612 -eq "$Wc_c" ||
+	echo 'README: original size 2612, current size' "$Wc_c"
+fi
+# ============= TODO ==============
+if test -f 'TODO' -a X"$1" != X"-c"; then
+	echo 'x - skipping TODO (File already exists)'
+else
+echo 'x - extracting TODO (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'TODO' &&
+XMore handlers!  Everyone who adds sound hardware to a computer has the urge
+Xto come up with their own file format.
+X
+XMore effects!  I don't know DSP at all.  An incremental FFT is the
+Xcore tool for building analog-domain effects.  Hint.  A simple
+Xroom reverb effect that does one sound bounce instead of feeding
+Xback would also be handy, and an easy coding project.
+X
+XComment strings.  Some file formats have space for embedded comments.
+XThese are currently thrown away.  Printing them out, carrying them
+Xforward, and an to add new ones would be handy.
+X
+XSOX includes skeleton format files to assist you in supporting new 
+Xformats, sound effect loops, and special-purpose programs.
+XThe full skeleton format, skelformat.c, helps you write a driver 
+Xfor a new format which has data structures.  Skeleffect.c is
+Xa starting point for writing a sound effect loop.  Sox.c is
+Xa good starting point for new programs.
+X
+XIn handlers.c, note that many formats set up the header and then
+Xuse the raw driver for reading and writing.  
+X
+XAn effect loop for mixing mono -> stereo -> quad with sound
+Xplacement features: differential volume, phasing, and Doppler
+Xshifting when the sound moves.  Static placement would work as
+Xa SOX effect loop, but dynamic placement involves some scripting
+Xfeature, or joystick input etc., and should be a separate program.
+X
+XAlso needed are more analog filter options: high-pass,
+Xand notch filtering.  These would be handy for postprocessing
+Xsound samples; most of the SPARC samples I've heard are pretty grotty.
+XThese are done with a convolving filter: output sample X[0] is the
+Xaverage of inputs X[-N]*C[-N] + ... + X[0]*C[0] + ... X[N]*C[N],
+Xwhere C is a carefully chosen set of coefficients.  Different
+Xcoefficient sets give low-pass, high-pass, and possibly other filters.
+X
+XConvolving filters are OK for massaging sound samples;
+Xa much more accurate (and slower) method is also needed for
+Xdoing serious sound work.  As is, SOX is OK for PC sound 
+Xsamples, but does not make it as a CD mastering tool.
+X
+XSound needs its own compression techniques rather than text-based 
+Xones.  The pred effect is a framework for experimenting with
+Xpredictive/corrective compression.  Prediction via LPC
+Xor autocorrelation or the first few derivatives
+Xcould make this a very powerful compressor.  
+X
+XThis software wants to be a dataflow system with signal
+Xsources, sinks, and processors.  It wants to be class-based.
+XIt wants to have a scripting control language.
+XIt's really a shame I hate C++.
+SHAR_EOF
+chmod 0644 TODO ||
+echo 'restore of TODO failed'
+Wc_c="`wc -c < 'TODO'`"
+test 2493 -eq "$Wc_c" ||
+	echo 'TODO: original size 2493, current size' "$Wc_c"
+fi
+# ============= sox.man ==============
+if test -f 'sox.man' -a X"$1" != X"-c"; then
+	echo 'x - skipping sox.man (File already exists)'
+else
+echo 'x - extracting sox.man (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sox.man' &&
+X.de Sh
+X.br
+X.ne 5
+X.PP
+X\fB\\$1\fR
+X.PP
+X..
+X.de Sp
+X.if t .sp .5v
+X.if n .sp
+X..
+X.TH SOX 1
+X.SH NAME
+Xsox - SOund eXchange - universal sound sample translator
+X.SH SYNOPSIS
+X.B sox \fIinfile outfile \fB
+X.br
+X.B sox \fIinfile outfile \fB[ \fIeffect\fR 
+X.B [ \fIeffect options ...\fB ] ]
+X.br
+X.B sox \fIinfile \fB-e \fIeffect\fR 
+X.B [ \fIeffect options ...\fB ]
+X.br
+X.B sox
+X[\fI general options \fB ]
+X[ \fIformat options \fB ]
+X\fIifile\fB 
+X[ \fIformat options \fB ]
+X\fIofile\fB 
+X[ \fIeffect\fR [ \fIeffect options ...\fB ] ]
+X.br
+X\fIGeneral options:\fB
+X[ -V ]
+X[ -v \fIvolume\fB ]
+X.br
+X\fIFormat options:\fB
+X[ \fB-t \fIfiletype\fB ]
+X[ -r \fIrate\fB ]
+X[ -s/-u/-U/-A ]
+X[ -b/-w/-l/-f/-d/-D ]
+X[ -c \fIchannels\fB ]
+X[ -x ]
+X.br
+X\fIEffects:\fB
+X.br
+X	copy 
+X.br
+X	rate 
+X.br
+X	avg 
+X." .br
+X." 	resample
+X." .br
+X." 	check 
+X.br
+X	stat 
+X.br
+X	echo \fIdelay volume\fB [ \fIdelay volume ... \fB]
+X.br
+X	vibro \fIspeed \fB[ \fIdepth\fB ]
+X.br
+X	lowp \fIcenter\fB
+X.br
+X	band \fB[ \fI-n \fB] \fIcenter \fB[ \fIwidth\fB ]
+X.SH DESCRIPTION
+X.I Sox
+Xtranslates sound files from one format to another,
+Xpossibly doing a sound effect.
+X.SH OPTIONS
+XThe option syntax is a little grotty, but in essence:
+X.br
+X	sox file.au file.voc 
+X.br
+Xtranslates a sound sample in SUN Sparc .AU format 
+Xinto a SoundBlaster .VOC file, while
+X.br
+X	sox -v 0.5 file.au -rate 12000 file.voc rate
+X.br
+Xdoes the same format translation but also 
+Xlowers the amplitude by 1/2 and changes
+Xthe sampling rate from 8000 hertz to 12000 hertz via
+Xthe
+X.B rate
+X\fIsound effect\fR loop.
+X.PP
+XFile type options:
+X.TP 10
+X\fB-t\fI filetype
+Xgives the type of the sound sample file.
+X.TP 10
+X\fB-r \fIrate\fR
+XGive sample rate in Hertz of file.
+X.TP 10
+X\fB-s/-u/-U/-A\fR
+XThe sample data is signed linear (2's complement),
+Xunsigned linear, U-law (logarithmic), or A-law (logarithmic).
+XU-law and A-law are the U.S. and international
+Xstandards for logarithmic telephone sound compression.
+X.TP 10
+X\fB-b/-w/-l/-f/-d/-D\fR
+XThe sample data is in bytes, 16-bit words, 32-bit longwords,
+X32-bit floats, 64-bit double floats, or 80-bit IEEE floats.
+XFloats and double floats are in native machine format.
+X.TP 10
+X\fB-x\fR
+XThe sample data is in XINU format; that is,
+Xit comes from a machine with the opposite word order 
+Xthan yours and must
+Xbe swapped according to the word-size given above.
+XOnly 16-bit and 32-bit integer data may be swapped.
+XMachine-format floating-point data is not portable.
+XIEEE floats are a fixed, portable format. ???
+X.TP 10
+X\fB-c \fIchannels\fR
+XThe number of sound channels in the data file.
+XThis may be 1, 2, or 4; for mono, stereo, or quad sound data.
+X.PP
+XGeneral options:
+X.TP 10
+X\fB-e\fR
+Xafter the input file allows you to avoid giving
+Xan output file and just name an effect.
+XThis is only useful with the 
+X.B stat
+Xeffect.
+X.TP 10
+X\fB-v \fIvolume\fR
+XChange amplitude (floating point); 
+Xless than 1.0 decreases, greater than 1.0 increases.
+XNote: we perceive volume logarithmically, not linearly.
+XNote: see the
+X.B stat
+Xeffect.
+X.TP 10
+X\fB-V\fR
+XPrint a description of processing phases.
+XUseful for figuring out exactly how
+X.I sox
+Xis mangling your sound samples.
+X.PP
+XThe input and output files may be standard input and output.
+XThis is specified by '-'.
+XThe 
+X.B -t\ \fItype
+Xoption must be given in this case,
+Xelse 
+X.I sox 
+Xwill not know the format of the given file.
+XThe
+X.B -t,
+X.B -r,
+X.B -s/-u/-U/-A,
+X.B -b/-w/-l/-f/-d/-D
+Xand
+X.B -x
+Xoptions refer to the input data when given before the
+Xinput file name.  After, they refer to the output data.
+X.PP
+XIf you don't give an output file name,
+X.I sox
+Xwill just read the input file.
+XThis is useful for validating structured file formats;
+Xthe 
+X.B stat 
+Xeffect may also be used
+Xvia the 
+X.B -e
+Xoption.
+X.SH FILE TYPES
+X.I Sox
+Xneeds to know the formats of the input and output files.
+XFile formats which have headers are checked, 
+Xif that header doesn't seem right,
+Xthe program exits with an appropriate message.
+XCurrently, the raw (no header), IRCAM Sound Files,
+XSound Blaster, SPARC .AU (w/header), Mac HCOM,
+XPC/DOS .SOU, Sndtool, and Sounder, NeXT .SND,
+Xand Amiga/SGI AIFF and 8SVX formats are supported.
+X.PP
+X.TP 10
+X.B .aiff
+XAIFF files used on Amiga and SGI.
+XNote: the AIFF format supports only one SSND chunk.
+XIt does not support multiple sound chunks, 
+Xor the 8SVX musical instrument description format.
+XAIFF files are multimedia archives and
+Xand can have multiple audio and picture chunks.
+XYou may need a separate archiver to work with them.
+X.TP 10
+X.B .au
+XSUN Microsystems AU files.
+XThere are apparently many types of .au files;
+XDEC has invented its own with a different magic number
+Xand word order.  
+XThe .au handler can read these files but will not write them.
+XSome .au files have valid AU headers and some do not.
+XThe latter are probably original SUN u-law 8000 hz samples.
+XThese can be dealt with using the 
+X.B .ul
+Xformat (see below).
+X.TP 10
+X.B .hcom
+XMacintosh HCOM files.
+XThese are (apparently) Mac FSSD files with some variant
+Xof Huffman compression.
+XThe Macintosh has wacky file formats and this format
+Xhandler apparently doesn't handle all the ones it should.
+XMac users will need your usual arsenal of file converters
+Xto deal with an HCOM file under Unix or DOS.
+X.br
+X.TP 10
+X.B .raw
+XRaw files (no header).
+X.br
+XThe sample rate, size (byte, word, etc), 
+Xand style (signed, unsigned, etc.)
+Xof the sample file must be given.
+XThe number of channels defaults to 1.
+X.TP 10
+X.B ".ub, .sb, .uw, .sw, .ul"
+XThese are several suffices which serve as
+Xa shorthand for raw files with a given size and style.
+XThus, \fBub, sb, uw, sw,\fR and \fBul\fR
+Xcorrespond to "unsigned byte", "signed byte",
+X"unsigned word", "signed word", and "ulaw" (byte).
+XThe sample rate defaults to 8000 hz if not explicitly set,
+Xand the number of channels (as always) defaults to 1.
+XThere are lots of Sparc samples floating around in u-law format
+Xwith no header and fixed at a sample rate of 8000 hz.
+X(Certain sound management software cheerfully ignores the headers.)
+XSimilarly, most Mac sound files are in unsigned byte format with
+Xa sample rate of 11025 or 22050 hz.
+X.TP 10
+X.B .sf
+XIRCAM Sound Files.
+X.br
+XSoundFiles are used by academic music software 
+Xsuch as the CSound package, and the MixView sound sample editor.
+X.TP 10
+X.B .voc
+XSound Blaster VOC files.
+X.br
+XVOC files are multi-part and contain silence parts, looping, and
+Xdifferent sample rates for different chunks.
+XOn input, the silence parts are filled out, loops are rejected,
+Xand sample data with a new sample rate is rejected.
+XSilence with a different sample rate is generated appropriately.
+XOn output, silence is not detected, nor are impossible sample rates.
+X.SH EFFECTS
+XOnly one effect from the palette may be applied to a sound sample.
+XTo do multiple effects you'll need to run 
+X.I sox 
+Xin a pipeline.
+X.TP 30
+Xcopy
+XCopy the input file to the output file.
+XThis is the default effect if both files have the same 
+Xsampling rate, or the rates are "close".
+X.TP 30
+Xrate
+XTranslate input sampling rate to output sampling rate
+Xvia linear interpolation to the Least Common Multiple
+Xof the two sampling rates.
+XThis is the default effect 
+Xif the two files have different sampling rates.
+XThis is fast but noisy.
+X." Lerp-ing is acceptable for cheap 8-bit sound hardware,
+X." but for CD-quality sound you should instead use:
+X." .TP 30
+X." resample
+X." Translate input sampling rate to output sampling rate
+X." via simulated analog filtration.
+X." This method is slow and uses lots of RAM,
+X." but gives much better results then
+X." .B rate.
+X.TP 30
+Xavg
+XMix 4- or 2-channel sound file into 2- or 1-channel file
+Xby averaging the samples for different speakers.
+X." .TP 30
+X." check
+X." Do a format check on the input file,
+X." and print any errors on the standard error file.
+X." Write no output.
+X." If you give no output file, 
+X." you need to specify either this effect or the following:
+X.TP 30
+Xstat
+XDo a statistical check on the input file,
+Xand print results on the standard error file.
+X.B stat
+Xmay copy the file untouched from input to output,
+Xif you select an output file.  
+XThe "Volume Adjustment:" field in the statistics
+Xgives you the argument to the
+X.B -v
+X.I number
+Xwhich will make the sample as loud as possible.
+X.TP 30
+Xecho [ \fIdelay volume ... \fB ]
+XAdd echoing to a sound sample.
+XEach delay/volume pair gives the delay in seconds
+Xand the volume (relative to 1.0) of that echo.
+XIf the volumes add up to more than 1.0,
+Xthe sound will melt down instead of fading away.
+X.TP 30
+Xvibro \fIspeed \fB [ \fIdepth\fB ]
+XAdd the world-famous Fender Vibro-Champ sound
+Xeffect to a sound sample by using
+Xa sine wave as the volume knob.
+X.B Speed 
+Xgives the Hertz value of the wave.
+XThis must be under 30.
+X.B Depth
+Xgives the amount the volume is cut into
+Xby the sine wave,
+Xranging 0.0 to 1.0 and defaulting to 0.5.
+X.TP 30
+Xlowp \fIcenter
+XApply a low-pass filter.
+XThe frequency response drops logarithmically with 
+X.I center
+Xfrequency in the middle of the drop.
+XThe slope of the filter is quite gentle.
+X.TP 30
+Xband \fB[ \fI-n \fB] \fIcenter \fB[ \fIwidth\fB ]
+XApply a band-pass filter.
+XThe frequency response drops logarithmically
+Xaround the
+X.I center
+Xfrequency.
+XThe
+X.I width
+Xgives the slope of the drop.
+XThe frequencies at 
+X.I "center + width"
+Xand
+X.I "center - width"
+Xwill be half of their original amplitudes.
+X.B Band
+Xdefaults to a mode oriented to pitched signals,
+Xi.e. voice, singing, or instrumental music.
+XThe 
+X.I -n
+X(for noise) option uses the alternate mode
+Xfor un-pitched signals.
+X.B Band
+Xintroduces noise in the shape of the filter,
+Xi.e. peaking at the 
+X.I center
+Xfrequency and settling around it.
+X.P
+X.I Sox
+Xenforces certain effects.
+XIf the two files have different sampling
+Xrates, the requested effect must be one of
+X.B copy,
+Xor
+X.B rate,
+X." or
+X." .B resample.
+XIf the two files have different numbers of channels,
+Xthe 
+X.B avg
+X." or other channel mixing
+Xeffect must be requested.
+X.SH BUGS
+XThe syntax is horrific.
+XIt's very tempting to include a default system that allows
+Xan effect name as the program name
+Xand just pipes a sound sample from standard input 
+Xto standard output, but the problem of inputting the
+Xsample rates makes this unworkable.
+X.SH FILES
+X.SH SEE ALSO
+X.SH NOTICES
+XThe echoplex effect is:
+X    Copyright (C) 1989 by Jef Poskanzer.
+X	
+X    Permission to use, copy, modify, and distribute this software and its
+X    documentation for any purpose and without fee is hereby granted, provided
+X    that the above copyright notice appear in all copies and that both that
+X    copyright notice and this permission notice appear in supporting
+X    documentation.  This software is provided "as is" without express or
+X    implied warranty.
+SHAR_EOF
+chmod 0644 sox.man ||
+echo 'restore of sox.man failed'
+Wc_c="`wc -c < 'sox.man'`"
+test 10483 -eq "$Wc_c" ||
+	echo 'sox.man: original size 10483, current size' "$Wc_c"
+fi
+# ============= st.man ==============
+if test -f 'st.man' -a X"$1" != X"-c"; then
+	echo 'x - skipping st.man (File already exists)'
+else
+echo 'x - extracting st.man (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'st.man' &&
+X.de Sh
+X.br
+X.ne 5
+X.PP
+X\fB\\$1\fR
+X.PP
+X..
+X.de Sp
+X.if t .sp .5v
+X.if n .sp
+X..
+X.TH SK 1
+X.SH NAME
+Xst - Sound Tools - sound sample file and effects libraries.
+X.SH SYNOPSIS
+X.B cc \fIfile.c\fB -o \fIfile \fBlibsk.a
+X.SH DESCRIPTION
+X.I Sound\ Tools
+Xis a library of sound sample file format readers/writers
+Xand sound effects processors.
+X.P
+XSound Tools includes skeleton C
+Xfiles to assist you in writing new formats and effects.  
+XThe full skeleton driver, skel.c, helps you write drivers 
+Xfor a new format which has data structures.  
+XThe simple skeleton drivers
+Xhelp you write a new driver for raw (headerless) formats, or
+Xfor formats which just have a simple header followed by raw data.
+X.P
+XMost sound sample formats are fairly simple: they are just a string
+Xof bytes or words and are presumed to be sampled at a known data rate.
+XMost of them have a short data structure at the beginning of the file.
+X.SH INTERNALS
+XThe Sound Tools formats and effects operate on an internal buffer format
+Xof signed 32-bit longs.
+XThe data processing routines are called with buffers of these
+Xsamples, and buffer sizes which refer to the number of samples
+Xprocessed, not the number of bytes.
+XFile readers translate the input samples to signed longs
+Xand return the number of longs read.
+XFor example, data in linear signed byte format is left-shifted 24 bits.
+X.P
+XThis does cause problems in processing the data.  
+XFor example:
+X.br
+X	*obuf++ = (*ibuf++ * *ibuf++)/2;
+X.br
+Xwould
+X.I not
+Xmix down left and right channels into one monophonic channel,
+Xbecause the resulting samples would overflow 32 bits.
+XInstead, the ``avg'' effects must use:
+X.br
+X	*obuf++ = *ibuf++/2 * *ibuf++/2;
+X.br
+X.P
+XStereo data is stored with the left and right speaker data in
+Xsuccessive samples.
+XQuadraphonic data is stored in this order: 
+Xleft front, right front, left rear, right rear.
+X.SH FORMATS
+XA 
+X.I format 
+Xis responsible for translating between sound sample files
+Xand an internal buffer.  The internal buffer is store in signed longs
+Xwith a fixed sampling rate.  The 
+X.I format
+Xoperates from two data structures:
+Xa format structure, and a private structure.
+X.P
+XThe format structure contains a list of control parameters for
+Xthe sample: sampling rate, data size (bytes, words, floats, etc.),
+Xstyle (unsigned, signed, logarithmic), number of sound channels.
+XIt also contains other state information: whether the sample file
+Xneeds to be byte-swapped, whether fseek() will work, its suffix,
+Xits file stream pointer, its 
+X.I format
+Xpointer, and the 
+X.I private
+Xstructure for the 
+X.I format .
+X.P
+XThe 
+X.I private 
+Xarea is just a preallocated data array for the 
+X.I format
+Xto use however it wishes.  
+XIt should have a defined data structure
+Xand cast the array to that structure.  
+XSee voc.c for the use of a private data area.  
+XVoc.c has to track the number of samples it 
+Xwrites and when finishing, seek back to the beginning of the file
+Xand write it out.
+XThe private area is not very large.
+XThe ``echo'' effect has to malloc() a much larger area for its
+Xdelay line buffers.
+X.P
+XA 
+X.I format
+Xhas 6 routines:
+X.TP 20
+Xstartread
+XSet up the format parameters, or read in
+Xa data header, or do what needs to be done.
+X.TP 20
+Xread
+XGiven a buffer and a length: 
+Xread up to that many samples, 
+Xtransform them into signed long integers,
+Xand copy them into the buffer.
+XReturn the number of samples actually read.
+X.TP 20
+Xstopread
+XDo what needs to be done.
+X.TP 20
+Xstartwrite
+XSet up the format parameters, or write out 
+Xa data header, or do what needs to be done.
+X.TP 20
+Xwrite
+XGiven a buffer and a length: 
+Xcopy that many samples out of the buffer,
+Xconvert them from signed longs to the appropriate
+Xdata, and write them to the file.
+XIf it can't write out all the samples,
+Xfail.
+X.TP 20
+Xstopwrite
+XFix up any file header, or do what needs to be done.
+X.SH EFFECTS
+XAn effects loop has one input and one output stream.
+XIt has 5 routines.
+X.TP 20
+Xgetopts
+Xis called with a character string argument list for the effect.
+X.TP 20
+Xstart
+Xis called with the signal parameters for the input and output
+Xstreams.
+X.TP 20 
+Xflow
+Xis called with input and output data buffers,
+Xand (by reference) the input and output data sizes.
+XIt processes the input buffer into the output buffer,
+Xand sets the size variables to the numbers of samples
+Xactually processed.
+XIt is under no obligation to fill the output buffer.
+X.TP 20 
+Xdrain
+Xis called after there are no more input data samples.
+XIf the effect wishes to generate more data samples
+Xit copies the generated data into a given buffer
+Xand returns the number of samples generated.
+XIf it fills the buffer, it will be called again, etc.
+XThe echo effect uses this to fade away.
+X.TP 20
+Xstop
+Xis called when there are no more input samples to process.
+X.I stop
+Xmay generate output samples on its own.
+XSee echo.c for how to do this, 
+Xand see that what it does is absolutely bogus.
+X.SH COMMENTS
+XTheoretically, formats can be used to manipulate several files 
+Xinside one program.  Multi-sample files, for example the download
+Xfor a sampling keyboard, can be handled cleanly with this feature.
+X.SH PORTABILITY PROBLEMS
+XMany computers don't supply arithmetic shifting, so do multiplies
+Xand divides instead of << and >>.  The compiler will do the right
+Xthing if the CPU supplies arithmetic shifting.
+X.P
+XDo all arithmetic conversions one stage at a time.
+XI've had too many problems with "obviously clean" combinations.
+X.P
+XIn general, don't worry about "efficiency".  
+XThe sox.c base translator
+Xis disk-bound on any machine (other than a 8088 PC with an SMD disk 
+Xcontroller).  
+XJust comment your code and make sure it's clean and simple.
+XYou'll find that DSP code is extremely painful to write as it is.
+X.SH BUGS
+XThe HCOM format is not re-entrant; it can only be used once in a program.
+X.P
+XThe program/library interface is pretty weak.
+XThere's too much ad-hoc information which a program is supposed to
+Xgather up.
+XSound Tools wants to be an object-oriented dataflow architecture.
+X.P
+XThe human ear can't really hear better than 20 bits.
+XWith an internal format of 16 bits, we will eventually
+Xdestroy information when used to mix CD's.
+XThe internal format should be 24-bit signed data.
+XBut, with 24 bits you still have to be careful multiplying.
+XCheck the ``vibro'' effect for how it handles this problem.
+SHAR_EOF
+chmod 0644 st.man ||
+echo 'restore of st.man failed'
+Wc_c="`wc -c < 'st.man'`"
+test 6230 -eq "$Wc_c" ||
+	echo 'st.man: original size 6230, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+X
+X# Sound Tools Makefile
+X# 	builds libst.a and sox
+X
+XFSRC= raw.c voc.c au.c sf.c aiff.c hcom.c 8svx.c sndrtool.c
+XESRC= copy.c avg.c pred.c stat.c vibro.c echo.c rate.c band.c lowp.c 
+XPSRC= sox.c
+X
+XSOURCES   = $(PSRC) $(FSRC) $(ESRC) handlers.c libst.c misc.c getopt.c
+X
+XHEADERS   = st.h libst.h sfheader.h patchlevel.h 
+X
+XTESTS     = 
+X
+XMISC      = README TODO sox.man st.man Makefile
+X
+XSKEL	  = skel.c skeleff.c
+X
+XFILES     = $(MISC) $(HEADERS) $(SOURCES) $(SKEL) $(TESTS)
+X
+XFOBJ= raw.o voc.o au.o sf.o aiff.o hcom.o 8svx.o sndrtool.o
+XEOBJ= copy.o avg.o pred.o stat.o vibro.o echo.o rate.o band.o lowp.o 
+X
+XSOUNDLIB  = libst.a
+XLIBOBJS   = $(FOBJ) $(EOBJ) handlers.o libst.o misc.o getopt.o
+X
+X#
+X# System dependency parameters
+X# 	not many, we don't mess with devices
+X#
+X# include -DSYSV for AT&T Unix System V
+X#
+X# define -DDOS  to compile on PC
+X# defines .snd to mean a DOS soundtool file (starts with SOUND)
+X
+X# define -DNeXT on a NeXT workstation
+X# defines .snd to mean a NeXT sound format file
+X#  	only knows a few real sound formats.
+X
+X# define -DMAC on a MacIntosh
+X# defines .snd to mean a Mac-style headerless unsigned byte
+X#  	sample, probably at 11050 hertz.  You'll have to set 
+X#	the speed on the command line.
+X
+X
+X# AT&T System V/386 parameters, salt to taste
+X# Most System V machines should use these flags
+X
+XO=-g		# optimization flags
+X
+XCFLAGS    = $O -DSYSV 
+XCC        = cc
+XAR        = ar r
+XRANLIB    = ar ts
+X
+X# BSD-ish, salt to taste
+X# Sun, NeXT, Vax, Ultrix uses these
+X
+X# CFLAGS    = $O 
+X# CC        = cc
+X# AR        = ar r
+X# RANLIB    = ranlib
+X
+X# DOS? Mac? They generally have their own makefile formats.
+X# I think you'll have to write one from scratch.
+X
+X# For DOS, you'll need -DDOS for all files.
+X
+Xall: sox
+X
+Xsox: sox.o $(SOUNDLIB)
+X	$(CC) $(CFLAGS) -o sox sox.o $(SOUNDLIB) -lm
+X
+X$(SOUNDLIB): $(LIBOBJS)
+X	rm -f $(SOUNDLIB)
+X	$(AR) $(SOUNDLIB) $(LIBOBJS)
+X	$(RANLIB) $(SOUNDLIB)
+X
+Xsox.o:		sox.c st.h
+X
+X$(LIBOBJS):	st.h
+X
+Xclean:
+X	rm -f *.o
+X	rm -f *.raw
+X	rm -f *.sf
+X	rm -f core
+X
+X# Shar: -F (prefix all lines with X), 
+X# 	-s addr (set return addr of poster)
+Xshar: $(FILES)
+X	/usr2/tools/shar/shar -M -F -l 50 -o shar -n soundtools_v4 -s thinman@netcom.com $(FILES)
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 2153 -eq "$Wc_c" ||
+	echo 'Makefile: original size 2153, current size' "$Wc_c"
+fi
+# ============= st.h ==============
+if test -f 'st.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping st.h (File already exists)'
+else
+echo 'x - extracting st.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'st.h' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools sources header file.
+X */
+X
+X#include <stdio.h>
+X
+X/*
+X * Handler structure for each format.
+X */
+X
+Xtypedef struct format {
+X	char	**names;	/* file type names */
+X	int	(*startread)();			
+X	int	(*read)();			
+X	int	(*stopread)();		
+X	int	(*startwrite)();			
+X	int	(*write)();
+X	int	(*stopwrite)();		
+X} format_t;
+X
+Xextern format_t formats[];
+X
+X/* Signal parameters */
+X
+Xstruct  signalinfo {
+X	int	rate;			/* sampling rate */
+X	int	size;			/* word length of data */
+X	int	style;			/* format of sample numbers */
+X	int	channels;		/* number of sound channels */
+X};
+X
+X/* Pipe parameters */
+X
+Xstruct	pipeinfo {
+X	FILE	*pout;			/* Output file */
+X	FILE	*pin;			/* Input file */
+X};
+X
+X/*
+X *  Format information for input and output files.
+X */
+X
+X#define	PRIVSIZE	50
+X
+Xstruct soundstream {
+X	struct	signalinfo info;	/* signal specifications */
+X	char	swap;			/* do byte- or word-swap */
+X	char	seekable;		/* can seek on this file */
+X	char	*filename;		/* file name */
+X	char	*filetype;		/* type of file */
+X	FILE	*fp;			/* File stream pointer */
+X	format_t *h;			/* format struct for this file */
+X	char	priv[PRIVSIZE];		/* format's private data area */
+X};
+X
+Xextern struct soundstream informat, outformat;
+Xtypedef struct soundstream *ft_t;
+X
+X/* Size field */
+X#define	BYTE	1
+X#define	WORD	2
+X#define	LONG	4
+X#define	FLOAT	5
+X#define DOUBLE	6
+X#define IEEE	7		/* IEEE 80-bit floats.  Is it necessary? */
+X
+X/* Style field */
+X#define UNSIGNED	1	/* unsigned linear: Sound Blaster */
+X#define SIGN2		2	/* signed linear 2's comp: Mac */
+X#define	ULAW		3	/* U-law signed logs: US telephony, SPARC */
+X#define ALAW		4	/* A-law signed logs: non-US telephony */
+X
+Xextern char *sizes[], *styles[];
+X
+X/*
+X * Handler structure for each effect.
+X */
+X
+Xtypedef struct {
+X	char	*name;			/* effect name */
+X	int	flags;			/* this and that */
+X	int	(*getopts)();		/* process arguments */
+X	int	(*start)();		/* start off effect */
+X	int	(*flow)();		/* do a buffer */
+X	int	(*drain)();		/* drain out at end */
+X	int	(*stop)();		/* finish up effect */
+X} effect_t;
+X
+Xextern effect_t effects[];
+X
+X#define	EFF_CHAN	1		/* Effect can mix channels up/down */
+X#define EFF_RATE	2		/* Effect can alter data rate */
+X#define EFF_MCHAN	4		/* Effect can handle multi-channel */
+X
+Xstruct effect {
+X	char		*name;		/* effect name */
+X	struct signalinfo ininfo;	/* input signal specifications */
+X	struct signalinfo outinfo;	/* output signal specifications */
+X	effect_t 	*h;		/* effects driver */
+X	char		priv[PRIVSIZE];	/* private area for effect */
+X};
+X
+Xtypedef struct effect *eff_t;
+X
+X#ifdef	__ANSI__
+X#define	P1(x) x
+X#define	P2(x,y) x, y
+X#define	P3(x,y,z) x, y, z
+X#define	P4(x,y,z,z) x, y, z, w
+X#else
+X#define P1(x)
+X#define P2(x,y)
+X#define P3(x,y,z)
+X#define P4(x,y,z,w)
+X#endif
+X
+X/* Utilities to read and write shorts and longs little-endian and big-endian */
+Xunsigned short rlshort(P1(ft_t ft));			/* short little-end */
+Xunsigned short rbshort(P1(ft_t ft));			/* short big-end    */
+Xunsigned short wlshort(P2(ft_t ft, unsigned short us));	/* short little-end */
+Xunsigned short wbshort(P2(ft_t ft, unsigned short us));	/* short big-end    */
+Xunsigned long  rllong(P1(ft_t ft));			/* long little-end  */
+Xunsigned long  rblong(P1(ft_t ft));			/* long big-end     */
+Xunsigned long  wllong(P2(ft_t ft, unsigned long ul));	/* long little-end  */
+Xunsigned long  wblong(P2(ft_t ft, unsigned long ul));	/* long big-end     */
+X/* Read and write words and longs in "machine format".  Swap if indicated.  */
+Xunsigned short rshort(P1(ft_t ft));			
+Xunsigned short wshort(P2(ft_t ft, unsigned short us));
+Xunsigned long  rlong(P1(ft_t ft));		
+Xunsigned long  wlong(P2(ft_t ft, unsigned long ul));
+X/* Utilities to byte-swap values */
+Xunsigned short swapw(P1(unsigned short us));		/* Swap short */
+Xunsigned long  swapl(P1(unsigned long ul));		/* Swap long */
+X
+X#ifdef	SYSV
+X#define	bcopy(from, to, len)	memcpy(to, from, len)
+X#define	index		strchr
+X#define	rindex		strrchr
+X#endif
+X
+Xtypedef	unsigned int u_i;
+Xtypedef	unsigned long u_l;
+Xtypedef	unsigned short u_s;
+X
+X#define	MAXRATE	50*1024			/* maximum sample rate */
+X
+X#ifdef	unix
+X/* Some wacky processors don't have arithmetic down shift, so do divs */
+X#define LEFT(datum, bits)	(datum << bits)
+X/* Most compilers will turn this into a shift if they can, don't worry */
+X#define RIGHT(datum, bits)	(datum / (1L << bits))
+X#else
+X/* x86 & 68k PC's have arith shift ops and dumb compilers */
+X#define LEFT(datum, bits)	(datum << bits)
+X#define RIGHT(datum, bits)	(datum >> bits)
+X#endif
+X
+X#ifndef	M_PI
+X#define M_PI	3.14159265358979323846
+X#endif
+X
+X#ifdef	unix
+X#define READBINARY	"r"
+X#define WRITEBINARY	"w"
+X#else
+X#define READBINARY	"rb"
+X#define WRITEBINARY	"wb"
+X#endif
+SHAR_EOF
+chmod 0644 st.h ||
+echo 'restore of st.h failed'
+Wc_c="`wc -c < 'st.h'`"
+test 4895 -eq "$Wc_c" ||
+	echo 'st.h: original size 4895, current size' "$Wc_c"
+fi
+# ============= libst.h ==============
+if test -f 'libst.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping libst.h (File already exists)'
+else
+echo 'x - extracting libst.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'libst.h' &&
+X/* libst.h - include file for portable sound tools library
+X**
+X** Copyright (C) 1989 by Jef Poskanzer.
+X**
+X** Permission to use, copy, modify, and distribute this software and its
+X** documentation for any purpose and without fee is hereby granted, provided
+X** that the above copyright notice appear in all copies and that both that
+X** copyright notice and this permission notice appear in supporting
+X** documentation.  This software is provided "as is" without express or
+X** implied warranty.
+X*/
+X
+X#define SAMPLES_PER_SECOND 8192
+X
+X#define MINLIN -32768
+X#define MAXLIN 32767
+X#define LINCLIP(x) do { if ( x < MINLIN ) x = MINLIN ; else if ( x > MAXLIN ) x = MAXLIN; } while ( 0 )
+X
+Xunsigned char st_linear_to_ulaw( /* int sample */ );
+Xint st_ulaw_to_linear_slow( /* unsigned char ulawbyte */ );
+X
+X/*
+X** This macro converts from ulaw to 16 bit linear, faster.
+X**
+X** Jef Poskanzer
+X** 23 October 1989
+X**
+X** Input: 8 bit ulaw sample
+X** Output: signed 16 bit linear sample
+X*/
+X#define st_ulaw_to_linear(ulawbyte) ulaw_table[ulawbyte]
+X
+Xstatic int ulaw_table[256] = {
+X    -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
+X    -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
+X    -15996, -15484, -14972, -14460, -13948, -13436, -12924, -12412,
+X    -11900, -11388, -10876, -10364,  -9852,  -9340,  -8828,  -8316,
+X     -7932,  -7676,  -7420,  -7164,  -6908,  -6652,  -6396,  -6140,
+X     -5884,  -5628,  -5372,  -5116,  -4860,  -4604,  -4348,  -4092,
+X     -3900,  -3772,  -3644,  -3516,  -3388,  -3260,  -3132,  -3004,
+X     -2876,  -2748,  -2620,  -2492,  -2364,  -2236,  -2108,  -1980,
+X     -1884,  -1820,  -1756,  -1692,  -1628,  -1564,  -1500,  -1436,
+X     -1372,  -1308,  -1244,  -1180,  -1116,  -1052,   -988,   -924,
+X      -876,   -844,   -812,   -780,   -748,   -716,   -684,   -652,
+X      -620,   -588,   -556,   -524,   -492,   -460,   -428,   -396,
+X      -372,   -356,   -340,   -324,   -308,   -292,   -276,   -260,
+X      -244,   -228,   -212,   -196,   -180,   -164,   -148,   -132,
+X      -120,   -112,   -104,    -96,    -88,    -80,    -72,    -64,
+X       -56,    -48,    -40,    -32,    -24,    -16,     -8,      0,
+X     32124,  31100,  30076,  29052,  28028,  27004,  25980,  24956,
+X     23932,  22908,  21884,  20860,  19836,  18812,  17788,  16764,
+X     15996,  15484,  14972,  14460,  13948,  13436,  12924,  12412,
+X     11900,  11388,  10876,  10364,   9852,   9340,   8828,   8316,
+X      7932,   7676,   7420,   7164,   6908,   6652,   6396,   6140,
+X      5884,   5628,   5372,   5116,   4860,   4604,   4348,   4092,
+X      3900,   3772,   3644,   3516,   3388,   3260,   3132,   3004,
+X      2876,   2748,   2620,   2492,   2364,   2236,   2108,   1980,
+X      1884,   1820,   1756,   1692,   1628,   1564,   1500,   1436,
+X      1372,   1308,   1244,   1180,   1116,   1052,    988,    924,
+X       876,    844,    812,    780,    748,    716,    684,    652,
+X       620,    588,    556,    524,    492,    460,    428,    396,
+X       372,    356,    340,    324,    308,    292,    276,    260,
+X       244,    228,    212,    196,    180,    164,    148,    132,
+X       120,    112,    104,     96,     88,     80,     72,     64,
+X	56,     48,     40,     32,     24,     16,      8,      0 };
+X
+X#ifdef	USG
+X#define	setbuffer(x,y,z)
+X#endif
+SHAR_EOF
+chmod 0644 libst.h ||
+echo 'restore of libst.h failed'
+Wc_c="`wc -c < 'libst.h'`"
+test 3268 -eq "$Wc_c" ||
+	echo 'libst.h: original size 3268, current size' "$Wc_c"
+fi
+# ============= sfheader.h ==============
+if test -f 'sfheader.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping sfheader.h (File already exists)'
+else
+echo 'x - extracting sfheader.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sfheader.h' &&
+X# define SIZEOF_BSD_HEADER 1024
+X# define SF_MAGIC 107364
+X# define SF_LINK 107414
+X# define SF_SHORT sizeof(short)
+X# define SF_FLOAT sizeof(float)
+X# define SF_BUFSIZE	(16*1024)
+X# define SF_MAXCHAN	4
+X# define MAXCOMM 512
+X# define MINCOMM 256
+X
+X/* Codes for sfcode */
+X# define SF_END 0
+X# define SF_MAXAMP 1
+X# define SF_COMMENT 2
+X# define SF_LINKCODE 3
+X
+Xtypedef struct sfcode {
+X	short	code;
+X	short	bsize;
+X} SFCODE;
+X
+Xtypedef struct sfmaxamp {
+X	float	value[SF_MAXCHAN];
+X	long	samploc[SF_MAXCHAN];
+X	long	timetag;
+X} SFMAXAMP;
+X
+Xtypedef struct sfcomment {
+X	char 	comment[MAXCOMM];
+X} SFCOMMENT;
+X
+Xtypedef struct sflink {
+X	char 	reality[50];
+X	int 	startsamp;
+X	int	endsamp;
+X} SFLINK;
+X
+Xstruct sfinfo {	
+X	int	  sf_magic;
+X	float	  sf_srate;
+X	int	  sf_chans;
+X	int	  sf_packmode;
+X	char	  sf_codes;
+X} ;
+X
+Xtypedef union sfheader {
+X	struct  sfinfo sfinfo;
+X	char	filler[SIZEOF_BSD_HEADER];
+X} SFHEADER;
+X
+Xstatic SFCODE	ampcode = {
+XSF_MAXAMP,
+Xsizeof(SFMAXAMP) + sizeof(SFCODE)
+X};
+X
+X# define sfchans(x) (x)->sfinfo.sf_chans
+X# define sfmagic(x) (x)->sfinfo.sf_magic
+X# define sfsrate(x) (x)->sfinfo.sf_srate
+X# define sfclass(x) (x)->sfinfo.sf_packmode
+X# define sfbsize(x) ((x)->st_size - sizeof(SFHEADER))
+X# define sfcodes(x) (x)->sfinfo.sf_codes
+X
+X# define ismagic(x) ((x)->sfinfo.sf_magic == SF_MAGIC)
+X# define islink(x)  ((x)->sfinfo.sf_magic == SF_LINK)
+X
+X# define sfmaxamp(mptr,chan) (mptr)->value[chan]
+X# define sfmaxamploc(mptr,chan) (mptr)->samploc[chan]
+X# define sfmaxamptime(x) (x)->timetag
+X# define ismaxampgood(x,s) (sfmaxamptime(x) + 2  >= (s)->st_mtime)
+X
+X# define sfcomm(x,n) (x)->comment[n]
+X
+X# define realname(x) (x)->reality
+X# define startsmp(x) (x)->startsamp
+X# define endsmp(x) (x)->endsamp
+X# define sfoffset(x,h) ((x)->startsamp * sfchans(h) * sfclass(h))
+X# define sfendset(x,h) ((x)->endsamp * sfchans(h) * sfclass(h))
+X
+X# define sflseek(x,y,z) lseek(x,(z != 0) ? y : ((y) + sizeof(SFHEADER)),z)
+X# define rheader(x,y) read(x,(char *) y,sizeof(SFHEADER)) != sizeof(SFHEADER)
+X
+X#define readopensf(name,fd,sfh,sfst,prog,result) \
+Xif ((fd = open(name, 0))  < 0) {  \
+X	fprintf(stderr,"%s: cannot access file %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (stat(name,&sfst)){ \
+X	fprintf(stderr,"%s: cannot get status on %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (rheader(fd,&sfh)){ \
+X	fprintf(stderr,"%s: cannot read header from %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (!ismagic(&sfh)){ \
+X	fprintf(stderr,"%s: %s not a bsd soundfile\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse result = 0;
+X
+X#define rwopensf(name,fd,sfh,sfst,prog,result,code) \
+Xif ((fd = open(name, code))  < 0) {  \
+X	fprintf(stderr,"%s: cannot access file %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (rheader(fd,&sfh)){ \
+X	fprintf(stderr,"%s: cannot read header from %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (!ismagic(&sfh)){ \
+X	fprintf(stderr,"%s: %s not a bsd soundfile\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse if (stat(name,&sfst)){ \
+X	fprintf(stderr,"%s: cannot get status on %s\n",prog,name); \
+X	result = -1;  \
+X} \
+Xelse result = 0;
+X
+SHAR_EOF
+chmod 0644 sfheader.h ||
+echo 'restore of sfheader.h failed'
+Wc_c="`wc -c < 'sfheader.h'`"
+test 3015 -eq "$Wc_c" ||
+	echo 'sfheader.h: original size 3015, current size' "$Wc_c"
+fi
+# ============= patchlevel.h ==============
+if test -f 'patchlevel.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping patchlevel.h (File already exists)'
+else
+echo 'x - extracting patchlevel.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'patchlevel.h' &&
+X#define	PATCHLEVEL	6
+SHAR_EOF
+chmod 0644 patchlevel.h ||
+echo 'restore of patchlevel.h failed'
+Wc_c="`wc -c < 'patchlevel.h'`"
+test 21 -eq "$Wc_c" ||
+	echo 'patchlevel.h: original size 21, current size' "$Wc_c"
+fi
+true || echo 'restore of sox.c failed'
+echo End of part 1, continue with part 2
+exit 0

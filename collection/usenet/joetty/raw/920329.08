@@ -1,0 +1,203 @@
+Xref: funic comp.sources.wanted:7277 comp.protocols.tcp-ip:8201 comp.dcom.lans.ethernet:447 alt.sources:3514
+Path: funic!fuug!mcsun!uunet!sun-barr!west.West.Sun.COM!news2me.ebay.sun.com!exodus.Eng.Sun.COM!appserv.Eng.Sun.COM!sun!amdcad!netcomsv!mork!doug
+From: doug@netcom.com (Doug Merritt)
+Newsgroups: comp.sources.wanted,comp.protocols.tcp-ip,comp.dcom.lans.ethernet,alt.sources
+Subject: etheraddr.c -- get host's phys. ether address (SunOS and SVR4)
+Summary: Was: Re: How to get enet H/W address reliably
+Message-ID: <8-cjkhndoug@netcom.com>
+Date: 27 Mar 92 18:35:41 GMT
+References: <1992Mar16.161222.13082@micronics.com> <1992Mar17.224452.15773@bradley.bradley.edu> <1992Mar19.092325.25500@ecmwf.co.uk>
+Followup-To: comp.sources.wanted,comp.protocols.tcp-ip,comp.dcom.lans.ethernet,alt.sources.d
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 190
+
+Below is etheraddr.c -- get host's physical ethernet address on either
+SunOS or SVR4. (Requires recompilation, since the methods are only
+conceptually similar).
+
+I wrote this in response to a net request & following discussion,
+the last little bit of which is excerpted below.
+
+Although I've temporarily added alt.sources to this, you'll all be relieved
+to know that I made it "alt.sources.d" for followups. ;-)
+
+Bugs: 1) uses arp cache, and hence won't work on system with empty arp
+cache (e.g. with ethernet hardware but not yet up on a net).
+2) SunOS compilation requires it to be run as root, to snoop /dev/kmem.
+
+Anyone know a better approach??
+
+( source follows very shortly, trust me. :-)
+
+In article <1992Mar19.092325.25500@ecmwf.co.uk> cgd@ecmwf.co.uk (Dick Dixon) writes:
+> [ shell command using "arp -a" deleted]
+>It looks in the local arp cache for a host to rsh to, asks that host for
+its arp cache, and greps its own host name out of that.
+
+You can look in the *local* arp cache, it doesn't have to be remote.
+Below is C code I wrote to do so for both SunOS and System V.4. This
+is no different than your "arp -a" approach, but being callable from
+C is a bonus for many purposes.
+
+>The proper way is to look up the right symbol in the kernel image, of course.
+>Does anyone have a fix that makes the CMU SNMP code report correct ethernet
+>addresses rather than zeroes?
+
+That would be nice. I get zeroes, too, which is why I took this other
+approach.
+	Doug
+------------------ CUT HERE ---- (etheraddr.c)  ----- CUT HERE ------------
+/*
+ * etheraddr.c -- find & print physical ethernet address of SunOS or SYSV host
+ * Doug Merritt 1992; public domain.
+ *
+ * By default compiles for SunOS 4.1.1 (and must run as root)
+ *		cc -o etheraddr etheraddr.c
+ *
+ * Compile with -DSYSTEM_V4 for SVR4 (need not run as root)
+ *		cc -DSYSTEM_V4 -o etheraddr etheraddr.c -lsocket -lnls
+ *
+ * (System V.4, in its infinite wisdom, requires extra libraries.)
+ *
+ * Bugs: 1) uses arp cache, and hence won't work on system with empty arp
+ * cache (e.g. with ethernet hardware but not yet up on a net).
+ * 2) SunOS compilation requires it to be run as root, to snoop /dev/kmem.
+ * (On System V.4 it uses ioctl.)
+ *
+ * It'd be nice to merge the code better, and to find a way to avoid being
+ * root for SunOS, but I'm just writing this to answer a net.question
+ * anyway, so this'll do for now.
+ */
+#include <stdio.h>
+#include <nlist.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netdb.h>
+
+#ifdef SYSTEM_V4
+
+#include <sys/ioctl.h>
+#include <sys/stream.h>
+#include <sys/stropts.h>
+#include <io/arp.h>
+#include <io/llc.h>
+
+#define	ARP_DEV	"/dev/arp"
+#endif
+
+
+#define	KERNEL	"/vmunix"
+#define	MEM	"/dev/kmem"
+
+#define	ARP_TAB_IX	0
+#define ARP_TABSIZE_IX	1
+
+struct nlist nl[] = {
+	{ "_arptab" },
+	{ "_arptab_size" },
+	{ "" },
+};
+
+main()
+{
+	FILE	*f;
+	long	tabsize;
+	struct	hostent *host_entry;
+	struct arptab *tab;
+	extern char* calloc();
+	char host[512];
+#ifdef SYSTEM_V4
+	struct strioctl	ic;
+	struct arpreq arp;
+	int	i;
+#endif
+
+	gethostname(host, 512);
+#ifdef SYSTEM_V4
+	if ((f=fopen(ARP_DEV, "r")) == NULL) {
+		perror(ARP_DEV);
+		exit(1);
+	}
+	ic.ic_len = sizeof(tabsize);
+	ic.ic_dp = (char *) &tabsize;
+	ic.ic_timout = 10;
+	ic.ic_cmd = ARP_GET_TBLSIZE;
+	if (ioctl(fileno(f), I_STR, &ic) < 0) {
+		perror("ARP ioctl");
+		exit(1);
+	}
+	for (i=0; i < tabsize; ++i) {
+		arp.arp_pa.ad_len = 0;
+		arp.arp_ifIndex = i;
+                ic.ic_len = sizeof(struct arpreq);
+                ic.ic_dp = (char *) &arp;
+                ic.ic_timout = 10;
+                ic.ic_cmd = ARP_GET_ENTRY;
+		if (ioctl(fileno(f), I_STR, &ic) < 0)
+			continue;
+		if (arp.arp_protocol != ETHER_IP_PROTOCOL)
+			continue;
+		host_entry = gethostbyaddr((caddr_t) arp.arp_pa.ad_data,
+				arp.arp_pa.ad_len, AF_INET);
+		/*
+		 * skip other hosts
+		 */
+		if (strcmp(host_entry->h_name, host))
+			continue;
+		printf("%s: ", host_entry->h_name);
+		print_addr(&arp.arp_ha.ad_data[0]);
+	}
+	fclose(f);
+#else
+	nlist(KERNEL, nl);
+	if (nl[ ARP_TABSIZE_IX ].n_type == 0) {
+		fprintf(stderr, "Can't find arp table in kernel\n");
+		exit(1);
+	}
+	if ((f=fopen(MEM, "r")) == NULL) {
+		perror(MEM);
+		exit(1);
+	}
+	fseek(f, (long) nl[ ARP_TABSIZE_IX ].n_value, 0);
+	fread(&tabsize, 0, sizeof(tabsize), f);
+	if (tabsize <= 0 || tabsize > 5000) {
+		fprintf(stderr, "arp tab size == %d???\n", tabsize);
+		exit(1);
+	}
+	tab = (struct arptab *) calloc(tabsize, sizeof(struct arptab));
+	fseek(f, (long) nl[ ARP_TAB_IX ].n_value, 0);
+	fread(tab, tabsize, sizeof(struct arptab), f);
+	fclose(f);
+	for (; tabsize-- > 0; ++tab) {
+		if (!tab->at_iaddr.s_addr || !tab->at_flags)
+			continue;
+		host_entry = gethostbyaddr((caddr_t) &tab->at_iaddr,
+				sizeof(tab->at_iaddr), AF_INET);
+		if (!strcmp(host_entry->h_name, host))
+			continue;
+		printf("%s: ", host);
+		print_addr(tab->at_enaddr);
+	}
+#endif
+}
+
+/*
+ * Stylistically this should just be ether_ntoa(), but I felt
+ * like doing it by hand.
+ */
+print_addr(s)
+	unsigned char *s;
+{
+	int	i;
+
+	for (i=0; i<5; i++)
+		printf("%x:", s[i]);
+	printf("%x\n", s[i]);
+}
+
+-- 
+Doug Merritt	Preferred: doug@netcom.com   (or: doug@eris.berkeley.edu)
+Professional Wild-eyed Visionary	Member, Crusaders for a Better Tomorrow

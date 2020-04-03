@@ -1,0 +1,1902 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: SOX: part 3 of 4
+Message-ID: <btbj4tfthinman@netcom.com>
+Date: 27 Mar 92 05:27:20 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 1893
+
+
+#!/bin/sh
+# This is part 03 of soundtools_v4
+# ============= aiff.c ==============
+if test -f 'aiff.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping aiff.c (File already exists)'
+else
+echo 'x - extracting aiff.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'aiff.c' &&
+X/*
+X * September 25, 1991
+X * Copyright 1991 Guido van Rossum And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Guido van Rossum And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools SGI/Amiga AIFF format.
+X * Used by SGI on 4D/35 and Indigo.
+X * This is also part of the IFF format used by the Amiga.
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+X/* Private data used by writer */
+Xstruct aiffpriv {
+X	unsigned long nsamples;
+X};
+X
+Xdouble read_ieee_extended();
+X
+Xaiffstartread(ft) 
+Xft_t ft;
+X{
+X	char buf[4];
+X	unsigned long totalsize;
+X	unsigned long chunksize;
+X	int channels;
+X	unsigned long frames;
+X	int bits;
+X	double rate;
+X	unsigned long offset;
+X	unsigned long blocksize;
+X	int littlendian = 0;
+X	char *endptr;
+X
+X	/* FORM chunk */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "FORM", 4) != 0)
+X		fail("AIFF header does not begin with magic word 'FORM'");
+X	totalsize = rblong(ft);
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "AIFF", 4) != 0)
+X		fail("AIFF 'FORM' chunk does not specify 'AIFF' as type");
+X
+X	/* This is not completely general; other chunk types may be present
+X	   in AIFF files; but this is all I care about for now. */
+X
+X	/* COMM chunk */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "COMM", 4) != 0)
+X		fail("AIFF header doesn't have 'COMM' chunk");
+X	chunksize = rblong(ft);
+X	if (chunksize != 18)
+X		fail("AIFF COMM chunk has bad size");
+X	channels = rbshort(ft);
+X	frames = rblong(ft);
+X	bits = rbshort(ft);
+X	rate = read_ieee_extended(ft);
+X
+X	/* SSND chunk */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "SSND", 4) != 0)
+X		fail("AIFF header doesn't have 'SSND' chunk");
+X	chunksize = rblong(ft);
+X	offset = rblong(ft);
+X	blocksize = rblong(ft);
+X	if (blocksize != 0)
+X		fail("AIFF header specifies nonzero blocksize?!?!");
+X	while (offset > 0) {
+X		if (getc(ft->fp) == EOF)
+X			fail("EOF in AIFF file while skipping header");
+X	}
+X
+X	ft->info.channels = channels;
+X	ft->info.rate = rate;
+X	ft->info.style = SIGN2;
+X	switch (bits) {
+X	case 8:
+X		ft->info.size = BYTE;
+X		break;
+X	case 16:
+X		ft->info.size = WORD;
+X		break;
+X	default:
+X		fail("unsupported sample size in AIFF header");
+X		/*NOTREACHED*/
+X	}
+X	endptr = (char *) &littlendian;
+X	*endptr = 1;
+X	if (littlendian == 1)
+X		ft->swap = 1;
+X}
+X
+X/* When writing, the header is supposed to contain the number of
+X   samples and data bytes written.
+X   Since we don't know how many samples there are until we're done,
+X   we first write the header with an very large number,
+X   and at the end we rewind the file and write the header again
+X   with the right number.  This only works if the file is seekable;
+X   if it is not, the very large size remains in the header.
+X   Strictly spoken this is not legal, but the playaiff utility
+X   will still be able to play the resulting file. */
+X
+Xaiffstartwrite(ft)
+Xft_t ft;
+X{
+X	struct aiffpriv *p = (struct aiffpriv *) ft->priv;
+X	int littlendian = 0;
+X	char *endptr;
+X
+X	p->nsamples = 0;
+X	if (ft->info.style == ULAW && ft->info.size == BYTE) {
+X		report("expanding 8-bit u-law to 16 bits");
+X		ft->info.size = WORD;
+X	}
+X	ft->info.style = SIGN2; /* We have a fixed style */
+X	/* Compute the "very large number" so that a maximum number
+X	   of samples can be transmitted through a pipe without the
+X	   risk of causing overflow when calculating the number of bytes.
+X	   At 48 kHz, 16 bits stereo, this gives ~3 hours of music.
+X	   Sorry, the AIFF format does not provide for an "infinite"
+X	   number of samples. */
+X	aiffwriteheader(ft, 0x7f000000 / (ft->info.size*ft->info.channels));
+X
+X	endptr = (char *) &littlendian;
+X	*endptr = 1;
+X	if (littlendian == 1)
+X		ft->swap = 1;
+X}
+X
+Xaiffwrite(ft, buf, len)
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	struct aiffpriv *p = (struct aiffpriv *) ft->priv;
+X	p->nsamples += len;
+X	rawwrite(ft, buf, len);
+X}
+X
+Xvoid
+Xaiffstopwrite(ft)
+Xft_t ft;
+X{
+X	struct aiffpriv *p = (struct aiffpriv *) ft->priv;
+X	if (!ft->seekable)
+X		return;
+X	if (fseek(ft->fp, 0L, 0) != 0)
+X		fail("can't rewind output file to rewrite AIFF header");
+X	aiffwriteheader(ft, p->nsamples / ft->info.channels);
+X}
+X
+Xaiffwriteheader(ft, nframes)
+Xft_t ft;
+Xlong nframes;
+X{
+X	int hsize =
+X		8 /*COMM hdr*/ + 18 /*COMM chunk*/ +
+X		8 /*SSND hdr*/ + 12 /*SSND chunk*/;
+X	int bits;
+X
+X	if (ft->info.style == SIGN2 && ft->info.size == BYTE)
+X		bits = 8;
+X	else if (ft->info.style == SIGN2 && ft->info.size == WORD)
+X		bits = 16;
+X	else
+X		fail("unsupported output style/size for AIFF header");
+X
+X	fputs("FORM", ft->fp); /* IFF header */
+X	wblong(ft, hsize + nframes * ft->info.size * ft->info.channels); /* file size */
+X	fputs("AIFF", ft->fp); /* File type */
+X
+X	/* COMM chunk -- describes encoding (and #frames) */
+X	fputs("COMM", ft->fp);
+X	wblong(ft, (long) 18); /* COMM chunk size */
+X	wbshort(ft, ft->info.channels); /* nchannels */
+X	wblong(ft, nframes); /* number of frames */
+X	wbshort(ft, bits); /* sample width, in bits */
+X	write_ieee_extended(ft, (double)ft->info.rate);
+X
+X	/* SSND chunk -- describes data */
+X	fputs("SSND", ft->fp);
+X	wblong(ft, 8 + nframes * ft->info.channels * ft->info.size); /* chunk size */
+X	wblong(ft, (long) 0); /* offset */
+X	wblong(ft, (long) 0); /* block size */
+X}
+X
+Xdouble ConvertFromIeeeExtended();
+X
+Xdouble read_ieee_extended(ft)
+Xft_t ft;
+X{
+X	char buf[10];
+X	if (fread(buf, 1, 10, ft->fp) != 10)
+X		fail("EOF while reading IEEE extended number");
+X	return ConvertFromIeeeExtended(buf);
+X}
+X
+Xwrite_ieee_extended(ft, x)
+Xft_t ft;
+Xdouble x;
+X{
+X	char buf[10];
+X	ConvertToIeeeExtended(x, buf);
+X	/*
+X	report("converted %g to %o %o %o %o %o %o %o %o %o %o",
+X		x,
+X		buf[0], buf[1], buf[2], buf[3], buf[4],
+X		buf[5], buf[6], buf[7], buf[8], buf[9]);
+X	*/
+X	(void) fwrite(buf, 1, 10, ft->fp);
+X}
+X
+X
+X/*
+X * C O N V E R T   T O   I E E E   E X T E N D E D
+X */
+X
+X/* Copyright (C) 1988-1991 Apple Computer, Inc.
+X * All rights reserved.
+X *
+X * Machine-independent I/O routines for IEEE floating-point numbers.
+X *
+X * NaN's and infinities are converted to HUGE_VAL or HUGE, which
+X * happens to be infinity on IEEE machines.  Unfortunately, it is
+X * impossible to preserve NaN's in a machine-independent way.
+X * Infinities are, however, preserved on IEEE machines.
+X *
+X * These routines have been tested on the following machines:
+X *    Apple Macintosh, MPW 3.1 C compiler
+X *    Apple Macintosh, THINK C compiler
+X *    Silicon Graphics IRIS, MIPS compiler
+X *    Cray X/MP and Y/MP
+X *    Digital Equipment VAX
+X *
+X *
+X * Implemented by Malcolm Slaney and Ken Turkowski.
+X *
+X * Malcolm Slaney contributions during 1988-1990 include big- and little-
+X * endian file I/O, conversion to and from Motorola's extended 80-bit
+X * floating-point format, and conversions to and from IEEE single-
+X * precision floating-point format.
+X *
+X * In 1991, Ken Turkowski implemented the conversions to and from
+X * IEEE double-precision format, added more precision to the extended
+X * conversions, and accommodated conversions involving +/- infinity,
+X * NaN's, and denormalized numbers.
+X */
+X
+X#ifndef HUGE_VAL
+X# define HUGE_VAL HUGE
+X#endif /*HUGE_VAL*/
+X
+X# define FloatToUnsigned(f)      ((unsigned long)(((long)(f - 2147483648.0)) + 2147483647L + 1))
+X
+XConvertToIeeeExtended(num, bytes)
+Xdouble num;
+Xchar *bytes;
+X{
+X    int    sign;
+X    int expon;
+X    double fMant, fsMant;
+X    unsigned long hiMant, loMant;
+X
+X    if (num < 0) {
+X        sign = 0x8000;
+X        num *= -1;
+X    } else {
+X        sign = 0;
+X    }
+X
+X    if (num == 0) {
+X        expon = 0; hiMant = 0; loMant = 0;
+X    }
+X    else {
+X        fMant = frexp(num, &expon);
+X        if ((expon > 16384) || !(fMant < 1)) {    /* Infinity or NaN */
+X            expon = sign|0x7FFF; hiMant = 0; loMant = 0; /* infinity */
+X        }
+X        else {    /* Finite */
+X            expon += 16382;
+X            if (expon < 0) {    /* denormalized */
+X                fMant = ldexp(fMant, expon);
+X                expon = 0;
+X            }
+X            expon |= sign;
+X            fMant = ldexp(fMant, 32);          
+X            fsMant = floor(fMant); 
+X            hiMant = FloatToUnsigned(fsMant);
+X            fMant = ldexp(fMant - fsMant, 32); 
+X            fsMant = floor(fMant); 
+X            loMant = FloatToUnsigned(fsMant);
+X        }
+X    }
+X    
+X    bytes[0] = expon >> 8;
+X    bytes[1] = expon;
+X    bytes[2] = hiMant >> 24;
+X    bytes[3] = hiMant >> 16;
+X    bytes[4] = hiMant >> 8;
+X    bytes[5] = hiMant;
+X    bytes[6] = loMant >> 24;
+X    bytes[7] = loMant >> 16;
+X    bytes[8] = loMant >> 8;
+X    bytes[9] = loMant;
+X}
+X
+X
+X/*
+X * C O N V E R T   F R O M   I E E E   E X T E N D E D  
+X */
+X
+X/* 
+X * Copyright (C) 1988-1991 Apple Computer, Inc.
+X * All rights reserved.
+X *
+X * Machine-independent I/O routines for IEEE floating-point numbers.
+X *
+X * NaN's and infinities are converted to HUGE_VAL or HUGE, which
+X * happens to be infinity on IEEE machines.  Unfortunately, it is
+X * impossible to preserve NaN's in a machine-independent way.
+X * Infinities are, however, preserved on IEEE machines.
+X *
+X * These routines have been tested on the following machines:
+X *    Apple Macintosh, MPW 3.1 C compiler
+X *    Apple Macintosh, THINK C compiler
+X *    Silicon Graphics IRIS, MIPS compiler
+X *    Cray X/MP and Y/MP
+X *    Digital Equipment VAX
+X *
+X *
+X * Implemented by Malcolm Slaney and Ken Turkowski.
+X *
+X * Malcolm Slaney contributions during 1988-1990 include big- and little-
+X * endian file I/O, conversion to and from Motorola's extended 80-bit
+X * floating-point format, and conversions to and from IEEE single-
+X * precision floating-point format.
+X *
+X * In 1991, Ken Turkowski implemented the conversions to and from
+X * IEEE double-precision format, added more precision to the extended
+X * conversions, and accommodated conversions involving +/- infinity,
+X * NaN's, and denormalized numbers.
+X */
+X
+X#ifndef HUGE_VAL
+X# define HUGE_VAL HUGE
+X#endif /*HUGE_VAL*/
+X
+X# define UnsignedToFloat(u)         (((double)((long)(u - 2147483647L - 1))) + 2147483648.0)
+X
+X/****************************************************************
+X * Extended precision IEEE floating-point conversion routine.
+X ****************************************************************/
+X
+Xdouble ConvertFromIeeeExtended(bytes)
+Xunsigned char *bytes;	/* LCN */
+X{
+X    double    f;
+X    int    expon;
+X    unsigned long hiMant, loMant;
+X    
+X    expon = ((bytes[0] & 0x7F) << 8) | (bytes[1] & 0xFF);
+X    hiMant    =    ((unsigned long)(bytes[2] & 0xFF) << 24)
+X            |    ((unsigned long)(bytes[3] & 0xFF) << 16)
+X            |    ((unsigned long)(bytes[4] & 0xFF) << 8)
+X            |    ((unsigned long)(bytes[5] & 0xFF));
+X    loMant    =    ((unsigned long)(bytes[6] & 0xFF) << 24)
+X            |    ((unsigned long)(bytes[7] & 0xFF) << 16)
+X            |    ((unsigned long)(bytes[8] & 0xFF) << 8)
+X            |    ((unsigned long)(bytes[9] & 0xFF));
+X
+X    if (expon == 0 && hiMant == 0 && loMant == 0) {
+X        f = 0;
+X    }
+X    else {
+X        if (expon == 0x7FFF) {    /* Infinity or NaN */
+X            f = HUGE_VAL;
+X        }
+X        else {
+X            expon -= 16383;
+X            f  = ldexp(UnsignedToFloat(hiMant), expon-=31);
+X            f += ldexp(UnsignedToFloat(loMant), expon-=32);
+X        }
+X    }
+X
+X    if (bytes[0] & 0x80)
+X        return -f;
+X    else
+X        return f;
+X}
+SHAR_EOF
+chmod 0644 aiff.c ||
+echo 'restore of aiff.c failed'
+Wc_c="`wc -c < 'aiff.c'`"
+test 11106 -eq "$Wc_c" ||
+	echo 'aiff.c: original size 11106, current size' "$Wc_c"
+fi
+# ============= hcom.c ==============
+if test -f 'hcom.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping hcom.c (File already exists)'
+else
+echo 'x - extracting hcom.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'hcom.c' &&
+X/*
+X * September 25, 1991
+X * Copyright 1991 Guido van Rossum And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Guido van Rossum And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools Macintosh HCOM format.
+X * These are really FSSD type files with Huffman compression,
+X * in MacBinary format.
+X * To do: make the MacBinary format optional (so that .data files
+X * are also acceptable).  (How to do this on output?)
+X */
+X
+X#include "st.h"
+X
+X#ifdef __STDC__
+X#include <string.h>
+X#include <stdlib.h>
+X#else
+Xextern char *malloc(), *realloc();
+X#endif
+X
+X/* Dictionary entry for Huffman (de)compression */
+Xtypedef struct {
+X	long frequ;
+X	short dict_leftson;
+X	short dict_rightson;
+X} dictent;
+X
+X/* Private data used by reader */
+Xstruct readpriv {
+X	/* Static data from the header */
+X	dictent *dictionary;
+X	long checksum;
+X	int deltacompression;
+X	/* Engine state */
+X	long huffcount;
+X	long cksum;
+X	int dictentry;
+X	int nrbits;
+X	unsigned long current;
+X	short sample;
+X};
+X
+X/*void*/ hcomstartread(ft)
+Xft_t ft;
+X{
+X	struct readpriv *p = (struct readpriv *) ft->priv;
+X	int i;
+X	char buf[4];
+X	unsigned long datasize, rsrcsize;
+X	unsigned long huffcount, checksum, compresstype, divisor;
+X	unsigned short dictsize;
+X
+X	/* Skip first 65 bytes of header */
+X	skipbytes(ft, 65);
+X
+X	/* Check the file type (bytes 65-68) */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "FSSD", 4) != 0)
+X		fail("Mac header type is not FSSD");
+X
+X	/* Skip to byte 83 */
+X	skipbytes(ft, 83-69);
+X
+X	/* Get essential numbers from the header */
+X	datasize = rblong(ft); /* bytes 83-86 */
+X	rsrcsize = rblong(ft); /* bytes 87-90 */
+X
+X	/* Skip the rest of the header (total 128 bytes) */
+X	skipbytes(ft, 128-91);
+X
+X	/* The data fork must contain a "HCOM" header */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "HCOM", 4) != 0)
+X		fail("Mac data fork is not HCOM");
+X
+X	/* Then follow various parameters */
+X	huffcount = rblong(ft);
+X	checksum = rblong(ft);
+X	compresstype = rblong(ft);
+X	if (compresstype > 1)
+X		fail("Bad compression type in HCOM header");
+X	divisor = rblong(ft);
+X	if (divisor == 0 || divisor > 4)
+X		fail("Bad sampling rate divisor in HCOM header");
+X	dictsize = rbshort(ft);
+X
+X	/* Translate to sox parameters */
+X	ft->info.style = UNSIGNED;
+X	ft->info.size = BYTE;
+X	ft->info.rate = 22050 / divisor;
+X	ft->info.channels = 1;
+X
+X	/* Allocate memory for the dictionary */
+X	p->dictionary = (dictent *) malloc(511 * sizeof(dictent));
+X	if (p->dictionary == NULL)
+X		fail("can't malloc memory for Huffman dictionary");
+X
+X	/* Read dictionary */
+X	for(i = 0; i < dictsize; i++) {
+X		p->dictionary[i].dict_leftson = rbshort(ft);
+X		p->dictionary[i].dict_rightson = rbshort(ft);
+X		/*
+X		report("%d %d",
+X		       p->dictionary[i].dict_leftson,
+X		       p->dictionary[i].dict_rightson);
+X		       */
+X	}
+X	skipbytes(ft, 1); /* skip pad byte */
+X
+X	/* Initialized the decompression engine */
+X	p->checksum = checksum;
+X	p->deltacompression = compresstype;
+X	if (!p->deltacompression)
+X		report("HCOM data using value compression");
+X	p->huffcount = huffcount;
+X	p->cksum = 0;
+X	p->dictentry = 0;
+X	p->nrbits = -1; /* Special case to get first byte */
+X}
+X
+X/*void*/ skipbytes(ft, n)
+Xft_t ft;
+Xint n;
+X{
+X	while (--n >= 0) {
+X		if (getc(ft->fp) == EOF)
+X			fail("unexpected EOF in Mac header");
+X	}
+X}
+X
+Xint hcomread(ft, buf, len)
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	register struct readpriv *p = (struct readpriv *) ft->priv;
+X	int done = 0;
+X
+X	if (p->nrbits < 0) {
+X		/* The first byte is special */
+X		if (p->huffcount == 0)
+X			return 0; /* Don't know if this can happen... */
+X		p->sample = getc(ft->fp);
+X		if (p->sample == EOF)
+X			fail("unexpected EOF at start of HCOM data");
+X		*buf++ = (p->sample - 128) * 0x1000000;
+X		p->huffcount--;
+X		p->nrbits = 0;
+X		done++;
+X		len--;
+X		if (len == 0)
+X			return done;
+X	}
+X
+X	while (p->huffcount > 0) {
+X		if(p->nrbits == 0) {
+X			p->current = rblong(ft);
+X			if (feof(ft->fp))
+X				fail("unexpected EOF in HCOM data");
+X			p->cksum += p->current;
+X			p->nrbits = 32;
+X		}
+X		if(p->current & 0x80000000) {
+X			p->dictentry =
+X				p->dictionary[p->dictentry].dict_rightson;
+X		} else {
+X			p->dictentry =
+X				p->dictionary[p->dictentry].dict_leftson;
+X		}
+X		p->current = p->current << 1;
+X		p->nrbits--;
+X		if(p->dictionary[p->dictentry].dict_leftson < 0) {
+X			short datum;
+X			datum = p->dictionary[p->dictentry].dict_rightson;
+X			if (!p->deltacompression)
+X				p->sample = 0;
+X			p->sample = (p->sample + datum) & 0xff;
+X			p->huffcount--;
+X			if (p->sample == 0)
+X				*buf++ = -127 * 0x1000000;
+X			else
+X				*buf++ = (p->sample - 128) * 0x1000000;
+X			p->dictentry = 0;
+X			done++;
+X			len--;
+X			if (len == 0)
+X				break;
+X		}
+X	}
+X
+X	return done;
+X}
+X
+X/*void*/ hcomstopread(ft) 
+Xft_t ft;
+X{
+X	register struct readpriv *p = (struct readpriv *) ft->priv;
+X
+X	if (p->huffcount != 0)
+X		fail("not all HCOM data read");
+X	if(p->cksum != p->checksum)
+X		fail("checksum error in HCOM data");
+X	free((char *)p->dictionary);
+X	p->dictionary = NULL;
+X}
+X
+Xstruct writepriv {
+X	unsigned char *data;	/* Buffer allocated with malloc */
+X	unsigned int size;	/* Size of allocated buffer */
+X	unsigned int pos;	/* Where next byte goes */
+X};
+X
+X#define BUFINCR (10*BUFSIZ)
+X
+X/*void*/ hcomstartwrite(ft) 
+Xft_t ft;
+X{
+X	register struct writepriv *p = (struct writepriv *) ft->priv;
+X
+X	switch (ft->info.rate) {
+X	case 22050:
+X	case 22050/2:
+X	case 22050/3:
+X	case 22050/4:
+X		break;
+X	default:
+X		fail("unacceptable output rate for HCOM: try 5512, 7350, 11025 or 22050 hertz");
+X	}
+X	ft->info.size = BYTE;
+X	ft->info.style = UNSIGNED;
+X	ft->info.channels = 1;
+X
+X	p->size = BUFINCR;
+X	p->pos = 0;
+X	p->data = (unsigned char *) malloc(p->size);
+X	if (p->data == NULL)
+X		fail("can't malloc buffer for uncompressed HCOM data");
+X}
+X
+X/*void*/ hcomwrite(ft, buf, len)
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	register struct writepriv *p = (struct writepriv *) ft->priv;
+X	long datum;
+X
+X	if (p->pos + len > p->size) {
+X		p->size = ((p->pos + len) / BUFINCR + 1) * BUFINCR;
+X		p->data = (unsigned char *) realloc(p->data, p->size);
+X		if (p->data == NULL)
+X		    fail("can't realloc buffer for uncompressed HCOM data");
+X	}
+X
+X	while (--len >= 0) {
+X		datum = *buf++;
+X		datum >>= 24;
+X		datum ^= 128;
+X		p->data[p->pos++] = datum;
+X	}
+X}
+X
+X/*void*/ hcomstopwrite(ft) 
+Xft_t ft;
+X{
+X	register struct writepriv *p = (struct writepriv *) ft->priv;
+X	unsigned char *data = p->data;
+X	long len = p->pos;
+X	int i;
+X
+X	/* Compress it all at once */
+X	compress(&data, &len, (double) ft->info.rate);
+X	free((char *) p->data);
+X
+X	/* Write the header */
+X	(void) fwrite("\000\001A", 1, 3, ft->fp); /* Dummy file name "A" */
+X	padbytes(ft, 65-3);
+X	(void) fwrite("FSSD", 1, 4, ft->fp);
+X	padbytes(ft, 83-69);
+X	wblong(ft, (unsigned long) len); /* data size */
+X	wblong(ft, (unsigned long) 0); /* rsrc size */
+X	padbytes(ft, 128 - 91);
+X	if (ferror(ft->fp))
+X		fail("write error in HCOM header");
+X
+X	/* Write the data fork */
+X	if (fwrite((char *) data, 1, (int)len, ft->fp) != len)
+X		fail("can't write compressed HCOM data");
+X	free((char *) data);
+X
+X	/* Pad the data fork to a multiple of 128 bytes */
+X	padbytes(ft, 128 - (int) (len%128));
+X}
+X
+X/*void*/ padbytes(ft, n)
+Xft_t ft;
+Xint n;
+X{
+X	while (--n >= 0)
+X		putc('\0', ft->fp);
+X}
+X
+X
+X/* XXX This uses global variables -- one day these should all be
+X   passed around in a structure instead. */
+X
+Xvoid putlong(c, v)
+Xunsigned char *c;
+Xlong v;
+X{
+X  *c++ = (v >> 24) & 0xff;
+X  *c++ = (v >> 16) & 0xff;
+X  *c++ = (v >> 8) & 0xff;
+X  *c++ = v & 0xff;
+X}
+X
+Xvoid putshort(c, v)
+Xunsigned char *c;
+Xshort v;
+X{
+X  *c++ = (v >> 8) & 0xff;
+X  *c++ = v & 0xff;
+X}
+X
+Xdictent dictionary[511];
+Xdictent *de;
+Xlong codes[256];
+Xlong codesize[256];
+Xlong checksum;
+X
+Xvoid makecodes(e, c, s, b)
+Xint e, c, s, b;
+X{
+X  if(dictionary[e].dict_leftson < 0) {
+X    codes[dictionary[e].dict_rightson] = c;
+X    codesize[dictionary[e].dict_rightson] = s;
+X  } else {
+X    makecodes(dictionary[e].dict_leftson, c, s + 1, b << 1);
+X    makecodes(dictionary[e].dict_rightson, c + b, s + 1, b << 1);
+X  }
+X}
+X
+Xlong curword;
+Xint nbits;
+X
+Xvoid putcode(c, df)
+Xunsigned char c;
+Xunsigned char ** df;
+X{
+Xlong code, size;
+Xint i;
+X  code = codes[c];
+X  size = codesize[c];
+X  for(i = 0; i < size; i++) {
+X    curword = (curword << 1);
+X    if(code & 1) curword += 1;
+X    nbits++;
+X    if(nbits == 32) {
+X      putlong(*df, curword);
+X      checksum += curword;
+X      (*df) += 4;
+X      nbits = 0;
+X      curword = 0;
+X    }
+X    code = code >> 1;
+X  }
+X}
+X
+X/*void*/ compress(df, dl, fr)
+Xunsigned char **df;
+Xlong *dl;
+Xfloat fr;
+X{
+X  long huffcount, compresstype, samplerate;
+X  unsigned char *datafork = *df;
+X  unsigned char *ddf;
+X  short dictsize;
+X  unsigned char *uncompressed;
+X  int frequtable[256];
+X  int i, sample, j, k, d, l, frequcount;
+X
+X  sample = *datafork;
+X  for(i = 0; i < 256; i++) frequtable[i] = 0;
+X  for(i = 1; i < *dl; i++) {
+X    d = datafork[i] - sample & 0xff;
+X    sample = datafork[i];
+X    datafork[i] = d;
+X    frequtable[d]++;
+X  }
+X  de = dictionary;
+X  for(i = 0; i < 256; i++) if(frequtable[i] != 0) {
+X    de->frequ = -frequtable[i];
+X    de->dict_leftson = -1;
+X    de->dict_rightson = i;
+X    de++;
+X  }
+X  frequcount = de - dictionary;
+X  for(i = 0; i < frequcount; i++) {
+X    for(j = i + 1; j < frequcount; j++) {
+X      if(dictionary[i].frequ > dictionary[j].frequ) {
+X        k = dictionary[i].frequ;
+X        dictionary[i].frequ = dictionary[j].frequ;
+X        dictionary[j].frequ = k;
+X        k = dictionary[i].dict_leftson;
+X        dictionary[i].dict_leftson = dictionary[j].dict_leftson;
+X        dictionary[j].dict_leftson = k;
+X        k = dictionary[i].dict_rightson;
+X        dictionary[i].dict_rightson = dictionary[j].dict_rightson;
+X        dictionary[j].dict_rightson = k;
+X      }
+X    }
+X  }
+X  while(frequcount > 1) {
+X    j = frequcount - 1;
+X    de->frequ = dictionary[j - 1].frequ;
+X    de->dict_leftson = dictionary[j - 1].dict_leftson;
+X    de->dict_rightson = dictionary[j - 1].dict_rightson;
+X    l = dictionary[j - 1].frequ + dictionary[j].frequ;
+X    for(i = j - 2; i >= 0; i--) {
+X      if(l >= dictionary[i].frequ) break;
+X      dictionary[i + 1] = dictionary[i];
+X    }
+X    i = i + 1;
+X    dictionary[i].frequ = l;
+X    dictionary[i].dict_leftson = j;
+X    dictionary[i].dict_rightson = de - dictionary;
+X    de++;
+X    frequcount--;
+X  }
+X  dictsize = de - dictionary;
+X  for(i = 0; i < 256; i++) {
+X    codes[i] = 0;
+X    codesize[i] = 0;
+X  }
+X  makecodes(0, 0, 0, 1);
+X  l = 0;
+X  for(i = 0; i < 256; i++) {
+X	  l += frequtable[i] * codesize[i];
+X  }
+X  l = (((l + 31) >> 5) << 2) + 24 + dictsize * 4;
+X  report("  Original size: %6d bytes", *dl);
+X  report("Compressed size: %6d bytes", l);
+X  if((datafork = (unsigned char *)malloc((unsigned)l)) == NULL)
+X    fail("can't malloc buffer for compressed HCOM data");
+X  ddf = datafork + 22;
+X  for(i = 0; i < dictsize; i++) {
+X    putshort(ddf, dictionary[i].dict_leftson);
+X    ddf += 2;
+X    putshort(ddf, dictionary[i].dict_rightson);
+X    ddf += 2;
+X  }
+X  *ddf++ = 0;
+X  *ddf++ = *(*df)++;
+X  checksum = 0;
+X  nbits = 0;
+X  curword = 0;
+X  for(i = 1; i < *dl; i++) putcode(*(*df)++, &ddf);
+X  if(nbits != 0) {
+X    codes[0] = 0;
+X    codesize[0] = 32 - nbits;
+X    putcode(0, &ddf);
+X  }
+X  strncpy(datafork, "HCOM", 4);
+X  putlong(datafork + 4, *dl);
+X  putlong(datafork + 8, checksum);
+X  putlong(datafork + 12, 1L);
+X  samplerate = 22050 / (long)fr;
+X  putlong(datafork + 16, samplerate);
+X  putshort(datafork + 20, dictsize);
+X
+X  *df = datafork;
+X  *dl = l;
+X}
+SHAR_EOF
+chmod 0644 hcom.c ||
+echo 'restore of hcom.c failed'
+Wc_c="`wc -c < 'hcom.c'`"
+test 11280 -eq "$Wc_c" ||
+	echo 'hcom.c: original size 11280, current size' "$Wc_c"
+fi
+# ============= 8svx.c ==============
+if test -f '8svx.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping 8svx.c (File already exists)'
+else
+echo 'x - extracting 8svx.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > '8svx.c' &&
+X/*
+X * Amiga 8SVX format handler: W V Neisius, February 1992
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+Xextern errno;
+Xextern char *sys_errlist[];
+X
+X/* Private data used by writer */
+Xstruct svxpriv {
+X        unsigned long nsamples;
+X	FILE *ch[4];
+X};
+X
+X#ifndef SEEK_CUR
+X#define SEEK_CUR        1
+X#endif
+X#ifndef SEEK_SET
+X#define SEEK_SET        0
+X#endif
+X
+X/*======================================================================*/
+X/*                         8SVXSTARTREAD                                */
+X/*======================================================================*/
+X
+Xsvxstartread(ft)
+Xft_t ft;
+X{
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X
+X	char buf[12];
+X	char *endptr;
+X	char *chunk_buf;
+X
+X	unsigned long totalsize;
+X	unsigned long chunksize;
+X
+X	int channels;
+X	int rate;
+X	int littlendian = 0;
+X	int i;
+X
+X	unsigned long chan1_pos;
+X
+X	rate = 0;
+X	channels = 1;
+X
+X	/* read FORM chunk */
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "FORM", 4) != 0)
+X		fail("8SVX: header does not begin with magic word 'FORM'");
+X	totalsize = rblong(ft);
+X	if (fread(buf, 1, 4, ft->fp) != 4 || strncmp(buf, "8SVX", 4) != 0)
+X		fail("8SVX: 'FORM' chunk does not specify '8SVX' as type");
+X
+X	/* read chunks until 'BODY' (or end) */
+X	while (fread(buf,1,4,ft->fp) == 4 && strncmp(buf,"BODY",4) != 0) {
+X		if (strncmp(buf,"VHDR",4) == 0) {
+X			chunksize = rblong(ft);
+X			if (chunksize != 20)
+X				fail ("8SVX: VHDR chunk has bad size");
+X			fseek(ft->fp,12,SEEK_CUR);
+X			rate = rbshort(ft);
+X			fseek(ft->fp,1,SEEK_CUR);
+X			fread(buf,1,1,ft->fp);
+X			if (buf[0] != 0)
+X				fail ("8SVX: unsupported data compression");
+X			fseek(ft->fp,4,SEEK_CUR);
+X			continue;
+X		}
+X
+X		if (strncmp(buf,"ANNO",4) == 0) {
+X			chunksize = rblong(ft);
+X			if (chunksize & 1)
+X				chunksize++;
+X			chunk_buf = (char *) malloc(chunksize + 1);
+X			for (i = 0; i < chunksize; i ++) {
+X				if (fread (&chunk_buf[i],1,1,ft->fp) != 1)
+X					fail("8SVX: Unexpected EOF in ANNO header");
+X			}
+X			chunk_buf[i] = '\0';
+X			report ("%s",chunk_buf);
+X			free(chunk_buf);
+X
+X			continue;
+X		}
+X
+X		if (strncmp(buf,"NAME",4) == 0) {
+X			chunksize = rblong(ft);
+X			if (chunksize & 1)
+X				chunksize++;
+X			chunk_buf = (char *) malloc(chunksize + 1);
+X			for (i = 0; i < chunksize; i ++) {
+X				if (fread (&chunk_buf[i],1,1,ft->fp) != 1)
+X				    fail("8SVX: Unexpected EOF in NAME header");
+X			}
+X			chunk_buf[i] = '\0';
+X			report ("%s",chunk_buf);
+X			free(chunk_buf);
+X
+X			continue;
+X		}
+X
+X		if (strncmp(buf,"CHAN",4) == 0) {
+X			chunksize = rblong(ft);
+X			if (chunksize != 4) 
+X				fail("8SVX: Short channel chunk");
+X			channels = rblong(ft);
+X			channels = (channels & 0x01) + 
+X					((channels & 0x02) >> 1) +
+X				   	((channels & 0x04) >> 2) + 
+X					((channels & 0x08) >> 3);
+X
+X			continue;
+X		}
+X
+X		/* some other kind of chunk */
+X		chunksize = rblong(ft);
+X		if (chunksize & 1)
+X			chunksize++;
+X		fseek(ft->fp,chunksize,SEEK_CUR);
+X		continue;
+X
+X	}
+X
+X	if (rate == 0)
+X		fail ("8SVX: invalid rate");
+X	if (strncmp(buf,"BODY",4) != 0)
+X		fail ("8SVX: BODY chunk not found");
+X	p->nsamples = rblong(ft);
+X
+X	ft->info.channels = channels;
+X	ft->info.rate = rate;
+X	ft->info.style = SIGN2;
+X	ft->info.size = BYTE;
+X
+X	/* open files to channels */
+X	p->ch[0] = ft->fp;
+X	chan1_pos = ftell(p->ch[0]);
+X
+X	for (i = 1; i < channels; i++) {
+X		if ((p->ch[i] = fopen(ft->filename, READBINARY)) == NULL)
+X			fail("Can't open channel file '%s': %s",
+X				ft->filename, sys_errlist[errno]);
+X
+X		/* position channel files */
+X		if (fseek(p->ch[i],chan1_pos,SEEK_SET))
+X		    fail ("Can't position channel %d: %s",i,sys_errlist[errno]);
+X		if (fseek(p->ch[i],p->nsamples/channels*i,SEEK_CUR))
+X		    fail ("Can't seek channel %d: %s",i,sys_errlist[errno]);
+X	}
+X
+X
+X	endptr = (char *) &littlendian;
+X	*endptr = 1;
+X	if (littlendian == 1)
+X		ft->swap = 1;
+X
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXREAD                                     */
+X/*======================================================================*/
+Xsvxread(ft, buf, nsamp) 
+Xft_t ft;
+Xlong *buf, nsamp;
+X{
+X	register unsigned long datum;
+X	int done = 0;
+X	int i;
+X
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X
+X	while (done < nsamp) {
+X		for (i = 0; i < ft->info.channels; i++) {
+X			datum = getc(p->ch[i]);
+X			if (feof(p->ch[i]))
+X				return done;
+X			/* scale signed up to long's range */
+X			*buf++ = LEFT(datum, 24);
+X		}
+X		done += ft->info.channels;
+X	}
+X	return done;
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXSTOPREAD                                 */
+X/*======================================================================*/
+Xsvxstopread(ft)
+Xft_t ft;
+X{
+X	int i;
+X
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X
+X	/* close channel files */
+X	for (i = 1; i < ft->info.channels; i++) {
+X		fclose (p->ch[i]);
+X	}
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXSTARTWRITE                               */
+X/*======================================================================*/
+Xsvxstartwrite(ft)
+Xft_t ft;
+X{
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X	int littlendian = 0;
+X	int i;
+X	char *endptr;
+X
+X	/* open channel output files */
+X	p->ch[0] = ft->fp;
+X	for (i = 1; i < ft->info.channels; i++) {
+X		if ((p->ch[i] = tmpfile()) == NULL)
+X			fail("Can't open channel output file: %s",
+X				sys_errlist[errno]);
+X	}
+X
+X	/* write header (channel 0) */
+X	ft->info.style = SIGN2;
+X	ft->info.size = BYTE;
+X
+X	p->nsamples = 0;
+X	svxwriteheader(ft, p->nsamples);
+X
+X	endptr = (char *) &littlendian;
+X	*endptr = 1;
+X	if (littlendian == 1)
+X		ft->swap = 1;
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXWRITE                                    */
+X/*======================================================================*/
+X
+Xsvxwrite(ft, buf, len)
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X
+X	register long datum;
+X	int done = 0;
+X	int i;
+X
+X	p->nsamples += len;
+X
+X	while(done < len) {
+X		for (i = 0; i < ft->info.channels; i++) {
+X			datum = RIGHT(*buf++, 24);
+X			putc(datum, p->ch[i]);
+X		}
+X		done += ft->info.channels;
+X	}
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXSTOPWRITE                                */
+X/*======================================================================*/
+X
+Xsvxstopwrite(ft)
+Xft_t ft;
+X{
+X	struct svxpriv *p = (struct svxpriv *) ft->priv;
+X
+X	int i;
+X	int len;
+X	char svxbuf[512];
+X
+X	/* append all channel pieces to channel 0 */
+X	/* close temp files */
+X	for (i = 1; i < ft->info.channels; i++) {
+X		if (fseek (p->ch[i], 0L, 0))
+X			fail ("Can't rewind channel output file %d",i);
+X		while (!feof(p->ch[i])) {
+X			len = fread (svxbuf, 1, 512, p->ch[i]);
+X			fwrite (svxbuf, 1, len, p->ch[0]);
+X		}
+X		fclose (p->ch[i]);
+X	}
+X
+X	/* fixup file sizes in header */
+X	if (fseek(ft->fp, 0L, 0) != 0)
+X		fail("can't rewind output file to rewrite 8SVX header");
+X	svxwriteheader(ft, p->nsamples);
+X}
+X
+X/*======================================================================*/
+X/*                         8SVXWRITEHEADER                              */
+X/*======================================================================*/
+X#define SVXHEADERSIZE 100
+Xsvxwriteheader(ft,nsamples)
+Xft_t ft;
+Xlong nsamples;
+X{
+X	fputs ("FORM", ft->fp);
+X	wblong(ft, nsamples + SVXHEADERSIZE - 8);  /* size of file */
+X	fputs("8SVX", ft->fp); /* File type */
+X
+X	fputs ("VHDR", ft->fp);
+X	wblong(ft, (long) 20); /* number of bytes to follow */
+X	wblong(ft, nsamples);  /* samples, 1-shot */
+X	wblong(ft, (long) 0);  /* samples, repeat */
+X	wblong(ft, (long) 0);  /* samples per repeat cycle */
+X	wbshort(ft, ft->info.rate); /* samples per second */
+X	fputc(1,ft->fp); /* number of octaves */
+X	fputc(0,ft->fp); /* data compression (none) */
+X	wbshort(ft,1); wbshort(ft,0); /* volume */
+X
+X	fputs ("ANNO", ft->fp);
+X	wblong(ft, (long) 32); /* length of block */
+X	fputs ("File created by Sound Exchange  ", ft->fp);
+X
+X	fputs ("CHAN", ft->fp);
+X	wblong(ft, (long) 4);
+X	wblong(ft, (ft->info.channels == 2) ? (long) 6 :
+X		   (ft->info.channels == 4) ? (long) 15 : (long) 2);
+X
+X	fputs ("BODY", ft->fp);
+X	wblong(ft, nsamples); /* samples in file */
+X}
+SHAR_EOF
+chmod 0644 8svx.c ||
+echo 'restore of 8svx.c failed'
+Wc_c="`wc -c < '8svx.c'`"
+test 8144 -eq "$Wc_c" ||
+	echo '8svx.c: original size 8144, current size' "$Wc_c"
+fi
+# ============= sndrtool.c ==============
+if test -f 'sndrtool.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping sndrtool.c (File already exists)'
+else
+echo 'x - extracting sndrtool.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sndrtool.c' &&
+X/*
+X * Sounder/Sndtool format handler: W V Neisius, February 1992
+X */
+X
+X#include <math.h>
+X#include "st.h"
+X
+Xextern errno;
+Xextern char *sys_errlist[];
+X
+X/* Private data used by writer */
+Xstruct sndpriv {
+X        unsigned long nsamples;
+X};
+X
+X#ifndef	SEEK_CUR
+X#define	SEEK_CUR	1
+X#endif
+X
+X/*======================================================================*/
+X/*                         SNDSTARTREAD                                */
+X/*======================================================================*/
+X
+Xsndtstartread(ft)
+Xft_t ft;
+X{
+Xstruct sndpriv *p = (struct sndpriv *) ft->priv;
+X
+Xchar buf[97];
+X
+Xint rate;
+Xint i;
+X
+Xrate = 0;
+X
+X/* determine file type */
+X        /* if first 5 bytes == SOUND then this is probably a sndtool sound */
+X        /* if first word (16 bits) == 0 
+X         and second word is between 4000 & 25000 then this is sounder sound */
+X        /* otherwise, its probably raw, not handled here */
+X
+Xif (fread(buf, 1, 2, ft->fp) != 2)
+X	fail("SND: unexpected EOF");
+Xif (strncmp(buf,"\0\0",2) == 0)
+X	{
+X	/* sounder */
+X	rate = rlshort(ft);
+X	if (rate < 4000 || rate > 25000 )
+X		fail ("SND: sample rate out of range");
+X	fseek(ft->fp,4,SEEK_CUR);
+X	}
+Xelse
+X	{
+X	/* sndtool ? */
+X	fread(&buf[2],1,6,ft->fp);
+X	if (strncmp(buf,"SOUND",5))
+X		fail ("SND: unrecognized SND format");
+X	fseek(ft->fp,12,SEEK_CUR);
+X	rate = rlshort(ft);
+X	fseek(ft->fp,6,SEEK_CUR);
+X	if (fread(buf,1,96,ft->fp) != 96)
+X		fail ("SND: unexpected EOF in SND header");
+X	report ("%s",buf);
+X	}
+X
+Xft->info.channels = 1;
+Xft->info.rate = rate;
+Xft->info.style = UNSIGNED;
+Xft->info.size = BYTE;
+X
+X}
+X
+X/*======================================================================*/
+X/*                         SNDTSTARTWRITE                               */
+X/*======================================================================*/
+Xsndtstartwrite(ft)
+Xft_t ft;
+X{
+Xstruct sndpriv *p = (struct sndpriv *) ft->priv;
+X
+X/* write header */
+Xft->info.style = UNSIGNED;
+Xft->info.size = BYTE;
+Xp->nsamples = 0;
+Xsndtwriteheader(ft, 0);
+X
+X}
+X/*======================================================================*/
+X/*                         SNDRSTARTWRITE                               */
+X/*======================================================================*/
+Xsndrstartwrite(ft)
+Xft_t ft;
+X{
+Xstruct sndpriv *p = (struct sndpriv *) ft->priv;
+X
+X/* write header */
+Xft->info.style = UNSIGNED;
+Xft->info.size = BYTE;
+X
+X/* sounder header */
+Xwlshort (ft,0); /* sample size code */
+Xwlshort (ft,ft->info.rate);     /* sample rate */
+Xwlshort (ft,10);        /* volume */
+Xwlshort (ft,4); /* shift */
+X}
+X
+X/*======================================================================*/
+X/*                         SNDTWRITE                                     */
+X/*======================================================================*/
+X
+Xsndtwrite(ft, buf, len)
+Xft_t ft;
+Xlong *buf, len;
+X{
+X	struct sndpriv *p = (struct sndpriv *) ft->priv;
+X	p->nsamples += len;
+X	rawwrite(ft, buf, len);
+X}
+X
+X/*======================================================================*/
+X/*                         SNDTSTOPWRITE                                */
+X/*======================================================================*/
+X
+Xsndtstopwrite(ft)
+Xft_t ft;
+X{
+Xstruct sndpriv *p = (struct sndpriv *) ft->priv;
+X
+X/* fixup file sizes in header */
+Xif (fseek(ft->fp, 0L, 0) != 0)
+X	fail("can't rewind output file to rewrite SND header");
+Xsndtwriteheader(ft, p->nsamples);
+X}
+X
+X/*======================================================================*/
+X/*                         SNDTWRITEHEADER                              */
+X/*======================================================================*/
+Xsndtwriteheader(ft,nsamples)
+Xft_t ft;
+Xlong nsamples;
+X{
+Xchar name_buf[97];
+X
+X/* sndtool header */
+Xfputs ("SOUND",ft->fp); /* magic */
+Xfputc (0x1a,ft->fp);
+Xwlshort (ft,(long)0);  /* hGSound */
+Xwllong (ft,nsamples);
+Xwllong (ft,(long)0);
+Xwllong (ft,nsamples);
+Xwlshort (ft,ft->info.rate);
+Xwlshort (ft,0);
+Xwlshort (ft,10);
+Xwlshort (ft,4);
+Xsprintf (name_buf,"%s - File created by Sound Exchange",ft->filename);
+Xfwrite (name_buf, 1, 96, ft->fp);
+X
+X}
+X
+X
+SHAR_EOF
+chmod 0644 sndrtool.c ||
+echo 'restore of sndrtool.c failed'
+Wc_c="`wc -c < 'sndrtool.c'`"
+test 4033 -eq "$Wc_c" ||
+	echo 'sndrtool.c: original size 4033, current size' "$Wc_c"
+fi
+# ============= copy.c ==============
+if test -f 'copy.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping copy.c (File already exists)'
+else
+echo 'x - extracting copy.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'copy.c' &&
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools skeleton effect file.
+X */
+X
+X#include "st.h"
+X
+X/*
+X * Process options
+X */
+Xcopy_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	if (n)
+X		fail("Copy effect takes no options.");
+X}
+X
+X/*
+X * Start processing
+X */
+Xcopy_start(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X	/* stuff data into delaying effects here */
+X}
+X
+X/*
+X * Read up to len samples from file.
+X * Convert to signed longs.
+X * Place in buf[].
+X * Return number of samples read.
+X */
+X
+Xcopy_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	int done;
+X	
+X	done = ((*isamp < *osamp) ? *isamp : *osamp);
+X	bcopy(ibuf, obuf, done * sizeof(long));
+X	*isamp = *osamp = done;
+X	return done;
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xcopy_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+X
+X
+X
+SHAR_EOF
+chmod 0644 copy.c ||
+echo 'restore of copy.c failed'
+Wc_c="`wc -c < 'copy.c'`"
+test 1159 -eq "$Wc_c" ||
+	echo 'copy.c: original size 1159, current size' "$Wc_c"
+fi
+# ============= avg.c ==============
+if test -f 'avg.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping avg.c (File already exists)'
+else
+echo 'x - extracting avg.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'avg.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools stereo/quad -> mono mixdown effect file.
+X *
+X * Does not mix up to more channels.
+X *
+X * What's in a center channel?
+X */
+X
+X#include "st.h"
+X
+X/*
+X * Process options
+X */
+Xavg_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	if (n)
+X		fail("Averaging effect takes no options.");
+X}
+X
+X/*
+X * Start processing
+X */
+Xvoid
+Xavg_start(effp)
+Xeff_t effp;
+X{
+X	switch (effp->outinfo.channels) {
+X		case 1: switch (effp->ininfo.channels) {
+X			case 2: 
+X			case 4:
+X				return;
+X		}
+X		case 2: switch (effp->ininfo.channels) {
+X			case 4:
+X				return;
+X		}
+X	}
+X	fail("Can't average %d channels into %d channels",
+X		effp->ininfo.channels, effp->outinfo.channels);
+X}
+X
+X/*
+X * Process either isamp or osamp samples, whichever is smaller.
+X */
+X
+Xavg_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	int len, done;
+X	
+X	switch (effp->outinfo.channels) {
+X		case 1: switch (effp->ininfo.channels) {
+X			case 2:
+X				len = ((*isamp/2 > *osamp) ? *osamp : *isamp/2);
+X				for(done = 0; done < len; done++) {
+X					*obuf++ = ibuf[0]/2 + ibuf[1]/2;
+X					ibuf += 2;
+X				}
+X				*isamp = len * 2;
+X				*osamp = len;
+X				break;
+X			case 4:
+X				len = ((*isamp/4 > *osamp) ? *osamp : *isamp/4);
+X				for(done = 0; done < len; done++) {
+X					*obuf++ = ibuf[0]/4 + ibuf[1]/4 +
+X						ibuf[2]/4 + ibuf[3]/4;
+X					ibuf += 4;
+X				}
+X				*isamp = len * 4;
+X				*osamp = len;
+X				break;
+X				
+X		}
+X		break;
+X		case 2: switch (effp->ininfo.channels) {
+X			/*
+X			 * After careful inspection of CSOUND source code,
+X			 * I'm mildly sure the order is:
+X			 * 	front-left, front-right, rear-left, rear-right
+X			 */
+X			case 4:
+X				len = ((*isamp/2 > *osamp) ? *osamp : *isamp/2);
+X				len &= ~1;
+X				for(done = 0; done < len; done++) {
+X					obuf[0] = ibuf[0]/2 + ibuf[2]/2;
+X					obuf[1] = ibuf[1]/2 + ibuf[3]/2;
+X					ibuf += 4;
+X					obuf += 2;
+X				}
+X				*isamp = len * 2;
+X				*osamp = len;
+X				break;
+X		}
+X	}
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X *
+X * Should have statistics on right, left, and output amplitudes.
+X */
+Xavg_stop(effp)
+Xeff_t effp;
+X{
+X	/* nothing to do */
+X}
+X
+X
+X
+X
+SHAR_EOF
+chmod 0644 avg.c ||
+echo 'restore of avg.c failed'
+Wc_c="`wc -c < 'avg.c'`"
+test 2424 -eq "$Wc_c" ||
+	echo 'avg.c: original size 2424, current size' "$Wc_c"
+fi
+# ============= pred.c ==============
+if test -f 'pred.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pred.c (File already exists)'
+else
+echo 'x - extracting pred.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pred.c' &&
+X
+X/*
+X * July 5, 1991
+X * Copyright 1991 Lance Norskog And Sundry Contributors
+X * This source code is freely redistributable and may be used for
+X * any purpose.  This copyright notice must be maintained. 
+X * Lance Norskog And Sundry Contributors are not responsible for 
+X * the consequences of using this software.
+X */
+X
+X/*
+X * Sound Tools prediction-correction compression effect file.
+X * Experiment with various simple equation systems.
+X * 
+X * This is not ready for prime time.  It's here for research purposes.
+X * Sox will hang if you run this as is.  Define D0 or D1, recompile,
+X * and try compressing the output with 'compress' and 'pack'.  
+X *
+X * Inspired by 2D PC gem in Graphics Gems II.
+X */
+X
+X#include "st.h"
+X
+X#define	D0	/* output difference between successive samples */
+X/* #define	D1	/* guess by extending slope of last two samples */
+X/* #define	D2 	/* extend second derivate and guess signal turn */
+X/* Autocorrelation isn't worth pursuing.  D2 should do an excellent job */
+X
+X/* Private data for Prediction-Correction state machine */
+Xtypedef struct predstuff {
+X	int	direction;		/* 0 for compress, 1 for decompress */
+X	int	first;			/* first time through? */
+X	u_i	error;			/* average error output */
+X	int	clipped;		/* # of clipped error values */
+X#ifdef	D0 
+X	long	in[1];			/* previous input sample */
+X#endif
+X#ifdef	D1
+X	long	in[2];			/* previous input samples */
+X#endif
+X} *pred_t;
+X
+Xlong pred_init(), pred_ict(), pred_next();
+X
+X/*
+X * Process options
+X */
+Xpred_getopts(effp, n, argv) 
+Xeff_t effp;
+Xint n;
+Xchar **argv;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X
+X	if ((n != 1) || 
+X		    (strcmp(argv[0], "-c") && strcmp(argv[0], "-d")))
+X		fail("Linp compression requires in or out options.");
+X
+X	pred->direction = strcmp(argv[0], "-c");
+X}
+X
+X/*
+X * Start processing
+X */
+Xpred_start(effp)
+Xeff_t effp;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X
+X	pred->error = 0;
+X	pred->first = 1;
+X	pred->clipped = 0;
+X}
+X
+X/*
+X * Process according to compression direction.
+X * Both loops use the same state machine, 
+X * but feed it from different streams.
+X */
+X/*
+X * If first time, emit first two samples.
+X * Then,
+X */
+X
+Xpred_flow(effp, ibuf, obuf, isamp, osamp)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+Xint *isamp, *osamp;
+X{
+X	int len, done;
+X	pred_t pred = (pred_t) effp->priv;
+X	register long predict, error;
+X	
+X	char c;
+X	unsigned char uc;
+X	short s;
+X	unsigned short us;
+X	long l;
+X	unsigned long ul;
+X	float f;
+X	double d;
+X
+X	done = 0;
+X	if (pred->first) {
+X		done = pred_init(effp, ibuf, obuf);
+X		ibuf += done;
+X		obuf += done;
+X		pred->first = 0;
+X	}
+X	len = ((*isamp > *osamp) ? *osamp : *isamp);
+X	if (done > len)		/* it can't happen here */
+X		fail("Prediction effect: not enough samples?");
+X	if (pred->direction) {			/* decompress */
+X		for(; done < len; done++) {
+X			/* reconstitute sample from prediction and error */
+X			predict = pred_ict(effp);
+X			error = *ibuf;
+X			pred_next(effp, predict + error);
+X			pred->error = pred->error/2 + abs(error)/2;
+X			*obuf++ = predict + error;
+X			ibuf++;
+X		}
+X	} else {				/* compress */
+X		for(; done < len; done++) {
+X			/* generate sample from prediction and error */
+X			predict = pred_ict(effp);
+X			error = *ibuf - predict;
+X			pred->error = pred->error/2 + abs(error)/2;
+X			if (predict + error != *ibuf)
+X				pred->clipped++;
+X			pred_next(effp, *ibuf);
+X			ibuf++;
+X			*obuf++ = error;
+X		}
+X	}
+X}
+X
+X/* 
+X * Linear Prediction state machine part A.
+X * 
+X * Initialize from buffer.  Return number of samples processed.
+X * It will be the same for input and output streams.
+X */
+Xlong
+Xpred_init(effp, ibuf, obuf)
+Xeff_t effp;
+Xlong *ibuf, *obuf;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X	long avg, ret;
+X
+X	/* 
+X	 * This is bogus!  
+X	 * Just pretend samples in negative time are 0, make a first few
+X	 * weird guesses.
+X	 */
+X#ifdef	D0
+X	/* same for compress and decompress */
+X	pred->in[0] = *obuf++ = *ibuf++;
+X	return 1;
+X#endif
+X#ifdef	D1
+X	/* same for compress and decompress */
+X	pred->in[0] = *obuf++ = *ibuf++;
+X	pred->in[1] = *obuf++ = *ibuf++;
+X	return 2;
+X#endif
+X}
+X
+X/* 
+X * Linear Prediction state machine part B.
+X * 
+X * Emit a predicted sample.
+X */
+Xlong
+Xpred_ict(effp)
+Xeff_t effp;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X	long avg, ret;
+X
+X#ifdef	D1
+X	avg = (pred->in[0]/2 + pred->in[1]/2);
+X	return pred->in[1] + (pred->in[1] - avg);
+X#endif
+X#ifdef	D0
+X	/* Assume flat data */
+X	return pred->in[0];
+X#endif
+X}
+X
+X/* 
+X * Linear Prediction state machine, part C.
+X * 
+X * Process next sample.
+X */
+Xlong
+Xpred_next(effp, samp)
+Xeff_t effp;
+Xlong samp;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X	long avg, ret;
+X
+X#ifdef	D1
+X	pred->in[0] = pred->in[1];
+X	pred->in[1] = samp;
+X#endif
+X#ifdef	D0
+X	/* Assume flat data */
+X	pred->in[0] = samp;
+X#endif
+X}
+X
+X/*
+X * Do anything required when you stop reading samples.  
+X * Don't close input file! 
+X */
+Xpred_stop(effp)
+Xeff_t effp;
+X{
+X	pred_t pred = (pred_t) effp->priv;
+X	int error;
+X	int size;
+X
+X	/* XXX Or should it always be the input size? */
+X	if (pred->direction)
+X		size = effp->ininfo.size;
+X	else
+X		size = effp->outinfo.size;
+X	switch(size) {
+X		case WORD:
+X			error = pred->error / (1 << 16);
+X			break;
+X		case BYTE:
+X			error = pred->error / (1 << 24);
+X			break;
+X		default:
+X			error = pred->error;
+X			break;
+X	}
+X	/* nothing to do */
+X	fprintf(stderr, "Prediction\n\tAverage Error outputs: %d\n", error);
+X	fprintf(stderr, "\tClipped error outputs: %d\n", pred->clipped);
+X}
+X
+X
+X
+X
+X
+SHAR_EOF
+chmod 0644 pred.c ||
+echo 'restore of pred.c failed'
+Wc_c="`wc -c < 'pred.c'`"
+test 5234 -eq "$Wc_c" ||
+	echo 'pred.c: original size 5234, current size' "$Wc_c"
+fi
+true || echo 'restore of stat.c failed'
+echo End of part 3, continue with part 4
+exit 0

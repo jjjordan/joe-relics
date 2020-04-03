@@ -1,0 +1,1317 @@
+Path: funic!fuug!mcsun!uunet!centerline!noc.near.net!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOETTY Part 2 of 3
+Message-ID: <1992Mar27.053940.30117@wpi.WPI.EDU>
+Date: 27 Mar 92 05:39:40 GMT
+Organization: Worcester Polytechnic Institute
+Lines: 1308
+
+Archive-name: JOETTYbeta2
+Submitted-by: rcarter@wpi.wpi.edu
+
+X/* Make sure terminal can do absolute positioning */
+Xif(t->cm) goto ok;
+Xif(t->ch && t->cv) goto ok;
+Xif(t->ho && (t->lf || t->DO || t->cv)) goto ok;
+Xif(t->ll && (t->up || t->UP || t->cv)) goto ok;
+Xif(t->cr && t->cv) goto ok;
+Xleave=1;
+Xaclose();
+Xsignorm();
+Xprintf("Sorry, your terminal can't do absolute cursor positioning\n");
+Xprintf("It\'s broken\n");
+Xreturn 0;
+Xok:
+X
+Xt->scrn=(I *)malloc(t->li*t->co*sizeof(I));
+Xt->screen=(I *)malloc(t->li*t->co*sizeof(I));
+Xt->sary=(I *)calloc(t->li,sizeof(I));
+Xmemset(t->scrn,-1,t->li*t->co*sizeof(I));
+Xfor(x=0;x!=t->li*t->co;++x) t->screen[x]=' ';
+Xfor(x=0;x!=NQUICK;++x) t->quick[x].s=(C *)malloc(t->co);
+Xt->quickies=0;
+Xt->x= -1; t->y= -1;
+Xt->top=t->li; t->bot=0;
+Xt->attrib= -1;
+Xt->tattr=0;
+Xt->placex=0;
+Xt->placey=0;
+Xt->cnt=0;
+Xt->upd=1;
+X
+Xif(t->ti) texec(t->ti,t->out,t,t->pad,t->div,1);
+X
+Xreturn t;
+X} 
+X
+X/* Calculate cost of positioning the cursor using only relative cursor
+X * positioning functions: t->(lf, DO, up, UP, bs, LE, RI, ta, bt) and rewriting
+X * characters (to move right)
+X *
+X * This doesn't use the am and bw capabilities although it probably could.
+X */
+X
+XI relcost(t,x,y,ox,oy)
+Xregister SCRN *t;
+Xregister I x,y,ox,oy;
+X{
+XI cost=0, c;
+X
+X/* If we don't know the cursor position, force use of absolute positioning */
+Xif(oy== -1 || ox== -1) return 10000;
+X
+X/* First adjust row */
+Xif(y>oy)
+X /* Have to go down */
+X if(t->lf)
+X  if(t->cDO<(c=(y-oy)*t->clf)) cost+=t->cDO;
+X  else cost+=c;
+X else if(t->DO) cost+=t->cDO;
+X else return 10000;
+Xelse if(y<oy)
+X /* Have to go up */
+X if(t->up)
+X  if(t->cUP<(c=(oy-y)*t->cup)) cost+=t->cUP;
+X  else cost+=c;
+X else if(t->UP) cost+=t->cUP;
+X else return 10000;
+X
+X/* Now adjust column */
+X
+X/* Use tabs */
+Xif(x>ox && t->ta)
+X {
+X I ntabs=(x-ox+ox%t->tw)/t->tw;
+X I cstunder=x%t->tw+t->cta*ntabs, cstover;
+X if(x+t->tw<t->co && t->bs) cstover=t->cbs*(t->tw-x%t->tw)+t->cta*(ntabs+1);
+X else cstover=10000;
+X if(cstunder<t->cRI && cstunder<x-ox && cstover>cstunder)
+X  return cost+cstunder;
+X else if(cstover<t->cRI && cstover<x-ox) return cost+cstover;
+X }
+Xelse if(x<ox && t->bt)
+X {
+X I ntabs=(ox-x+t->tw-ox%t->tw)/t->tw;
+X I cstunder,cstover;
+X if(t->bs) cstunder=t->cbt*ntabs+t->cbs*(t->tw-x%t->tw); else cstunder=10000;
+X if(x-t->tw>=0) cstover=t->cbt*(ntabs+1)+x%t->tw; else cstover=10000;
+X if(cstunder<t->cLE && (t->bs?cstunder<(ox-x)*t->cbs:1) && cstover>cstunder)
+X  return cost+cstunder;
+X else if(cstover<t->cRI && (t->bs?cstover<(ox-x)*t->cbs:1)) return cost+cstover;
+X }
+X
+X/* Use simple motions */
+Xif(x<ox)
+X /* Have to go left */
+X if(t->bs) 
+X  if(t->cLE<(c=(ox-x)*t->cbs)) cost+=t->cLE;
+X  else cost+=c;
+X else if(t->LE) cost+=t->cLE;
+X else return 10000;
+Xelse if(x>ox)
+X /* Have to go right */
+X /* Hmm.. this should take into account possible attribute changes */
+X if(t->cRI<x-ox) cost+=t->cRI;
+X else cost+=x-ox;
+X
+Xreturn cost;
+X}
+X
+X/* Find optimal set of cursor positioning commands to move from the current
+X * cursor row and column (either or both of which might be unknown) to the
+X * given new row and column and execute them.
+X */
+X
+XV cpos(t,x,y)
+Xregister SCRN *t;
+Xregister I x,y;
+X{
+Xif(y==t->y)
+X {
+X if(x==t->x) return;
+X if(x>t->x && x-t->x<4)
+X  {
+X  I *s=t->screen+t->x+t->co*t->y;
+X  do outatr(t,*s++,1); while(x!=t->x);
+X  return;
+X  }
+X }
+Xif(!t->ms && t->attrib&(INVERSE|UNDERLINE))
+X attr(t,t->attrib&~(INVERSE|UNDERLINE));
+Xif(y<t->top || y>=t->bot) setregn(t,0,t->li);
+Xcposs(t,x,y);
+X}
+X
+XV cposs(t,x,y)
+Xregister SCRN *t;
+Xregister I x,y;
+X{
+Xregister I bestcost,cost;
+XI bestway;
+X
+X/* Assume best way is with only using relative cursor positioning */
+X
+Xbestcost=relcost(t,x,y,t->x,t->y); bestway=0;
+X
+X/* Now check if combinations of absolute cursor positioning functions are
+X * better (or necessary in case one or both cursor positions are unknown)
+X */
+X
+Xif(t->ccr<bestcost)
+X {
+X cost=relcost(t,x,y,0,t->y)+t->ccr;
+X if(cost<bestcost) bestcost=cost, bestway=1;
+X }
+Xif(t->cho<bestcost)
+X {
+X cost=relcost(t,x,y,0,0)+t->cho;
+X if(cost<bestcost) bestcost=cost, bestway=2;
+X }
+Xif(t->cll<bestcost)
+X {
+X cost=relcost(t,x,y,0,t->li-1)+t->cll;
+X if(cost<bestcost) bestcost=cost, bestway=3;
+X }
+Xif(t->cch<bestcost && x!=t->x)
+X {
+X cost=relcost(t,x,y,x,t->y)+tcost(t->ch,t->pad,t->div,1,x);
+X if(cost<bestcost) bestcost=cost, bestway=4;
+X }
+Xif(t->ccv<bestcost && y!=t->y)
+X {
+X cost=relcost(t,x,y,t->x,y)+tcost(t->cv,t->pad,t->div,1,y);
+X if(cost<bestcost) bestcost=cost, bestway=5;
+X }
+Xif(t->ccm<bestcost)
+X {
+X cost=tcost(t->cm,t->pad,t->div,1,y,x);
+X if(cost<bestcost) bestcost=cost, bestway=6;
+X }
+Xif(t->cch+t->ccv<bestcost && x!=t->x && y!=t->y)
+X {
+X cost=tcost(t->cv,t->pad,t->div,1,y)+tcost(t->ch,t->pad,t->div,1,x);
+X if(cost<bestcost) bestcost=cost, bestway=7;
+X }
+Xif(t->ccv+t->ccr<bestcost && y!=t->y)
+X {
+X cost=tcost(t->cv,t->pad,t->div,1,y)+tcost(t->cr,t->pad,t->div,1)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=8;
+X }
+Xif(t->cll+t->cch<bestcost)
+X {
+X cost=tcost(t->ll,t->pad,t->div,1)+tcost(t->ch,t->pad,t->div,x)+
+X      relcost(t,x,y,x,t->li-1);
+X if(cost<bestcost) bestcost=cost, bestway=9;
+X }
+Xif(t->cll+t->ccv<bestcost)
+X {
+X cost=tcost(t->ll,t->pad,t->div,1)+tcost(t->cv,t->pad,t->div,y)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=10;
+X }
+Xif(t->cho+t->cch<bestcost)
+X {
+X cost=tcost(t->ho,t->pad,t->div,1)+tcost(t->ch,t->pad,t->div,x)+
+X      relcost(t,x,y,x,t->li-1);
+X if(cost<bestcost) bestcost=cost, bestway=11;
+X }
+Xif(t->cho+t->ccv<bestcost)
+X {
+X cost=tcost(t->ho,t->pad,t->div,1)+tcost(t->cv,t->pad,t->div,y)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=12;
+X }
+X
+X/* Do absolute cursor positioning if we don't know the cursor position or
+X * if it is faster than doing only relative cursor positioning
+X */
+X
+Xswitch(bestway)
+X {
+Xcase 1: texec(t->cr,t->out,t,t->pad,t->div,1); t->x=0; break;
+Xcase 2: texec(t->ho,t->out,t,t->pad,t->div,1); t->x=0; t->y=0; break;
+Xcase 3: texec(t->ll,t->out,t,t->pad,t->div,1); t->x=0; t->y=t->li-1; break;
+Xcase 9: texec(t->ll,t->out,t,t->pad,t->div,1); t->x=0; t->y=t->li-1; goto doch;
+Xcase 11: texec(t->ho,t->out,t,t->pad,t->div,1); t->x=0; t->y=0;
+X  doch:
+Xcase 4: texec(t->ch,t->out,t,t->pad,t->div,1,x); t->x=x; break;
+Xcase 10: texec(t->ll,t->out,t,t->pad,t->div,1); t->x=0; t->y=t->li-1; goto docv;
+Xcase 12: texec(t->ho,t->out,t,t->pad,t->div,1); t->x=0; t->y=0; goto docv;
+Xcase 8: texec(t->cr,t->out,t,t->pad,t->div,1); t->x=0;
+X  docv:
+Xcase 5: texec(t->cv,t->out,t,t->pad,t->div,1,y); t->y=y; break;
+Xcase 6: texec(t->cm,t->out,t,t->pad,t->div,1,y,x); t->y=y, t->x=x; break;
+Xcase 7: texec(t->cv,t->out,t,t->pad,t->div,1,y); t->y=y;
+X        texec(t->ch,t->out,t,t->pad,t->div,1,x); t->x=x;
+X        break;
+X }
+X
+X/* Use relative cursor position functions if we're not there yet */
+X
+X/* First adjust row */
+Xif(y>t->y)
+X /* Have to go down */
+X if(!t->lf || t->cDO<(y-t->y)*t->clf)
+X  texec(t->DO,t->out,t,t->pad,t->div,1,y-t->y), t->y=y;
+X else while(y>t->y) texec(t->lf,t->out,t,t->pad,t->div,1), ++t->y;
+Xelse if(y<t->y)
+X /* Have to go up */
+X if(!t->up || t->cUP<(t->y-y)*t->cup)
+X  texec(t->UP,t->out,t,t->pad,t->div,1,t->y-y), t->y=y;
+X else while(y<t->y) texec(t->up,t->out,t,t->pad,t->div,1), --t->y;
+X
+X/* Use tabs */
+Xif(x>t->x && t->ta)
+X {
+X I ntabs=(x-t->x+t->x%t->tw)/t->tw;
+X I cstunder=x%t->tw+t->cta*ntabs, cstover;
+X if(x+t->tw<t->co && t->bs) cstover=t->cbs*(t->tw-x%t->tw)+t->cta*(ntabs+1);
+X else cstover=10000;
+X if(cstunder<t->cRI && cstunder<x-t->x && cstover>cstunder)
+X  {
+X  t->x=x-x%t->tw;
+X  while(ntabs--) texec(t->ta,t->out,t,t->pad,t->div,1);
+X  }
+X else if(cstover<t->cRI && cstover<x-t->x)
+X  {
+X  t->x=t->tw+x-x%t->tw;
+X  ++ntabs;
+X  while(ntabs--) texec(t->ta,t->out,t,t->pad,t->div,1);
+X  }
+X }
+Xelse if(x<t->x && t->bt)
+X {
+X I ntabs=(t->x-x+t->tw-t->x%t->tw)/t->tw;
+X I cstunder,cstover;
+X if(t->bs) cstunder=t->cbt*ntabs+t->cbs*(t->tw-x%t->tw); else cstunder=10000;
+X if(x-t->tw>=0) cstover=t->cbt*(ntabs+1)+x%t->tw; else cstover=10000;
+X if(cstunder<t->cLE && (t->bs?cstunder<(t->x-x)*t->cbs:1) && cstover>cstunder)
+X  {
+X  t->x=x+t->tw-x%t->tw;
+X  while(ntabs--) texec(t->bt,t->out,t,t->pad,t->div,1);
+X  }
+X else if(cstover<t->cRI && (t->bs?cstover<(t->x-x)*t->cbs:1))
+X  {
+X  t->x=x-x%t->tw; ++ntabs;
+X  while(ntabs--) texec(t->bt,t->out,t,t->pad,t->div,1);
+X  }
+X }
+X
+X/* Now adjust column */
+Xif(x<t->x)
+X /* Have to go left */
+X if(!t->bs || t->cLE<(t->x-x)*t->cbs)
+X  texec(t->LE,t->out,t,t->pad,t->div,1,t->x-x), t->x=x;
+X else while(x<t->x) texec(t->bs,t->out,t,t->pad,t->div,1), --t->x;
+Xelse if(x>t->x)
+X /* Have to go right */
+X /* Hmm.. this should take into account possible attribute changes */
+X if(t->cRI<x-t->x) texec(t->RI,t->out,t,t->pad,t->div,1,x-t->x), t->x=x;
+X else while(x>t->x) outatr(t,t->screen[t->x+t->y*t->co],1);
+X}
+X
+X/* Determine the best places to use cd and ce */
+X
+XV clreol(t,cs,s)
+XSCRN *t;
+Xregister I *cs,*s;
+X{
+XI best=0,bestx= -1;
+Xregister gain= -t->cce, ldist=3, gdist=3, x=t->co;
+Xs+=t->co; cs+=t->co;
+Xif(t->ce)
+X do
+X  {
+X  --x; --s; --cs;
+X  if(ldist!=3) ++ldist;
+X  if(gdist!=3) ++gdist;
+X  if(*cs!=' ')
+X   if(*s==' ') gain+=gdist, gdist=0;
+X   else if(*s== *cs) gain-=ldist, ldist=0;
+X   else gdist=0, ldist=0;
+X  else if(*s!=' ') gdist=0, ldist=0;
+X  if(gain>best) best=gain, bestx=x;
+X  }
+X  while(x);
+Xreturn bestx;
+X}
+X
+XV clreos(t)
+XSCRN *t;
+X{
+XI x,y=t->li,z=t->li*t->co,cst=0;
+Xdo
+X {
+X I lcst=0;
+X --y;
+X x=t->co;
+X do
+X  {
+X  --x, --z;
+X  if(t->scrn[z]!=' ') ++lcst;
+X  if(t->screen[z]!=' ')
+X   {
+X   ++x; ++z;
+X   if(x==t->co) x=0, ++y;
+X   goto done;
+X   }
+X  } while(x);
+X cst+=lcst;
+X }
+X while(y);
+Xdone:
+Xif(cst>t->cce) return y;
+Xelse return -1;
+X}
+X
+XV udline(t,y,cs,s)
+Xregister SCRN *t;
+XI y;
+Xregister I *cs,*s;
+X{
+Xregister I x,bestx=clreol(t,cs,s),destx=t->co,z;
+Xfor(x=0;x!=destx;++cs,++s,++x)
+X {
+X if(have) return;
+X if(x==bestx)
+X  {
+X  cpos(t,x,y);
+X  attr(t,0);
+X  texec(t->ce,t->out,t,t->pad,t->div,1);
+X  for(z=0;z!=t->co-x;++z) cs[z]=' ';
+X  }
+X if(*cs!= *s)
+X  {
+X  if(t->os && t->eo && (*cs&255!=' ' || *cs&~*s&~255))
+X   cpos(t,x,y), outatr(t,' ',0);
+X  else if(*s&255=='_')
+X   cpos(t,x,y), outatr(t,' ',0);
+X  cpos(t,x,y), outatr(t,*cs= *s,0);
+X  }
+X }
+X}
+X
+XV tdoquick(t)
+XSCRN *t;
+X{
+XI n,x;
+Xfor(n=0;n!=t->quickies;++n)
+X {
+X I *s=t->screen+t->quick[n].y*t->co+t->quick[n].x,
+X  *cs=t->scrn+t->quick[n].y*t->co+t->quick[n].x;
+X if(t->quick[n].ch)
+X  {
+X  *s=t->quick[n].c|t->quick[n].attr;
+X  if(*s != *cs)
+X   {
+X   if(t->os && t->eo && (*cs&255!=' ' || *cs&~*s&~255))
+X    cpos(t,t->quick[n].x,t->quick[n].y), outatr(t,' ',0);
+X   else if(*s&255=='_')
+X    cpos(t,t->quick[n].x,t->quick[n].y), outatr(t,' ',0);
+X   cpos(t,t->quick[n].x,t->quick[n].y), outatr(t,*cs= *s,0);
+X   }
+X  }
+X else
+X  for(x=0;x!=t->quick[n].l;++x,++s,++cs)
+X   {
+X   *s=t->quick[n].s[x]|t->quick[n].attr;
+X   if(*s != *cs)
+X    {
+X    if(t->os && t->eo && (*cs&255!=' ' || *cs&~*s&~255))
+X     cpos(t,t->quick[n].x+x,t->quick[n].y), outatr(t,' ',0);
+X    else if(*s&255=='_')
+X     cpos(t,t->quick[n].x+x,t->quick[n].y), outatr(t,' ',0);
+X    cpos(t,t->quick[n].x+x,t->quick[n].y), outatr(t,*cs= *s,0);
+X    }
+X   }
+X }
+Xt->quickies=0;
+X}
+X
+XV tdumpq(t)
+XSCRN *t;
+X{
+XI n,x;
+Xfor(n=0;n!=t->quickies;++n)
+X {
+X I *s=t->screen+t->quick[n].y*t->co+t->quick[n].x;
+X if(t->quick[n].ch)
+X  *s=t->quick[n].c|t->quick[n].attr;
+X else
+X  for(x=0;x!=t->quick[n].l;++x,++s)
+X   *s=t->quick[n].s[x]|t->quick[n].attr;
+X }
+Xt->quickies=0;
+X}
+X
+XV trefresh(t)
+XSCRN *t;
+X{
+XI y,z,q;
+XI *cs, *s;
+X
+Xif(t->quickies && !t->upd && !t->cnt) tdoquick(t);
+Xif(t->quickies && (t->upd || t->cnt)) tdumpq(t);
+Xif(!t->upd && !t->cnt) goto check;
+X
+Xt->cnt=0;
+Xif(!t->upd && t->updy>=t->placey) goto after;
+Xif(!t->upd) goto before;
+X
+X/* First, do any necessary scrolling */
+Xfor(y=0;y!=t->li;++y)
+X {
+X q=t->sary[y];
+X if(have)
+X  {
+X  cpos(t,t->placex,t->placey);
+X  return;
+X  }
+X if(q && q!=t->li)
+X  {
+X  for(z=y;z!=t->li && t->sary[z]==q;++z);
+X  if(q>0) doscrollup(t,y,z+q,q), y=z-1;
+X  else doscrolldn(t,y+q,z,-q), y=z-1;
+X  }
+X }
+Xfor(y=0;y!=t->li;++y) t->sary[y]=0;
+X
+Xy=t->placey;
+Xafter:
+Xcs=t->scrn+t->co*y;
+Xs=t->screen+t->co*y;
+Xfor(;y!=t->li;++y, s+=t->co, cs+=t->co)
+X if(have)
+X  {
+X  t->updy=y;
+X  t->cnt=1;
+X  cpos(t,t->placex,t->placey);
+X  return;
+X  }
+X else udline(t,y,cs,s);
+X
+Xy=0;
+Xbefore:
+Xcs=t->scrn+t->co*y;
+Xs=t->screen+t->co*y;
+Xfor(;y!=t->placey;++y,s+=t->co,cs+=t->co)
+X if(have)
+X  {
+X  t->updy=y;
+X  t->cnt=1;
+X  cpos(t,t->placex,t->placey);
+X  return;
+X  }
+X else udline(t,y,cs,s);
+X
+Xcheck:
+Xif(t->x!=t->placex || t->y!=t->placey) cpos(t,t->placex,t->placey);
+Xt->upd=0;
+X}
+X
+XV tclose(t,flg)
+XSCRN *t;
+XI flg;
+X{
+XI x;
+Xleave=1;
+Xsetregn(t,0,t->li);
+Xif(t->te) texec(t->te,t->out,t,t->pad,t->div,1);
+Xaclose();
+Xif(!flg) signorm();
+Xrmcap(t->cap);
+Xfree(t->scrn);
+Xfree(t->screen);
+Xfree(t->sary);
+Xfor(x=0;x!=NQUICK;++x) free(t->quick[x].s);
+Xfor(x=0;x!=t->tabsize;++x) free(t->ktab[x].s);
+Xfree(t);
+X}
+X
+XV tsignal(sig)
+XI sig;
+X{
+XC buf[128];
+Xif(sig) sprintf(buf,"\rProgram killed by signal %d\r\n",sig);
+Xelse sprintf(buf,"\rProgram killed because input closed\r\n");
+Xwrite(1,buf,strlen(buf));
+X_exit(1);
+X}
+X
+XV tprintf(t,x,y,str,a1,a2,a3,a4,a5,a6,a7)
+XSCRN *t;
+XC *str;
+XI x,y;
+X{
+Xif(t->quickies==NQUICK) tdumpq(t);
+Xt->quick[t->quickies].ch=0;
+Xt->quick[t->quickies].x=x;
+Xt->quick[t->quickies].y=y;
+Xsprintf(t->quick[t->quickies].s,str,a1,a2,a3,a4,a5,a6,a7);
+Xt->quick[t->quickies].l=strlen(t->quick[t->quickies].s);
+X++t->quickies;
+X}
+X
+XV tputs(t,x,y,s)
+XSCRN *t;
+XI x,y;
+XC *s;
+X{
+Xif(t->quickies==NQUICK) tdumpq(t);
+Xt->quick[t->quickies].ch=0;
+Xt->quick[t->quickies].x=x;
+Xt->quick[t->quickies].y=y;
+Xt->quick[t->quickies].l=strlen(s);
+Xt->quick[t->quickies].attr=t->tattr;
+Xstrcpy(t->quick[t->quickies].s,s);
+X++t->quickies;
+X}
+X
+XI tgetc(t)
+XSCRN *t;
+X{
+XI c,w,h,x;
+Xtrefresh(t);
+Xup:
+Xc=anext();
+Xif(t->kbufp==32) t->kbufp=0;
+Xt->kbuf[t->kbufp++]=c;
+Xw=0;
+Xfor(h=0;h!=t->tabsize;++h)
+X {
+X for(x=0;x!=t->kbufp && x!=t->ktab[h].l;++x)
+X  if(t->ktab[h].s[x]!=t->kbuf[x]) goto nomatch;
+X if(x==t->ktab[h].l)
+X  {
+X  c=t->ktab[h].n;
+X  goto found;
+X  }
+X else if(x==t->kbufp) w=1;
+X nomatch:;
+X }
+Xif(w) goto up;
+Xfound:
+Xt->kbufp=0;
+X
+X/* getsize(&w,&h);
+Xif((w!=t->co || h!=t->li) && w>=3 && h>=3) tchsize(t,w,h); */
+Xreturn c;
+X}
+X
+XV tsetpos(t,x,y)
+XSCRN *t;
+XI x,y;
+X{
+Xt->placex=x;
+Xt->placey=y;
+X}
+X
+XV tgetpos(t,x,y)
+XSCRN *t;
+XI *x,*y;
+X{
+X*x=t->placex;
+X*y=t->placey;
+X}
+X
+XI boxul='+', boxur='+', boxll='+', boxlr='+', boxl='|', boxr='|', boxt='-',
+X  boxb='-';
+X
+XV tbox(t,x,y,w,h)
+XSCRN *t;
+XI x,y,w,h;
+X{
+XI z;
+Xtdumpq(t);
+Xt->screen[x+(y-1)*t->co-1]=(boxul|t->tattr);
+Xt->screen[x+w+(y-1)*t->co]=(boxur|t->tattr);
+Xt->screen[x+(y+h)*t->co-1]=(boxll|t->tattr);
+Xt->screen[x+w+(y+h)*t->co]=(boxlr|t->tattr);
+Xfor(z=0;z!=w;++z) t->screen[x+z+(y-1)*t->co]=(boxt|t->tattr);
+Xfor(z=0;z!=w;++z) t->screen[x+z+(y+h)*t->co]=(boxb|t->tattr);
+Xfor(z=0;z!=h;++z) t->screen[x+(y+z)*t->co-1]=(boxl|t->tattr);
+Xfor(z=0;z!=h;++z) t->screen[x+w+(y+z)*t->co]=(boxr|t->tattr);
+Xt->upd=1;
+X}
+X
+XV trect(t,x,y,w,h,c)
+XSCRN *t;
+XI x,y,w,h,c;
+X{
+XI i,j;
+Xtdumpq(t);
+Xc|=t->tattr;
+Xfor(j=0;j!=h;++j)
+X for(i=0;i!=w;++i)
+X  t->screen[x+i+(y+j)*t->co]=c;
+Xt->upd=1;
+X}
+X
+XV doscrollup(t,top,bot,amnt)
+XSCRN *t;
+XI top,bot,amnt;
+X{
+XI a=amnt, x;
+Xif(!amnt) return;
+Xif(top==0 && bot==t->li && (t->sf || t->SF))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,t->li-1);
+X if(amnt==1 && t->sf || !t->SF) while(a--) texec(t->sf,t->out,t,t->pad,t->div,1);
+X else texec(t->SF,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif(bot==t->li && (t->dl || t->DL))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,top);
+X if(amnt==1 && t->dl || !t->DL) while(a--) texec(t->dl,t->out,t,t->pad,t->div,1);
+X else texec(t->DL,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif(t->cs && ( t->sf || t->SF ))
+X {
+X setregn(t,top,bot);
+X cpos(t,0,bot-1);
+X if(amnt==1 && t->sf || !t->SF) while(a--) texec(t->sf,t->out,t,t->pad,t->div,1);
+X else texec(t->SF,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif((t->dl || t->DL) && (t->al || t->AL))
+X {
+X cpos(t,0,top);
+X if(amnt==1 && t->dl || !t->DL) while(a--) texec(t->dl,t->out,t,t->pad,t->div,1);
+X else texec(t->DL,t->out,t,t->pad,t->div,a,a);
+X a=amnt;
+X cpos(t,0,bot-amnt);
+X if(amnt==1 && t->al || !t->AL) while(a--) texec(t->al,t->out,t,t->pad,t->div,1);
+X else texec(t->AL,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xreturn;
+Xdone:
+Xfor(x=(top+amnt)*t->co;x!=bot*t->co;++x) t->scrn[x-amnt*t->co]=t->scrn[x];
+Xif(bot==t->li && t->db)
+X for(x=0;x!=amnt*t->co;++x) t->scrn[x+t->li*t->co-amnt*t->co]= -1;
+Xelse for(x=0;x!=amnt*t->co;++x) t->scrn[x+bot*t->co-amnt*t->co]=' ';
+X}
+X
+XV doscrolldn(t,top,bot,amnt)
+XSCRN *t;
+XI top,bot,amnt;
+X{
+XI a=amnt,x;
+Xif(!amnt) return;
+Xif(top==0 && bot==t->li && (t->sr || t->SR))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,0);
+X if(amnt==1 && t->sr || !t->SR)
+X  while(a--) texec(t->sr,t->out,t,t->pad,t->div,1);
+X else texec(t->SR,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif(bot==t->li && (t->al || t->AL))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,top);
+X if(amnt==1 && t->al || !t->AL)
+X  while(a--) texec(t->al,t->out,t,t->pad,t->div,1);
+X else texec(t->AL,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif(t->cs && (t->sr || t->SR))
+X {
+X setregn(t,top,bot);
+X cpos(t,0,top);
+X if(amnt==1 && t->sr || !t->SR)
+X  while(a--) texec(t->sr,t->out,t,t->pad,t->div,1);
+X else texec(t->SR,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xif((t->dl || t->DL) && (t->al || t->AL))
+X {
+X cpos(t,0,bot-amnt);
+X if(amnt==1 && t->dl || !t->DL)
+X  while(a--) texec(t->dl,t->out,t,t->pad,t->div,1);
+X else texec(t->DL,t->out,t,t->pad,t->div,a,a);
+X a=amnt;
+X cpos(t,0,top);
+X if(amnt==1 && t->al || !t->AL)
+X  while(a--) texec(t->al,t->out,t,t->pad,t->div,1);
+X else texec(t->AL,t->out,t,t->pad,t->div,a,a);
+X goto done;
+X }
+Xreturn;
+Xdone:
+Xfor(x=bot*t->co;x!=top*t->co+amnt*t->co;--x)
+X t->scrn[x-1]=t->scrn[x-t->co*amnt-1];
+Xif(!top && t->da) for(x=0;x!=amnt*t->co;++x) t->scrn[x]= -1;
+Xelse for(x=0;x!=amnt*t->co;++x) t->scrn[t->co*top+x]=' ';
+X}
+X
+XV tscrolldn(t,top,bot,amnt)
+XSCRN *t;
+XI top,bot,amnt;
+X{
+XI x;
+Xfor(x=bot*t->co;x!=top*t->co+amnt*t->co;--x)
+X t->screen[x-1]=t->screen[x-t->co*amnt-1];
+Xfor(x=bot;x!=top+amnt;--x)
+X t->sary[x-1]=(t->sary[x-amnt-1]==t->li?t->li:t->sary[x-amnt-1]-amnt);
+Xfor(x=0;x!=amnt*t->co;++x) t->screen[t->co*top+x]=' ';
+Xfor(x=0;x!=amnt;++x) t->sary[top+x]= t->li;
+Xt->upd=1;
+X}
+X
+XV tscrollup(t,top,bot,amnt)
+XSCRN *t;
+XI top,bot,amnt;
+X{
+XI x;
+Xfor(x=(top+amnt)*t->co;x!=bot*t->co;++x) t->screen[x-amnt*t->co]=t->screen[x];
+Xfor(x=top+amnt;x!=bot;++x)
+X t->sary[x-amnt]=(t->sary[x]==t->li?t->li:t->sary[x]+amnt);
+Xfor(x=0;x!=amnt*t->co;++x)
+X t->screen[x+bot*t->co-amnt*t->co]=' ';
+Xfor(x=0;x!=amnt;++x) t->sary[bot-amnt+x]= t->li;
+Xt->upd=1;
+X}
+X
+X/*
+XV tchsize(t,w,h)
+XSCRN *t;
+XI w,h;
+X{
+XI x,y,*tmp;
+Xif(w==t->co && h==t->li) return;
+X
+Xt->scrn=(I *)realloc(t->scrn,w*h*sizeof(I));
+Xmemset(t->scrn,-1,w*h*sizeof(I));
+X
+Xtmp=(I *)malloc(w*h*sizeof(I));
+Xfor(x=0;x!=w*h;++x) tmp[x]=' ';
+Xfor(y=0;y!=t->li;++y)
+X {
+X if(y==h) break;
+X for(x=0;x!=t->co;++x)
+X  {
+X  if(x==w) break;
+X  tmp[x+y*h]=t->screen[x+y*t->co];
+X  }
+X }
+Xfree(t->screen); t->screen=tmp;
+X
+Xif(t->li!=h) t->sary=(I *)realloc(t->sary,h*sizeof(I));
+Xmemset(t->sary,0,h*sizeof(I));
+Xt->x= -1;
+Xt->y= -1;
+Xt->top=h;
+Xt->bot=0;
+Xt->co=w; t->li=h;
+Xif(t->placex>=w) t->placex=w-1;
+Xif(t->placey>=h) t->placey=h-1;
+Xt->upd=1;
+X}
+X*/
+X
+XI *tsave(t,x,y,w,h)
+XSCRN *t;
+XI x,y,w,h;
+X{
+XI *tmp=(I *)malloc(w*h*sizeof(I));
+XI i,j;
+Xfor(j=0;j!=h;++j)
+X for(i=0;i!=w;++i)
+X  tmp[i+j*w]=t->screen[x+i+(j+y)*t->co];
+Xreturn tmp;
+X}
+X
+XV trestore(t,x,y,w,h,s)
+XSCRN *t;
+XI x,y,w,h,*s;
+X{
+XI i,j;
+Xtdumpq(t);
+Xfor(j=0;j!=h;++j)
+X for(i=0;i!=w;++i)
+X  t->screen[x+i+(j+y)*t->co]=s[i+j*w];
+Xt->upd=1;
+X}
+X
+XSCRN *tsusp(t)
+XSCRN *t;
+X{
+XI *sv, sva, xpos, ypos;
+Xsv=tsave(t,0,0,t->co,t->li);
+Xsva=tgetattr(t);
+Xtgetpos(t,&xpos,&ypos);
+Xleave=1;
+Xtclose(t,1);
+Xsusp();
+Xleave=0;
+Xt=topen(1);
+Xif(t)
+X {
+X trestore(t,0,0,t->co,t->li,sv);
+X tsetattr(t,sva);
+X tsetpos(t,xpos,ypos);
+X }
+Xfree(sv);
+Xreturn t;
+X}
+X
+XV tredraw(t)
+XSCRN *t;
+X{
+Xmemset(t->scrn,-1,t->li*t->co*sizeof(I));
+Xt->x= -1;
+Xt->y= -1;
+Xt->top=t->li;
+Xt->bot=0;
+Xt->attrib= -1;
+Xt->upd=1;
+X}
+END_OF_FILE
+if test 26883 -ne `wc -c <'scrn.c'`; then
+    echo shar: \"'scrn.c'\" unpacked with wrong size!
+fi
+# end of 'scrn.c'
+fi
+if test -f 'scrn.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'scrn.h'\"
+else
+echo shar: Extracting \"'scrn.h'\" \(10415 characters\)
+sed "s/^X//" >'scrn.h' <<'END_OF_FILE'
+X/* Device independant tty interface for JOE
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X/* Number of quick updates to buffer before doing a brute-force update */
+X
+X#define NQUICK 10
+X
+X/* Number of key sequences */
+X
+X#define NKEYS 20
+X
+X/* Each terminal has one of these */
+X
+Xstruct scrn
+X {
+X CAP *cap;		/* Termcap/Terminfo data */
+X
+X I li;			/* Screen height */
+X I co;			/* Screen width */
+X
+X C *pad;		/* Padding string to use */
+X
+X C *ti;			/* Initialization string */
+X C *te;			/* Restoration string */
+X
+X I hz;			/* Terminal can't print ~s */
+X I os;			/* Terminal overstrikes */
+X I eo;			/* Can use blank to erase even if os */
+X I ul;			/* _ overstrikes */
+X I am;			/* Terminal has autowrap, but not magic wrap */
+X I xn;			/* Terminal has magicwrap */
+X
+X C *so;			/* Enter standout (inverse) mode */
+X C *se;			/* Exit standout mode */
+X
+X C *us;			/* Enter underline mode */
+X C *ue;			/* Exit underline mode */
+X C *uc;			/* Single time underline character */
+X
+X C *mb;			/* Enter blinking mode */
+X C *md;			/* Enter bold mode */
+X C *mh;			/* Enter dim mode */
+X C *mr;			/* Enter inverse mode */
+X C *me;			/* Exit above modes */
+X
+X I ms;			/* Ok to move when in standout/underline mode */
+X
+X I da, db;		/* Extra lines exist above, below */
+X I ns;			/* If LF does not scroll */
+X C *al, *dl, *AL, *DL;	/* Insert/delete lines */
+X C *cs;			/* Set scrolling region */
+X C *sf, *SF, *sr, *SR;	/* Scroll */
+X
+X C *bs;			/* Move cursor left 1 */
+X I cbs;
+X C *lf;			/* Move cursor down 1 */
+X I clf;
+X C *up;			/* Move cursor up 1 */
+X I cup;
+X
+X C *ta;			/* Move cursor to next tab stop */
+X I cta;
+X C *bt;			/* Move cursor to previous tab stop */
+X I cbt;
+X I tw;			/* Tab width */
+X
+X C *ho;			/* Home cursor to upper left */
+X I cho;
+X C *ll;			/* Home cursor to bottom left */
+X I cll;
+X C *cr;			/* Move cursor to left edge */
+X I ccr;
+X C *RI;			/* Move cursor right n */
+X I cRI;
+X C *LE;			/* Move cursor left n */
+X I cLE;
+X C *UP;			/* Move cursor up n */
+X I cUP;
+X C *DO;			/* Move cursor down n */
+X I cDO;
+X C *ch;			/* Set cursor column */
+X I cch;
+X C *cv;			/* Set cursor row */
+X I ccv;
+X C *cm;			/* Set cursor row and column */
+X I ccm;
+X
+X C *ce;			/* Clear to end of line */
+X I cce;
+X C *cd;			/* Clear to end of screen */
+X I ccd;
+X
+X struct
+X  {
+X  C *s;			/* Key string */
+X  I l;			/* Key string length */
+X  I n;			/* Value which should be returned for this string */
+X  } ktab[NKEYS];
+X
+X I tabsize;		/* Number of entries in table */
+X
+X C kbuf[32];		/* Keyboard buffer */
+X I kbufp;		/* Pointer */
+X
+X I (*out)();		/* Function to output a character to the terminal */
+X C *outptr;		/* Pointer to pass to 'out' */
+X
+X I div;			/* Baud rate divisor: 100000/baud */
+X
+X I *scrn;		/* Current contents of screen */
+X I *screen;		/* What you want it to look like */
+X I *sary;		/* Scroll array */
+X
+X I quickies;		/* Number of buffered simple updates */
+X struct
+X  {
+X  I ch,c,x,y,l,attr;
+X  C *s;
+X  } quick[NQUICK];	/* Buffered simple updates */
+X
+X I x,y;			/* Current cursor position (-1 for unknown) */
+X I top,bot;		/* Current scrolling region */
+X I attrib;		/* Current character attributes */
+X I avattr;		/* Bits set for available attributes */
+X I tattr;		/* Requested attributes */
+X I upd;			/* Set if screen needs to be updated from scratch */
+X I cnt;			/* Set if screen update needs to be continued */
+X I updy;		/* Place where screen update should continue from */
+X I placex, placey;	/* Where you want the cursor to be */
+X };
+X
+X/* SCRN *topen(I flg);
+X *
+X * Open the screen (sets TTY mode so that screen may be used immediatly after
+X * the 'topen').
+X *
+X * If 'flg' is set, 'topen' doesn't mess with the signals.  Usually topen is
+X * called with 'flg' set to zero.  The only time to have it set is if you're
+X * implementing shell escapes.
+X */
+XSCRN *topen();
+X
+X/* V tclose(SCRN *t,I flg);
+X *
+X * Close the screen and restore TTY to initial state.
+X *
+X * if 'flg' is set, tclose doesn't mess with the signals.
+X */
+XV tclose();
+X
+X/* I tgetc(SCRN *t);
+X *
+X * Get next input character.  The screen is updated if it needs to be.
+X * Arrow keys are translated into the integer codes shown below.
+X */
+XI tgetc();
+X
+X#define KEYUP 256	/* Arrow keys */			/* ku */
+X#define KEYDOWN 257						/* kd */
+X#define KEYLEFT 258						/* kl */
+X#define KEYRIGHT 259						/* kr */
+X#define KEYF0 260	/* Function keys (if F0 really F10?) */ /* k0 */
+X#define KEYF1 261						/* k1 */
+X#define KEYF2 262
+X#define KEYF3 263
+X#define KEYF4 264
+X#define KEYF5 265
+X#define KEYF6 266
+X#define KEYF7 267
+X#define KEYF8 268
+X#define KEYF9 269						/* k9 */
+X#define KEYDEL 270 	/* Delete character */			/* kD */
+X#define KEYINS 271	/* Insert character */			/* kI */
+X#define KEYHOME 272	/* Home key */				/* kh */
+X#define KEYEND 273	/* End key */				/* kH */
+X#define KEYPGDN 274	/* Page down key */			/* kN */
+X#define KEYPGUP 275	/* Page up key */			/* kP */
+X
+X/* V tputc(SCRN *t,I x,I y,I c);
+X *
+X * Write a character to the screen.  Warning:  This macro accesses parameter
+X * 't' more than once.
+X */
+X#define tputc(t,x,y,c) \
+X ( \
+X ( (t)->quickies==NQUICK ? tdumpq(t) : 0 ), \
+X (t)->quick[(t)->quickies].ch=1, \
+X (t)->quick[(t)->quickies].x=(x), \
+X (t)->quick[(t)->quickies].y=(y), \
+X (t)->quick[(t)->quickies].attr=(t)->tattr, \
+X (t)->quick[(t)->quickies].c=(c), \
+X ++(t)->quickies \
+X )
+X
+X/* V tputs(SCRN *t,I x,I y,C *s);
+X *
+X * Write a string to the screen.  The string must never go past the right edge
+X * of the screen.
+X */
+XV tputs();
+X
+X/* V tprintf(SCRN *t,I x,I y,C *str,...);
+X *
+X * Printf to the screen using the current attributes.  The string should never
+X * go past the right edge of the screen.
+X */
+XV tprintf();
+X
+X/* V tsetattr(SCRN *t,I c);
+X *
+X * Set the attribute value.  This value is ORed with the characters written
+X * by 'tputs', 'tputc', 'tprintf', 'tbox' and 'trect' before being sent to the
+X * screen.
+X */
+X#define tsetattr(t,c) ((t)->tattr=(c))
+X
+X/* Character attribute bits */
+X
+X#define INVERSE 256
+X#define UNDERLINE 512
+X#define BOLD 1024
+X#define BLINK 2048
+X#define DIM 4096
+X
+X/* I tgetattr(SCRN *t);
+X *
+X * Get the current attributes
+X */
+X#define tgetattr(t) ((t)->tattr)
+X
+X/* I tavattr(SCRN *t);
+X *
+X * Get attributes available with this terminal.  I.E., the returned word
+X * is the some of the attribute bit values for the attributes which are
+X * available.
+X */
+X#define tavattr(t) ((t)->avattr)
+X
+X/* V tsetpos(SCRN *t,I x,I y);
+X *
+X * Set the cursor position on the screen.  This is where the cursor will
+X * be left after calling 'trefresh' or 'tgetc'.
+X */
+XV tsetpos();
+X
+X/* V tgetpos(SCRN *t,I *x,I *y);
+X *
+X * Sets the variables at the addresses given with the real cursor position.
+X */
+XV tgetpos();
+X
+X/* V trect(SCRN *t,I x,I y,I w, I h,I c);
+X *
+X * Fill a rectangle defined by 'x', 'y', 'w' and 'h' with the character 'c'.
+X * The current attributes (set with 'tattr') are ORed in with the character.
+X */
+XV trect();
+X
+X/* V tbox(SCRN *t,I x,I y,I w,I h);
+X *
+X * Draw a box on the screen.  'x', 'y', 'w' and 'h' give specify the rectangle
+X * the box will surround.  The global variables 'boxul', 'boxur', 'boxll',
+X * 'boxlr', 'boxl', 'boxr', 'boxt', 'boxb' specify the characters to use to
+X * draw the box.  The current attributes (set with 'tattr') are ORed with
+X * these characters before the box is drawn.  These characters are initialized
+X * with '+', '-', and '|' and may be changed.
+X */
+XV tbox();
+Xextern I boxl, boxr, boxt, boxb, boxll, boxlr, boxul, boxur;
+X
+X/* V tscrollup(SCRN *t,I top,I bot,I amnt);
+X *
+X * Scroll some lines up.  'top' and 'bot' indicate which lines to scroll.
+X * 'bot' is the last line to scroll + 1.  'amnt' is distance in lines to
+X * scroll.
+X */
+XV tscrollup();
+X
+X/* V tscrolldn(SCRN *t,I top,I bot,I amnt);
+X *
+X * Scroll some lines down.  'top' and 'bot' indicate which lines to scroll.
+X * 'bot' is the last line to scroll + 1.  'amnt' is distance in lines to
+X * scroll.
+X */
+XV tscrolldn();
+X
+X/* I *tsave(SCRN *t,I x,I y,I w,I h);
+X *
+X * Save a rectangle in an malloc block.  The address of the malloc block is
+X * returned.  The format of the array is always: array[x+y*width]
+X */
+XI *tsave();
+X
+X/* V trestore(SCRN *t,I x,I y,I w,I h,I *s);
+X *
+X * Write an array (as returned by 'tsave') to the screen.  This routine does
+X * not free the malloc block returned by 'tsave'.
+X */
+XV trestore();
+X
+X/* V trefresh(SCRN *t);
+X *
+X * Refresh the screen.  This should never have to be called except for
+X * animation or 'PLEASE WAIT, READING FROM DISK' messages.  'tgetc'
+X * automatically calls this.  If there is pending input, and if this can be
+X * detected by the TTY driver, 'trefresh' aborts.
+X */
+XI trefresh();
+X
+X/* V tdumpq(SCRN *t);
+X *
+X * Dump buffered screen modifications to the screen buffer.  This routine
+X * should be called before any direct access to 't->screen' array.  It will
+X * make sure that any updates done with 'tputc', 'tputs' and 'tprintf' are
+X * made to the screen array.  This way, you can write the array directly
+X * messing up the order of the screen modifications
+X */
+XV tdumpq();
+X
+X/* V tchsize(SCRN *t,I w,I h);
+X *
+X * Change size of screen.  For example, call this when you find out that
+X * the Xterm changed size.
+X */
+X/* (this is not yet working in this version)
+XI tchsize();
+X*/
+X
+X/* SCRN *tsusp(SCRN *t);
+X *
+X * Suspend the process.  This returns a new SCRN structure which must be used
+X * instead of the original.  The new SCRN structure will be properly set
+X * in case the user changed the baud rate.
+X *
+X * If your UNIX won't let you suspend, this routine calls tshell instead.
+X */
+XSCRN *tsusp();
+X
+X/* SCRN *tshell(SCRN *t);
+X *
+X * Run a shell.  See notes about tsusp about how it returns a new SCRN
+X * structure.
+X */
+XSCRN *tshell();
+X
+X/* I TDIRECT(SCRN *t,I x,I y)
+X *
+X * Macro to directly access the screen buffer.
+X */
+X#define TDIRECT(t,x,y) ((t)->screen[(x)+(y)*(t)->co])
+X
+X/* V tredraw(SCRN *t);
+X *
+X * Invalidate all state variables for the terminal.  This way, everything gets
+X * redrawn.
+X */
+XV tredraw();
+END_OF_FILE
+if test 10415 -ne `wc -c <'scrn.h'`; then
+    echo shar: \"'scrn.h'\" unpacked with wrong size!
+fi
+# end of 'scrn.h'
+fi
+if test -f 'termcap' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'termcap'\"
+else
+echo shar: Extracting \"'termcap'\" \(329 characters\)
+sed "s/^X//" >'termcap' <<'END_OF_FILE'
+Xansisys|IBM PC ANSI.SYS:\
+X	:co#80:li#25:am:\
+X	:nd=\E[C:up=\E[A:bs:\
+X        :cm=\E[%i%d;%dH:ho=\E[H:\
+X	:ce=\E[K:\
+X	:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:mb=\E[5m:md=\E[1m:me=\E[m:\
+X	:ku=^@H:kd=^@P:kl=^@K:kr=^@M:\
+X	:kI=^@R:kD=^@S:kh=^@G:kH=^@O:kP=^@I:kN=^@Q:\
+X	:k1=^@;:k2=^@<:k3=^@=:k4=^@>:k5=^@?:k6=^@@:k7=^@A:k8=^@B:k9=^@C:k0=^@D:
+END_OF_FILE
+if test 329 -ne `wc -c <'termcap'`; then
+    echo shar: \"'termcap'\" unpacked with wrong size!
+fi
+# end of 'termcap'
+fi
+if test -f 'termcap.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'termcap.c'\"
+else
+echo shar: Extracting \"'termcap.c'\" \(7350 characters\)
+sed "s/^X//" >'termcap.c' <<'END_OF_FILE'
+X/* TERMCAP database interface
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include "types.h"
+X#include "cap.h"
+X
+Xstatic C flgs[]="\
+XEPHDLCMTNLOPUCambsbwcadadbeognhchshzinkmmimsmtncnsosptulxbxnxoxrxsxtxvxx\
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

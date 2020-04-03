@@ -1,0 +1,1488 @@
+Path: funic!fuug!mcsun!uunet!decwrl!netcomsv!mork!thinman
+From: thinman@netcom.com (Lance Norskog)
+Newsgroups: alt.sources
+Subject: Sound Blaster V2: part 4 of 4
+Message-ID: <=tbjykfthinman@netcom.com>
+Date: 27 Mar 92 05:25:21 GMT
+Organization: Netcom - Online Communication Services  (408 241-9760 guest)
+Lines: 1479
+
+
+#!/bin/sh
+# This is part 04 of SoundBlaster_V2
+# ============= apps/play_cmf.c ==============
+if test ! -d 'apps'; then
+    echo 'x - creating directory apps'
+    mkdir 'apps'
+fi
+if test -f 'apps/play_cmf.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_cmf.c (File already exists)'
+else
+echo 'x - extracting apps/play_cmf.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_cmf.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <unistd.h>
+X#include <sys/sb.h>
+X#include <stdio.h>
+X
+X#define lobyte(X)   (((unsigned char *)&X)[0])
+X#define hibyte(X)   (((unsigned char *)&X)[1])
+X
+X/* Globals */
+Xint fm_herz;        /* clock ticks per second */
+Xint tempo;          /* clock ticks per quarter note */
+Xint fm_fd;
+Xint note_on[16];
+Xchar **instrument_table;
+Xint note_table[12] = {
+X    343,
+X    363,
+X    385,
+X    408,
+X    432,
+X    458,
+X    485,
+X    514,
+X    544,
+X    577,
+X    611,
+X    647
+X    };
+X
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int cmf_fd;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* open cmf file */
+X    cmf_fd = open(argv[1], O_RDONLY);
+X    if (cmf_fd == -1)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* verify that file is a cmf file */
+X    if (!verify_cmf(cmf_fd))
+X    {
+X        printf("file was not a cmf file\n");
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* read and set instruments from cmf file */
+X    get_instruments(cmf_fd);
+X
+X    /* get timing */
+X    set_timing(cmf_fd);
+X
+X    /* open soundblaster fm chips */
+X    fm_fd = open("/dev/sbfm", O_WRONLY);
+X    if (fm_fd == -1)
+X    {
+X        perror("opening fm chips");
+X        exit(-1);
+X    }
+X
+X    /* play song */
+X    play_song(cmf_fd);
+X
+X    return(0);
+X}
+X
+X
+X/* check for "CTMF" in first four bytes of file */
+Xint verify_cmf(fd)
+Xint fd;
+X{
+X    char idbuf[5];
+X
+X    /* get id */
+X    lseek(fd, 0, SEEK_SET);
+X    if (read(fd, idbuf, 4) != 4)
+X        return(FALSE);
+X    
+X    /* compare to standard id */
+X    idbuf[4] = (char)0;
+X    if (strcmp(idbuf, "CTMF") != 0)
+X        return(FALSE);
+X    
+X    return(TRUE);
+X}
+X
+Xint wave_sel = 0;
+X
+Xint get_instruments(fd)
+Xint fd;
+X{
+X    int offset;
+X    int num_instruments;
+X    int i;
+X    int rc;
+X    int fnum, block, note;
+X    unsigned char tmp_byte;
+X    sb_fm_character note_character;
+X
+X    /* get offset of instrument block */
+X    offset = 0;
+X    lseek(fd, 0x06, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(offset) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(offset) = tmp_byte;
+X
+X    /* get number of instruments */
+X    num_instruments = 0;
+X    lseek(fd, 0x24, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(num_instruments) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(num_instruments) = tmp_byte;
+X
+X    /* allocate space */
+X    instrument_table = (char **)malloc(sizeof(int *) * num_instruments);
+X
+X    /* read each instrument */
+X    lseek(fd, offset, SEEK_SET);
+X    for (i=0; i< num_instruments; i++)
+X    {
+X        /* allocate space */
+X        instrument_table[i] = (char *)malloc(16);
+X
+X        /* set instrument characteristics */
+X        read(fd, instrument_table[i], 16);
+X	
+X	instrument_table[i][8] = instrument_table[i][9] = wave_sel;
+X    }
+X    printf("Number of instruments: %d\n", num_instruments);
+X
+X    return(0);
+X}
+X
+X
+X/*
+X * get and set timing parameters
+X */
+Xint set_timing(fd)
+Xint fd;
+X{
+X    unsigned char tmp_byte;
+X
+X    /* get tempo */
+X    tempo = 0;
+X    lseek(fd, 0x0C, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    tempo = (unsigned int)tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    tempo += (unsigned int)tmp_byte << 8;
+X
+X    /* get herz of timing clock */
+X    fm_herz = 0;
+X    lseek(fd, 0x0C, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    fm_herz = (unsigned int)tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    fm_herz += (unsigned int)tmp_byte << 8;
+X    
+X    return(0);
+X}
+X
+X
+X/*
+X * seek to the midi stream and handle midi events for the song
+X */
+Xint play_song(fd)
+Xint fd;
+X{
+X    int offset;
+X    unsigned char tmp_byte;
+X    int delta;
+X
+X    /* get offset of music stream */
+X    lseek(fd, 8, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    offset = (unsigned int)tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    offset += (unsigned int)tmp_byte << 8;
+X    lseek(fd, offset, SEEK_SET);
+X
+X    /* process till EOF */
+X    while(1)
+X    {
+X        /* get delta time */
+X        delta = ReadVarLen(fd);
+X        if (delta == -1)
+X            break;
+X
+X        /* wait delta */
+X        if (delta > 0)
+X            high_res_sleep((double)delta/(double)fm_herz);
+X
+X        /* process midi event */
+X        process_event(fd, delta);
+X    }
+X
+X
+X    return(0);
+X}
+X
+X
+X/*
+X * read a variable length scalar in MIDI format
+X */
+Xint ReadVarLen(fd)
+Xint fd;
+X{
+X    int value;
+X    unsigned char tmp_byte;
+X
+X    if (read(fd, &tmp_byte, 1) == 0)
+X        return(-1);
+X    value = (int)tmp_byte;
+X    if (tmp_byte & 0x80)
+X    {
+X        value &= 0x7F;
+X        do
+X        {
+X            if (read(fd, &tmp_byte, 1) == 0)
+X                return(-1);
+X            value = (value << 7) + (tmp_byte & 0x7F);
+X        } while (tmp_byte & 0x80);
+X    }
+X
+X    return(value);
+X}
+X
+X#define noise(str)
+X
+X/*
+X * process a midi event
+X */
+Xint process_event(fd, delta)
+Xint fd;
+X{
+X    int rc;
+X    unsigned char tmp_byte;
+X    static int status = -1;
+X    sb_fm_note note;
+X
+X    /* get status byte */
+X    read(fd, &tmp_byte, 1);
+X    if (tmp_byte & 0x80)
+X    {
+X        status = (unsigned int)tmp_byte;
+X    }
+X    else
+X    {
+X        /* running status, so back up one */
+X        if (status == -1)
+X        {
+X            printf("ERROR in cmf file. Running status at beginning of file\n");
+X            exit(-1);
+X        }
+X        lseek(fd, -1, SEEK_CUR);
+X    }
+X    
+X    /* switch different events */
+X    switch (status & 0xF0)
+X    {
+X        case 0x80:
+X            /* turn note off */
+X            ioctl(fm_fd, FM_IOCTL_NOTE_OFF, status & 0x0F);
+X            note_on[status&0x0F] = 0;
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0x90:
+X            /* get note */
+X            read(fd, &tmp_byte, 1);
+X            /* determine note */
+X            note_num(note) = status & 0x0F;
+X            fnum_low(note) = note_table[tmp_byte%12] & 0xFF;
+X            fnum_low(note) = note_table[tmp_byte%12] & 0xFF;
+X            keyon_blk_fnum(note) = 0;
+X            keyon_blk_fnum(note) |= 1<<5;
+X            keyon_blk_fnum(note) |= ((tmp_byte/12) & 7) << 2;
+X            keyon_blk_fnum(note) |= (note_table[tmp_byte%12] & 0x3FF) >> 8;
+X
+X            /* turn note on */
+X            if (note_on[status&0x0F])
+X                ioctl(fm_fd, FM_IOCTL_NOTE_OFF, status&0x0F);
+X            ioctl(fm_fd, FM_IOCTL_NOTE_ON, note);
+X            note_on[status&0x0F] = 1;
+X
+X            /* waste a bytes */
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0xA0:
+X            noise("polyphonic key pressure: not handled\n");
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0xB0:
+X            noise("control change: not handled\n");
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0xC0:
+X            /* change the instrument on a channel */
+X            read(fd, &tmp_byte, 1);
+X            load_instrument(status&0x0F, tmp_byte & 0x0F);
+X            break;
+X        case 0xD0:
+X            noise("Channel Pressure: not handled\n");
+X            /* waste a byte */
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0xE0:
+X            noise("Pitch Wheel Change: not handled\n");
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        case 0xF0:
+X            noise("System Exclusive: not handled\n");
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X        default:
+X            printf("internal program error\n");
+X            /* waste two bytes */
+X            read(fd, &tmp_byte, 1);
+X            read(fd, &tmp_byte, 1);
+X            break;
+X    }
+X
+X
+X    return(0);
+X}
+X
+X
+X/*
+X * load an instrument from the instrument table into the SoundBlaster
+X */
+Xint load_instrument(channel, instrument)
+X{
+X    int rc;
+X    sb_fm_character note_character;
+X
+X    /* error check! */
+X    if ((channel <0) || (channel >= 9))
+X        return;
+X
+X    /* abort instrument if being loaded */
+X    if (note_on[channel])
+X        ioctl(fm_fd, FM_IOCTL_NOTE_OFF, channel);
+X
+X    /* set instrument characteristics */
+X    note_character.voice_num = channel;
+X    memcpy(note_character.data, instrument_table[instrument], 16);
+X    rc = ioctl(fm_fd, FM_IOCTL_SET_VOICE, (int)&note_character);
+X    if (rc == -1)
+X    {
+X        perror("fm chips voice set");
+X        exit(-1);
+X    }
+X
+X    return(0);
+X}
+X
+X
+X#include <sys/poll.h>
+X
+Xint high_res_sleep(seconds)
+X    double      seconds;
+X{
+X	static int fd = -1;
+X	struct pollfd p;
+X	int timer = seconds * 1000.0;
+X
+X	if (fd == -1)
+X		fd = open("/dev/spx", 2);
+X	if (fd == -1)
+X		exit(3);
+X	p.fd = fd;
+X	p.events = POLLIN;
+X	poll(&p, 1, timer);
+X}
+X
+X#ifdef	ISCSTUFF
+X/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+XHigher-resolution sleep
+X* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+Xint high_res_sleep(seconds)
+X    double      seconds;
+X{
+X    int         fds = 0;
+X    struct timeval timeout;
+X
+X    timeout.tv_sec = seconds;
+X    timeout.tv_usec = (seconds - timeout.tv_sec) * 1000000.0;
+X    select(0, &fds, &fds, &fds, &timeout);
+X}
+X#endif
+SHAR_EOF
+chmod 0644 apps/play_cmf.c ||
+echo 'restore of apps/play_cmf.c failed'
+Wc_c="`wc -c < 'apps/play_cmf.c'`"
+test 9315 -eq "$Wc_c" ||
+	echo 'apps/play_cmf.c: original size 9315, current size' "$Wc_c"
+fi
+# ============= apps/play_instr.1 ==============
+if test -f 'apps/play_instr.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_instr.1 (File already exists)'
+else
+echo 'x - extracting apps/play_instr.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_instr.1' &&
+X.TH PLAY_INSTR 1 "15 March 1992"
+X.UC 4
+X.SH NAME
+Xplay_instr \- decodes and plays a Sound Blaster instrument file.
+X.SH SYNOPSIS
+X.B play_instr
+X.I file \fB[ \fIfile2 \fB}
+X.PP
+XThe argument(s) must be the Sound Blaster instrument 
+X.RI ( .INS ) 
+Xfiles.
+X.SH DESCRIPTION
+X.B play_instr
+Xplays the tone from Sound Blaster instrument file
+Xin several octaves.
+XIf a second file is given, 
+X.B play_instr
+Xwill fade from one to the other via linear interpolation.
+XThe discrete (moded) parameters
+Xof the two instruments must be the same.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+XLance Norskog
+SHAR_EOF
+chmod 0644 apps/play_instr.1 ||
+echo 'restore of apps/play_instr.1 failed'
+Wc_c="`wc -c < 'apps/play_instr.1'`"
+test 560 -eq "$Wc_c" ||
+	echo 'apps/play_instr.1: original size 560, current size' "$Wc_c"
+fi
+# ============= apps/play_instr.c ==============
+if test -f 'apps/play_instr.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/play_instr.c (File already exists)'
+else
+echo 'x - extracting apps/play_instr.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/play_instr.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X * Play a Sound Blaster instrument file.
+X *
+X * Derived from play_cmf.c by Lance Norskog
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <unistd.h>
+X#include <math.h>
+X#include <sys/sb.h>
+X#include <stdio.h>
+X
+X#define lobyte(X)   (((unsigned char *)&X)[0])
+X#define hibyte(X)   (((unsigned char *)&X)[1])
+X
+X/* Globals */
+Xint fm_herz;        /* clock ticks per second */
+Xint tempo;          /* clock ticks per quarter note */
+Xint fm_fd;
+Xint note_on[16];
+Xunsigned char instrument_table[4][16];
+Xint ninstrs;
+Xint stoptime = 1;
+Xint verbose = 0;
+X/* instrument delta table */
+Xstruct {
+X	double	multipleC;
+X	double	multipleM;
+X	double	totalC;
+X	double	totalM;
+X	double	attackC;
+X	double	attackM;
+X	double	decayC;
+X	double	decayM;
+X	double	sustainC;
+X	double	sustainM;
+X	double	releaseC;
+X	double	releaseM;
+X} delta;
+X
+Xint note_table[12] = {
+X    343,
+X    363,
+X    385,
+X    408,
+X    432,
+X    458,
+X    485,
+X    514,
+X    544,
+X    577,
+X    611,
+X    647
+X    };
+X
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int sbi_fd[2], i;
+X
+X    while (argv[1][0] == '-') {
+X	if (argv[1][1] == 'v')
+X		verbose++;
+X	else
+X		stoptime = argv[1][1] - '0';
+X	argc--;
+X	argv++;
+X    }
+X
+X    if (argc < 2 || argc > 3)
+X    {
+X        printf("usage: %s <instrument file> [ <instrument file> ]\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* open sbi file(s) */
+X    for(i = 0; i < argc - 1; i++) {
+X	    sbi_fd[i] = open(argv[1+i], O_RDONLY);
+X	    if (sbi_fd[i] == -1)
+X	    {
+Xprintf("usage: %s <instrument file> [ <instrument file> ]\n", argv[0]);
+X		exit(-1);
+X	    }
+X
+X	    /* verify that file is a sbi file */
+X	    if (!verify_sbi(sbi_fd[i]))
+X	    {
+X		printf("file %s was not an instrument file\n", argv[1+i]);
+X		printf("usage: %s <instrument file>\n", argv[0]);
+X		exit(-1);
+X	    }
+X
+X	    /* read and set instrument from sbi file */
+X	    get_instrument(sbi_fd[i], i);
+X    }
+X    ninstrs = i;
+X    if (ninstrs == 2)
+X	   makedelta();
+X    /* open soundblaster fm chips */
+X    fm_fd = open("/dev/sbfm", O_WRONLY);
+X    if (fm_fd == -1)
+X    {
+X        perror("opening fm chips");
+X        exit(-1);
+X    }
+X
+X    load_instrument(0, 0);
+X
+X    /* play note */
+X    play_note();
+X    sleep(5);
+X    if (ninstrs == 2) {
+X	   note_off();
+X	   high_res_sleep(0.5);
+X	    load_instrument(0, 1);
+X
+X	    /* play note */
+X	    play_note();
+X	    sleep(5);
+X	
+X    /* turn note on */
+X	   for(i = 0; i <= 10; i++) {
+X		   note_off();
+X		   high_res_sleep(0.5);
+X		   interpolate(i, 10);
+X		   load_instrument(0, 3);
+X		   play_note(); 
+X		   sleep(stoptime);
+X	   }
+X	   sleep(5);
+X	   i -= 2;
+X	   for(; i >= 0; i--) {
+X		   note_off();
+X		   high_res_sleep(0.5);
+X		   interpolate(i, 10);
+X		   load_instrument(0, 3);
+X		   play_note();
+X		   sleep(stoptime);
+X	   }
+X	   sleep(5);
+X    }
+X
+X    return(0);
+X}
+X
+X/* check for "SBI^Z" in first four bytes of file */
+Xint verify_sbi(fd)
+Xint fd;
+X{
+X    char idbuf[5];
+X
+X    /* get id */
+X    lseek(fd, 0, SEEK_SET);
+X    if (read(fd, idbuf, 4) != 4)
+X        return(FALSE);
+X    
+X    /* compare to standard id */
+X    idbuf[4] = (char)0;
+X    if (strcmp(idbuf, "SBI\032") != 0)
+X        return(FALSE);
+X    
+X    return(TRUE);
+X}
+X
+Xint wave_sel = 0;
+X
+Xint get_instrument(fd, in)
+Xint fd, in;
+X{
+X    /* read each instrument */
+X    lseek(fd, 0x24, SEEK_SET);
+X        /* set instrument characteristics */
+X    read(fd, instrument_table[in], 16);
+X
+X    return(0);
+X}
+X
+X#define noise(str) printf(str);
+X
+X/*
+X * Play a note with instrument.
+X */
+Xint play_note()
+X{
+X    int rc;
+X    unsigned char tmp_byte;
+X    static int status = -1;
+X    sb_fm_note note;
+X
+X    tmp_byte = 50;
+X
+X    /* determine note */
+X    note_num(note) = 0;
+X    fnum_low(note) = note_table[8] & 0xFF;
+X    keyon_blk_fnum(note) = 0;
+X    keyon_blk_fnum(note) |= 1<<5;
+X    keyon_blk_fnum(note) |= ((tmp_byte/12) & 7) << 2;
+X    keyon_blk_fnum(note) |= (note_table[8] & 0x3FF) >> 8;
+X
+X    /* turn note on */
+X    ioctl(fm_fd, FM_IOCTL_NOTE_ON, note);
+X
+X
+X    return(0);
+X}
+X
+X/*
+X * turn it off
+X */
+Xint note_off()
+X{
+X    int rc;
+X    unsigned char tmp_byte;
+X    static int status = -1;
+X    sb_fm_note note;
+X
+X    tmp_byte = 50;
+X
+X    /* determine note */
+X    note_num(note) = 0;
+X    fnum_low(note) = note_table[8] & 0xFF;
+X    keyon_blk_fnum(note) = 0;
+X    keyon_blk_fnum(note) |= 1<<5;
+X    keyon_blk_fnum(note) |= ((tmp_byte/12) & 7) << 2;
+X    keyon_blk_fnum(note) |= (note_table[8] & 0x3FF) >> 8;
+X
+X    /* turn note on */
+X    ioctl(fm_fd, FM_IOCTL_NOTE_OFF, 0);
+X}
+X
+X	/* print out deltas */
+X#define talk(str, a1) if (a1 != 0.0 && verbose) printf("%s: %d\n", str, (int) a1);
+X
+Xmakedelta() {
+X	/* check moded bits */
+X	if ((instrument_table[0][0] & 0xf0) !=
+X	    (instrument_table[1][0] & 0xf0))
+X		fail("modulator control bits are different");
+X	if ((instrument_table[0][1] & 0xf0) !=
+X	    (instrument_table[1][1] & 0xf0))
+X		fail("carrier control bits are different");
+X	if ((instrument_table[0][2] & 0xc0) !=
+X	    (instrument_table[1][2] & 0xc0))
+X		fail("modulator KSL bits are different");
+X	if ((instrument_table[0][3] & 0xc0) !=
+X	    (instrument_table[1][3] & 0xc0))
+X		fail("carrier KSL bits are different");
+X	if ((instrument_table[0][8] & 0xfc) ||
+X	    (instrument_table[1][8] & 0xfc))
+X		fail("high bits in modulator wave select must be 0");
+X	if ((instrument_table[0][9] & 0xfc) ||
+X	    (instrument_table[1][9] & 0xfc))
+X		fail("high bits in carrier wave select must be 0");
+X	if ((instrument_table[0][10] & 0xf0) ||
+X	    (instrument_table[1][10] & 0xf0))
+X		fail("high bits in feedback/connection must be 0");
+X	if ((instrument_table[0][10] & 0x0f) !=
+X	    (instrument_table[1][10] & 0x0f))
+X		fail("feedback/connection bits are different");
+X	/* build continuous delta values */
+X	delta.multipleM = (int) (instrument_table[1][0] & 0xf) -
+X		(int) (instrument_table[0][0] & 0xf);
+X	talk("Modulator multiply", delta.multipleM);
+X	delta.multipleC = (int) (instrument_table[1][1] & 0xf) -
+X		(int) (instrument_table[0][1] & 0xf);
+X	talk("Carrier multiply", delta.multipleC);
+X	delta.totalM = (int) (instrument_table[1][2] & 0x3f) -
+X		(int) (instrument_table[0][2] & 0x3f);
+X	talk("Modulator total volume", delta.totalM);
+X	delta.totalC = (int) (instrument_table[1][3] & 0x3f) -
+X		(int) (instrument_table[0][3] & 0x3f);
+X	talk("Carrier total volume", delta.totalC);
+X	delta.attackM = (int) (instrument_table[1][4] >> 4) -
+X		(int) (instrument_table[0][4] >> 4);
+X	talk("Modulator attack", delta.attackM);
+X	delta.attackC = (int) (instrument_table[1][5] >> 4) -
+X		(int) (instrument_table[0][5] >> 4);
+X	talk("Carrier attack", delta.attackC);
+X	delta.decayM = (int) (instrument_table[1][4] & 0xf) -
+X		(int) (instrument_table[0][4] & 0xf);
+X	talk("Modulator decay", delta.decayM);
+X	delta.decayC = (int) (instrument_table[1][5] & 0xf) -
+X		(int) (instrument_table[0][5] & 0xf);
+X	talk("Carrier decay", delta.decayC);
+X	delta.sustainM = (int) (instrument_table[1][6] >> 4) -
+X		(int) (instrument_table[0][6] >> 4);
+X	talk("Modulator sustain", delta.sustainM);
+X	delta.sustainC = (int) (instrument_table[1][7] >> 4) -
+X		(int) (instrument_table[0][7] >> 4);
+X	talk("Carrier sustain", delta.sustainC);
+X	delta.releaseM = (int) (instrument_table[1][6] & 0xf) -
+X		(int) (instrument_table[0][6] & 0xf);
+X	talk("Modulator release", delta.releaseM);
+X	delta.releaseC = (int) (instrument_table[1][7] & 0xf) -
+X		(int) (instrument_table[0][7] & 0xf);
+X	talk("Carrier release", delta.releaseC);
+X	/* set up instrument bank control bits in instr #2 */
+X	instrument_table[2][0] = instrument_table[0][0] & 0xf0;
+X	instrument_table[2][1] = instrument_table[0][1] & 0xf0;
+X	instrument_table[2][2] = instrument_table[0][2] & 0xc0;
+X	instrument_table[2][3] = instrument_table[0][3] & 0xc0;
+X	instrument_table[2][8] = instrument_table[0][8] & 0x03;
+X	instrument_table[2][9] = instrument_table[0][9] & 0x03;
+X	instrument_table[2][10] = instrument_table[0][10] & 0x0f;
+X}
+X
+X#define round(x) ((int) ((x) + 0.5))
+X#define tween(base, del, n, m) ((unsigned char) round((base) + ((del * n)/m)))
+X
+X/* frame n out of m */
+Xinterpolate(n, m) {
+X	unsigned char *ct = instrument_table[2];	/* control bits */
+X	unsigned char *it = instrument_table[0];	/* input table */
+X	unsigned char *ot = instrument_table[3];	/* output table */
+X
+X	ot[0] = ct[0] | tween(it[0], delta.multipleM, n, m);
+X	ot[1] = ct[1] | tween(it[1], delta.multipleC, n, m);
+X	ot[2] = ct[2] | tween(it[2], delta.totalM, n, m);
+X	ot[3] = ct[3] | tween(it[3], delta.totalC, n, m);
+X	ot[4] = tween(it[4] & 0xf, delta.decayM, n, m)
+X	      | (tween(it[4] >> 4, delta.attackM, n, m) << 4);
+X	ot[5] = tween(it[5] & 0xf, delta.decayC, n, m)
+X	      | (tween(it[5] >> 4, delta.attackC, n, m) << 4);
+X	ot[6] = tween(it[6] & 0xf, delta.releaseM, n, m)
+X	      | (tween(it[6] >> 4, delta.sustainM, n, m) << 4);
+X	ot[7] = tween(it[7] & 0xf, delta.releaseC, n, m)
+X	      | (tween(it[7] >> 4, delta.sustainC, n, m) << 4);
+X	ot[8] = ct[8];
+X	ot[9] = ct[9];
+X	ot[10] = ct[10];
+X	ot[11] = 0;
+X	ot[12] = 0;
+X	ot[13] = 0;
+X	ot[14] = 0;
+X	ot[15] = 0;
+X}
+X
+Xfail(str, a1, a2, a3, a4)
+Xchar *str;
+X{
+X	fprintf(stderr, str, a1, a2, a3, a4);
+X	exit(1);
+X}
+X
+X/*
+X * load an instrument from the instrument table into the SoundBlaster
+X */
+Xint load_instrument(channel, instrument)
+X{
+X    int rc;
+X    sb_fm_character note_character;
+X
+X    /* set instrument characteristics */
+X    note_character.voice_num = channel;
+X    memcpy(note_character.data, instrument_table[instrument], 16);
+X    rc = ioctl(fm_fd, FM_IOCTL_SET_VOICE, (int)&note_character);
+X    if (rc == -1)
+X    {
+X        perror("fm chips voice set");
+X        exit(-1);
+X    }
+X
+X    return(0);
+X}
+X
+X
+X#include <sys/poll.h>
+X
+Xint high_res_sleep(seconds)
+X    double      seconds;
+X{
+X	static int fd = -1;
+X	struct pollfd p;
+X	int timer = seconds * 1000.0;
+X
+X	if (fd == -1)
+X		fd = open("/dev/spx", 2);
+X	if (fd == -1)
+X		exit(3);
+X	p.fd = fd;
+X	p.events = POLLIN;
+X	poll(&p, 1, timer);
+X}
+X
+X#ifdef	ISCSTUFF
+X/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+XHigher-resolution sleep
+X* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+Xint high_res_sleep(seconds)
+X    double      seconds;
+X{
+X    int         fds = 0;
+X    struct timeval timeout;
+X
+X    timeout.tv_sec = seconds;
+X    timeout.tv_usec = (seconds - timeout.tv_sec) * 1000000.0;
+X    select(0, &fds, &fds, &fds, &timeout);
+X}
+X#endif
+X
+X
+SHAR_EOF
+chmod 0644 apps/play_instr.c ||
+echo 'restore of apps/play_instr.c failed'
+Wc_c="`wc -c < 'apps/play_instr.c'`"
+test 10191 -eq "$Wc_c" ||
+	echo 'apps/play_instr.c: original size 10191, current size' "$Wc_c"
+fi
+# ============= apps/set_speed.1 ==============
+if test -f 'apps/set_speed.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/set_speed.1 (File already exists)'
+else
+echo 'x - extracting apps/set_speed.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/set_speed.1' &&
+X.TH SET_SPEED 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xset_speed \- changes the speed of recording and playing on Sound
+XBlaster
+X.SH SYNOPSIS
+X.B set_speed
+X]
+X.I speed
+X]
+X.PP
+XThe argument must be the speed (in HZ) for sampling or playing.
+X.SH DESCRIPTION
+X.B set_speed
+XSets the speed of the sampling and playing of the Sound Blaster
+Xdriver.  The speed must be greater than (or equal) to 4000Hz, and less
+Xthan 24000Hz.  Speeds in excess of 13000Hz will be truncated to
+Xapproximately 13000Hz by any recording.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0444 apps/set_speed.1 ||
+echo 'restore of apps/set_speed.1 failed'
+Wc_c="`wc -c < 'apps/set_speed.1'`"
+test 520 -eq "$Wc_c" ||
+	echo 'apps/set_speed.1: original size 520, current size' "$Wc_c"
+fi
+# ============= apps/set_speed.c ==============
+if test -f 'apps/set_speed.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/set_speed.c (File already exists)'
+else
+echo 'x - extracting apps/set_speed.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/set_speed.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <sys/sb.h>
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int fd;
+X    int speed;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <speed>\n", argv[0]);
+X        exit(-1);
+X    }
+X    speed = atoi(argv[1]);
+X    if ((speed < 4000) || (speed > 24000))
+X    {
+X        printf("usage: %s <speed>\n", argv[0]);
+X        printf("\tspeed must be between 4000 and 24000");
+X        exit(-1);
+X    }
+X
+X    fd = open("/dev/sbdsp", O_RDONLY);
+X    if (fd == -1)
+X    {
+X        perror("opening SoundBlaster");
+X        exit(-1);
+X    }
+X
+X    ioctl(fd, DSP_IOCTL_SPEED, speed);
+X
+X    exit(0);
+X}
+SHAR_EOF
+chmod 0444 apps/set_speed.c ||
+echo 'restore of apps/set_speed.c failed'
+Wc_c="`wc -c < 'apps/set_speed.c'`"
+test 778 -eq "$Wc_c" ||
+	echo 'apps/set_speed.c: original size 778, current size' "$Wc_c"
+fi
+# ============= apps/snd_norm.1 ==============
+if test -f 'apps/snd_norm.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/snd_norm.1 (File already exists)'
+else
+echo 'x - extracting apps/snd_norm.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/snd_norm.1' &&
+X.TH SND_NORM 1 "3 June 1991"
+X.UC 4
+X.SH NAME
+Xsnd_norm \- normalizes a sound file
+X.SH SYNOPSIS
+X.B snd_norm
+X[
+X.I old file
+X]
+X[
+X.I new file
+X]
+X.PP
+XThe arguments are the input and output of the normalization.
+X.SH DESCRIPTION
+X.B snd_norm
+XThe input file is normalized, such that the largest amplitude is 127, thus
+Xobtaining the larget volume from a file (for a given volume setting on
+Xthe actual Sound Blaster).  Useful for post-processing recordings
+Xwhich are barely audible.
+X.SH AUTHOR
+X.PP
+XBrian Smith
+SHAR_EOF
+chmod 0644 apps/snd_norm.1 ||
+echo 'restore of apps/snd_norm.1 failed'
+Wc_c="`wc -c < 'apps/snd_norm.1'`"
+test 495 -eq "$Wc_c" ||
+	echo 'apps/snd_norm.1: original size 495, current size' "$Wc_c"
+fi
+# ============= apps/snd_norm.c ==============
+if test -f 'apps/snd_norm.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/snd_norm.c (File already exists)'
+else
+echo 'x - extracting apps/snd_norm.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/snd_norm.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <stdio.h>
+X#include <sys/fcntl.h>
+X#include <unistd.h>
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int fd, new_fd, rc, max_wave;
+X    unsigned char tmp_byte;
+X    int tmp_int;
+X    int i;
+X    double augmentation;
+X
+X    if (argc != 3)
+X    {
+X        printf("usage: %s <oldfile> <newfile>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    fd = open(argv[1], O_RDONLY);
+X    if (fd == -1)
+X    {
+X        perror("opening oldfile");
+X        exit(-1);
+X    }
+X
+X    new_fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+X    if (new_fd == -1)
+X    {
+X        perror("opening newfile");
+X        exit(-1);
+X    }
+X
+X    printf("normalizing from input file..");
+X    fflush(stdout);
+X    i = 0;
+X    max_wave = 0;
+X    while(1)
+X    {
+X        i++ ; i &= 0x7FFF;
+X        if (!i)
+X            write(1, ".", 1);
+X
+X        rc = read(fd, &tmp_byte, 1);
+X        if (rc == 0)
+X            break;
+X        tmp_int = tmp_byte - 128;
+X        if (abs(tmp_int) > max_wave)
+X            max_wave = abs(tmp_int);
+X    }
+X    write(1, "\n", 1);
+X
+X    augmentation = (double)0x80 / (double)max_wave;
+X    printf("max_wave\t%d\n", max_wave);
+X    printf("augmentation\t%f\n", augmentation);
+X
+X
+X    /* write out new file */
+X    lseek(fd, 0, SEEK_SET);
+X    while (1)
+X    {
+X        rc = read(fd, &tmp_byte, 1);
+X        if (rc == 0)
+X            break;
+X
+X        tmp_int = tmp_byte - 128;
+X        tmp_int *= augmentation;
+X        tmp_int += 128;
+X
+X        tmp_byte = tmp_int;
+X
+X        rc = write(new_fd, &tmp_byte, 1);
+X        if (rc != 1)
+X        {
+X            perror("writing to new_fd");
+X            exit(-1);
+X        }
+X    }
+X        
+X
+X    return(0);
+X}
+SHAR_EOF
+chmod 0644 apps/snd_norm.c ||
+echo 'restore of apps/snd_norm.c failed'
+Wc_c="`wc -c < 'apps/snd_norm.c'`"
+test 1773 -eq "$Wc_c" ||
+	echo 'apps/snd_norm.c: original size 1773, current size' "$Wc_c"
+fi
+# ============= apps/tst_fm_note.c ==============
+if test -f 'apps/tst_fm_note.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/tst_fm_note.c (File already exists)'
+else
+echo 'x - extracting apps/tst_fm_note.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/tst_fm_note.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <sys/signal.h>
+X#include <sys/sb.h>
+X#include <stdio.h>
+X#include <memory.h>
+X
+Xvoid handler()
+X{
+X    return;
+X}
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int fd;
+X    int rc;
+X    int i;
+X    int note;
+X    int fnum;
+X    int block;
+X    static unsigned char instrument_buf[16] = {
+X        0x11, 0x01, 0x8a, 0x40,
+X        0xf1, 0xf1, 0x11, 0xb3,
+X        0x00, 0x00, 0x06, 0x00,
+X        0x00, 0x00, 0x00, 0x00 
+X    };
+X    sb_fm_character note_character;
+X
+X    sigset(SIGINT, handler);
+X
+X    fd = open("/dev/sbfm", O_WRONLY);
+X    if (fd == -1)
+X    {
+X        perror("opening fm device");
+X        return(-1);
+X    }
+X
+X    /* test reset */
+X    rc = ioctl(fd, FM_IOCTL_RESET);
+X    if (rc == -1)
+X    {
+X        perror("fm chips reset");
+X        exit(-1);
+X    }
+X
+X    /* test setting an instrument */
+X    for (i=0 ; i<9; i++)
+X    {
+X        /* set instrument characteristics */
+X        note_character.voice_num = i;
+X        memset(note_character.data, (char)0, 16);
+X        memcpy(note_character.data, instrument_buf, 16);
+X        rc = ioctl(fd, FM_IOCTL_SET_VOICE, (int)&note_character);
+X        if (rc == -1)
+X        {
+X            perror("fm chips voice set");
+X            exit(-1);
+X        }
+X
+X        /* set note to play */
+X        fnum = 686;
+X        block = i;
+X        note_num(note) = i;
+X        fnum_low(note) = fnum & 0xFF;
+X        keyon_blk_fnum(note) = 0;
+X        keyon_blk_fnum(note) |= 1<<5;                   /* KEYON bit */
+X        keyon_blk_fnum(note) |= (block & 7) << 2;       /* block/octave */
+X        keyon_blk_fnum(note) |= (fnum & 0x3FF) >> 8;    /* top 2 bits of fnum */
+X
+X        /* test note on/off */
+X        rc = ioctl(fd, FM_IOCTL_NOTE_ON, note);
+X        if (rc == -1)
+X        {
+X            perror("fm chips voice on");
+X            exit(-1);
+X        }
+X    }
+X
+X    /* wait for ^C */
+X    sigpause(SIGINT);
+X    close(fd);
+X    return(0);
+X}
+SHAR_EOF
+chmod 0444 apps/tst_fm_note.c ||
+echo 'restore of apps/tst_fm_note.c failed'
+Wc_c="`wc -c < 'apps/tst_fm_note.c'`"
+test 2049 -eq "$Wc_c" ||
+	echo 'apps/tst_fm_note.c: original size 2049, current size' "$Wc_c"
+fi
+# ============= apps/tst_fm_open.c ==============
+if test -f 'apps/tst_fm_open.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/tst_fm_open.c (File already exists)'
+else
+echo 'x - extracting apps/tst_fm_open.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/tst_fm_open.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <sys/sb.h>
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int fd;
+X
+X    fd = open("/dev/sbfm", O_WRONLY);
+X    if (fd == -1)
+X        perror("opening fm device");
+X    else
+X        close(fd);
+X
+X    return(0);
+X}
+SHAR_EOF
+chmod 0444 apps/tst_fm_open.c ||
+echo 'restore of apps/tst_fm_open.c failed'
+Wc_c="`wc -c < 'apps/tst_fm_open.c'`"
+test 415 -eq "$Wc_c" ||
+	echo 'apps/tst_fm_open.c: original size 415, current size' "$Wc_c"
+fi
+# ============= apps/tst_instr.c ==============
+if test -f 'apps/tst_instr.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping apps/tst_instr.c (File already exists)'
+else
+echo 'x - extracting apps/tst_instr.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'apps/tst_instr.c' &&
+X/*
+X * Copyrighted as an unpublished work.
+X * (c) Copyright 1991 Brian Smith
+X * All rights reserved.
+X *
+X * Read the LICENSE file for details on distribution and use.
+X *
+X */
+X
+X#include <sys/fcntl.h>
+X#include <unistd.h>
+X#include <sys/sb.h>
+X#include <stdio.h>
+X
+X#define lobyte(X)   (((unsigned char *)&X)[0])
+X#define hibyte(X)   (((unsigned char *)&X)[1])
+X
+X/* Globals */
+Xint fm_herz;        /* clock ticks per second */
+Xint tempo;          /* clock ticks per quarter note */
+Xint fm_fd;
+X
+Xint main(argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X    int cmf_fd;
+X
+X    if (argc != 2)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* open cmf file */
+X    cmf_fd = open(argv[1], O_RDONLY);
+X    if (cmf_fd == -1)
+X    {
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* verify that file is a cmf file */
+X    if (!verify_cmf(cmf_fd))
+X    {
+X        printf("file was not a cmf file\n");
+X        printf("usage: %s <cmf file>\n", argv[0]);
+X        exit(-1);
+X    }
+X
+X    /* read and set instruments from cmf file */
+X    set_instruments(cmf_fd);
+X
+X    /* play song */
+X    play_song(cmf_fd);
+X
+X    return(0);
+X}
+X
+X
+X/* check for "CTMF" in first four bytes of file */
+Xint verify_cmf(fd)
+Xint fd;
+X{
+X    char idbuf[5];
+X
+X    /* get id */
+X    lseek(fd, 0, SEEK_SET);
+X    if (read(fd, idbuf, 4) != 4)
+X        return(FALSE);
+X    
+X    /* compare to standard id */
+X    idbuf[4] = (char)0;
+X    if (strcmp(idbuf, "CTMF") != 0)
+X        return(FALSE);
+X    
+X    return(TRUE);
+X}
+X
+Xint set_instruments(fd)
+Xint fd;
+X{
+X    int offset;
+X    int num_instruments;
+X    int i;
+X    int rc;
+X    int fnum, block, note;
+X    unsigned char tmp_byte;
+X    sb_fm_character note_character;
+X
+X    /* open soundblaster fm chips */
+X    fm_fd = open("/dev/sbfm", O_WRONLY);
+X    if (fm_fd == -1)
+X    {
+X        perror("opening fm chips");
+X        exit(-1);
+X    }
+X
+X    /* get offset of instrument block */
+X    offset = 0;
+X    lseek(fd, 0x06, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(offset) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(offset) = tmp_byte;
+X
+X    /* get number of instruments */
+X    num_instruments = 0;
+X    lseek(fd, 0x24, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    lobyte(num_instruments) = tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    hibyte(num_instruments) = tmp_byte;
+X
+X    if (num_instruments > 9)
+X        num_instruments = 9;
+X    printf("loading %d instruments\n", num_instruments);
+X
+X    /* read each instrument */
+X    lseek(fd, offset, SEEK_SET);
+X    for (i=0; i< num_instruments; i++)
+X    {
+X        /* set instrument characteristics */
+X        note_character.voice_num = i;
+X        read(fd, note_character.data, 16);
+X        printf("loading instrument: 0x%02x\n", i);
+X        rc = ioctl(fm_fd, FM_IOCTL_SET_VOICE, (int)&note_character);
+X        if (rc == -1)
+X        {
+X            perror("fm chips voice set");
+X            exit(-1);
+X        }
+X
+X        /* set note to regular C note */
+X        fnum = 686;
+X        block = 4;
+X        note_num(note) = i;
+X        fnum_low(note) = fnum & 0xFF;
+X        keyon_blk_fnum(note) = 0;
+X        keyon_blk_fnum(note) |= 1<<5;                   /* KEYON bit */
+X        keyon_blk_fnum(note) |= (block & 7) << 2;       /* block/octave */
+X        keyon_blk_fnum(note) |= (fnum & 0x3FF) >> 8;    /* top 2 bits of fnum */
+X        ioctl(fm_fd, FM_IOCTL_NOTE_ON, note);
+X        sleep(1);
+X        ioctl(fm_fd, FM_IOCTL_NOTE_ON, i);
+X    }
+X
+X    return(0);
+X}
+X
+X
+X/*
+X * get and set timing parameters
+X */
+Xvoid set_timing(fd)
+Xint fd;
+X{
+X    unsigned char tmp_byte;
+X
+X    /* get tempo */
+X    tempo = 0;
+X    lseek(fd, 0x0C, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    tempo = (unsigned int)tmp_byte;
+X    read(fd, &tmp_byte, 1);
+X    tempo += (unsigned int)tmp_byte << 8;
+X
+X    /* get herz of timing clock */
+X    fm_herz = 0;
+X    lseek(fd, 0x0C, SEEK_SET);
+X    read(fd, &tmp_byte, 1);
+X    tempo = (unsigned int)fm_herz;
+X    read(fd, &tmp_byte, 1);
+X    tempo += (unsigned int)fm_herz << 8;
+X    
+X    return;
+X}
+X
+X
+X/*
+X * seek to the midi stream and handle midi events for the song
+X */
+Xint play_song(fd)
+Xint fd;
+X{
+X    return(0);
+X}
+SHAR_EOF
+chmod 0644 apps/tst_instr.c ||
+echo 'restore of apps/tst_instr.c failed'
+Wc_c="`wc -c < 'apps/tst_instr.c'`"
+test 4060 -eq "$Wc_c" ||
+	echo 'apps/tst_instr.c: original size 4060, current size' "$Wc_c"
+fi
+exit 0
