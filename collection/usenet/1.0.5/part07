@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 7 of 10
+Message-ID: <By2MM7.L2t@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:51:42 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part7
+
+X
+CONTEXT cttab={"tab",0};
+X
+#define F_DIR		1
+#define F_NORMAL	2
+#define F_EXEC		4
+X
+char **rexpnd();
+X
+static int get_entries(tab,prv)
+TAB *tab;
+{
+int a;
+int which=0;
+char *oldpwd;
+char **files=(char **)rexpnd(tab->path,tab->pattern);
+if(!files) return -1;
+if(!aLEN(files)) return -1;
+tab->len=aLEN(files);
+vsrm(tab->files); tab->files=files;
+vasort(files,tab->len);
+if(tab->type) free(tab->type);
+tab->type=(char *)malloc(tab->len);
+oldpwd=pwd(); chdir(tab->path);
+for(a=0;a!=tab->len;a++)
+X {
+X struct stat buf;
+X mset(&buf,0,sizeof(struct stat));
+X stat(files[a],&buf);
+X if(buf.st_ino==prv) which=a;
+X if((buf.st_mode&S_IFMT)==S_IFDIR) tab->type[a]=F_DIR;
+X else if(buf.st_mode&(0100|0010|0001)) tab->type[a]=F_EXEC;
+X else tab->type[a]=F_NORMAL;
+X }
+chdir(oldpwd);
+return which;
+}
+X
+static void wkilltab(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+TAB *tab;
+if(m) tab=(TAB *)m->object;
+else tab=0;
+if(tab)
+X {
+X vsrm(tab->path);
+X vsrm(tab->pattern);
+X varm(tab->files);
+X free(tab->type);
+X free(tab);
+X }
+if(m)
+X {
+X varm(m->list);
+X menurm(m);
+X }
+}
+X
+static void followtab(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+menufllw(m);
+}
+X
+static void disptab(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+menugen(m);
+w->cury=0;
+w->curx=(m->cursor-m->top)*(m->width+1);
+}
+X
+static void resizetab(w,wi,he)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+menuresz(m,wi,he);
+}
+X 
+static void movetab(w,x,y)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+menumove(m,x,y);
+}
+X 
+static void tdumb() {}
+X
+void tltarw(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+mltarw(m);
+}
+X 
+void trtarw(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+mrtarw(m);
+}
+X 
+void tuparw(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+muparw(m);
+}
+X 
+void tdnarw(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+mdnarw(m);
+}
+X 
+void tbof(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+mbof(m);
+}
+X 
+void teof(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+meof(m);
+}
+X 
+void tbol(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+mbol(m);
+}
+X 
+void teol(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+meol(m);
+}
+X
+int treload(w,m,tab,flg)
+W *w;
+MENU *m;
+TAB *tab;
+{
+BW *bw;
+P *p;
+int x;
+int which;
+char **list;
+struct stat buf;
+if((which=get_entries(tab,tab->prv))<0) return 1;
+if(tab->path && tab->path[0]) stat(tab->path,&buf);
+else stat(".",&buf);
+tab->prv=buf.st_ino;
+if(!flg) which=0;
+if(m) { vsrm(m->list); menurm(m); }
+list=vaensure(NULL,aLEN(tab->files));
+for(x=0;tab->files[x];++x)
+X {
+X vaset(list,x,vsncpy(NULL,0,sv(tab->files[x])));
+X if(tab->type[x]==F_DIR) list[x]=vsncpy(list[x],sLEN(list[x]),sc("/"));
+X else if(tab->type[x]==F_EXEC) list[x]=vsncpy(list[x],sLEN(list[x]),sc("*"));
+X }
+w->object=(void *)(m=mkmenu(w->t,list,w->x,w->y,w->w,w->h));
+m->object=tab;
+m->cursor=which;
+bw=(BW *)w->win->object;
+p=pdup(bw->cursor); pbol(p);
+peol(bw->cursor);
+bdel(p,bw->cursor);
+if(sLEN(tab->path))
+X {
+X binsm(bw->cursor,sv(tab->path)), peol(bw->cursor);
+X if(tab->path[sLEN(tab->path)-1]!='/')
+X  binsm(bw->cursor,sc("/")), peol(bw->cursor);
+X }
+binsm(bw->cursor,sv(tab->pattern)); peol(bw->cursor);
+prm(p);
+return 0;
+}
+X 
+void trtn(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+TAB *tab=(TAB *)m->object;
+if(tab->type[m->cursor]==F_DIR)
+X { /* Switch directories */
+X char *orgpath=tab->path;
+X char *orgpattern=tab->pattern;
+X char *e=endprt(tab->path);
+X if(!zcmp(tab->files[m->cursor],"..") && sLEN(e) &&
+X    !(e[0]=='.' && e[1]=='.' && (!e[2] || e[2]=='/')))
+X  tab->path=begprt(tab->path);
+X else
+X  {
+X  tab->path=vsncpy(NULL,0,sv(tab->path));
+X  tab->path=vsncpy(tab->path,sLEN(tab->path),sv(m->list[m->cursor]));
+X  }
+X vsrm(e);
+X tab->pattern=vsncpy(NULL,0,sc("*"));
+X if(treload(w,m,tab,0))
+X  {
+X  msgnw(w,"Couldn\'t read directory ");
+X  vsrm(tab->pattern); tab->pattern=orgpattern;
+X  vsrm(tab->path); tab->path=orgpath;
+X  }
+X else
+X  {
+X  vsrm(orgpattern);
+X  vsrm(orgpath);
+X  }
+X }
+else
+X { /* Select name */
+X BW *bw=(BW *)w->win->object;
+X P *p;
+X p=pdup(bw->cursor); pbol(p);
+X peol(bw->cursor);
+X bdel(p,bw->cursor);
+X if(sLEN(tab->path))
+X  {
+X  binsm(bw->cursor,sv(tab->path)), peol(bw->cursor);
+X  if(tab->path[sLEN(tab->path)-1]!='/')
+X   binsm(bw->cursor,sc("/")), peol(bw->cursor);
+X  }
+X binsm(bw->cursor,sv(tab->files[m->cursor])); peol(bw->cursor);
+X bw->cursor->xcol=bw->cursor->col;
+X prm(p);
+X wabort(w);
+X }
+}
+X
+void tbacks(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+TAB *tab=(TAB *)m->object;
+char *orgpath=tab->path;
+char *orgpattern=tab->pattern;
+char *e=endprt(tab->path);
+if(sLEN(e)) tab->path=begprt(tab->path);
+else
+X {
+X vsrm(e);
+X return;
+X }
+vsrm(e);
+tab->pattern=vsncpy(NULL,0,sc("*"));
+if(treload(w,m,tab,1))
+X {
+X msgnw(w,"Couldn\'t read directory ");
+X vsrm(tab->pattern); tab->pattern=orgpattern;
+X vsrm(tab->path); tab->path=orgpath;
+X }
+else
+X {
+X vsrm(orgpattern);
+X vsrm(orgpath);
+X }
+}
+X
+void tuabort(w)
+W *w;
+{
+BW *bw=(BW *)w->win->object;
+P *p=pdup(bw->cursor); pbol(p);
+peol(bw->cursor);
+bdel(p,bw->cursor);
+prm(p);
+wabort(w);
+}
+X
+static WATOM watomtab=
+{
+&cttab,
+disptab,
+followtab,
+wkilltab,
+resizetab,
+movetab,
+tdumb,
+tdumb,
+TYPETAB
+};
+X
+/* Create a tab window */
+X
+void ucmplt(w)
+W *w;
+{
+W *new;
+TAB *tab;
+P *p, *q;
+char *cline, *tmp;
+BW *bw;
+long a,b;
+if(!(new=wcreate(w->t,&watomtab,w,w,w->main,1,NULL))) return;
+tab=(TAB *)malloc(sizeof(TAB));
+tab->files=0;
+tab->type=0;
+bw=(BW *)w->object;
+p=pdup(bw->cursor); pbol(p);
+q=pdup(bw->cursor); peol(q);
+tmp=brvs(p,q->byte-p->byte);
+cline=parsens(tmp,&a,&b);
+vsrm(tmp);
+prm(p); prm(q);
+tmp=namprt(cline);
+tab->pattern=vsncpy(sv(tmp),sc("*"));
+tab->path=dirprt(cline);
+tab->prv=0;
+vsrm(cline);
+if(treload(new,NULL,tab,0))
+X {
+/* msgnw(w,"Couldn\'t read directory "); */
+X vsrm(tab->path);
+X vsrm(tab->pattern);
+X free(tab);
+X w->t->curwin=new;
+X wabort(new);
+X }
+else
+X {
+X w->t->curwin=new;
+X if(!sLEN(tab->files)) tuabort(new);
+X else if(sLEN(tab->files)==1) trtn(new);
+X }
+}
+SHAR_EOF
+chmod 0600 tab.c ||
+echo 'restore of tab.c failed'
+Wc_c="`wc -c < 'tab.c'`"
+test 6687 -eq "$Wc_c" ||
+	echo 'tab.c: original size 6687, current size' "$Wc_c"
+fi
+# ============= tab.h ==============
+if test -f 'tab.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping tab.h (File already exists)'
+else
+echo 'x - extracting tab.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tab.h' &&
+/* File selection menu
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Itab
+#define _Itab 1
+X
+#include "config.h"
+#include "kbd.h"
+X
+typedef struct tab TAB;
+X
+struct tab
+X {
+X char *path;
+X char *pattern;
+X int len;
+X char **files;
+X char *type;
+X int prv;
+X };
+X
+#define TYPETAB 0x400
+X
+void ucmplt();
+extern CONTEXT cttab;
+void tuabort();
+void tbacks();
+void tbof();
+void tbol();
+void teol();
+void teof();
+void tltarw();
+void tdnarw();
+void trtarw();
+void trtn();
+void tuparw();
+X
+#endif
+SHAR_EOF
+chmod 0600 tab.h ||
+echo 'restore of tab.h failed'
+Wc_c="`wc -c < 'tab.h'`"
+test 1173 -eq "$Wc_c" ||
+	echo 'tab.h: original size 1173, current size' "$Wc_c"
+fi
+# ============= termcap ==============
+if test -f 'termcap' -a X"$1" != X"-c"; then
+	echo 'x - skipping termcap (File already exists)'
+else
+echo 'x - extracting termcap (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'termcap' &&
+##############################################################################
+#
+# Joe's termcap file
+#
+# These expect that you're using some kind of handshaking (no padding info
+# is given).  Also JOE doesn't use the last column of the screen, so the
+# am/xn parameters can be wrong
+#
+# JOE understands these extensions to termcap:
+#
+# AL DL SF SR IC DC UP DO RI LE - parametized versions of normal termcap
+#                                 capabilities.  For example, AL inserts n
+#                                 lines and LE moves n positions left.
+#
+# rr                            - Flag which indicates that the cursor
+#                                 is restricted to scrolling region (cursor
+#                                 addressing is still screen relative, however).
+#
+# cb                            - Like cv, but goes to beginning of given
+#                                 line.
+#
+##############################################################################
+X
+# The pre-ansi terminal
+X
+vt52|dec vt52:\
+X	:co#80:li#24:\
+X	:ho=\EH:cm=\EY%+ %+ :\
+X	:up=\EA:nd=\EC:pt:bs:\
+X	:cd=\EJ:ce=\EK:cl=\EH\EJ:\
+X	:sr=\EI:\
+X	:ku=\EA:kd=\EB:kr=\EC:kl=\ED:
+X
+##############################################################################
+#
+# The "ANSI" family of terminals
+#
+##############################################################################
+X
+# The capabilities in this entry are understood to be the least-common
+# denominator of what's called ANSI (except, of course, for the IBM PC, which
+# doesn't know what ESC [ J is).
+X
+ansi|Basic Ansi tty:\
+X	:co#80:li#25:am:\
+X	:ho=\E[H:cm=\E[%i%d;%dH:cb=\E[%i%dH:\
+X	:up=\E[A:UP=\E[%dA:DO=\E[%dB:nd=\E[C:RI=\E[%dC:pt:bs:LE=\E[%dD:\
+X	:cd=\E[J:ce=\E[K:cl=\E[H\E[J:\
+X	:so=\E[7m:se=\E[m:ms:us=\E[4m:ue=\E[m:\
+X	:mb=\E[5m:md=\E[1m:mh=\E[2m:me=\E[m:\
+X	:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:
+X
+# Use for good implementations of non-DEC ansi.  Most PC UNIX consoles
+# look like this
+X
+fansi|Full Ansi tty (includes inserts and deletes):\
+X	:al=\E[L:AL=\E[%dL:dl=\E[M:DL=\E[%dM:\
+X	:ic=\E[@:IC=\E[%d@:dc=\E[P:DC=\E[%dP:\
+X	:tc=ansi:
+X
+# Use for vt100-like ansi implementations
+X
+ansi100:Ansi tty with scrolling regions but no inserts or deletes:\
+X	:li#24:\
+X	:cs=\E[%i%d;%dr:sr=\EM:\
+X	:tc=ansi:
+X
+# Advanced DEC-style ansi terminals.  Use for vt102s and above
+X
+decansi:Full DEC-style Ansi tty (scrolling regions/insert mode/deletes):\
+X	:li#24:\
+X	:cs=\E[%i%d;%dr:sr=\EM:\
+X	:al=\E[L:AL=\E[%dL:dl=\E[M:DL=\E[%dM:\
+X	:im=\E[4h:ei=\E[4l:mi:dc=\E[P:DC=\E[%dP:\
+X	:tc=ansi:
+X
+##############################################################################
+#
+# Derived "ANSI" terminals
+#
+##############################################################################
+X
+ansisys|IBM PC using ANSI.SYS:\
+X        :cd@:ms@:pt@:cl=\E[H\E[2J:do=\E[B:\
+X	:ku=^@H:kd=^@P:kl=^@K:kr=^@M:\
+X	:kI=^@R:kD=^@S:kh=^@G:kH=^@O:kP=^@I:kN=^@Q:\
+X	:k1=^@;:k2=^@<:k3=^@=:k4=^@>:k5=^@?:\
+X	:k6=^@@:k7=^@A:k8=^@B:k9=^@C:k0=^@D:\
+X        :tc=ansi:
+X
+nansisys|IBM PC using NANSI.SYS or ZANSI.SYS:\
+X        :cd@:ms@:pt@:cl=\E[H\E[2J:do=\E[B:\
+X	:ku=^@H:kd=^@P:kl=^@K:kr=^@M:\
+X	:kI=^@R:kD=^@S:kh=^@G:kH=^@O:kP=^@I:kN=^@Q:\
+X	:k1=^@;:k2=^@<:k3=^@=:k4=^@>:k5=^@?:\
+X	:k6=^@@:k7=^@A:k8=^@B:k9=^@C:k0=^@D:\
+X        :tc=fansi:
+X
+xenix:Xenix console:\
+X	:bt=\E[Z:\
+X	:kI=\E[L:kD=^?:kh=\E[H:kH=\E[F:kP=\E[I:kN=\E[G:\
+X	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:\
+X	:k6=\E[R:k7=\E[S:k8=\E[T:k9=\E[U:k0=\E[V:\
+X	:tc=fansi:
+X
+linux:Linux console:\
+X	:kI=\E[2~:kD=\E[3~:kh=\E[1~:kH=\E[4~:kP=\E[5~:kN=\E[6~:\
+X	:k1=\E[[A:k2=\E[[B:k3=\E[[C:k4=\E[[D:k5=\E[[E:\
+X	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k10=\E[21~:\
+X	:tc=fansi:
+X
+pt:Convergent Technologies PT booted from a miniframe:\
+X	:li#26:ns:\
+X	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOT:\
+X	:k6=\EOU:k7=\EOV:k8=\EOW:k9=\EOX:k0=\EOY:\
+X	:tc=fansi:
+X
+ptem:Convergent Technologies PT using its own firmware:\
+X	:li#26:rr:\
+X	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOT:\
+X	:k6=\EOU:k7=\EOV:k8=\EOW:k9=\EOX:k0=\EOY:\
+X	:tc=decansi:
+X
+xterm|X windows terminal emulator:\
+X	:xn:\
+X	:kb=\b:ks=\E=:ke=\E>:\
+X	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+X	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k0=\E[21~:\
+X	:kh=\E[8~:\
+X	:tc=decansi:
+X
+vt100|DEC VT100:\
+X	:li#24:\
+X	:ks=\E\075:ke=\E\076:\
+X	:kh=\E[H:\
+X	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+X	:tc=ansi100:
+X
+vt102|DEC VT102:\
+X	:li#24:\
+X	:ks=\E\075:ke=\E\076:\
+X	:kh=\E[H:\
+X	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+X	:tc=decansi:
+X
+vt220|DEC VT220:\
+X	:ke=\E>:ks=\E=:\
+X	:kb=^?:\
+X	:kI=\E[2~:kD=\E[3~:kh=\E[1~:kH=\E[4~:kP=\E[5~:kN=\E[6~:\
+X	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[17~:\
+X	:k6=\E[18~:k7=\E[19~:k8=\E[20~:k9=\E[21~:k0=\E[29~:\
+X	:tc=decansi:
+SHAR_EOF
+chmod 0600 termcap ||
+echo 'restore of termcap failed'
+Wc_c="`wc -c < 'termcap'`"
+test 4577 -eq "$Wc_c" ||
+	echo 'termcap: original size 4577, current size' "$Wc_c"
+fi
+# ============= termcap.c ==============
+if test -f 'termcap.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping termcap.c (File already exists)'
+else
+echo 'x - extracting termcap.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'termcap.c' &&
+/* TERMCAP database interface
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "config.h"
+#include "blocks.h"
+#include "heap.h"
+#include "vs.h"
+#include "va.h"
+#include "zstr.h"
+#include "queue.h"
+#include "termcap.h"
+X
+/* Return true if termcap line matches name */
+X
+static int match(s,name)
+char *s, *name;
+{
+if(s[0]==0 || s[0]=='#') return 0;
+do
+X {
+X int x;
+X for(x=0;s[x]==name[x] && name[x] && s[x];++x);
+X if(name[x]==0 && (s[x]==':' || s[x]=='|')) return 1;
+X while(s[x]!=':' && s[x]!='|' && s[x]) ++x;
+X s+=x+1;
+X }
+X while(s[-1]=='|');
+return 0;
+}
+X
+/* Find termcap entry in a file */
+X
+static char *lfind(s,pos,fd,name)
+char *s, *name;
+FILE *fd;
+int pos;
+{
+int c,x;
+if(!s) s=vsmk(1024);
+loop:
+while(c=getc(fd), c==' ' || c=='\t' || c=='#')
+X do c=getc(fd); while(!(c== -1 || c=='\n'));
+if(c== -1) return s=vstrunc(s,pos);
+ungetc(c,fd);
+s=vstrunc(s,x=pos);
+while(1)
+X {
+X c=getc(fd);
+X if(c== -1 || c=='\n')
+X  if(x!=pos && s[x-1]=='\\')
+X   {
+X   --x;
+X   if(!match(s+pos,name)) goto loop;
+X   else break;
+X   }
+X  else
+X   if(!match(s+pos,name)) goto loop;
+X   else return vstrunc(s,x);
+X else if(c=='\r') ;
+X else s=vsset(s,x,c), ++x;
+X }
+while(c=getc(fd), c!= -1)
+X if(c=='\n')
+X  if(s[x-1]=='\\') --x;
+X  else break;
+X else if(c=='\r') ;
+X else s=vsset(s,x,c), ++x;
+s=vstrunc(s,x);
+return s;
+}
+X
+/* Lookup termcap entry in index */
+X
+static long findidx(file,name)
+FILE *file;
+char *name;
+{
+char buf[80];
+long addr=0;
+while(fgets(buf,80,file))
+X {
+X int x=0, flg=0, c, y, z;
+X do
+X  {
+X  int y;
+X  for(y=x;buf[y] && buf[y]!=' ' && buf[y]!='\n';++y);
+X  c=buf[y]; buf[y]=0;
+X  if(c=='\n' || !c)
+X   {
+X   z=0; sscanf(buf+x,"%x",&z);
+X   addr+=z;
+X   }
+X  else if(!zcmp(buf+x,name)) flg=1;
+X  x=y+1;
+X  }
+X  while(c && c!='\n');
+X if(flg) return addr;
+X }
+return 0;
+}
+X
+/* Load termcap entry */
+X
+CAP *getcap(name,baud,out,outptr)
+char *name;
+unsigned baud;
+void (*out)();
+void *outptr;
+{
+CAP *cap;
+FILE *f, *f1;
+long idx;
+int x,y,c,z,ti;
+char *tp, *pp, *qq, *namebuf, **npbuf, *idxname;
+int sortsiz;
+X
+if(!name && !(name=getenv("TERM"))) return 0;
+name=vsncpy(NULL,0,sz(name));
+X
+cap=(CAP *)malloc(sizeof(CAP));
+cap->tbuf=vsmk(1024);
+cap->sort=(struct sortentry *)malloc(sizeof(struct sortentry)*(sortsiz=64));
+cap->sortlen=0;
+X
+tp=getenv("TERMCAP");
+X
+if(tp && tp[0]=='/') namebuf=vsncpy(NULL,0,sz(tp));
+else
+X {
+X if(tp) vsncpy(sv(cap->tbuf),sz(tp));
+X if((tp=getenv("TERMPATH"))) namebuf=vsncpy(NULL,0,sz(tp));
+X else if((tp=getenv("HOME")))
+X  namebuf=vsncpy(NULL,0,sz(tp)),
+X  namebuf=vsadd(namebuf,'/'),
+X  namebuf=vsncpy(sv(namebuf),sz(TERMPATH));
+X else namebuf=vsncpy(NULL,0,sz(TERMPATH));
+X }
+X
+npbuf=vawords(NULL,sv(namebuf),sc("\t "));
+vsrm(namebuf);
+X
+y=0; ti=0;
+X
+if(match(cap->tbuf,name)) goto checktc;
+X
+dofiles:
+cap->tbuf=vstrunc(cap->tbuf,0);
+X
+nextfile:
+if(!npbuf[y])
+X {
+X varm(npbuf);
+X vsrm(name);
+X vsrm(cap->tbuf);
+X free(cap->sort);
+X free(cap);
+X return 0;
+X }
+idx=0;
+idxname=vsncpy(NULL,0,sz(npbuf[y]));
+idxname=vsncpy(idxname,sLEN(idxname),sc(".idx"));
+f1=fopen(npbuf[y],"r");
+++y;
+if(!f1) goto nextfile;
+f=fopen(idxname,"r");
+if(f)
+X {
+X struct stat buf, buf1;
+X fstat(fileno(f),&buf);
+X fstat(fileno(f1),&buf1);
+X if(buf.st_mtime>buf1.st_mtime) idx=findidx(f,name);
+X else fprintf(stderr,"%s is out of date\n",idxname);
+X fclose(f);
+X }
+vsrm(idxname);
+fseek(f1,idx,0);
+cap->tbuf=lfind(cap->tbuf,ti,f1,name);
+fclose(f1);
+if(sLEN(cap->tbuf)==ti) goto nextfile;
+X
+checktc:
+x=sLEN(cap->tbuf);
+do
+X {
+X cap->tbuf[x]=0;
+X while(x && cap->tbuf[--x]!=':');
+X }
+X while(x && (!cap->tbuf[x+1] || cap->tbuf[x+1]==':'));
+X
+if(cap->tbuf[x+1]=='t' && cap->tbuf[x+2]=='c' && cap->tbuf[x+3]=='=')
+X {
+X name=vsncpy(NULL,0,sz(cap->tbuf+x+4));
+X cap->tbuf[x]=0;
+X cap->tbuf[x+1]=0;
+X ti=x+1;
+X sLen(cap->tbuf)=x+1;
+X if(y) --y;
+X goto nextfile;
+X }
+X
+doline:
+pp=cap->tbuf+ti;
+X
+/* Process line at pp */
+X
+loop:
+while(*pp && *pp!=':') ++pp;
+if(*pp)
+X {
+X int q;
+X *pp++=0;
+X loop1:
+X if(pp[0]==' ' || pp[0]=='\t') goto loop;
+X for(q=0;pp[q] && pp[q]!='#' && pp[q]!='=' && pp[q]!='@' && pp[q]!=':';++q);
+X qq=pp;
+X c=pp[q]; pp[q]=0;
+X if(c) pp+=q+1;
+X else pp+=q;
+X
+X x=0; y=cap->sortlen; z= -1;
+X if(!y) { z=0; goto in; }
+X while(z!=(x+y)/2)
+X  {
+X  z=(x+y)/2;
+X  switch(zcmp(qq,cap->sort[z].name))
+X   {
+X  case  1: x=z; break;
+X  case -1: y=z; break;
+X  case  0:
+X   if(c=='@')
+X    mfwrd(cap->sort+z,cap->sort+z+1,
+X          (cap->sortlen---(z+1))*sizeof(struct sortentry));
+X   else
+X    if(c && c!=':') cap->sort[z].value=qq+q+1;
+X    else cap->sort[z].value=0;
+X   if(c==':') goto loop1;
+X   else goto loop;
+X   }
+X  }
+X in:
+X if(cap->sortlen==sortsiz)
+X  cap->sort=(struct sortentry *)realloc(cap->sort,
+X                                        (sortsiz+=32)*sizeof(struct sortentry));
+X mbkwd(cap->sort+y+1,cap->sort+y,
+X       (cap->sortlen++-y)*sizeof(struct sortentry));
+X cap->sort[y].name=qq;
+X if(c && c!=':') cap->sort[y].value=qq+q+1;
+X else cap->sort[y].value=0;
+X if(c==':') goto loop1;
+X else goto loop;
+X }
+X
+if(ti)
+X {
+X for(--ti;ti;--ti) if(!cap->tbuf[ti-1]) break;
+X goto doline;
+X }
+X
+varm(npbuf);
+vsrm(name);
+X
+cap->pad=getstr(cap,"pc");
+if(getenv("DOPADDING")) cap->dopadding=1;
+else cap->dopadding=0;
+return setcap(cap,baud,out,outptr);
+}
+X
+struct sortentry *findcap(cap,name)
+CAP *cap;
+char *name;
+{
+int x,y,z;
+x=0; y=cap->sortlen; z= -1;
+while(z!=(x+y)/2)
+X {
+X z=(x+y)/2;
+X switch(zcmp(name,cap->sort[z].name))
+X  {
+X case  1: x=z; break;
+X case -1: y=z; break;
+X case  0: return cap->sort+z;
+X  }
+X }
+return 0;
+}
+X
+CAP *setcap(cap,baud,out,outptr)
+CAP *cap;
+unsigned baud;
+void (*out)();
+void *outptr;
+{
+cap->baud=baud;
+cap->div=100000/baud;
+cap->out=out;
+cap->outptr=outptr;
+return cap;
+}
+X
+int getflag(cap,name)
+CAP *cap;
+char *name;
+{
+return findcap(cap,name)!=0;
+}
+X
+char *getstr(cap,name)
+CAP *cap;
+char *name;
+{
+struct sortentry *s=findcap(cap,name);
+if(s) return s->value;
+else return 0;
+}
+X
+int getnum(cap,name)
+CAP *cap;
+char *name;
+{
+struct sortentry *s=findcap(cap,name);
+if(s && s->value) return atoi(s->value);
+return -1;
+}
+X
+void rmcap(cap)
+CAP *cap;
+{
+vsrm(cap->tbuf);
+free(cap->sort);
+free(cap);
+}
+X
+static char escape(s)
+char **s;
+{
+char c= *(*s)++;
+if(c=='^' && **s)
+X if(**s!='?') return 037&*(*s)++;
+X else return (*s)++, 127;
+else if(c=='\\' && **s)
+X switch(c= *((*s)++))
+X  {
+X case '0': case '1': case '2': case'3': case '4': case '5': case '6': case '7':
+X           c-='0';
+X           if(**s>='0' && **s<='7') c=(c<<3)+*((*s)++)-'0';
+X           if(**s>='0' && **s<='7') c=(c<<3)+*((*s)++)-'0';
+X           return c;
+X case 'e':
+X case 'E': return 27;
+X case 'n':
+X case 'l': return 10;
+X case 'r': return 13;
+X case 't': return 9;
+X case 'b': return 8;
+X case 'f': return 12;
+X case 's': return 32;
+X default: return c;
+X  }
+else return c;
+}
+X
+void texec(cap,s,l,a0,a1,a2,a3)
+CAP *cap;
+char *s;
+int l,a0,a1,a2,a3;
+{
+int c, tenth=0, x;
+int args[4];
+int vars[128];
+int *a=args;
+X
+/* Copy args into array (yuk) */
+args[0]=a0; args[1]=a1; args[2]=a2; args[3]=a3;
+X
+/* Do nothing if there is no string */
+if(!s) return;
+X
+/* Get tenths of MS of padding needed */
+while(*s>='0' && *s<='9') tenth=tenth*10+*s++-'0';
+tenth*=10;
+if(*s=='.') ++s, tenth+= *s++-'0';
+X
+/* Check if we have to multiply by number of lines */
+if(*s=='*') ++s, tenth*=l;
+X
+/* Output string */
+while(c= *s++)
+X if(c=='%' && *s)
+X  switch(x=a[0], c= escape(&s))
+X   {
+X  case 'C': if(x>=96) cap->out(cap->outptr,x/96), x%=96;
+X  case '+': if(*s) x+= escape(&s);
+X  case '.': cap->out(cap->outptr,x); ++a; break;
+X  case 'd': if(x<10) goto one;
+X  case '2': if(x<100) goto two;
+X  case '3': c='0'; while(x>=100) ++c, x-=100; cap->out(cap->outptr,c);
+X       two: c='0'; while(x>=10) ++c, x-=10; cap->out(cap->outptr,c);
+X       one: cap->out(cap->outptr,'0'+x); ++a; break;
+X  case 'r': a[0]=a[1]; a[1]=x; break;
+X  case 'i': ++a[0]; ++a[1]; break;
+X  case 'n': a[0]^=0140; a[1]^=0140; break;
+X  case 'm': a[0]^=0177; a[1]^=0177; break;
+X  case 'f': ++a; break;
+X  case 'b': --a; break;
+X  case 'a': x=s[2];
+X            if(s[1]=='p') x=a[x-0100];
+X            switch(*s)
+X             {
+X             case '+': a[0]+=x; break;
+X             case '-': a[0]-=x; break;
+X             case '*': a[0]*=x; break;
+X             case '/': a[0]/=x; break;
+X             case '%': a[0]%=x; break;
+X             case 'l': a[0]=vars[x]; break;
+X             case 's': vars[x]=a[0]; break;
+X             default:  a[0]=x;
+X             }
+X            s+=3;
+X            break;
+X  case 'D': a[0]=a[0]-2*(a[0]&15); break;
+X  case 'B': a[0]=16*(a[0]/10)+a[0]%10; break;
+X  case '>': if(a[0]>escape(&s)) a[0]+=escape(&s); else escape(&s);
+X   default: cap->out(cap->outptr,'%'); cap->out(cap->outptr,c);
+X   }
+X else --s, cap->out(cap->outptr,escape(&s));
+X
+/* Output padding characters */
+if(cap->dopadding)
+X if(cap->pad)
+X  while(tenth>=cap->div)
+X   for(s=cap->pad;*s;++s) cap->out(cap->outptr,*s), tenth-=cap->div;
+X else
+X  while(tenth>=cap->div) cap->out(cap->outptr,0), tenth-=cap->div;
+}
+X
+static int total;
+X
+static void cst()
+{
+++total;
+}
+X
+int tcost(cap,s,l,a0,a1,a2,a3)
+CAP *cap;
+char *s;
+int l,a0,a1,a2,a3;
+{
+void (*out)()=cap->out;
+if(!s) return 10000;
+total=0;
+cap->out=cst;
+texec(cap,s,l,a0,a1,a2,a3);
+cap->out=out;
+return total;
+}
+X
+static char *ssp;
+static void cpl(ptr,c)
+char *ptr;
+char c;
+{
+vsadd(ssp,c);
+}
+X
+char *tcompile(cap,s,a0,a1,a2,a3)
+CAP *cap;
+char *s;
+int a0,a1,a2,a3;
+{
+void (*out)()=cap->out;
+int div=cap->div;
+if(!s) return 0;
+cap->out=cpl; cap->div=10000;
+ssp=vsmk(10);
+texec(cap,s,0,a0,a1,a2,a3);
+cap->out=out; cap->div=div;
+return ssp;
+}
+X
+/* Old termcap compatibility */
+X
+short ospeed;		/* Output speed */
+char PC, *UP, *BC;		/* Unused */
+static CAP *latest;	/* CAP entry to use */
+X
+static stupid(ptr,c)
+void (*ptr)();
+char c;
+{
+ptr(c);
+}
+X
+int tgetent(buf,name)
+char *buf, *name;
+{
+latest=getcap(name,9600,stupid,NULL);
+if(latest) return 1;
+else return -1;
+}
+X
+int tgetflag(name)
+char *name;
+{
+return getflag(latest,name);
+}
+X
+int tgetnum(name)
+char *name;
+{
+return getnum(latest,name);
+}
+X
+char *tgetstr(name)
+char *name;
+{
+return getstr(latest,name);
+}
+X
+static int latestx, latesty;
+X
+char *tgoto(str,x,y)
+char *str;
+int x,y;
+{
+latestx=x; latesty=y;
+return str;
+}
+X
+void tputs(str,l,out)
+char *str;
+int l;
+void (*out)();
+{
+latest->outptr=(void *)out;
+if(latest->baud!=ospeed) latest->baud=ospeed, latest->div=100000/ospeed;
+texec(latest,str,l,latesty,latestx);
+}
+SHAR_EOF
+chmod 0600 termcap.c ||
+echo 'restore of termcap.c failed'
+Wc_c="`wc -c < 'termcap.c'`"
+test 10843 -eq "$Wc_c" ||
+	echo 'termcap.c: original size 10843, current size' "$Wc_c"
+fi
+# ============= termcap.h ==============
+if test -f 'termcap.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping termcap.h (File already exists)'
+else
+echo 'x - extracting termcap.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'termcap.h' &&
+/* TERMCAP/TERMINFO header file
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Itermcap
+#define _Itermcap 1
+X
+#include "config.h"
+X
+typedef struct cap CAP;
+X
+#define TERMPATH ".termcap /etc/termcap"
+X
+struct sortentry
+X {
+X char *name;
+X char *value;
+X };
+X
+struct cap
+X {
+X char *tbuf;			/* Termcap entry loaded here */
+X
+X struct sortentry *sort;	/* Pointers to each capability stored in here */
+X int sortlen;			/* Number of capabilities */
+X
+X char *abuf;			/* For terminfo compatible version */
+X char *abufp;
+X 
+X int div;			/* tenths of MS per char */
+X int baud;			/* Baud rate */
+X char *pad;			/* Padding string or NULL to use NUL */
+X void (*out)();			/* Character output routine */
+X void *outptr;			/* First arg passed to output routine.  Second
+X 				   arg is character to write */
+X int dopadding;			/* Set if pad characters should be used */
+X };
+X
+/* CAP *getcap(char *s,int baud,void (*out)(void *outptr,char c),void *outptr);
+X *
+X * Get CAP entry for terminal named in 's'.  If 's' is zero, the name in
+X * the environment variable 'TERM' is used instead.  Space for the returned
+X * CAP is allocated from the heap using malloc.
+X *
+X * 'baud'   is the baud rate used for 'texec' to calculate number of pad chars
+X * 'out'    is the function 'texec' uses to output characters
+X * 'outptr' is the passed as the first arg to 'out'
+X *
+X * This is how 'getcap' finds the entry:  First a list of file names is
+X * built.  If the environment variable 'TERMCAP' begins with a '/', it
+X * is used as the list of file names.  Otherwise, if the environment
+X * variable 'TERMPATH' is set, it is used as the list of file names.  If
+X * that isn't set, then the string TERMPATH defined above is appended
+X * to value of the 'HOME' environment variable, and that is used as the
+X * list of names (a '/' is placed between the value of the environment
+X * variable and the string).  If HOME isn't set, then TERMPATH alone is
+X * used as the list of file names (without prepending a '/').
+X *
+X * Now the contents of the environment variable 'TERMCAP' (if it's defined and
+X * if it doesn't begin with a '/') and the files from the above list are
+X * scanned for the terminal name.  The contents of the environment variable
+X * are scanned first, then the files are scanned in the order they appear in
+X * the named list.
+X *
+X * If the last part of a matching termcap entry is a 'tc=filename', then
+X * the current file is rewound and rescanned for the matching entry (and if
+X * it's not found, the next entry in the file name list is searched).  If
+X * a matching termcap entry in the TERMCAP environment variable ends with
+X * a 'tc=filename', then all of the files in the name list are searched.
+X *
+X * There is no limit on the size of the termcap entries.  No checking is
+X * done for self-refering 'tc=filename' links (so all of core will be
+X * allocated if there are any).
+X */
+CAP *getcap();
+X
+/* CAP *setcap(CAP *cap,int baud,void (*out)(void *outptr,char c),void *outptr);
+X *
+X * Reset baud, out and outptr for a CAP
+X */ 
+CAP *setcap();
+X
+/* char *getstr(CAP *cap,char *name);
+X *
+X * Get value of string capability or return NULL if it's not found.  A fast
+X * binary search is used to find the capability.  The char * returned points into
+X * the buffer used to load the termcap entry.  It should not be modified or
+X * freed.
+X */
+char *getstr();
+X
+/* int getflag(CAP *cap,char *name);
+X *
+X * Return true if the named capability is found in 'cap'.  A fast binary
+X * search is used to lookup the capability.
+X */
+int getflag();
+X
+/* int getnum(CAP *cap,char *name);
+X *
+X * Return value of numeric capability or return -1 if it's not found.  A fast
+X * binary search is used to lookup the capability.
+X */
+int getnum();
+X
+/* void rmcap(CAP *cap);
+X *
+X * Eliminate a CAP entry.
+X */
+void rmcap();
+X
+/* void texec(CAP *cap,char *str,int l,int a0,int a1,int a2,int a3);
+X
+X   Execute and output a termcap string capability.
+X
+X   'cap' is the CAP returned by getcap which contains the baud rate and output
+X   function.
+X   
+X   'str' is the string to execute.  If 'str'==NULL, nothing happens.
+X   
+X   'l' is the number of lines effected by this string.  For example, if you
+X   use the clear to end of screen capability, the number of lines between
+X   the current cursor position and the end of the screen should be
+X   given here.
+X
+X   'a0' - 'a1' are the arguments for the string
+*/
+void texec();
+X
+/* int tcost(CAP *cap,char *str, int l, int a0, int a1, int a2, int a3);
+X   Return cost in number of characters which need to be sent
+X   to execute a termcap string capability.
+X
+X   'cap' is the CAP returned by getcap which contains the baud rate and output
+X   functions.
+X   
+X   'str' is the string to execute.  If 'str'==NULL, tcost return 10000.
+X   
+X   'l' is the number of lines effected by this string.  Ex: if you
+X   use the clear to end of screen capability, the number of lines between
+X   the current cursor position and the end of the screen should be
+X   given here.
+X
+X   'a0' - 'a3' are arguements passed to the string
+*/
+int tcost();
+X
+/* char *tcompile(CAP *cap,char *str,int a0,int a1,int a2,int a3);
+X
+X   Compile a string capability.  Returns a pointer to a variable length
+X   string (see vstr.h) containing the compiled string capability.
+X   Pad characters are not placed in the string.
+*/
+char *tcompile();
+X
+/* Old termcap support */
+int tgetent();
+char *tgetstr();
+int tgetflag();
+int tgetnum();
+char *tgoto();
+void tputs();
+extern short ospeed;
+extern char PC, *UP, *BC;
+X
+#endif
+SHAR_EOF
+chmod 0600 termcap.h ||
+echo 'restore of termcap.h failed'
+Wc_c="`wc -c < 'termcap.h'`"
+test 6116 -eq "$Wc_c" ||
+	echo 'termcap.h: original size 6116, current size' "$Wc_c"
+fi
+# ============= termidx.c ==============
+if test -f 'termidx.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping termidx.c (File already exists)'
+else
+echo 'x - extracting termidx.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'termidx.c' &&
+/* Program to generate termcap index file
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+X
+gen(s,fd)
+char *s;
+FILE *fd;
+{
+int c,x;
+long addr=0, oaddr;
+loop:
+while(c=getc(fd), c==' ' || c=='\t' || c=='#')
+X do c=getc(fd); while(!(c== -1 || c=='\n'));
+if(c== -1) return;
+if(c=='\n') goto loop;
+oaddr=addr;
+addr=ftell(fd)-1;
+ungetc(c,fd);
+s[x=0]=0;
+while(1)
+X {
+X c=getc(fd);
+X if(c== -1 || c=='\n')
+X  {
+X  if(x!=0 && s[x-1]=='\\') --x;
+X  if(x)
+X   {
+X   int y,z,flg;
+X   s[x]=0; z=0; flg=0;
+X   do
+X    {
+X    for(y=z;s[y] && s[y]!='|' && s[y]!=':';++y);
+X    c=s[y]; s[y]=0;
+X    if(strlen(s+z)>2 && !strchr(s+z,' ') &&
+X       !strchr(s+z,'\t')) (flg && putchar(' ')), fputs(s+z,stdout), flg=1;
+X    s[y]=c;
+X    z=y+1;
+X    }
+X    while(c && c!=':');
+X   if(flg) printf(" %x\n",addr-oaddr);
+X   }
+X  goto loop;
+X  }
+X else if(c=='\r') ;
+X else s[x++]=c;
+X }
+}
+X
+main()
+{
+char array[65536];
+gen(array,stdin);
+}
+SHAR_EOF
+chmod 0600 termidx.c ||
+echo 'restore of termidx.c failed'
+Wc_c="`wc -c < 'termidx.c'`"
+test 1592 -eq "$Wc_c" ||
+	echo 'termidx.c: original size 1592, current size' "$Wc_c"
+fi
+# ============= terminfo.c ==============
+if test -f 'terminfo.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping terminfo.c (File already exists)'
+else
+echo 'x - extracting terminfo.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'terminfo.c' &&
+/* TERMINFO database interface
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "termcap.h"
+#include "vs.h"
+X
+/* Get terminfo entry */
+X
+CAP *getcap(name,baud,out,outptr)
+char *name;
+int baud;
+void (*out)();
+void *outptr;
+{
+CAP *cap;
+if(NULL==name && NULL==(name=getenv("TERM"))) return NULL;
+cap=(CAP *)malloc(sizeof(CAP));
+cap->out=out;
+cap->outptr=outptr;
+cap->tbuf=(char *)malloc(4096);
+cap->abuf=(char *)malloc(4096);
+cap->abufp=cap->abuf;
+cap->baud=baud;
+cap->div=100000/baud;
+ospeed=baud;
+if(tgetent(cap->tbuf,name)!=1)
+X {
+X free(cap->tbuf);
+X free(cap->abuf);
+X return NULL;
+X }
+cap->pad=getstr(cap,"pc");
+if(NULL!=cap->pad) PC=cap->pad[0];
+else PC=0;
+BC=0; UP=0;
+return cap;
+}
+X
+/* Get string capability */
+/* Warning, repeated calls to this will eventually use up all of cap->abuf */
+X
+char *getstr(cap,name)
+CAP *cap;
+char *name;
+{
+return tgetstr(name,&cap->abufp);
+}
+X
+/* Get flag capability */
+X
+int getflag(cap,name)
+CAP *cap;
+char *name;
+{
+return tgetflag(name);
+}
+X
+/* Get numeric capability */
+X
+int getnum(cap,name)
+CAP *cap;
+char *name;
+{
+return tgetnum(name);
+}
+X
+/* Eliminate a CAP */
+X
+void rmcap(cap)
+CAP *cap;
+{
+free(cap->tbuf);
+free(cap->abuf);
+free(cap); 
+}
+X
+/* Execute a string capability */
+X
+static CAP *outcap;
+X
+static int outout(c)
+{
+outcap->out(outcap->outptr,c);
+}
+X
+void texec(cap,str,l,a0,a1,a2,a3)
+CAP *cap;
+char *str;
+int l,a0,a1,a2,a3;
+{
+char *a;
+outcap=cap;
+a=tgoto(str,a1,a0);
+tputs(a,l,outout);
+}
+X
+static int total;
+X
+static void cst()
+{
+++total;
+}
+X
+int tcost(cap,s,l,a0,a1,a2,a3)
+CAP *cap;
+char *s;
+int l,a0,a1,a2,a3;
+{
+void (*out)()=cap->out;
+if(NULL==s) return 10000;
+total=0;
+cap->out=cst;
+texec(cap,s,l,a0,a1,a2,a3);
+cap->out=out;
+return total;
+}
+X
+static char *ssp;
+static void cpl(ptr,c)
+char *ptr;
+char c;
+{
+vsadd(ssp,c);
+}
+X
+char *tcompile(cap,s,a0,a1,a2,a3)
+CAP *cap;
+char *s;
+int a0,a1,a2,a3;
+{
+void (*out)()=cap->out;
+int div=cap->div;
+if(NULL==s) return NULL;
+cap->out=cpl; cap->div=10000;
+ssp=vsmk(10);
+texec(cap,s,0,a0,a1,a2,a3);
+cap->out=out; cap->div=div;
+return ssp;
+}
+SHAR_EOF
+chmod 0600 terminfo.c ||
+echo 'restore of terminfo.c failed'
+Wc_c="`wc -c < 'terminfo.c'`"
+test 2705 -eq "$Wc_c" ||
+	echo 'terminfo.c: original size 2705, current size' "$Wc_c"
+fi
+# ============= todojoe ==============
+if test -f 'todojoe' -a X"$1" != X"-c"; then
+	echo 'x - skipping todojoe (File already exists)'
+else
+echo 'x - extracting todojoe (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'todojoe' &&
+=-=-=
+shell window
+background loading
+X
+=-=-=
+make identifier length significant in first 8 (6?) places for old C compilers
+X
+=-=-=
+block restricted searches
+X
+=-=-=
+key bindings which depend on file type
+X
+=-=-=
+hexadecimal edit mode
+fixed record length edit mode
+X
+=-=-=
+key layout:
+X  delete to beginning of line	?
+X  search backwards		?
+X  yank/unyank			?/?
+X
+=-=-=
+message file for easily changing languages
+X
+=-=-=
+should use temporary edit buffers instead of memory blocks for
+undo, cut, s&r.  Will be faster and eliminate malloc
+problem on small machines (with undo: use a single buffer?)
+X
+maybe there should be a cut block to buffer function which does no
+copying except at the ends...
+X
+at least undo records should be eliminated when a large block is requested
+X
+=-=-=
+ttybad?
+X
+X
+msdos-
+X
+X how to get it to recognize CR-LF? - use translating fopen?
+X
+X msdos doesn't have 'sys/dir.h' does it?  yuck...
+X
+X how to give memory back during shell escapes?
+X
+=-=-=
+verticle windows  		- difficult to get scrolling to work right
+X
+=-=-=
+xedit and folding stuff		- regex too slow?
+X
+=-=-=
+multiple line prompts/menu windows
+X
+=-=-=
+block coalescing in b.c.
+X
+=-=-=
+store number of lines in block headers, maybe could then use faster search
+algorithm
+X
+=-=-=
+insert and delete should determine number of columns so that fixup doesn't
+have to call pfcol so much.
+SHAR_EOF
+chmod 0600 todojoe ||
+echo 'restore of todojoe failed'
+Wc_c="`wc -c < 'todojoe'`"
+test 1341 -eq "$Wc_c" ||
+	echo 'todojoe: original size 1341, current size' "$Wc_c"
+fi
+# ============= toomany.c ==============
+if test -f 'toomany.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping toomany.c (File already exists)'
+else
+echo 'x - extracting toomany.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'toomany.c' &&
+/* Oh no! Too many files!
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "config.h"
+#include "vs.h"
+#include "heap.h"
+#include "toomany.h"
+X
+static int nopen=0;
+static File openfiles={{&openfiles,&openfiles}};
+X
+static void toomany()
+{
+File *f;
+for(f=openfiles.link.prev;f!=&openfiles;f=f->link.prev)
+X if(f->fd!= -1)
+X  {
+X  close(f->fd);
+X  f->fd= -1;
+X  --nopen;
+X  return;
+X  }
+}
+X
+static void reopen(file)
+File *file;
+{
+if(nopen==Fmaxopen) toomany();
+if(file->writeable) file->fd=open(file->name,O_RDWR /* | O_BINARY */);
+else file->fd=open(file->name,O_RDONLY /* |O_BINARY */);
+if(file->fd== -1)
+X {
+X /* Uh... */
+X }
+++nopen;
+lseek(file->fd,file->pos,0);
+}
+X
+File *Fopen(name)
+char *name;
+{
+File *file;
+int fd;
+int writeable;
+struct stat buf;
+if(nopen==Fmaxopen) toomany();
+fd=open(name,O_RDWR /*|O_BINARY*/);
+if(fd== -1) fd=open(name,O_RDONLY/*|O_BINARY*/), writeable=0;
+else writeable=1;
+if(fd== -1) return NULL;
+++nopen;
+fstat(fd,&buf);
+file=(File *)malloc(sizeof(File));
+file->fd= fd;
+file->writeable= writeable;
+file->name=vsncpy(NULL,0,sz(name));
+file->size=buf.st_size;
+file->pos=0;
+file->inode=buf.st_ino;
+file->dev=buf.st_dev;
+enquef(File,link,&openfiles,file);
+return file;
+}
+X
+void Fclose(file)
+File *file;
+{
+if(file->fd!= -1) close(file->fd), --nopen;
+deque(File,link,file);
+free(file);
+}
+X
+int Fread(file,buf,size)
+File *file;
+char *buf;
+{
+int amnt;
+promote(File,link,&openfiles,file);
+if(file->fd== -1) reopen(file);
+amnt=read(file->fd,buf,size);
+if(amnt>0) file->pos+=amnt;
+return amnt;
+}
+X
+int Fwrite(file,buf,size)
+File *file;
+char *buf;
+{
+int amnt;
+if(!file->writeable) return -1;
+promote(File,link,&openfiles,file);
+if(file->fd== -1) reopen(file);
+amnt=write(file->fd,buf,size);
+if(amnt>0)
+X {
+X file->pos+=amnt;
+X if(file->pos>file->size) file->size=file->pos;
+X }
+return amnt;
+}
+X
+int Fseek(file,pos)
+File *file;
+long pos;
+{
+promote(File,link,&openfiles,file);
+if(file->fd== -1) reopen(file);
+file->pos=lseek(file->fd,pos,0);
+if(file->pos<0) return -1;
+return 0;
+}
+SHAR_EOF
+chmod 0600 toomany.c ||
+echo 'restore of toomany.c failed'
+Wc_c="`wc -c < 'toomany.c'`"
+test 2733 -eq "$Wc_c" ||
+	echo 'toomany.c: original size 2733, current size' "$Wc_c"
+fi
+# ============= toomany.h ==============
+if test -f 'toomany.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping toomany.h (File already exists)'
+else
+echo 'x - extracting toomany.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'toomany.h' &&
+/* Too many files!
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Itoomany
+#define _Itoomany 1
+X
+#include "config.h"
+#include "queue.h"
+X
+typedef struct File File;
+X
+#define Fmaxopen 16
+X
+struct File
+X {
+X LINK(File) link;		/* Linked list of open files */
+X int fd;			/* The file or -1 if closed */
+X char *name;			/* Name of the file */
+X int writeable;			/* Set if it's ok to write to the file */
+X long size;			/* Current size of file */
+X long pos;			/* Current file pointer */
+X int inode;			/* Inode of file */
+X int dev;			/* Device file is on */
+X };
+X
+File *Fopen();
+int Fread();
+int Fwrite();
+int Fseek();
+void Fclose();
+X
+#endif
+SHAR_EOF
+chmod 0600 toomany.h ||
+echo 'restore of toomany.h failed'
+Wc_c="`wc -c < 'toomany.h'`"
+test 1322 -eq "$Wc_c" ||
+	echo 'toomany.h: original size 1322, current size' "$Wc_c"
+fi
+# ============= tty.h ==============
+if test -f 'tty.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping tty.h (File already exists)'
+else
+echo 'x - extracting tty.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tty.h' &&
+/* TTY interface header file
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Itty
+#define _Itty 1
+X
+#include "config.h"
+X
+/* void ttopen(void);  Open the tty (attached to stdin) for use inside of JOE
+X *
+X * (0) Call sigjoe()
+X *     There is also 'void ttopnn(void)' which does not do this step.
+X *
+X * (1) fflush(stdout)
+X *
+X * (2) Save the current state of the tty
+X *
+X * (3) Disable CR/LF/NL input translations,
+X *     Disable all output processing,
+X *     Disable echo and line editing, and
+X *     Place tty in character at a time mode.
+X *     (basically, disable all processing except for XON/XOFF if it's set)
+X *
+X * (4) Set this new tty state without loosing any typeahead
+X *
+X * (5) Store the baud rate in the global variable 'baud'
+X *
+X * (6) Divide the baud rate into the constant DIVIDEND and store the result
+X *     in the global variable 'upc'.  This should come out to the number
+X *     of microseconds needed to send each character.  The constant 'DIVIDEND'
+X *     should be chosen so that 'upc' reflects the real throughput of the
+X *     tty, not the theoretical best throughput.
+X *
+X * (7) Create an output buffer of a size which depends on 'upc' and the
+X *     constant 'TIMES'.  'TIMES' is the number of times per second JOE
+X *     should check for typeahead.  Since we only check for typehead after
+X *     the output buffer is flushed, 'upc' and the size of the output buffer
+X *     determine how often this occurs.  So for example if 'upc'==1000 (~9600
+X *     baud) and 'TIMES'==3, the output buffer size is set to 333 characters.
+X *     Each time this buffer is completely flushed, 1/3 of a second will go by.
+X */
+void ttopen();
+void ttopnn();
+extern unsigned long upc;
+extern unsigned baud;
+X
+#define TIMES 3
+#define DIVIDEND 10000000
+X
+/* void ttclose(void);  Restore the tty back to its original mode.
+X *
+X * (1) ttyflsh()
+X *
+X * (2) Restore the original tty mode which aopen() had saved.  Do this without
+X *     loosing any typeahead.
+X *
+X * (3) Call signrm().  There is also 'void ttyclsn(void)' which does not do
+X *     the this step.
+X */
+void ttclose();
+void ttclsn();
+X
+/* int ttgetc(void);  Flush the output and get the next character from the tty
+X *
+X * (1) ttflsh()
+X *
+X * (2) Read the next input character
+X *     If the input closed, call 'ttsig' with 0 as its argument.
+X *
+X * (3) Clear 'have'
+X */
+int ttgetc();
+X
+/* void ttputc(char c);  Write a character to the output buffer.  If it becomes
+X * full, call ttflsh()
+X */
+extern int obufp;
+extern int obufsiz;
+extern char *obuf;
+#define ttputc(c) (obuf[obufp++]=(c), obufp==obufsiz && ttflsh())
+X
+/* void ttputs(char *s);  Write a string to the output buffer.  Any time the
+X * output buffer gets full, call ttflsh()
+X */
+void ttputs();
+X
+/* void ttshell(char *s);  Run a shell command or if 's' is zero, run a
+X * sub-shell
+X */
+void ttshell();
+X
+/* void ttsusp(void);  Suspend the process, or if the UNIX can't do it, call
+X * ttshell(NULL)
+X */
+void ttsusp();
+X
+/* int ttflsh(void);  Flush the output buffer and check for typeahead.
+X *
+X * (1) write() any character in the output buffer to the tty.  Sleep for the
+X *     amount of time it should take for all of these characters to get
+X *     to the tty.  This is so that any buffering between the editor and the
+X *     tty is defeated.  If this is not done, the screen update will not be
+X *     able to defer for typeahead.
+X *
+X *     The best way to do this (and it's currently only possible in BSD) is to
+X *     set a timer for the necessary amount, write the characters to the tty,
+X *     and then sleep until the timer expires.
+X *
+X *     If this can't be done, it's usually ok to 'write' and then to sleep for
+X *     the necessary amount of time.  However, you will notice delays in the
+X *     screen update if the 'write' actually takes any significant amount of
+X *     time to execute (it usually takes none since all it usually does is
+X *     write to an operating system buffer).
+X *
+X * (2) If the global variable 'leave' is not set and if the global variable
+X *     'have' is not set, check for typeahead.  If there is any, set the global
+X *     variable 'have'.  This absolutely must not read any characters from the
+X *     'tty' if 'leave' is set or typeahead will be lost when the editor exits
+X *     or does a shell escape.
+X */
+int ttflsh();
+X
+extern int have;
+extern int leave;
+X
+/* void ttsig(int n);  Signal handler you provide.  This is called if the
+X * editor gets a hangup signal, termination signal or if the input closes.
+X * It is called with 'n' set to the number of the caught signal or 0 if the
+X * input closed.
+X */
+void ttsig();
+X
+/* void ttgtsz(int *x,int *y);  Get size of screen from ttsize/winsize
+X * structure */
+void ttgtsz();
+X
+/* You don't have to call these: ttopen/ttclose do it for you.  These
+X * may be needed to make your own shell escape sequences.
+X */
+X
+/* void sigjoe(void);  Set the signal handling for joe.  I.E., ignore all
+X * signals the user can generate from the keyboard (SIGINT, SIGQUIT, SIGPIPE)
+X * and trap the software terminate and hangup signals (SIGTERM, SIGHUP) so
+X * that 'ttsig' gets called.
+X */
+void sigjoe();
+X
+/* void signrm(void);  Set above signals back to their default values.
+X */
+void signrm();
+X
+/* char *pwd();  Get current working directory into a static buffer.
+X */
+char *pwd();
+X
+#endif
+SHAR_EOF
+chmod 0600 tty.h ||
+echo 'restore of tty.h failed'
+Wc_c="`wc -c < 'tty.h'`"
+test 5951 -eq "$Wc_c" ||
+	echo 'tty.h: original size 5951, current size' "$Wc_c"
+fi
+# ============= ttybsd.c ==============
+if test -f 'ttybsd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttybsd.c (File already exists)'
+else
+echo 'x - extracting ttybsd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttybsd.c' &&
+/* TTY interface for BSD UNIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+#include <sgtty.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <signal.h>
+#include <sys/time.h>
+#include "config.h"
+#include "heap.h"
+#include "tty.h"
+X
+#ifndef HZ
+#define HZ 10			/* Clock ticks/second */
+#endif
+X
+/* The terminal */
+X
+FILE *term=0;
+X
+/* The original tty state */
+X
+static struct sgttyb oarg;
+static struct tchars otarg;
+static struct ltchars oltarg;
+X
+/* The output buffer, index and size. */
+X
+char *obuf=0;
+int obufp=0;
+int obufsiz;
+X
+/* The baud rate */
+X
+unsigned baud;
+unsigned long upc;
+X
+/* Code to baud-rate conversion table */
+X
+static int speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+X
+/* Input buffer, typeahead indication flag and editor is about to exit flag */
+X
+int have=0;
+static char havec;
+int leave=0;
+X
+/* TTY mode flag.  1 for open, 0 for closed */
+X
+static int ttymode=0;
+X
+void sigjoe()
+{
+signal(SIGHUP,ttsig);
+signal(SIGTERM,ttsig);
+signal(SIGINT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+}
+X
+void signrm()
+{
+signal(SIGHUP,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+}
+X
+void ttopen()
+{
+sigjoe();
+ttopnn();
+}
+X
+void ttopnn()
+{
+int x;
+struct sgttyb arg;
+struct tchars targ;
+struct ltchars ltarg;
+if(!term && !(term=fopen("/dev/tty","r+")))
+X {
+X fprintf(stderr,"Couldn\'t open tty\n");
+X exit(1);
+X }
+if(ttymode) return;
+ttymode=1;
+fflush(term);
+ioctl(fileno(term),TIOCGETP,&arg);
+ioctl(fileno(term),TIOCGETC,&targ);
+ioctl(fileno(term),TIOCGLTC,&ltarg);
+oarg=arg; otarg=targ; oltarg=ltarg;
+arg.sg_flags=( (arg.sg_flags&~(ECHO|CRMOD) ) | CBREAK) ;
+targ.t_intrc= -1;
+targ.t_quitc= -1;
+targ.t_eofc= -1;
+targ.t_brkc= -1;
+ltarg.t_suspc= -1;
+ltarg.t_dsuspc= -1;
+ltarg.t_rprntc= -1;
+ltarg.t_flushc= -1;
+ltarg.t_werasc= -1;
+ltarg.t_lnextc= -1;
+ioctl(fileno(term),TIOCSETN,&arg);
+ioctl(fileno(term),TIOCSETC,&targ);
+ioctl(fileno(term),TIOCSLTC,&ltarg);
+baud=9600;
+upc=0;
+for(x=0;x!=30;x+=2)
+X if(arg.sg_ospeed==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  break;
+X  }
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+if(obuf) free(obuf);
+if(!(TIMES*upc)) obufsiz=4096;
+else
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+if(!obufsiz) obufsiz=1;
+obuf=(char *)malloc(obufsiz);
+}
+X
+void ttclose()
+{
+ttclsn();
+signrm();
+}
+X
+void ttclsn()
+{
+int oleave=leave;
+if(ttymode) ttymode=0;
+else return;
+leave=1;
+ttflsh();
+ioctl(fileno(term),TIOCSETN,&oarg);
+ioctl(fileno(term),TIOCSETC,&otarg);
+ioctl(fileno(term),TIOCSLTC,&oltarg);
+leave=oleave;
+}
+X
+static int yep;
+static dosig() { yep=1; } 
+X
+int ttflsh()
+{
+if(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ && baud<38400)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  signal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(term),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  signal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(term),obuf,obufp);
+X obufp=0;
+X }
+if(!have && !leave)
+X {
+X fcntl(fileno(term),F_SETFL,FNDELAY);
+X if(read(fileno(term),&havec,1)==1) have=1;
+X fcntl(fileno(term),F_SETFL,0);
+X }
+return 0;
+}
+X
+int ttgetc()
+{
+ttflsh();
+if(have) have=0;
+else if(read(fileno(term),&havec,1)<1) ttsig(0);
+return havec;
+}
+X
+void ttputs(s)
+char *s;
+{
+while(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) ttflsh();
+X }
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+*x=0; *y=0;
+#ifdef TIOCGSIZE
+if(ioctl(fileno(term),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }

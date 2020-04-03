@@ -1,0 +1,140 @@
+Xref: funic alt.sources:3055 comp.lang.perl:6893
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!hoptoad!autodesk!dansmith
+From: dansmith@Autodesk.COM (Daniel Smith)
+Newsgroups: alt.sources,comp.lang.perl
+Subject: SoftList 2.0 - manage Software Version List - Part 00/04
+Summary: Manage a "Current Versions of Software" List interactively
+Keywords: Perl package version location contact CLI
+Message-ID: <10032@autodesk.COM>
+Date: 24 Jan 92 20:14:15 GMT
+Followup-To: alt.sources
+Organization: Autodesk Inc., Sausalito CA, USA
+Lines: 127
+
+
+	following is a 4 part uuencoded shar posting of SoftList, a Perl
+script.
+
+	The idea is to have a locally available program that you
+can use to keep track of what software packages are available, where
+they are located, and who to contact about them.  I posted this idea
+to comp.sources.d last October or so and got a lot of enthusiastic response.
+I decided that an interactive script would be preferable to trying to
+maintain such a list with an editor.  I've previously posted a SoftList
+1.0 csh script prototype.
+
+	The script handles records of the form:
+
+package: ghostscript 2.3
+contact: gnu.ghostscript.bug
+location: prep.ai.mit.edu:/pub/gnu
+GNU Postscript compatible interpreter
+
+	I have included 25 or so records as a sample, so that you can get
+a feel for what the script does.  I don't claim that they are up to date.
+On that note, SoftList can output batches of records, and can read
+batches (that may have been posted or emailed to you) to make new ones.
+This provides an easy way for people to keep each other up to date,
+
+	SoftList also includes a line editor with history for every input
+field, and...SoftList gives you a Perl CLI where you can intersperse
+Perl statements with Unix commands (via aliases).  I found this handy
+for trying out bits of Perl!  You can also get at the variables of the
+script, and use aliases (in your ~/.SoftListrc) to redefine many things
+(and possibly call your own Perl scripts).   There is also a lot of online
+help and a built in man page.
+
+	A few sites have volunteered to be "master sites" for SoftList
+records.  If you want to keep in touch with these, email:
+
+	softlist-request@autodesk.com
+
+	The idea is that combined with archie info, and information
+from the comp.sources.unix server, there will arise a community of sites
+that are pretty much in sync with what's out there, and people will be
+able to save time in seeking out a package.  SoftList is an attempt
+to cache such information at a local level.
+
+	I'll be putting together a mailing list "softlist@autodesk.com"
+in the near future.  I need to figure out the workings of mailing
+list software first :-)
+
+	I'll include the README after this, but first a quick note:
+
+	I hint at a "MetaList" in the NOTES file, and I've actually
+started on it.  The intent is to be able to handle SoftList data, but
+also to be able define and use other types of lists (like an address list,
+etc.) on the fly.  I'd like to see patches for SoftList (like getting the
+local vs remote directory switching going), but I don't see it going
+to a 3.0 level.  MetaList will replace it.
+
+	Here's the README from SoftList:
+
+ 
+                               SoftList 2.0
+                     Copyright (c) 1992, Daniel Smith
+                           All rights reserved.
+ 
+                          dansmith@autodesk.com
+ 
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ 
+        First distribution of Perl version.  SoftList 1.0 was a csh script.
+ 
+        SoftList manages a "Current Versions of Software" list.  It's
+a menu driven way of being able to look up answers to "what package is
+available where?" questions.  It also includes a Perl command line
+interpreter that you can issue Unix commands from, and lends itself
+well to extension and customization.
+ 
+        This contains everything needed to get started with SoftList.  I've
+included some data files to try out lookups on.
+ 
+        To get started, you could try pasting the following into a csh.
+ 
+set verbose
+mkdir -p ~/bin >& /dev/null
+cp SoftList ~/bin
+cp dotSoftListrc ~/.SoftListrc
+cp -rp .softlist_files ~
+unset verbose
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ 
+        This directory contains:
+ 
+NOTES                           - my ramblings on the present and future
+                                of SoftList and MetaList
+SoftList                        - Perl script
+dotSoftListrc                   - copy to ~/.SoftListrc
+ 
+.softlist_files (dir)           - cp -r to ~/.softlist_files
+DATA_remote                     - data directory
+catalog_remote                  - perl associative array, mapping packages
+                                to filenames
+ 
+.softlist_files/DATA_remote (dir)
+00001                           - records
+:
+:
+00025
+ 
+ 
+        The man page to SoftList is sparse, and is included in the script
+itself (Perl scripts allow you to tack the man page onto the end; you can
+link the script to /usr/man/man1/SoftList.1).  There is a menu option in
+SoftList to read it.  There are also several help screens.
+ 
+Legal paragraph:
+ 
+        Use and copy SoftList.  Please send me any modifications
+that you make so that I may post official patches.  Don't say you wrote it.
+I (and any company I work for) am not responsible for mishaps arising out
+of the use of this program, on the other hand, I haven't run into any problems
+with this.  Lastly, you may not use any part of SoftList in any product or
+service for profit (electronic, paper, or any other media) without first
+obtaining my written permission.
+-- 
+ dansmith@autodesk.com       daniel@world.std.com       dansmith@well.sf.ca.us
+        Daniel Smith, Autodesk, Sausalito, California, (415) 332-2344 x 2580
+              Disclaimer: written by a highly caffeinated mammal
+ $|=1;for("..."," hacker"," perl"," a","just"){print $l=$_.$l,"\015";sleep 1;}

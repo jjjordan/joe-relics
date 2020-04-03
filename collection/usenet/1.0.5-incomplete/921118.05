@@ -1,0 +1,1754 @@
+Path: funic!fuug!mcsun!Germany.EU.net!rrz.uni-koeln.de!unidui!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!spool.mu.edu!umn.edu!csus.edu!netcom.com!netcomsv!spud.Hyperion.COM!spud.Hyperion.COM!not-for-mail
+From: koreth@spud.Hyperion.COM (Steven Grimm)
+Newsgroups: alt.sources
+Subject: WorkMan (X CD player program for Suns) beta 3.0 part02/06
+Date: 15 Nov 1992 14:35:09 -0800
+Organization: Hyperion, Mountain View, CA, USA
+Lines: 1744
+Message-ID: <1e6jatINNiqs@spud.Hyperion.COM>
+NNTP-Posting-Host: spud.hyperion.com
+
+Archive-name: workman-b3.0/part02
+Submitted-by: koreth@hyperion.com
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 6)."
+# Contents:  CHANGELOG hardware.c workman.info workmandb.4
+#   workmandb.man
+# Wrapped by koreth@gerbilmeister on Sun Nov 15 14:20:18 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'CHANGELOG' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'CHANGELOG'\"
+else
+echo shar: Extracting \"'CHANGELOG'\" \(6749 characters\)
+sed "s/^X//" >'CHANGELOG' <<'END_OF_FILE'
+XBETA 3.0 (11/15/92)
+X
+XTracks may now be split into sections at arbitrary locations.  The Goodies
+Xpopup contains three new buttons: "Split", "Delete", and "Scan for index
+Xmarks".  The Split button divides the current track (as selected from the
+Xmain window) into two sections.  Use the track position slider on the main
+Xwindow to control the split point, or use the "Scan for index marks" button
+Xto search the CD for index marks (which are most often found on high-end
+Xclassical CDs).  You may split a track while the CD is playing, useful for
+Xmarking off particular sections of a song.  Sections may be named and
+Xselected just like tracks.
+X
+XWhen sections are saved to the CD database, they are stored in .workmandb
+Xin such a way as to (hopefully) be compatible with older versions of WorkMan.
+XThe older versions will ignore the parts dealing with sections.  Nevertheless,
+Xencouraging others who share your database to upgrade to this version is
+Xprobably a good idea; this backward-compatibility will disappear in a future
+Xrelease, since it does make database entries somewhat larger.  Note that
+X.workmanrc entries with sections will behave oddly on olver versions of
+XWorkMan; the assumption is that each user has a private .workmanrc, and won't
+Xswitch back to an older WorkMan after using the new one.
+X
+XThe track position slider may be adjusted while the CD is stopped (mostly
+Xbecause it's useful when splitting tracks.)
+X
+XSplit cdinfo.c in half; the hardware-specific routines are now in hardware.c,
+Xwhile cdinfo.c contains generic routines for handling play sequences and so on.
+X
+XIf a CD isn't found in the .workmanrc file, the "Auto-Play this CD" switch in
+Xthe CD Info popup is selected if the "Auto-Play unknown CDs" switch is set in
+Xthe Goodies popup.  This should eliminate the need to select CD Info's Auto-
+XPlay button for each CD, while still giving you the ability to not autoplay
+Xcertain CDs.
+X
+XMore post-Guide cleanup, shortening the structure names.
+X
+XThe CD Info scrolling list is lined up better.  The single-digit tracks'
+Xtitles and times used to be to the left of the double-digit tracks'.
+X
+XBETA 2.1 (9/25/92)
+X
+XThe CHANGELOG file no longer includes history information from before the
+Xbeta release.  Mail me if you really want to see that.  This should chop
+Xone part from the source distribution, since the old history was rather
+Xsizable.
+X
+XYou can now back up past the starting track in Normal and Playlist modes if
+XWorkMan is started up while the CD is already playing.  The program figures
+Xout which tracks would have played already to get to the current one.  In
+Xshuffle mode, it starts a new random-play sequence starting with the current
+Xtrack (the old behavior.)  The same thing happens when you manually select
+Xa starting track with the track selection buttons.
+X
+XCleaned up workman_stubs.c a little bit, removing more artifacts from
+XGuide.  No functional changes here -- mostly just removing "Don't edit
+Xthis section!" comments.
+X
+XThe Makefile should be somewhat more portable now; the Sun-only "+=" construct
+Xis no longer used (and actually wasn't necessary to begin with.)
+X
+XFile locking is done a bit differently now.  WorkMan used to tell the system
+Xto wait around until a lock was available.  Unfortunately, file locking is
+Xbroken on lots of OSs, so now WorkMan tries 30 times to get a lock, waiting
+X1 second between attempts, and gives up if it can't.  I may add a flag or
+Xresource to restore the original method, since it's preferable if you're on
+Xa system with working file locking.
+X
+XThe Solaris 2 version shouldn't leave a defunct process around any more.
+X
+XThe track-position display shows a negative time value during the lead-in
+Xtime of a track.
+X
+XWorkaround for an XView bug in the default volume slider callback function.
+X
+XThe install directories are now configurable easily in the Makefile.
+X
+XFixed an error in workmandb.4 that caused groff to format the last part
+Xof the page incorrectly.
+X
+XBETA 2.0 (8/31/92)
+X
+XThe file ANSWERS is now sent out with the distribution; it answers the
+Xmost frequently asked questions about the program and will hopefully
+Xsave me some typing.
+X
+XThe program is no longer built with Guide; all the Guide-generated source
+Xcode from workman_ui.c is now in setup.c.  The program now builds its windows
+Xwith relative item positioning.  This means that running with "-scale"
+Xlooks halfway decent now.  Yes, I know about Guide's "grouping" feature,
+Xbut I didn't want to have to include the Guide group library along with the
+Xsource code, or compile it into the binary, for that matter.  A side-effect
+Xis that the source distribution is smaller, since workman.G isn't used
+Xany more (and setup.c is shorter than workman_ui.c was.)
+X
+XTightened up the main window a little bit so it has less dead space on
+Xthe screen.
+X
+XThe program's version is displayed inside the About popup, instead of in
+Xthe title bar (it got cut off when running with "-scale small".)
+X
+XThe "Auto-play unknown CDs" setting is read from the rcfile correctly.
+X
+XThe "CD info has been modified" popup will no longer appear when you eject
+Xan unknown CD about which you haven't entered any information.
+X
+XThe program should now compile on Solbourne machines.  Thanks to Neil K.
+XNelson at Solbourne for the patch.
+X
+X
+XBETA 1.1 (8/24/92)
+X
+XIf you quit after ejecting, the program shouldn't give you the "CD info
+Xhas been modified" popup any more.
+X
+XFixed a typo in workman_stubs.c that might have made the "-d" option act
+Xfunny (or even dump core.)
+X
+XWorkMan will refuse to eject the CD if it contains a mounted filesystem.
+X
+XAdded the -b flag, which puts Dismiss buttons on all the popup windows and
+Xa Quit button on the main window.  Useful for non-olwm users.  When -b is
+Xactive, pressing the CD Info, Goodies, and other buttons will not dismiss
+Xthose windows; rather, it will bring them to the front.
+X
+XWorkMan catches SIGUSR1 and SIGUSR2.  The former will pause the CD if it's
+Xplaying; the latter will play if it's paused.  In addition:
+X
+XThe process ID is written to /tmp/.wm_pid (or another filename, specified
+Xwith the "-p" option; use "-p /dev/null" if you don't want a pidfile.)  In
+Xcombination with the signal handling, this allows simple "mute" and "unmute"
+Xcommands.  Under csh, these might be:
+X
+Xalias mute kill -USR1 \`cat /tmp/.wm_pid\`
+Xalias unmute kill -USR2 \`cat /tmp/.wm_pid\`
+X
+X
+XBETA 1.0.1 (8/18/92)
+X
+XFixed a bug that caused workman to hang when the .workmanrc file was
+Xinitialized.
+X
+X
+XBETA 1.0 (8/15/92 -- evening)
+X
+XFixed a bug that caused the program to dump core if you entered data for
+Xa new CD.
+X
+XChanged the Makefile quite a bit and finished writing the docs that go
+Xwith the source release.
+X
+XAdded help text for a few items that were missing it before.  All the
+Xhelp text has now been manually formatted like XView requires.
+END_OF_FILE
+if test 6749 -ne `wc -c <'CHANGELOG'`; then
+    echo shar: \"'CHANGELOG'\" unpacked with wrong size!
+fi
+# end of 'CHANGELOG'
+fi
+if test -f 'hardware.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'hardware.c'\"
+else
+echo shar: Extracting \"'hardware.c'\" \(11801 characters\)
+sed "s/^X//" >'hardware.c' <<'END_OF_FILE'
+X/*
+X * @(#)hardware.c	1.2	11/14/92
+X *
+X * Get information about a CD.
+X */
+X#define RCFILE "/.workmanrc"
+X#define DBFILE "/.workmandb"
+Xstatic char *ident = "@(#)hardware.c	1.2 11/14/92";
+X
+X#include <errno.h>
+X#include <stdio.h>
+X#include <sys/types.h>
+X#include <fcntl.h>
+X#include <sys/param.h>
+X#include <sys/stat.h>
+X#include <ustat.h>
+X#ifdef solbourne
+X#include <mfg/dklabel.h>
+X#include <mfg/dkio.h>
+X#include <dev/srvar.h>
+X#else /* solbourne */
+X#ifdef SYSV
+X#include <sys/cdio.h>
+X#else /* SYSV */
+X#include <sundev/srreg.h>
+X#endif /* SYSV */
+X#endif /* solbourne */
+X#include "struct.h"
+X
+Xvoid *malloc(), *realloc(), print_cdinfo(), wipe_cdinfo();
+Xchar *strchr(), *getenv();
+X
+Xextern struct play *playlist;
+Xextern struct cdinfo thiscd, *cd;
+X
+Xint	cd_fd = -1;
+X#ifdef SYSV
+Xchar	*cd_device = "/dev/rdsk/c0t6d0s2";
+X#else
+Xchar	*cd_device = "/dev/rsr0\0";
+X#endif
+X
+Xextern int cur_track, cur_index, cur_lasttrack, cur_firsttrack, cur_pos_abs,	
+X	cur_frame, cur_pos_rel, cur_tracklen, cur_cdlen, cur_ntracks,	
+X	cur_nsections, cur_cdmode, cur_listno, cur_stopmode, exit_on_eject;
+Xextern char *cur_artist, *cur_cdname, *cur_trackname;
+Xextern char	cur_contd, cur_avoid;
+X
+X/*
+X * read_toc()
+X *
+X * Read the table of contents from the CD.  Return a pointer to a cdinfo
+X * struct containing the relevant information (minus artist/cdname/etc.)
+X * This is a static struct.  Returns NULL if there was an error.
+X *
+X * XXX allocates one trackinfo too many.
+X */
+Xstruct cdinfo *
+Xread_toc()
+X{
+X	struct playlist		*l;
+X	struct cdrom_tochdr	hdr;
+X	struct cdrom_tocentry	entry;
+X	int			i, pos;
+X
+X	if (cd_fd < 0)
+X		return(NULL);
+X
+X	if (ioctl(cd_fd, CDROMREADTOCHDR, &hdr))
+X	{
+X		perror("readtochdr");
+X		return (NULL);
+X	}
+X
+X	thiscd.artist[0] = thiscd.cdname[0] = '\0';
+X	thiscd.whichdb = thiscd.otherrc = thiscd.otherdb = NULL;
+X	thiscd.length = 0;
+X	thiscd.autoplay = thiscd.playmode = thiscd.volume = 0;
+X	thiscd.ntracks = hdr.cdth_trk1;
+X
+X	if (thiscd.lists != NULL)
+X	{
+X		for (l = thiscd.lists; l->name != NULL; l++)
+X		{
+X			free(l->name);
+X			free(l->list);
+X		}
+X		free(thiscd.lists);
+X		thiscd.lists = NULL;
+X	}
+X
+X	if (thiscd.trk != NULL)
+X		free(thiscd.trk);
+X
+X	thiscd.trk = malloc((thiscd.ntracks + 1) * sizeof(struct trackinfo));
+X	if (thiscd.trk == NULL)
+X	{
+X		perror("malloc");
+X		return (NULL);
+X	}
+X
+X	for (i = 0; i <= thiscd.ntracks; i++)
+X	{
+X		if (i == thiscd.ntracks)
+X			entry.cdte_track = CDROM_LEADOUT;
+X		else
+X			entry.cdte_track = i + 1;
+X		entry.cdte_format = CDROM_MSF;
+X		if (ioctl(cd_fd, CDROMREADTOCENTRY, &entry))
+X		{
+X			perror("tocentry read");
+X			return (NULL);
+X		}
+X
+X		thiscd.trk[i].data =
+X		thiscd.trk[i].avoid = entry.cdte_ctrl & CDROM_DATA_TRACK ?
+X			1 : 0;
+X		thiscd.trk[i].length = entry.cdte_addr.msf.minute * 60 +
+X				entry.cdte_addr.msf.second;
+X		thiscd.trk[i].start = thiscd.trk[i].length * 75 +
+X				entry.cdte_addr.msf.frame;
+X		thiscd.trk[i].songname = thiscd.trk[i].otherrc =
+X		thiscd.trk[i].otherdb = NULL;
+X		thiscd.trk[i].contd = 0;
+X		thiscd.trk[i].volume = 0;
+X		thiscd.trk[i].track = i + 1;
+X		thiscd.trk[i].section = 0;
+X	}
+X
+X/* Now compute actual track lengths. */
+X	pos = thiscd.trk[0].length;
+X
+X	for (i = 0; i < thiscd.ntracks; i++)
+X	{
+X		thiscd.trk[i].length = thiscd.trk[i+1].length - pos;
+X		pos = thiscd.trk[i+1].length;
+X		if (thiscd.trk[i].data)
+X			thiscd.trk[i].length = (thiscd.trk[i + 1].start -
+X				thiscd.trk[i].start) * 2;
+X		if (thiscd.trk[i].avoid)
+X			strmcpy(&thiscd.trk[i].songname, "DATA TRACK");
+X	}
+X
+X	thiscd.length = thiscd.trk[thiscd.ntracks].length;
+X
+X	return (&thiscd);
+X}
+X
+X/*
+X * cd_status()
+X *
+X * Return values:
+X *
+X *	0	No CD in drive.
+X *	1	CD in drive.
+X *	2	CD has just been inserted (TOC has been read)
+X *	3	CD has just been removed
+X *
+X * Updates cur_track, cur_pos_rel, cur_pos_abs and other variables.
+X */
+Xint
+Xcd_status()
+X{
+X	char realname[MAXPATHLEN];
+X	static int warned = 0;
+X	struct cdrom_subchnl	sc;
+X	int			i, ret = 1;
+X
+X	if (cd_fd < 0)
+X	{
+X		if ((cd_fd = open(cd_device, 0)) < 0)
+X		{
+X
+X			if (errno == EACCES)
+X			{
+X				if (!warned)
+X				{
+X					if (realpath(cd_device, realname) ==
+X						NULL)
+X					{
+X						perror("realpath");
+X						return (0);
+X					}
+X
+X					fprintf(stderr,
+X		"As root, please run\n\nchmod 666 %s\n\n%s\n", realname,
+X		"to give yourself permission to access the CD-ROM device.");
+X					warned++;
+X				}
+X			}
+X			else if (errno != ENXIO)
+X			{
+X				perror(cd_device);
+X				exit(1);
+X			}
+X
+X			return (0);
+X		}
+X		cur_cdmode = 5;
+X	}
+X
+X	if (warned)
+X	{
+X		warned = 0;
+X		fprintf(stderr, "Thank you.\n");
+X	}
+X
+X	sc.cdsc_format = CDROM_MSF;
+X
+X	if (ioctl(cd_fd, CDROMSUBCHNL, &sc))
+X	{
+X		cur_cdmode = 5;
+X
+X		if (exit_on_eject)
+X			exit(0);
+X
+X		return (0);
+X	}
+X
+X	if (cur_cdmode == 5)	/* CD has been ejected */
+X	{
+X		cur_pos_rel = cur_pos_abs = cur_frame = 0;
+X
+X		if ((cd = read_toc()) == NULL)
+X		{
+X			close(cd_fd);
+X			cd_fd = -1;
+X			if (exit_on_eject)
+X				exit(0);
+X			else
+X				return (0);
+X		}
+X		cur_nsections = 0;
+X		cur_ntracks = cd->ntracks;
+X		cur_cdlen = cd->length;
+X		load();
+X		cur_artist = cd->artist;
+X		cur_cdname = cd->cdname;
+X		cur_cdmode = 4;
+X		ret = 2;
+X	}
+X
+X	switch (sc.cdsc_audiostatus) {
+X	case CDROM_AUDIO_PLAY:
+X		cur_cdmode = 1;
+X		cur_pos_abs = sc.cdsc_absaddr.msf.minute * 60 +
+X			sc.cdsc_absaddr.msf.second;
+X		cur_frame = cur_pos_abs * 75 + sc.cdsc_absaddr.msf.frame;
+X
+X		/* Only look up the current track number if necessary. */
+X		if (cur_track < 1 || cur_frame < cd->trk[cur_track-1].start ||
+X				cur_frame >= (cur_track >= cur_ntracks ?
+X				(cur_cdlen + 1) * 75 :
+X				cd->trk[cur_track].start))
+X		{
+X			cur_track = 0;
+X			while (cur_track < cur_ntracks && cur_frame >=
+X					cd->trk[cur_track].start)
+X				cur_track++;
+X		}
+X		if (cur_track >= 1 && sc.cdsc_trk > cd->trk[cur_track-1].track)
+X			cur_track++;
+X
+X		cur_index = sc.cdsc_ind;
+Xdoall:
+X		if (cur_track >= 1 && cur_track <= cur_ntracks)
+X		{
+X			cur_trackname = cd->trk[cur_track-1].songname;
+X			cur_avoid = cd->trk[cur_track-1].avoid;
+X			cur_contd = cd->trk[cur_track-1].contd;
+X			cur_pos_rel = (cur_frame -
+X				cd->trk[cur_track-1].start) / 75;
+X			if (cur_pos_rel < 0)
+X				cur_pos_rel = -cur_pos_rel;
+X		}
+X
+X		if (playlist != NULL && playlist[0].start)
+X		{
+X			cur_pos_abs -= cd->trk[playlist[cur_listno-1].
+X				start - 1].start / 75;
+X			cur_pos_abs += playlist[cur_listno-1].starttime;
+X		}
+X		if (cur_pos_abs < 0)
+X			cur_pos_abs = cur_frame = 0;
+X
+X		if (cur_track < 1)
+X			cur_tracklen = cd->length;
+X		else
+X			cur_tracklen = cd->trk[cur_track-1].length;
+X		break;
+X
+X	case CDROM_AUDIO_PAUSED:
+X		if (cur_cdmode == 1 || cur_cdmode == 3)
+X		{
+X			cur_cdmode = 3;
+X			cur_track = sc.cdsc_trk;
+X		}
+X		else
+X			cur_cdmode = 4;
+X		goto doall;
+X
+X	case CDROM_AUDIO_COMPLETED:
+X		cur_cdmode = 0;		/* waiting for next track. */
+X		break;
+X
+X	case CDROM_AUDIO_NO_STATUS:
+X		cur_cdmode = 4;
+X		cur_lasttrack = cur_firsttrack = -1;
+X		goto doall;
+X	}
+X
+X	return (ret);
+X}
+X
+X/*
+X * cd_volume(left, right)
+X *
+X * Set the volume levels.
+X */
+Xvoid
+Xcd_volume(left, right)
+X	int	left, right;
+X{
+X	struct cdrom_volctrl v;
+X
+X	v.channel0 = left < 0 ? 0 : left > 255 ? 255 : left;
+X	v.channel1 = right < 0 ? 0 : right > 255 ? 255 : right;
+X	if (cd_fd >= 0)
+X		(void) ioctl(cd_fd, CDROMVOLCTRL, &v);
+X}
+X
+X/*
+X * pause_cd()
+X *
+X * Pause the CD, if it's in play mode.  If it's already paused, go back to
+X * play mode.
+X */
+Xvoid
+Xpause_cd()
+X{
+X	if (cd_fd < 0)	/* do nothing if there's no CD! */
+X		return;
+X
+X	switch (cur_cdmode) {
+X	case 1:		/* playing */
+X		cur_cdmode = 3;
+X		ioctl(cd_fd, CDROMPAUSE);
+X		break;
+X	case 3:		/* paused */
+X		cur_cdmode = 1;
+X		ioctl(cd_fd, CDROMRESUME);
+X	}
+X}
+X
+X/*
+X * stop_cd()
+X *
+X * Stop the CD if it's not already stopped.
+X */
+Xvoid
+Xstop_cd()
+X{
+X	if (cd_fd < 0)
+X		return;
+X
+X	if (cur_cdmode != 4)
+X	{
+X		cur_lasttrack = cur_firsttrack = -1;
+X		cur_cdmode = 4;
+X		ioctl(cd_fd, CDROMSTOP);
+X		cur_track = 1;
+X	}
+X}
+X
+X/*
+X * play_chunk(start, end)
+X *
+X * Play the CD from one position to another (both in frames.)
+X */
+Xvoid
+Xplay_chunk(start, end)
+X	int start, end;
+X{
+X	struct cdrom_msf msf;
+X
+X	if (cd == NULL || cd_fd < 0)
+X		return;
+X
+X	end--;
+X	msf.cdmsf_min0 = start / (60*75);
+X	msf.cdmsf_sec0 = (start % (60*75)) / 75;
+X	msf.cdmsf_frame0 = start % 75;
+X	msf.cdmsf_min1 = end / (60*75);
+X	msf.cdmsf_sec1 = (end % (60*75)) / 75;
+X	msf.cdmsf_frame1 = end % 75;
+X
+X	if (ioctl(cd_fd, CDROMSTART))
+X	{
+X		perror("CDROMSTART");
+X		return;
+X	}
+X	if (ioctl(cd_fd, CDROMPLAYMSF, &msf))
+X	{
+X		printf("play(%d,%d)\n",start,end);
+X		printf("msf = %d:%d:%d %d:%d:%d\n",
+X			msf.cdmsf_min0, msf.cdmsf_sec0, msf.cdmsf_frame0,
+X			msf.cdmsf_min1, msf.cdmsf_sec1, msf.cdmsf_frame1);
+X		perror("CDROMPLAYMSF");
+X		return;
+X	}
+X}
+X
+X/*
+X * play_cd(starttrack, pos, endtrack)
+X *
+X * Start playing the CD or jump to a new position.  "pos" is in seconds,
+X * relative to start of track.
+X */
+Xvoid
+Xplay_cd(start, pos, end)
+Xint start, pos, end;
+X{
+X	if (cd == NULL || cd_fd < 0)
+X		return;
+X
+X	cur_firsttrack = start;
+X	start--;
+X	end--;
+X	cur_lasttrack = end;
+X
+X	play_chunk(cd->trk[start].start + pos * 75, end >= cur_ntracks ?
+X		(cur_cdlen - 1) * 75 : cd->trk[end].start - 1);
+X}
+X
+X/*
+X * Set the offset into the current track and play.  -1 means end of track
+X * (i.e., go to next track.)
+X */
+Xvoid
+Xplay_from_pos(pos)
+X	int	pos;
+X{
+X	if (pos == -1)
+X		if (cd)
+X			pos = cd->trk[cur_track - 1].length - 1;
+X	if (cur_cdmode == 1)
+X		play_cd(cur_track, pos, playlist[cur_listno-1].end);
+X}
+X
+X/*
+X * Eject the current CD, if there is one, and set the mode to 5.
+X *
+X * Returns 0 on success, 1 if the CD couldn't be ejected, or 2 if the
+X * CD contains a mounted filesystem.
+X */
+Xeject_cd()
+X{
+X	struct stat	stbuf;
+X	struct ustat	ust;
+X
+X	if (cur_cdmode == 5)		/* Already ejected! */
+X		return (0);
+X
+X	if (fstat(cd_fd, &stbuf) != 0)
+X	{
+X		perror("fstat");
+X		return (1);
+X	}
+X
+X	/* Is this a mounted filesystem? */
+X	if (ustat(stbuf.st_rdev, &ust) == 0)
+X		return (2);
+X
+X	if (ioctl(cd_fd, CDROMEJECT))
+X	{
+X		perror("CDEJECT");
+X		return (1);
+X	}
+X
+X	if (exit_on_eject)
+X		exit(0);
+X
+X	cur_cdlen = cur_tracklen = 1;
+X	cur_pos_abs = cur_pos_rel = cur_frame = 0;
+X	wipe_cdinfo();
+X	cur_cdmode = 5;
+X
+X	return (0);
+X}
+X
+X/* Try to keep the CD open all the time.  This is run in a subprocess. */
+Xvoid
+Xkeep_cd_open()
+X{
+X	int	fd;
+X	struct flock	fl;
+X	extern	end;
+X
+X	for (fd = 0; fd < 256; fd++)
+X		close(fd);
+X
+X	if (fork())
+X		exit(0);
+X
+X	if ((fd = open("/tmp/cd.lock", O_RDWR | O_CREAT, 0666)) < 0)
+X		exit(0);
+X	fl.l_type = F_WRLCK;
+X	fl.l_whence = 0;
+X	fl.l_start = 0;
+X	fl.l_len = 0;
+X	if (fcntl(fd, F_SETLK, &fl) < 0)
+X		exit(0);
+X
+X	if (open(cd_device, 0) >= 0)
+X	{
+X		brk(&end);
+X		pause();
+X	}
+X
+X	exit(0);
+X}
+X
+X/*
+X * find_trkind(track, index)
+X *
+X * Start playing at a particular track and index, optionally using a particular
+X * frame as a starting position.  Returns a frame number near the start of the
+X * index mark if successful, 0 if the track/index didn't exist.
+X *
+X * This is made significantly more tedious (though probably easier to port)
+X * by the fact that CDROMPLAYTRKIND doesn't work as advertised.  The routine
+X * does a binary search of the track, terminating when the interval gets to
+X * around 10 frames or when the next track is encountered, at which point
+X * it's a fair bet the index in question doesn't exist.
+X */
+Xfind_trkind(track, index, start)
+X	int	track, index, start;
+X{
+X	int	top = 0, bottom, current, interval, ret = 0, i;
+X
+X	if (cd == NULL || cd_fd < 0)
+X		return;
+X
+X	for (i = 0; i < cur_ntracks; i++)
+X		if (cd->trk[i].track == track)
+X			break;
+X	bottom = cd->trk[i].start;
+X
+X	for (; i < cur_ntracks; i++)
+X		if (cd->trk[i].track > track)
+X			break;
+X
+X	top = i == cur_ntracks ? (cd->length - 1) * 75 : cd->trk[i].start;
+X
+X	if (start > bottom && start < top)
+X		bottom = start;
+X
+X	current = (top + bottom) / 2;
+X	interval = (top - bottom) / 4;
+X
+X	do {
+X		play_chunk(current, current + 75);
+X
+X		if (cd_status() != 1)
+X			return (0);
+X		while (cur_frame < current)
+X			if (cd_status() != 1 || cur_cdmode != 1)
+X				return (0);
+X			else
+X				usleep(1);
+X
+X		if (cd->trk[cur_track - 1].track > track)
+X			break;
+X
+X		if (cur_index >= index)
+X		{
+X			ret = current;
+X			current -= interval;
+X		}
+X		else
+X			current += interval;
+X		interval /= 2;
+X	} while (interval > 2);
+X
+X	return (ret);
+X}
+END_OF_FILE
+if test 11801 -ne `wc -c <'hardware.c'`; then
+    echo shar: \"'hardware.c'\" unpacked with wrong size!
+fi
+# end of 'hardware.c'
+fi
+if test -f 'workman.info' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'workman.info'\"
+else
+echo shar: Extracting \"'workman.info'\" \(10386 characters\)
+sed "s/^X//" >'workman.info' <<'END_OF_FILE'
+X# 
+X# @(#)workman.info	1.3 11/15/92
+X#
+X# User interface object help text.
+X# 
+X:controls1
+XWelcome to WorkMan!  This program has everything,
+Xincluding the kitchen sink.
+X# 
+X:artist_display
+XThe name of the music's creator (Rolling Stones,
+XPierne, Count Basie, etc.)  Click on "CD Info..."
+Xto change it.
+X# 
+X:cdname_display
+XThe name of the album or disc.  Click on "CD
+XInfo..." to change it.
+X# 
+X:tracks
+XUse this display to select a track to play.  It
+Xalso indicates the current track while in play
+Xmode.
+X# 
+X:tracktimer
+XThe amount of time the current track has been
+Xplaying.
+X# 
+X:songpos
+XThis indicates how far into the track you are, as
+Xwell as allowing you to skip to different places
+Xin the track by moving the slider to the desired
+Xlocation.
+X# 
+X:tracklen
+XThis display is the length of the current track,
+Xin minutes and seconds.
+X# 
+X:speaker
+XA cute little picture of no consequence; ignore it.
+X# 
+X:repeat
+XThis item controls what Workman does when the CD
+Xis done playing.  If it's set to "Stop," the CD
+Xwill stop; this is the default behavior.  Setting
+Xthis to "Repeat" will cause the CD to start
+Xplaying again (using a different track ordering if
+Xin shuffle mode.)  Setting this to "Eject" tells
+XWorkman to eject the CD when it's done playing.
+XClick on the box to cycle through the choices.
+X# 
+X:mode
+XThe main control panel.  The controls mean:
+X
+XPrevious   Play     Next
+XPause      Stop     Eject
+X
+X"Previous" and "Next" go to the next track on the
+Xplaylist, if any, and follow the track ordering
+Xcorrectly in shuffle mode.  In normal mode, they
+Xgo to the current track minus or plus 1,
+Xrespectively.
+X# 
+X:volume
+XThis slider controls the volume level of the CD. 
+XThe top of the scale is loudest; the bottom is
+Xsilent.
+X# 
+X:shuffle
+XClick here to cycle through the three play modes:
+Xnormal, shuffle, and playlist.  Normal mode plays
+Xthe CD from start to end, minus any tracks you've
+Xindicated you don't want to hear (see the CD Info
+Xpopup.)  Shuffle mode plays the tracks in a random
+Xorder, avoids tracks you don't want to hear, and
+Xplays continuation tracks in the right order
+X(again, see CD Info.)  Playlist mode plays tracks
+Xlisted in the Play List section of the CD Info
+Xpopup.
+X# 
+X:cdtimer
+XThe current position on the CD in minutes and
+Xseconds.  Also an elapsed time meter, if the CD is
+Xplaying in Normal mode.
+X# 
+X:cdlen
+XThis value is the length of the entire CD, in
+Xminutes and seconds.
+X# 
+X:cdgauge
+XThis indicator shows the time elapsed and total
+Xplay time of the CD.
+X# 
+X:button3
+XBring up the About popup, which contains the
+Xcredits and a couple dumb pictures.
+X# 
+X:button2
+XBring up the CD Info popup, into which you can
+Xenter information about the CD in the drive.  This
+Xbutton also removes the popup when you're done
+Xwith it.
+X# 
+X:button4
+XPop up or dismiss the Goodies popup, which
+Xcontains infrequently-used controls of dubious
+Xvalue.
+X# 
+X:controls2
+XThis popup contains information about the CD in
+Xthe drive.  Help is available for each of the
+Xindividual controls.  If your window manager
+Xdoesn't let you dismiss popups, you can dismiss
+Xthis popup by pressing the CD Info button in the
+Xmain window again.
+X# 
+X:artist
+XThe name of the music's creator (Rolling Stones,
+XPierne, Count Basie, etc.)
+X# 
+X:cdname
+XThe name of the album or disc.
+X# 
+X:tracklist
+XThis is a list of the tracks on the CD.  To enter
+Xnames for the tracks, select the first track from
+Xthe list and move the cursor down to the "Name:"
+Xfield under the list (you'll probably want to type
+Xin the artist and name of the disc above.)  Enter
+Xthe name of the track and hit Return; the next
+Xtrack will be selected, and you may enter its name
+Xas well.
+X# 
+X:trackname
+XThe individual song name of this track.  "//" may
+Xbe used to split a title up into multiple lines.
+XIf a line starts with "+", the CD title display is
+Xtemporarily replaced with the rest of the line (up
+Xto the next // or end of title) while that track
+Xis playing.  Starting a line with "@" does the
+Xsame for the artist.  For example, a title like
+X"@Mozart//+Operas//The Magic Flute//Allegro" would
+Xreplace the artist display with "Mozart," the CD
+Xtitle with "Operas," and display a two-line track
+Xtitle with "The Magic Flute" above "Allegro". 
+XNeither + nor @ will affect the real CD title or
+Xartist; they are useful for compilation CDs and
+Xthe like.  If @ or + is followed by // or is at
+Xthe end of the title, the artist or CD name of the
+Xprevious track is used.  For example, the second
+Xmovement of a symphony might be named "+//Adagio".
+X# 
+X:trackoptions
+XIf the "Continuation" box is checked, the selected
+Xtrack is a continuation of the previous one (e.g.
+Xthe second movement of a symphony.)  Shuffle mode
+Xwon't start on a continuation track.  If the
+X"Don't play" box is checked, the selected track
+Xwill not be played unless it's specifically
+Xselected in the player's main window.
+X# 
+X:whichvolume
+XYou may set the default volume for the entire CD,
+Xor for individual tracks (which you can select
+Xusing the scrolling list above.)
+X# 
+X:defaultvolume
+XUse this slider to set the default volume for the
+XCD or for individual tracks.  If the slider is
+Xmoved all the way to the left, there is no default
+Xvolume and the setting on the main panel will be
+Xused when this CD is inserted.
+X# 
+X:defaultspeaker
+XA silly little picture of no consequence (most of
+Xthe time.)  Marvel at it or ignore it.
+X# 
+X:playmode
+XThis choice item chooses the play mode which will
+Xbe selected when this CD is inserted next time.
+X# 
+X:autoplay
+XIf selected, this CD will be played automatically
+Xwhen it's inserted.
+X# 
+X:button1
+XSave this CD to the database.  Information such as
+Xartist and track names is saved.  This button also
+Xsaves some global settings, such as the stop mode
+Xfrom the main window.
+X# 
+X:button8
+XUndo all changes to the current CD's information,
+Xincluding playlists, track titles, etc.
+X# 
+X:buttonpl
+XClick this button to display (and dismiss) the
+Xpopup window that contains the controls for
+Xbuilding playlists.
+X# 
+X:controls3
+XIf you need help with this popup, you need help.
+X# 
+X:sink
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrippity drip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XYou need a hobby.
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip
+X
+XDrip! (the end)
+X# 
+X:controls4
+XThe Goodies popup contains the controls for
+XWorkman's more advanced features -- things that
+Xyou won't need to use most of the time, so they
+Xaren't on the main window cluttering things up.
+X# 
+X:balance
+XUse this slider to change the volume balance. 
+XCenter the slider to equalize the volume between
+Xthe left and right speakers.
+X# 
+X:phones
+XThis is a graphical indicator of the current
+Xbalance.  Pay it no heed.
+X# 
+X:timemode
+XThe slider and gauge on the main window can
+Xdisplay either elapsed or remaining time; use this
+Xto select which display you'd like.
+X# 
+X:playnewcds
+XIf this item is selected, workman will play
+Xunknown CDs when they are inserted.
+X# 
+X:abrepeat
+XThese controls mark an area of the CD for
+Xcontinuous play.  While the CD is playing or
+Xpaused, click on the "Start" button to mark the
+Xstart of the section.  Then let the CD play to the
+Xdesired time (or use the slider and track controls
+Xin the main window) and click on the "End" button
+Xto mark the end of the section.  If the checkbox
+Xis selected, that section of the CD will repeat
+Xcontinuously.
+X# 
+X:a
+XThese controls mark an area of the CD for continuous play.  While the CD is playing or paused, click on the "Start" button to mark the start of the section.  Then let the CD play to the desired time (or use the slider and track controls in the main window) and click on the "End" button to mark the end of the section.  If the checkbox is selected, that section of the CD will repeat continuously.
+X# 
+X:alabel
+XThese controls mark an area of the CD for
+Xcontinuous play.  While the CD is playing or
+Xpaused, click on the "Start" button to mark the
+Xstart of the section.  Then let the CD play to the
+Xdesired time (or use the slider and track controls
+Xin the main window) and click on the "End" button
+Xto mark the end of the section.  If the checkbox
+Xis selected, that section of the CD will repeat
+Xcontinuously.
+X# 
+X:b
+XThese controls mark an area of the CD for
+Xcontinuous play.  While the CD is playing or
+Xpaused, click on the "Start" button to mark the
+Xstart of the section.  Then let the CD play to the
+Xdesired time (or use the slider and track controls
+Xin the main window) and click on the "End" button
+Xto mark the end of the section.  If the checkbox
+Xis selected, that section of the CD will repeat
+Xcontinuously.
+X# 
+X:blabel
+XThese controls mark an area of the CD for
+Xcontinuous play.  While the CD is playing or
+Xpaused, click on the "Start" button to mark the
+Xstart of the section.  Then let the CD play to the
+Xdesired time (or use the slider and track controls
+Xin the main window) and click on the "End" button
+Xto mark the end of the section.  If the checkbox
+Xis selected, that section of the CD will repeat
+Xcontinuously.
+X# 
+X:controls5
+XThis popup allows you to create, modify, or remove
+Xcustom playlists.  Playlists are saved to the
+Xdatabase when you choose Apply from the CD Info
+Xpopup.
+X# 
+X:playlists
+XUse this scrolling list to select a playlist to
+Xedit, delete, or rename.
+X# 
+X:listname
+XEnter the name of a new playlist here, or the new
+Xname for an existing playlist.  Use the "Create"
+Xand "Rename" buttons to add a new list or rename
+Xan existing one, respectively.
+X# 
+X:button7
+XCreate a new playlist.  Enter the list's name in
+Xthe "Name:" text field.  If there's no name there,
+Xthe computer will use a name of its own.
+X# 
+X:button6
+XRename the selected playlist to the name in the
+X"Name:" text field.
+X# 
+X:button5
+XDelete the currently-selected playlist.
+X# 
+X:playlist
+XUse this list to set up a predefined order in
+Xwhich to play the tracks on the CD.  Fill it by
+Xselecting tracks from the menu that appears when
+Xyou use the MENU mouse button over the list.  To
+Xuse the list once you're done building it, change
+Xthe play mode from the main window (the bottom of
+Xthe two choice items on the right side.)
+X# 
+X:delete
+XDelete the currently selected item from the
+Xplaylist.
+X#
+X:deletetrk
+XThis button deletes a section from the list of
+Xtracks.  It cannot be used on the first section
+Xof a track.
+X#
+X:splittrk
+XSplit the current track (as selected on the main
+Xwindow) into two sections.  Use the track position
+Xslider to control the split point, or hit this
+Xbutton while the CD is playing.
+X#
+X:indexscan
+XScan the CD for index marks, adding sections
+Xwherever they're found.  This process can take a
+Xwhile, so be patient.
+END_OF_FILE
+if test 10386 -ne `wc -c <'workman.info'`; then
+    echo shar: \"'workman.info'\" unpacked with wrong size!
+fi
+# end of 'workman.info'
+fi
+if test -f 'workmandb.4' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'workmandb.4'\"
+else
+echo shar: Extracting \"'workmandb.4'\" \(8754 characters\)
+sed "s/^X//" >'workmandb.4' <<'END_OF_FILE'
+X.\" @(#)workmandb.4	1.7 11/15/92
+X.TH workmandb 4 "11/15/92"
+X.SH NAME
+Xworkmanrc, workmandb \- database and preferences files for workman
+X.SH SYNOPSIS
+X.B $\s-2HOME\s+2/.workmanrc
+Xor value of \s-2WORKMANRC\s+2 variable
+X.LP
+X.B $\s-2HOME\s+2/.workmandb
+Xor value(s) of \s-2WORKMANDB\s+2 variable
+X.SH DESCRIPTION
+X.LP
+XThe \fB.workmandb\fP file stores information about compact discs.  It is
+Xgenerated by
+X.IR workman (1)
+Xbased on user input.  Its companion file, \fB.workmanrc\fP, stores user
+Xpreferences for each disc.  The distinction between the two is
+Xthat \fB.workmandb\fP contains only the hard information about a CD (the disc
+Xname, artist, track titles, etc.) and is often shared among several
+Xusers.  \fB.workmanrc\fP, on the other hand, contains settings like the default
+Xvolumes of particular tracks, the numbers of tracks to be avoided, and
+Xso forth.  Each user generally maintains a private \fB.workmanrc\fP,
+Xeven if a shared \fB.workmandb\fP is being used.
+X.LP
+XThough
+X.IR workman (1)
+Xstores different information in each file,
+Xboth files have an identical format; most of this manual page will
+Xnot distinguish between the two.  Each line of the file is of the form
+X.LP
+X[s-]keyword	[\fIoptional whitespace-separated arguments\fP]
+X.LP
+XEmpty lines are ignored.  Lines starting with unrecognized keywords are
+Xretained and written back out verbatim when the database is saved.  The
+Xprogram preserves the ordering of unrecognized lines, and their positions
+Xrelative to the track information.  This
+Xallows the database to be extended to hold any sort of information desired
+Xby the user.
+X.LP
+XKeywords that begin with "s-" apply to sections rather than tracks.  See
+Xthe \fBsections\fP keyword below.  A CD entry with "s-" keywords must
+Xhave a \fBsections\fP keyword as well.  This is done for backward
+Xcompatibility and will disappear eventually, and in any case only applies
+Xto keywords found in \fB.workmandb\fP (the assumption is that users
+Xwon't downgrade the versions they run, so \fB.workmanrc\fP doesn't need
+Xto be backward-compatible.)
+X.LP
+XSome keywords are delimiters that modify the meanings of keywords that
+Xfollow; others are position-independent and may occur anywhere in the
+Xfile.  (In general, the position-independent keywords are concerned with
+Xsettings for the tool as a whole, rather than for a particular disc.)
+X.LP
+XThe keywords, and their arguments, follow.  All numeric arguments are in
+Xdecimal unless otherwise specified.
+X.SS Initial Keywords
+XThese keywords must appear before the first CD's entry, and represent
+Xglobal settings for the tool.  They are usually found in \fB.workmanrc\fP.
+X.TP
+X\fBwhendone eject\fP | \fBstop\fP | \fBrepeat\fP
+XSelect the default action taken by
+X.IR workman (1)
+Xwhen a CD is finished playing.  The default is \fBstop\fP.
+X.TP
+X\fBplaynew\fP
+XIf specified,
+X.IR workman (1)
+Xwill play unknown CDs (those not listed in \fB.workmanrc\fP) when they're
+Xinserted.
+X.SS CD Information
+XThe rest of the keywords describe specific CDs.
+X.TP
+X\fBtracks\fI \fIntracks start1 start2 ... startn length\fP
+XThis keyword delimits the start of a particular CD's entry (and thus
+Xthe end of the previous entry.)  Its
+Xarguments contain the information used to distinguish one disc from
+Xanother.  The first argument, \fIntracks\fP, is the number of tracks
+Xon the CD.  For each of those tracks, there is a \fIstart\fP value,
+Xwhich is the starting frame of the track (a frame is approximately
+X1/75th of a second.)  The final argument is the length of the CD in
+Xseconds.
+X.TP
+X\fBsections\fP \fInsects start1 start2 ... startn\fP
+X.IR Workman (1)
+Xallows the user to split a CD's physical tracks into smaller virtual tracks
+Xcalled sections.
+XThe \fBsections\fP keyword, which must immediately follow \fBtracks\fP,
+Xdefines the starting positions of the sections.  Sections are inserted into
+Xthe track list, and track numbers are adjusted accordingly, e.g. section 1.2
+Xas presented to the user is represented as track 2 in the database file.
+XIf the sections listed in \fB.workmandb\fP and \fB.workmanrc\fP
+Xdiffer, \fB.workmandb\fP takes precedence, and sections listed only
+Xin \fB.workmanrc\fP are discarded.
+X.TP
+X\fBcdname\fP \fIname\fP
+XThe name of the current disc, as supplied by the user.
+X.TP
+X\fBartist\fP \fIname\fP
+XThe artist's name for the current disc, as supplied by the user.
+X.TP
+X\fBplaymode\fP \fImode\fP
+XThe default play mode for the CD is \fImode\fP, a numeric value.  0 is
+Xthe "normal" play mode (play all tracks sequentially) and 1 is "shuffle"
+Xmode.  If \fImode\fP is 2 or greater, the default play sequence is a
+Xplaylist (\fImode\fP 2 meaning the first playlist, 3 meaning the second,
+Xetc.)
+X.TP
+X\fBautoplay\fP
+XIf \fBautoplay\fP is present, this CD will begin playing immediately
+Xwhen it is inserted.
+X.TP
+X\fBcdvolume\fP \fIvolume\fP
+XThe default play volume of the CD, a value from 0 to 32.  If \fIvolume\fP is 0,
+Xthe CD has no default volume (since 0 is the default, \fBcdvolume\fP will
+Xusually not be present in that case.)
+X.TP
+X\fBplaylist\fP \fIname number track1 track2 ...\fP
+XDefine a playlist for the current CD.  The \fIname\fP does not contain any
+Xwhitespace; whitespace is converted to "_" on output and "_" is converted
+Xto whitespace on input.  (See the \s-2BUGS\s+2 section.)  The \fInumber\fP
+Xargument is the number of tracks contained in the playlist; the rest of
+Xthe line is a list of track numbers.  Playlists are ordered; see the
+X\fBplaymode\fP keyword above.
+X.TP
+X\fBtrack\fP [\fIname\fP]
+XThe name of a track.  This delimits the start of a
+Xtrack's information.
+XThe \fIname\fP argument is optional; it will not be present unless the
+Xuser has supplied a track name.  This line may be divided into display
+Xlines with the "//" token.  Additionally, a display line beginning with
+X"+" indicates that the rest of the display line contains a replacement
+Xdisc title (usually the name of a group of tracks,
+Xsuch as "Symphony No. 2" on a disc
+Xwith more than one piece of music.)  A display line beginning with "@"
+Xreplaces the artist's name for the track.  If "+" or "@" is the only
+Xcharacter on a display line,
+X.IR workman (1)
+Xwill use the title or artist from the previous track, searching backwards
+Xas necessary.
+X.TP
+X\fBcontinue\fP
+XThe current track is a continuation of the previous one (e.g. the
+Xsecond movement of a symphony.)
+X.TP
+X\fBdontplay\fP \fItrack\fP
+XDon't play a track (specified by number) unless it's specifically requested
+Xby the user.
+X.TP
+X\fBvolume\fP \fItrack\fP \fIvolume\fP
+XThe default play volume for \fItrack\fP, specified by number.  \fIvolume\fP
+Xis a number from 0 to 32.  See \fBcdvolume\fP above.
+X.TP
+X\fBmark\fP \fIframe\fP \fImark-id\fP
+XDefine a mark.  Marks with IDs other than \fBSTART\fP and \fBEND\fP are
+Xcurrently
+Xignored.  Those two marks represent the start and end of the part of
+Xthe CD to be repeated (as set from the Goodies popup) respectively.  The
+X\fIframe\fP value is an absolute frame number.
+X.SH EXAMPLE
+XThe first example is a \fB.workmandb\fP entry for a hypothetical disc.  At
+Xleast, I hope it's hypothetical.
+X.IP
+X.ll +4i
+Xtracks 5 150 10341 20449 45117 100104 1609
+X.br
+Xcdname Amazing Accordion Tunes - The Early Years
+X.br
+Xartist The Hemophiliacs
+X.br
+Xtrack Polka 'Till the Sun Goes Down
+X.br
+Xtrack I've Got Rocks In My Heart, Baby...
+X.br
+Xtrack ...But I Still Get Stoned On You
+X.br
+Xcontinue
+X.br
+Xtrack You Never Know How Late It Is//Until the Clock Strikes Blue
+X.br
+Xtrack +Accordions At an Exhibition//@Mussorgsky//I. Gnomus//Vivo
+X.br
+X.ll -4i
+X.LP
+XThe third track is a continuation of the second.  The fourth track's title
+Xis too large to fit on one line of
+X.IR workman (1)'s
+Xmain window, so it's been split up into two display lines.  The fifth
+Xtrack is an excerpt from a larger work, originally written by someone
+Xelse; it also has a two-line track title.
+X.LP
+XThe \fB.workmanrc\fP entry for the same CD might look like:
+X.IP
+Xtracks 5 150 10341 20449 45117 100104 1609
+X.br
+Xcdvolume 32
+X.br
+Xplaymode 1
+X.br
+Xplaylist Originals 3 2 3 1
+X.br
+Xautoplay
+X.br
+Xdontplay 4
+X.br
+Xvolume 3 20
+X.LP
+XThe \fBtracks\fP line, naturally, is the same in both files, since it
+Xidentifies which CD the entry is for.  This CD plays at maximum volume
+Xin shuffle mode by default.  It has one playlist with tracks 2, 3, and
+X1.  When inserted, it will start up automatically.  Track 4 is particularly
+Xunpleasant, so the user never wants to hear it.  And track 3 should be
+Xplayed more quietly than the others.
+X.SH SEE ALSO
+X.BR workman (1)
+X.SH BUGS
+XThe \fBplaylist\fP keyword is not well thought-out.  The \fIname\fP should
+Xgo at the end of the line, so it can contain whitespace or whatever else
+Xthe user likes.
+X.LP
+XThe file updating algorithm used by
+X.IR workman (1)
+Xleaves big holes (consisting of empty lines) in the database files.  It
+Xmakes an attempt to fill the holes when possible rather than growing
+Xthe files.
+END_OF_FILE
+if test 8754 -ne `wc -c <'workmandb.4'`; then
+    echo shar: \"'workmandb.4'\" unpacked with wrong size!
+fi
+# end of 'workmandb.4'
+fi
+if test -f 'workmandb.man' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'workmandb.man'\"
+else
+echo shar: Extracting \"'workmandb.man'\" \(10857 characters\)
+sed "s/^X//" >'workmandb.man' <<'END_OF_FILE'
+X
+X
+X
+Xworkmandb(4)     DEVICES AND NETWORK INTERFACES      workmandb(4)
+X
+X
+X
+XNAME
+X     workmanrc, workmandb - database and  preferences  files  for
+X     workman
+X
+XSYNOPSIS
+X     $HOME/.workmanrc or value of WORKMANRC variable
+X
+X     $HOME/.workmandb or value(s) of WORKMANDB variable
+X
+XDESCRIPTION
+X     The .workmandb file stores information about compact  discs.
+X     It is generated by _w_o_r_k_m_a_n(1) based on user input.  Its com-
+X     panion file, .workmanrc, stores user  preferences  for  each
+X     disc.   The  distinction  between the two is that .workmandb
+X     contains only the hard information  about  a  CD  (the  disc
+X     name,  artist, track titles, etc.) and is often shared among
+X     several users.  .workmanrc, on the other hand, contains set-
+X     tings  like  the  default  volumes of particular tracks, the
+X     numbers of tracks to be avoided, and so  forth.   Each  user
+X     generally  maintains  a private .workmanrc, even if a shared
+X     .workmandb is being used.
+X
+X     Though _w_o_r_k_m_a_n(1) stores different information in each file,
+X     both  files  have  an  identical format; most of this manual
+X     page will not distinguish between the two.  Each line of the
+X     file is of the form
+X
+X     [s-]keyword    [_o_p_t_i_o_n_a_l _w_h_i_t_e_s_p_a_c_e-_s_e_p_a_r_a_t_e_d _a_r_g_u_m_e_n_t_s]
+X
+X     Empty lines are ignored.  Lines starting  with  unrecognized
+X     keywords are retained and written back out verbatim when the
+X     database is saved.  The program preserves  the  ordering  of
+X     unrecognized  lines,  and  their  positions  relative to the
+X     track information.  This allows the database to be  extended
+X     to hold any sort of information desired by the user.
+X
+X     Keywords that begin with "s-" apply to sections rather  than
+X     tracks.   See  the  sections keyword below.  A CD entry with
+X     "s-" keywords must have a sections keyword as well.  This is
+X     done  for  backward compatibility and will disappear eventu-
+X     ally, and in any case only  applies  to  keywords  found  in
+X     .workmandb (the assumption is that users won't downgrade the
+X     versions  they  run,  so  .workmanrc  doesn't  need  to   be
+X     backward-compatible.)
+X
+X     Some keywords are delimiters that  modify  the  meanings  of
+X     keywords  that  follow;  others are position-independent and
+X     may occur anywhere in the file.  (In general, the  position-
+X     independent  keywords  are  concerned  with settings for the
+X     tool as a whole, rather than for a particular disc.)
+X
+X
+X
+X
+X
+XSun Release 4.1       Last change: 11/15/92                     1
+X
+X
+X
+X
+X
+X
+Xworkmandb(4)     DEVICES AND NETWORK INTERFACES      workmandb(4)
+X
+X
+X
+X     The keywords, and  their  arguments,  follow.   All  numeric
+X     arguments are in decimal unless otherwise specified.
+X
+X  Initial Keywords
+X     These keywords must appear before the first CD's entry,  and
+X     represent  global  settings  for the tool.  They are usually
+X     found in .workmanrc.
+X
+X     whendone eject | stop | repeat
+X          Select the default action taken by _w_o_r_k_m_a_n(1) when a CD
+X          is finished playing.  The default is stop.
+X
+X     playnew
+X          If specified, _w_o_r_k_m_a_n(1) will play unknown  CDs  (those
+X          not listed in .workmanrc) when they're inserted.
+X
+X  CD Information
+X     The rest of the keywords describe specific CDs.
+X
+X     tracks _n_t_r_a_c_k_s _s_t_a_r_t_1 _s_t_a_r_t_2 ... _s_t_a_r_t_n _l_e_n_g_t_h
+X          This keyword delimits the start of  a  particular  CD's
+X          entry  (and  thus  the end of the previous entry.)  Its
+X          arguments contain the information used  to  distinguish
+X          one disc from another.  The first argument, _n_t_r_a_c_k_s, is
+X          the number of tracks on the  CD.   For  each  of  those
+X          tracks,  there  is a _s_t_a_r_t value, which is the starting
+X          frame of the track (a frame is approximately 1/75th  of
+X          a  second.)  The final argument is the length of the CD
+X          in seconds.
+X
+X     sections _n_s_e_c_t_s _s_t_a_r_t_1 _s_t_a_r_t_2 ... _s_t_a_r_t_n
+X          _W_o_r_k_m_a_n(1) allows the user to  split  a  CD's  physical
+X          tracks  into  smaller  virtual  tracks called sections.
+X          The sections keyword,  which  must  immediately  follow
+X          tracks, defines the starting positions of the sections.
+X          Sections are inserted into the track  list,  and  track
+X          numbers  are  adjusted accordingly, e.g. section 1.2 as
+X          presented to the user is represented as track 2 in  the
+X          database  file.   If  the sections listed in .workmandb
+X          and .workmanrc differ, .workmandb takes precedence, and
+X          sections listed only in .workmanrc are discarded.
+X
+X     cdname _n_a_m_e
+X          The name of the current disc, as supplied by the user.
+X
+X     artist _n_a_m_e
+X          The artist's name for the current disc, as supplied  by
+X          the user.
+X
+X     playmode _m_o_d_e
+X          The default play mode for the CD  is  _m_o_d_e,  a  numeric
+X          value.   0  is  the "normal" play mode (play all tracks
+X
+X
+X
+XSun Release 4.1       Last change: 11/15/92                     2
+X
+X
+X
+X
+X
+X
+Xworkmandb(4)     DEVICES AND NETWORK INTERFACES      workmandb(4)
+X
+X
+X
+X          sequentially) and 1 is "shuffle" mode.  If _m_o_d_e is 2 or
+X          greater,  the default play sequence is a playlist (_m_o_d_e
+X          2 meaning the first playlist,  3  meaning  the  second,
+X          etc.)
+X
+X     autoplay
+X          If autoplay is present,  this  CD  will  begin  playing
+X          immediately when it is inserted.
+X
+X     cdvolume _v_o_l_u_m_e
+X          The default play volume of the CD, a value  from  0  to
+X          32.   If  _v_o_l_u_m_e  is  0,  the  CD has no default volume
+X          (since 0 is the default, cdvolume will usually  not  be
+X          present in that case.)
+X
+X     playlist _n_a_m_e _n_u_m_b_e_r _t_r_a_c_k_1 _t_r_a_c_k_2 ...
+X          Define a playlist for the current CD.   The  _n_a_m_e  does
+X          not  contain any whitespace; whitespace is converted to
+X          "_" on output and "_" is  converted  to  whitespace  on
+X          input.  (See the BUGS section.)  The _n_u_m_b_e_r argument is
+X          the number of tracks contained  in  the  playlist;  the
+X          rest of the line is a list of track numbers.  Playlists
+X          are ordered; see the playmode keyword above.
+X
+X     track [_n_a_m_e]
+X          The name of a track.  This  delimits  the  start  of  a
+X          track's information.  The _n_a_m_e argument is optional; it
+X          will not be present unless  the  user  has  supplied  a
+X          track  name.   This  line  may  be divided into display
+X          lines with the "//"  token.   Additionally,  a  display
+X          line  beginning with "+" indicates that the rest of the
+X          display line contains a replacement disc title (usually
+X          the name of a group of tracks, such as "Symphony No. 2"
+X          on a disc with  more  than  one  piece  of  music.)   A
+X          display  line  beginning with "@" replaces the artist's
+X          name for the track.  If "+" or "@" is the only  charac-
+X          ter on a display line, _w_o_r_k_m_a_n(1) will use the title or
+X          artist from the previous track, searching backwards  as
+X          necessary.
+X
+X     continue
+X          The current track is a continuation of the previous one
+X          (e.g. the second movement of a symphony.)
+X
+X     dontplay _t_r_a_c_k
+X          Don't play a track (specified by  number)  unless  it's
+X          specifically requested by the user.
+X
+X     volume _t_r_a_c_k _v_o_l_u_m_e
+X          The default play volume for _t_r_a_c_k, specified by number.
+X          _v_o_l_u_m_e is a number from 0 to 32.  See cdvolume above.
+X
+X
+X
+X
+XSun Release 4.1       Last change: 11/15/92                     3
+X
+X
+X
+X
+X
+X
+Xworkmandb(4)     DEVICES AND NETWORK INTERFACES      workmandb(4)
+X
+X
+X
+X     mark _f_r_a_m_e _m_a_r_k-_i_d
+X          Define a mark.  Marks with IDs other than START and END
+X          are  currently  ignored.  Those two marks represent the
+X          start and end of the part of the CD to be repeated  (as
+X          set  from  the  Goodies popup) respectively.  The _f_r_a_m_e
+X          value is an absolute frame number.
+X
+XEXAMPLE
+X     The first example is a .workmandb entry for  a  hypothetical
+X     disc.  At least, I hope it's hypothetical.
+X
+X          tracks 5 150 10341 20449 45117 100104 1609
+X          cdname Amazing Accordion Tunes - The Early Years
+X          artist The Hemophiliacs
+X          track Polka 'Till the Sun Goes Down
+X          track I've Got Rocks In My Heart, Baby...
+X          track ...But I Still Get Stoned On You
+X          continue
+X          track You Never Know How Late It Is//Until the Clock Strikes Blue
+X          track +Accordions At an Exhibition//@Mussorgsky//I. Gnomus//Vivo
+X
+X     The third track is a continuation of the second.  The fourth
+X     track's   title   is  too  large  to  fit  on  one  line  of
+X     _w_o_r_k_m_a_n(1)'s main window, so it's been  split  up  into  two
+X     display  lines.  The fifth track is an excerpt from a larger
+X     work, originally written by someone  else;  it  also  has  a
+X     two-line track title.
+X
+X     The .workmanrc entry for the same CD might look like:
+X
+X          tracks 5 150 10341 20449 45117 100104 1609
+X          cdvolume 32
+X          playmode 1
+X          playlist Originals 3 2 3 1
+X          autoplay
+X          dontplay 4
+X          volume 3 20
+X
+X     The tracks line, naturally, is the same in both files, since
+X     it  identifies  which CD the entry is for.  This CD plays at
+X     maximum volume in shuffle mode by default.  It has one play-
+X     list  with tracks 2, 3, and 1.  When inserted, it will start
+X     up automatically.  Track 4 is  particularly  unpleasant,  so
+X     the  user  never  wants  to  hear it.  And track 3 should be
+X     played more quietly than the others.
+X
+XSEE ALSO
+X     workman(1)
+X
+XBUGS
+X     The playlist keyword is  not  well  thought-out.   The  _n_a_m_e
+X     should  go  at  the  end  of  the  line,  so  it can contain
+X
+X
+X
+XSun Release 4.1       Last change: 11/15/92                     4
+X
+X
+X
+X
+X
+X
+Xworkmandb(4)     DEVICES AND NETWORK INTERFACES      workmandb(4)
+X
+X
+X
+X     whitespace or whatever else the user likes.
+X
+X     The file updating algorithm used by  _w_o_r_k_m_a_n(1)  leaves  big
+X     holes (consisting of empty lines) in the database files.  It
+X     makes an attempt to fill the holes when possible rather than
+X     growing the files.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+XSun Release 4.1       Last change: 11/15/92                     5
+X
+X
+X
+END_OF_FILE
+echo shar: 282 control characters may be missing from \"'workmandb.man'\"
+if test 10857 -ne `wc -c <'workmandb.man'`; then
+    echo shar: \"'workmandb.man'\" unpacked with wrong size!
+fi
+# end of 'workmandb.man'
+fi
+echo shar: End of archive 2 \(of 6\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 5 6 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 6 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

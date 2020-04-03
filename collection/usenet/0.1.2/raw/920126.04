@@ -1,0 +1,69 @@
+Xref: funic alt.sources:3033 alt.religion.computers:1252
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!munnari.oz.au!mel.dit.csiro.au!yarra!pta!sphinx!usage!spectrum!cameron
+From: cameron@spectrum.cs.unsw.oz.au (Cameron Simpson)
+Newsgroups: alt.sources,alt.religion.computers
+Subject: Re: "nobold"
+Message-ID: <1992Jan22.073304.12170@usage.csd.unsw.OZ.AU>
+Date: 22 Jan 92 07:33:04 GMT
+References: <1992Jan21.163011.18130@rock.concert.net>
+Sender: news@usage.csd.unsw.OZ.AU
+Reply-To: cameron@spectrum.cs.unsw.oz.au (Cameron Simpson)
+Followup-To: alt.religion.computers
+Organization: CS&E Computing Facility, Uni Of NSW, Oz
+Lines: 54
+Nntp-Posting-Host: mandarin.spectrum.cs.unsw.oz.au
+
+[Followups directed to alt.religion.computers.]
+
+In article <1992Jan21.163011.18130@rock.concert.net> mcmahan@cs.unca.edu (Scott McMahan -- Genesis mailing list owner) writes:
+| Let's have more sources and less discussion on this newsgroup! :)
+
+Damn right.
+
+| This program is essential to have on a vt100 (or 200, or 300...it might
+| even work elsewhere:)) for making shell scripts fancy, re-setting 
+| the terminal after you mess it up, etc. It's "nobold.c" -- originally
+| it just made the terminal normal after ssomething messed it up, 
+| but I made it fancier. 
+| 
+| No makefiles -- it isn't worth it. Just use your favorite C compiler.
+
+Ugh. If you're going to bother with C at all you should at least use
+termcap/info and make it work on any terminal. Since you don't, try this:
+
+	#!/bin/sh
+
+	usage="Usage: $0 [bBdiu]...
+		<b>old,<B>link,<d>ark,<i>nverse,<u>nderline
+		default: normal"
+
+	if [ $# = 0 ]
+	then
+	    echo '\033[m\c'
+	else
+	    for argv
+	    do
+		case "$argv" in
+		    b)	code=1 ;;
+		    u)	code=4 ;;
+		    i)	code=7 ;;
+		    B)	code=5 ;;
+		    d)	code=2 ;;
+		    *)	echo "$0: unknown option '$argv'" >&2
+			echo "$usage" >&2
+			shift
+			continue
+			;;
+		esac
+		echo "\\033[${code}m\\c"
+	    done
+	fi
+
+| The command "nobold h" is how you get help. The default is to reset
+| the terminal to normal. 
+| 
+| This is not an incredibly complicated program :)
+
+You'd be amazed at how few tasks need a C compiler...
+	- Cameron Simpson
+	  cameron@spectrum.cs.unsw.oz.au

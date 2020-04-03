@@ -1,0 +1,44 @@
+Path: funic!fuug!mcsun!unido!fuhainf!fuhainf2.fernuni-hagen.de!streibel
+From: streibel@fuhainf2.fernuni-hagen.de (Hans Streibel)
+Newsgroups: alt.sources
+Subject: random numbers in an interval
+Message-ID: <7632@fuhainf.fernuni-hagen.de>
+Date: 24 Jan 92 16:33:10 GMT
+Sender: news@fuhainf.fernuni-hagen.de
+Lines: 35
+
+I am looking for a good way to transform numbers given by a random number
+generator to a certain interval, let's say 0...N.
+
+All random number generators that I know of produce numbers in the range
+of 0 to MAX, where MAX is a very large number. If I used the simple
+transformation
+y = x * N;
+result = y / MAX;
+where x is the number produced by the generator, the real result of
+x * N would not fit into a variable of the type (unsigned) long. So I am
+not at all sure whether the random numbers would be equally distributed
+in the range of 0...N using this transformation.
+
+Alternatively, it is possible to use this transformation:
+double y;
+unsigned long result;
+.
+.
+.
+y = (double) x / MAX;
+result = y * N;
+But I would like to avoid using variables of the type double, as it would
+slow down computation.
+
+So does anyone have a good idea about what to do best? Rewriting a random
+number generator where MAX equals N is not a solution for me, as I would
+like to perform a different transformation on every number returned
+by a generator.
+
+
+Hans Streibel
+
+e-mail:
+streibel@fernuni-hagen.de
+streibel@dhafeu51.bitnet

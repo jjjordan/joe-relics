@@ -1,0 +1,1592 @@
+Path: funic!fuug!mcsun!ukc!axion!uzi-9mm.fulcrum.bt.co.uk!cat.fulcrum.bt.co.uk!cnix!klaus
+From: klaus@cnix.uucp (klaus u schallhorn)
+Newsgroups: alt.sources
+Subject: psroff/troff/laserjet hpcl -> fax and others (1 of 4)
+Message-ID: <1991Aug29.131925.8860@cnix.uucp>
+Date: 29 Aug 91 13:19:25 GMT
+Sender: klaus@cnix.uucp (klaus u schallhorn)
+Organization: pionier publications
+Lines: 1582
+
+This kit allows you to convert psroff/troff/ventura/coreldraw/whatever
+output generated for an hp laserjet into a portable bitmap [PBM file],
+optionally scaled for fax lo/hi res or epson 24 pin printer.
+
+It makes epsons laserjet compatible and laserjets faxpak compatible.
+
+It's a subset of psroff. It's also fully integrated into faxpak.
+
+The uuencoded files in this kit are binary fonts [hp built ins] and
+rasters and patterns. mail systems prefer it that way.
+
+klaus
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 4)."
+# Contents:  ./MANIFEST ./Makefile ./README ./hp2pbm.S ./hppat1.UU
+#   ./hppat2.UU ./hppat3.UU ./hppat4.UU ./hppat5.UU ./hppat6.UU
+#   ./hprast1.UU ./hprast2.UU ./hprast3.UU ./hprast4.UU ./hprast5.UU
+#   ./hprast6.UU ./hprast7.UU ./hprast8.UU ./hptopbm.h ./lp.sfp.UU
+#   ./mem.c ./pbm2e24.c
+# Wrapped by klaus@cnix on Thu Aug 29 14:00:46 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './MANIFEST' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./MANIFEST'\"
+else
+echo shar: Extracting \"'./MANIFEST'\" \(1059 characters\)
+sed "s/^X//" >'./MANIFEST' <<'END_OF_FILE'
+X   File Name		Archive #	Description
+X----------------------------------------------------------
+X README                     1	
+X MANIFEST                   1	This shipping list
+X Makefile                   2	Makefile
+X cour.sfp.UU                1	Courier font
+X hp2pbm.S                   1	manual page
+X hpfntwrite.c               2	PBM builder
+X hpp.c                      3	HP Parser and PS emitter
+X hppat1.UU                  3	Library files.
+X hppat2.UU                  2	"
+X hppat3.UU                  2	"
+X hppat4.UU                  3	"
+X hppat5.UU                  3	"
+X hppat6.UU                  3	"
+X hprast1.UU                 2	"
+X hprast2.UU                 2	"
+X hprast3.UU                 1	"
+X hprast4.UU                 1	"
+X hprast5.UU                 1	"
+X hprast6.UU                 2	"
+X hprast7.UU                 2	"
+X hprast8.UU                 2	"
+X hptopbm.h                  1	main header file
+X lp.sfp.UU                  2	line printer font
+X mem.c                      1	Adapter routines
+X pbm2e24.c                  1	PBM to 24 pin epson converter
+END_OF_FILE
+if test 1059 -ne `wc -c <'./MANIFEST'`; then
+    echo shar: \"'./MANIFEST'\" unpacked with wrong size!
+fi
+# end of './MANIFEST'
+fi
+if test -f './Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./Makefile'\"
+else
+echo shar: Extracting \"'./Makefile'\" \(2186 characters\)
+sed "s/^X//" >'./Makefile' <<'END_OF_FILE'
+X# Makefile for hptopbm standalone release %I% %E%
+X
+X#	Configuration:
+X
+X#	Set to your C compiler:
+XCC	= cc
+X#	Where you want the auxiliary files (eg: fonts) to go
+XLIBDIR	= /tmp/lib
+X#	Where you want the programs to go
+XBINDIR	= /tmp/bin
+X#	Compilation flags.  Including strip (-s) if desired
+X#	Add -DBSD if BSD or V7.
+X#	Add -DNOMEM if you don't have memcpy and memset.
+XCCFLAGS	= -O
+X#	Page size (LETTER, LEGAL, B5, A4)
+XPAGE	= A4
+X#	Extra libraries if necessary.  -lc_s for shared libraries on 386ix
+XLIBFLAGS =
+X#	Directory to put the manual page in
+XMANDIR	= /usr/man/l_man
+X#	Manual page suffix.  Usually 1 or L
+XMANEXT	= 1
+X
+X#	Dinna touch from here on.
+X
+XSHELL =		/bin/sh
+XCFLAGS	=	$(CCFLAGS) -D'LIBDIR="$(LIBDIR)"' -D$(PAGE) -DPS
+X
+XLIBFILES =	cour.sfp lp.sfp \
+X		hppat1 hppat2 hppat3 hppat4 hppat5 hppat6 \
+X		hprast1 hprast2 hprast3 hprast4 hprast5 hprast6 hprast7 hprast8
+X
+XALTNAMES	= p2hifax hp2lofax hp2sun hp2e24
+X
+Xall:	hp2pbm pbm2e24 hp2pbm.m $(LIBFILES)
+X
+X# programs
+Xhp2pbm:	hpp.o hpfntwrite.o mem.o
+X		$(CC) $(CFLAGS) -o hp2pbm hpp.o hpfntwrite.o mem.o $(LIBFLAGS)
+X
+Xhp2pbm.m:	hp2pbm.S Makefile
+X		sed -e 's;%%LIBDIR%%;$(LIBDIR);' \
+X		    -e 's;%%MANEXT%%;$(MANEXT);' \
+X		    hp2pbm.S > hp2pbm.m
+X
+X# components
+Xmem.o:		mem.c
+X		$(CC) -c $(CFLAGS) mem.c
+X
+Xhpp.o:		hptopbm.h hpp.c
+X		$(CC) -c $(CFLAGS) hpp.c
+X
+Xhpfntwrite.o:	hptopbm.h hpfntwrite.c
+X		$(CC) -c $(CFLAGS) hpfntwrite.c
+X
+Xpbm2e24:	pbm2e24.o mem.o
+X		$(CC) $(CFLAGS) -o pbm2e24 pbm2e24.o mem.o $(LIBFLAGS)
+X
+Xclean:
+X		rm -f hp2pbm pbm2e24 hp2pbm.m *.o myuid $(LIBFILES)
+X
+X$(LIBFILES):
+X		uudecode < $@.UU
+X
+Xmyuid:
+X		echo 'main() { printf("%d\\n", getuid()); exit(0); }' > myuid.c
+X		$(CC) -o myuid myuid.c
+X		rm -f myuid.c
+X
+Xinstall:	hp2pbm myuid
+X		test "`./myuid`" = 0 || \
+X		    ( echo "ERROR: You must be root to install" ; exit 1 )
+X		test -d $(BINDIR) || mkdir $(BINDIR)
+X		test -d $(LIBDIR) || mkdir $(LIBDIR)
+X		test -d $(LIBDIR)/BITMAPS || mkdir $(LIBDIR)/BITMAPS
+X		cd $(BINDIR) ; rm -f hp2pbm $(ALTNAMES)
+X		cp hp2pbm $(BINDIR)/hp2pbm
+X		$(IGNORESH) cd $(BINDIR) ; \
+X		for i in $(ALTNAMES) ; \
+X		do \
+X		    ln hp2pbm $$i ; \
+X		done
+X		cd $(LIBDIR)/BITMAPS ; rm -f $(LIBFILES)
+X		cp $(LIBFILES) $(LIBDIR)/BITMAPS
+X		-cp hp2pbm.m $(MANDIR)/hp2pbm.$(MANEXT)
+END_OF_FILE
+if test 2186 -ne `wc -c <'./Makefile'`; then
+    echo shar: \"'./Makefile'\" unpacked with wrong size!
+fi
+# end of './Makefile'
+fi
+if test -f './README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./README'\"
+else
+echo shar: Extracting \"'./README'\" \(5690 characters\)
+sed "s/^X//" >'./README' <<'END_OF_FILE'
+X			HP2PBM et. al.
+X			Version 0.00
+X			Chris Lewis	<clewis@ferret.ocunix.on.ca>
+X			Klaus Schallhorn	<klaus@cnix.uucp>
+X
+XThe first section of this README is a discussion of how you
+Xintegrate this package with faxpak, the second half is how
+Xto integrate with psroff.
+X
+XIntroduction and FAXPAK:
+X
+Xhp2* being a number of programs with a number of uses is somewhat 
+Xdifficult to explain.
+X
+XI bolted this together basically to have a filter from HPCL escape
+Xsequences to fax. Without Chris Lewis' hpinterp.c, which does the
+Xparsing of escape sequences, I probably wouldn't have started this.
+XUsing Chris' parser and a few routines I borrowed from faxpak and 
+Xsome earlier code I wrote hp2* in a few evening hours. I also spent
+Xsome time creating two "built in" fonts and all the built in pattern
+Xand raster clones my antique hp ljet plus knows about.
+X
+Xhp2* is an integrated part of psroff. It is, as of now, also an
+Xintegrated part of faxpak. 
+X
+XSome of the things you can do with hp2*:
+X
+X	psroff -Tlj -t <files> | fax phone -type hp
+X	jetroff | fax phone -type hp
+X	CorelDraw | hp2e24 | pbmtoe24 | lpr -d mytrustedepsonprinter
+X	psroff -Tlj -t <files> | hp2e24 | pbm2e24 | lpr -d epson
+X	TeX | dvijep | fax -type hp
+X
+XYes, strangely enough faxpak now supports two routes from TeX to fax,
+Xone which requires dvitopbm and a huge assortment of pk fonts in low
+Xand high fax resolution, and the one made possible by hp2* where fonts
+X"downloaded" by dvijep are scaled on the fly [and the scaling has
+Ximproved from texttopbm].
+X
+XAs I've never seen a pbm to epson 24 pin converter I enclose one
+Xwhich I put together some time ago. 
+X
+XHow to integrate hp2pbm into faxpak [1.00 and later]
+X====================================================
+X
+XThe Makefile included creates hp2pbm as a standalone pgm. To have
+Xit integrated into faxpak, insert the following lines at some
+Xappropriate places into faxpak's makefile [no you can't have a 
+Xpatch as my makefile is a moving target]:
+X
+X
+XHP2PBM =	hpp.o hpfntwrite.o libfax.a
+X
+XLIBPGMS =	spoolfax sendfax faxcleanup texttopbm hp2pbm
+X
+X# programs
+Xhp2pbm:		$(FAXHDR) $(HP2PBM)
+X		cc -o hp2pbm $(LDFLAGS) $(HP2PBM)
+X
+X# components
+Xhpp.o:		$(FAXHDR) hptopbm.h hpp.c
+X		cc -c -DFAXPAK $(CFLAGS) hpp.c
+X
+Xhpfntwrite.o:	$(FAXHDR) hptopbm.h hpfntwrite.c
+X		cc -c -DFAXPAK $(CFLAGS) hpfntwrite.c
+X
+Xinstall:
+X		-ln $(FAXLIBDIR)/hp2pbm $(FAXLIBDIR)/hp2lofax
+X		-ln $(FAXLIBDIR)/hp2pbm $(FAXLIBDIR)/hp2hifax
+X		if ( test ! -d $(FAXLIBDIR)/hplib ) then \
+X			mkdir $(FAXLIBDIR)/hplib ; fi
+X		cp *sfp $(FAXLIBDIR)/hplib
+X		cp hppat? $(FAXLIBDIR)/hplib
+X		cp hprast? $(FAXLIBDIR)/hplib
+X		chown $(OWNER) $(FAXLIBDIR)/hplib/*
+X		chgrp $(GROUP) $(FAXLIBDIR)/hplib/*
+X		chmod 600 $(FAXLIBDIR)/hplib/*
+X
+X
+XIn fax.h, add to faxtypes[]
+X
+X	"hp",		HPCL,		1,
+X	"ljet",		HPCL,		0,
+X	"laser",	HPCL,		0,
+X	"laserjet",	HPCL,		0
+X
+X
+Xand in spoolfax.c change hp2pbm() from generating an error message to:
+X
+Xhptopbm(base)
+Xchar *base;
+X{
+X	if (fax.hires)
+X		sprintf(tmp, "%s/hp2hifax -r %s.%s <%s",
+X			fc.faxlib,base,PBM_EXT,base);
+X	else sprintf(tmp, "%s/hp2lofax -r  %s.%s <%s",
+X		fc.faxlib,base,PBM_EXT,base);
+X
+X	if (system(tmp))
+X	{
+X		fax_log(ERROR, "spoolfax/hptopbm(): system(%s) failed\n",tmp);
+X		return(ERROR);
+X	}
+X	unlink(base);
+X
+X	sprintf(tmp, "%s.%s",base,PBM_EXT);
+X	return(page_count(tmp));
+X}
+X
+XAdd a directory hplib in your faxlib and copy the font and pattern clones 
+Xinto faxlib/hplib.
+X
+XIf you find bugs in hpfntwrite.c, for which I take all the blame, or
+Xpbm related bugs in hpp.c, please let me know. If you find pbm files
+Xnot looking dot for dot [*] what the printed output looks like, it would 
+Xhelp me to have your input to hp2*. Core dumps are not accepted unless
+Xsupplied on the hard disk they were dumped to.
+X
+X[* If the hpcl input to hp2* positions chars or graphics at decipoints
+Xthere will be rounding differences. hp2* thinks at 300 dpi resolution
+Xand cannot address fractions of a dot. I don't really know how the ljet
+Xmanages this, but as far as I can tell it seems to do it. As the major
+Xuse of hp2* will be scaling down to a lower resolution, this doesn't
+Xmatter.]
+X
+Xhp2*'s operation has been verified using Chris Lewis' psroff test page
+Xwhich is a challenge and not printed correctly by all hp printer clones.[*]
+XAs soon as it not only survived the test page but also reproduced a bitmap 
+Xdot for dot it sailed through CorelDraw graphics, the "Ventura Printer 
+XCapabilities Page" and a 40 page TeX document including graphics at 150 dpi
+Xfed through dvijep without even raising an eyelid. Doubtless there are still
+Xmany warts to be ironed out [or plucked?] as the hpcl "language" as described
+Xin the printer tech ref manuals seems somewhat ambiguous in several
+Xrespects. Quite a bit of the code in hpfntwrite therefore had to be deduced
+Xfrom how an hp ljet behaves when confronted with combinations of sequences
+Xwith little or no documentation.
+X
+X
+X[* Some printers are unable to cope with the incremental downloading that
+Xpsroff or jetroff are capable of doing.  In the case of psroff, you want
+Xto *undefine* INCR for such printers.  ...CRL]
+X
+XI haven't had a chance yet to test the code relating to printer macros.
+X
+Xklaus	<klaus@cnix.uucp>	aug 28th '91
+X
+X
+X
+XIntegration with psroff:
+X
+XIf you have faxpak, build hp2pbm according to the above instructions.
+XOtherwise, just build this software as is.
+X
+XFor epson printing, you will want to run:
+X
+X	psroff -Tlj -t <whatever> | hp2e24 file
+X
+XWhich will create a series of files called "file.0", "file.1" etc.
+XCaution: these files can get quite big.
+X
+XThen you run:
+X
+X	for i in file.?
+X	do
+X	    pbm2e24 $i | <your print spooler>
+X	done
+X
+XIn order to run the other varians of hp2*, you'll have to obtain
+Xother PBM drivers, such as those in faxpak.
+X
+XChris Lewis	<clewis@ferret.ocunix.on.ca>
+END_OF_FILE
+if test 5690 -ne `wc -c <'./README'`; then
+    echo shar: \"'./README'\" unpacked with wrong size!
+fi
+# end of './README'
+fi
+if test -f './hp2pbm.S' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hp2pbm.S'\"
+else
+echo shar: Extracting \"'./hp2pbm.S'\" \(5215 characters\)
+sed "s/^X//" >'./hp2pbm.S' <<'END_OF_FILE'
+X.\"Copyright 1989, 1990, 1991 by Chris Lewis %I% %E%
+X.TH HP2PBM %%MANEXT%% "standalone"
+X.SH NAME
+Xhp2pbm,hp2hifax,hp2lofax,hp2sun,hp2e24 \- Translate HPLJ codes to to Postscript or PBM
+X.SH SYNOPSIS
+X.B hp2pbm
+X.B "[\-v]"
+X.B "[\-V]"
+X.B "[\-p]"
+X.B "[\-c]"
+X.BI "[\-r" pbmfile "]"
+X.BI "[\-d" x "[," y "]]"
+X< HP codes
+X.SH DESCRIPTION
+XThe
+X.B hp2pbm
+Xprogram (linked to any of its aliases) is a program that interprets HP PCL (Hewlett Packard Printer Control
+XLanguage - the language of HP Laserjets)
+Xescape code sequences.
+X.B Hp2pbm
+Xcan then generate an english description of the codes, translate the input
+Xinto Postscript, or generate PBM files (Jef Poskanzer's Portable Bitmap Format).
+X.P
+X.B "hp2pbm -V"
+Xprints the version string.
+X.P
+X.B Hp2pbm
+Xis essentially a version of the
+X.B hpinterp
+Xprogram
+Xthat has been extended to optionally emit PBM.
+X.B Hpinterp
+Xis a part of
+X.BR psroff 
+XThis can be considered to be an ``after market'' optional upgrade
+Xto
+X.BR psroff .
+X.P
+X.B Hp2pbm
+Xwill accept input from
+X.B any
+XHP PCL-generating program, such as
+X.B psroff
+X(C/A/T troff or ditroff converter),
+X.B jetroff
+X(ditroff converter),
+X.BR WordPerfect ,
+X.BR CorelDraw ,
+Xincluding (some) built in and all downloaded fonts (except
+Xcompressed ones) and including built in and downloaded graphics and rasters.
+Xhp2pbm can be used to drive a number of different configurations, such as
+XPostscript printers, Klaus Schallhorn's
+X.B faxpak 
+X(to transmit faxes using a fax modem),
+Xor other devices using PBM converters, such as Epson 24 pin printers,
+XSun displays, 3b1 consoles etc.
+X.P
+XIf the
+X.B \-v
+Xoption is specified,
+X.B hp2pbm
+Xwill emit english descriptions of all of the HP PCL escape sequences to
+Xstandard output.
+XThis is useful for debugging HP PCL emitting programs.
+X.P
+XThe
+X.B \-p
+Xoption tells
+X.B hp2pbm
+Xto emit Postscript to standard output.
+X(Specifying both \-v and \-p at the same time is rather confusing)
+XNote: unless
+X.B hp2pbm
+Xis used with the rest of the
+X.B psroff
+Xutility set (namely,
+X.B lj2ps
+Xand
+X.BR pk2ps ),
+X.B hp2pbm
+Xdoes not support fonts that were downloaded in the HP Laserjet print
+Xstream.
+X.P
+XUnless the
+X.B \-r
+Xoption is specified,
+X.B hp2pbm
+Xwill collect any fonts in the HP PCL and save them in files in a
+Xdirectory called ``./FONTS'', with the nameing convention
+X.BI f n
+Xwhere \f2n\fP is the HP PCL font ID number.
+XThe ``FONTS'' directory should be created manually before running
+X.B hp2pbm.
+XA file called
+X.BI f n .desc
+Xis also created in the ``FONTS'' directory, which contains a description of
+Xeach character.
+XIf the \-c option is specified, an ASCII drawing will be made
+Xof each glyph in the font in the 
+X.B .desc
+Xfile.
+XThis is very useful for examining HP PCL fonts, whether they are
+Xindividual font files, or are embedded in HP PCL print streams.
+X.P
+XIf the
+X.BI \-r value
+Xoption is specified,
+X.B hp2pbm
+X(hp2??fax and hp2e24) 
+Xcreates PBM files. The associated argument is
+Xthe basename for the generated files.
+XThe first page is named ``value.0'', second ``value.1'' etc.
+XThe \-d option specifies a resolution not automatically assumed
+Xfrom argv[0].
+XIt is specified as
+X.BI \-d x , y
+Xwhere
+X.I x
+Xis the horizontal resolution in dots per inch, and
+X.I y
+Xis the vertical resolution in dots per inch.
+XIf the
+X.BI , y
+Xclause is omitted, it defaults to the
+X.I x
+Xvalue.
+X.P
+XThe default dots per inch for
+X.B Hp2pbm
+Xis 300.
+X.B Hp2pbm
+Xis also linked to several different names as a convenience
+Xfor supplying the dots per inch.
+XThe names are: hp2hifax (high resolution FAX), hp2lofax (low resolution FAX)
+Xhp2sun (Sun mono display) and hp2e24 (Epson 24 pin printer at 180 dpi).
+X.SH FILES
+X.if t .ta 2.5i
+X.if n .ta 3.5i
+X./FONTS/f<n>	Parsed-out SFP's
+X.br
+X./FONTS/f<n>.desc	English descriptions
+X.br
+X%%LIBDIR%%/BITMAPS	rasters, patterns and builtin font clones.
+X.SH "SEE ALSO"
+XHewlett Packard Laserjet documentation.
+XAdobe Systems Postscript documentation.
+X.SH WARNINGS
+X.B Hp2pbm's 
+Xhandling of downloaded macros is not fully tested. 
+XCompressed fonts (Laserjet II) and scalable built in fonts (Laserjet 
+XIII) are not supported. Except for these limitations
+X.B Hp2pbm
+Xshould be fully compatible with Laserjet II printers. 
+X.P
+XPBM file sizes are resolution dependent (legal size or A4 paper 
+Xat 300DPI: as much as 1.2Mb for each page).
+X.P
+XThe
+X.B \-p
+Xoption was implemented soley as a test jig for the HP PCL output
+Xoption of
+X.B "psroff \-Tlj"
+Xwithout having a laserjet printer.
+XThe Postscript generating code isn't complete, but this will
+Xprobably be rectified in future.
+X.P
+X.B Hp2ps
+Xwill not create a FONTS directory if one doesn't exist, and will die if
+Xthere isn't one.
+X.PP
+X.B "Hp2ps \-p"
+Xwill attempt to do something sane with selecting a font by characteristic,
+Xbut be warned, these use the printer's built-in fonts (which are likely
+Xto be radically different from a LJ's), so the widths may be different and
+Xthe mappings of non-ASCII characters certainly will be.
+X.PP
+XMost Postscript printers have relatively little memory for additional
+Xbitmapped fonts.
+XDo not be surprised by VMerrors from your Postscript printer if you've
+Xselected more than a few fonts in your Laserjet output.
+X.SH AUTHORS
+XThis manual page and the HP PCL parsing code was written by Chris Lewis,
+Xas was psroff.
+XThe PBM generation code was written by Klaus Schallhorn.
+END_OF_FILE
+if test 5215 -ne `wc -c <'./hp2pbm.S'`; then
+    echo shar: \"'./hp2pbm.S'\" unpacked with wrong size!
+fi
+# end of './hp2pbm.S'
+fi
+if test -f './hppat1.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat1.UU'\"
+else
+echo shar: Extracting \"'./hppat1.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat1.UU' <<'END_OF_FILE'
+Xbegin 644 hppat1
+XM4#0*,S(@,S(*_____P```````````````/____\```````````````#_____
+XM````````````````_____P```````````````/____\```````````````#_
+XM____````````````````_____P```````````````/____\`````````````
+X"``#_
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat1.UU'`; then
+    echo shar: \"'./hppat1.UU'\" unpacked with wrong size!
+fi
+# end of './hppat1.UU'
+fi
+if test -f './hppat2.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat2.UU'\"
+else
+echo shar: Extracting \"'./hppat2.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat2.UU' <<'END_OF_FILE'
+Xbegin 644 hppat2
+XM4#0*,S(@,S(*B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(
+XMB(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(
+XMB(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(B(
+X"B(B(
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat2.UU'`; then
+    echo shar: \"'./hppat2.UU'\" unpacked with wrong size!
+fi
+# end of './hppat2.UU'
+fi
+if test -f './hppat3.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat3.UU'\"
+else
+echo shar: Extracting \"'./hppat3.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat3.UU' <<'END_OF_FILE'
+Xbegin 644 hppat3
+XM4#0*,S(@,S(*$1$1$2(B(B)$1$1$B(B(B!$1$1$B(B(B1$1$1(B(B(@1$1$1
+XM(B(B(D1$1$2(B(B($1$1$2(B(B)$1$1$B(B(B!$1$1$B(B(B1$1$1(B(B(@1
+XM$1$1(B(B(D1$1$2(B(B($1$1$2(B(B)$1$1$B(B(B!$1$1$B(B(B1$1$1(B(
+X"B(@1
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat3.UU'`; then
+    echo shar: \"'./hppat3.UU'\" unpacked with wrong size!
+fi
+# end of './hppat3.UU'
+fi
+if test -f './hppat4.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat4.UU'\"
+else
+echo shar: Extracting \"'./hppat4.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat4.UU' <<'END_OF_FILE'
+Xbegin 644 hppat4
+XM4#0*,S(@,S(*B(B(B$1$1$0B(B(B$1$1$8B(B(A$1$1$(B(B(A$1$1&(B(B(
+XM1$1$1"(B(B(1$1$1B(B(B$1$1$0B(B(B$1$1$8B(B(A$1$1$(B(B(A$1$1&(
+XMB(B(1$1$1"(B(B(1$1$1B(B(B$1$1$0B(B(B$1$1$8B(B(A$1$1$(B(B(A$1
+X"$1&(
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat4.UU'`; then
+    echo shar: \"'./hppat4.UU'\" unpacked with wrong size!
+fi
+# end of './hppat4.UU'
+fi
+if test -f './hppat5.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat5.UU'\"
+else
+echo shar: Extracting \"'./hppat5.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat5.UU' <<'END_OF_FILE'
+Xbegin 644 hppat5
+XM4#0*,S(@,S(*$1$1$1$1$1$1$1$1_____Q$1$1$1$1$1$1$1$?____\1$1$1
+XM$1$1$1$1$1'_____$1$1$1$1$1$1$1$1_____Q$1$1$1$1$1$1$1$?____\1
+XM$1$1$1$1$1$1$1'_____$1$1$1$1$1$1$1$1_____Q$1$1$1$1$1$1$1$?__
+X"__\1
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat5.UU'`; then
+    echo shar: \"'./hppat5.UU'\" unpacked with wrong size!
+fi
+# end of './hppat5.UU'
+fi
+if test -f './hppat6.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hppat6.UU'\"
+else
+echo shar: Extracting \"'./hppat6.UU'\" \(215 characters\)
+sed "s/^X//" >'./hppat6.UU' <<'END_OF_FILE'
+Xbegin 644 hppat6
+XM4#0*,S(@,S(*&!@8&"0D)"1"0D)"@8&!@8&!@8%"0D)")"0D)!@8&!@8&!@8
+XM)"0D)$)"0D*!@8&!@8&!@4)"0D(D)"0D&!@8&!@8&!@D)"0D0D)"0H&!@8&!
+XM@8&!0D)"0B0D)"08&!@8&!@8&"0D)"1"0D)"@8&!@8&!@8%"0D)")"0D)!@8
+X"&!B!
+X`
+Xend
+END_OF_FILE
+if test 215 -ne `wc -c <'./hppat6.UU'`; then
+    echo shar: \"'./hppat6.UU'\" unpacked with wrong size!
+fi
+# end of './hppat6.UU'
+fi
+if test -f './hprast1.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast1.UU'\"
+else
+echo shar: Extracting \"'./hprast1.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast1.UU' <<'END_OF_FILE'
+Xbegin 644 hprast1
+XM4#0*,S(@,S(*$!`0$`````````````````$!`0$````````````````0$!`0
+XM`````````````````0$!`0```````````````!`0$!`````````````````!
+XM`0$!````````````````$!`0$`````````````````$!`0$`````````````
+X"```!
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast1.UU'`; then
+    echo shar: \"'./hprast1.UU'\" unpacked with wrong size!
+fi
+# end of './hprast1.UU'
+fi
+if test -f './hprast2.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast2.UU'\"
+else
+echo shar: Extracting \"'./hprast2.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast2.UU' <<'END_OF_FILE'
+Xbegin 644 hprast2
+XM4#0*,S(@,S(*$!`0$``````!`0$!`````!`0$!```````0$!`0`````0$!`0
+XM``````$!`0$`````$!`0$``````!`0$!`````!`0$!```````0$!`0`````0
+XM$!`0``````$!`0$`````$!`0$``````!`0$!`````!`0$!```````0$!`0``
+X"```0
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast2.UU'`; then
+    echo shar: \"'./hprast2.UU'\" unpacked with wrong size!
+fi
+# end of './hprast2.UU'
+fi
+if test -f './hprast3.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast3.UU'\"
+else
+echo shar: Extracting \"'./hprast3.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast3.UU' <<'END_OF_FILE'
+Xbegin 644 hprast3
+XM4#0*,S(@,S(*`0$!`2`@("`"`@("$!`0$`$!`0$@("`@`@("`A`0$!`!`0$!
+XM("`@(`("`@(0$!`0`0$!`2`@("`"`@("$!`0$`$!`0$@("`@`@("`A`0$!`!
+XM`0$!("`@(`("`@(0$!`0`0$!`2`@("`"`@("$!`0$`$!`0$@("`@`@("`A`0
+X"$!`!
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast3.UU'`; then
+    echo shar: \"'./hprast3.UU'\" unpacked with wrong size!
+fi
+# end of './hprast3.UU'
+fi
+if test -f './hprast4.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast4.UU'\"
+else
+echo shar: Extracting \"'./hprast4.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast4.UU' <<'END_OF_FILE'
+Xbegin 644 hprast4
+XM4#0*,S(@,S(*B(B(B"(B(B)$1$1$$1$1$8B(B(@B(B(B1$1$1!$1$1&(B(B(
+XM(B(B(D1$1$01$1$1B(B(B"(B(B)$1$1$$1$1$8B(B(@B(B(B1$1$1!$1$1&(
+XMB(B((B(B(D1$1$01$1$1B(B(B"(B(B)$1$1$$1$1$8B(B(@B(B(B1$1$1!$1
+X"$1&(
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast4.UU'`; then
+    echo shar: \"'./hprast4.UU'\" unpacked with wrong size!
+fi
+# end of './hprast4.UU'
+fi
+if test -f './hprast5.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast5.UU'\"
+else
+echo shar: Extracting \"'./hprast5.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast5.UU' <<'END_OF_FILE'
+Xbegin 644 hprast5
+XM4#0*,S(@,S(*`````%55554`````555550````!55555`````%55554`````
+XM555550````!55555`````%55554`````555550````!55555`````%55554`
+XM````555550````!55555`````%55554`````555550````!55555`````%55
+X"554`
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast5.UU'`; then
+    echo shar: \"'./hprast5.UU'\" unpacked with wrong size!
+fi
+# end of './hprast5.UU'
+fi
+if test -f './hprast6.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast6.UU'\"
+else
+echo shar: Extracting \"'./hprast6.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast6.UU' <<'END_OF_FILE'
+Xbegin 644 hprast6
+XM4#0*,S(@,S(*&9F9F20D)"29F9F90D)"0IF9F9DD)"0DF9F9F4)"0D*9F9F9
+XM)"0D))F9F9E"0D)"F9F9F20D)"29F9F90D)"0IF9F9DD)"0DF9F9F4)"0D*9
+XMF9F9)"0D))F9F9E"0D)"F9F9F20D)"29F9F90D)"0IF9F9DD)"0DF9F9F4)"
+X"0D*9
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast6.UU'`; then
+    echo shar: \"'./hprast6.UU'\" unpacked with wrong size!
+fi
+# end of './hprast6.UU'
+fi
+if test -f './hprast7.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast7.UU'\"
+else
+echo shar: Extracting \"'./hprast7.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast7.UU' <<'END_OF_FILE'
+Xbegin 644 hprast7
+XM4#0*,S(@,S(*55555:JJJJI55555JJJJJE55556JJJJJ55555:JJJJI55555
+XMJJJJJE55556JJJJJ55555:JJJJI55555JJJJJE55556JJJJJ55555:JJJJI5
+XM5555JJJJJE55556JJJJJ55555:JJJJI55555JJJJJE55556JJJJJ55555:JJ
+X"JJI5
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast7.UU'`; then
+    echo shar: \"'./hprast7.UU'\" unpacked with wrong size!
+fi
+# end of './hprast7.UU'
+fi
+if test -f './hprast8.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hprast8.UU'\"
+else
+echo shar: Extracting \"'./hprast8.UU'\" \(216 characters\)
+sed "s/^X//" >'./hprast8.UU' <<'END_OF_FILE'
+Xbegin 644 hprast8
+XM4#0*,S(@,S(*________________________________________________
+XM____________________________________________________________
+XM____________________________________________________________
+X"____
+X`
+Xend
+END_OF_FILE
+if test 216 -ne `wc -c <'./hprast8.UU'`; then
+    echo shar: \"'./hprast8.UU'\" unpacked with wrong size!
+fi
+# end of './hprast8.UU'
+fi
+if test -f './hptopbm.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hptopbm.h'\"
+else
+echo shar: Extracting \"'./hptopbm.h'\" \(2530 characters\)
+sed "s/^X//" >'./hptopbm.h' <<'END_OF_FILE'
+X/*
+X	Copyright 1989, 1990, 1991 Chris Lewis
+X	All Rights Reserved
+X
+X    Permission to copy and further distribute is freely given provided
+X    this copyright notice remains intact, that this software is not
+X    sold for profit, that credit is given, and that sources will be made
+X    available on request.
+X
+X    This software is a subset of Psroff 3.0.  See the LICENSE file
+X    in Psroff 3.0 for more details, or contact:
+X
+X	Chris Lewis
+X	Box 124
+X	Dunrobin, Ontario
+X	Canada K0A 1T0
+X	(613) 832-0541
+X
+X	Function: Header file for hp2pbm.  %I% %E% %U%
+X */
+X
+X#define	VERSION	"hp2pbm V0.00"
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X
+X#ifndef	LIBDIR
+X#define	LIBDIR	".."
+X#endif
+X
+X#ifdef	FAXPAK
+X#include "faxpak.h"
+X#endif
+X
+X#ifdef	BSD
+X#include <strings.h>
+X#define	strchr	index
+X#define	strrchr	rindex
+X#else
+X#include <string.h>
+X#endif
+X
+X#include <varargs.h>
+X
+X/* CONFIG: These aren't really used if hp2*'s sole purpose is a filter */
+X#define	BINFILE		"FONTS/f%d"
+X#define	DESCFILE	"FONTS/f%d.desc"
+X#ifndef	FAXPAK
+X#define	BUILTINDIR	"%s/BITMAPS/%s"
+X#endif
+X
+X#define	TOP_MARGIN	3	/* half inch, 300/6lpi = 3 lines */
+X#define	LEFT_MARGIN	0	/* char column pos, not dots */
+X
+X/* CONFIG: if !A4, define your default paper size (A4/LETTER are best for fax) */
+X#if	(!A4) && (!LETTER) && (!LEGAL) && (!B5)
+X#define	A4	1
+X#endif
+X
+X#if	LETTER
+X#define	PAGE_LEN	66
+X#define	RITE_MARGIN	80
+X#endif
+X
+X#if	A4
+X#define	PAGE_LEN	70
+X#define	RITE_MARGIN	77
+X#endif
+X
+X#if	LEGAL
+X#define	PAGE_LEN	84
+X#define	RITE_MARGIN	80
+X#endif
+X
+X#if	B5
+X#define	PAGE_LEN	60
+X#define	RITE_MARGIN	66
+X#endif
+X
+X#define	PRIMARY		1
+X#define	SECONDARY	2
+X
+X#define	PERMANENT	3
+X#define	TEMPORARY	4
+X
+X#define	MAX_PUSHNPOP	256	/* I haven't got a clue what the hp limit is */
+X#define	SAVE		1
+X#define	RESTORE		2
+X
+X#define	MAX_BUILTIN	8
+X#define	MAX_DOWNLOAD	32
+X
+X#define	LINEPRINTER	0
+X#define	notyet1		1
+X#define	notyet2		2
+X#define	COURIER		3
+X#define	notyet4		4
+X#define	notyet5		5
+X#define	notyet6		6
+X#define	notyet7		7
+X
+X#define	uchar	unsigned char
+X
+Xstruct fontdesc
+X{
+X	short f1;
+X	uchar f2;
+X	uchar fd_type;
+X	short f3;
+X	short fd_base;
+X	short fd_cellwidth;
+X	short fd_cellheight;
+X	uchar fd_orientation;
+X	uchar fd_fixedprop;
+X	short fd_symset;
+X	short fd_pitch;
+X	short fd_height;
+X	short f4;
+X	uchar f5;
+X	uchar fd_style;
+X	uchar fd_weight;
+X	uchar fd_typeface;
+X};
+X
+Xstruct download {
+X	uchar f1;
+X	uchar f2;
+X	uchar f3;
+X	uchar f4;
+X	uchar dl_orientation;
+X	uchar f5;
+X	short dl_leftoffset;
+X	short dl_topoffset;
+X	short dl_charwidth;
+X	short dl_charheight;
+X	short dl_deltax;
+X};
+X
+X#ifndef	FALSE
+X#define	FALSE	0
+X#endif
+X#ifndef	TRUE
+X#define	TRUE	1
+X#endif
+END_OF_FILE
+if test 2530 -ne `wc -c <'./hptopbm.h'`; then
+    echo shar: \"'./hptopbm.h'\" unpacked with wrong size!
+fi
+# end of './hptopbm.h'
+fi
+if test -f './lp.sfp.UU' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./lp.sfp.UU'\"
+else
+echo shar: Extracting \"'./lp.sfp.UU'\" \(25267 characters\)
+sed "s/^X//" >'./lp.sfp.UU' <<'END_OF_FILE'
+Xbegin 660 lp.sfp
+XM&RES,C97 !H  0   "$ $@ L   !%0!( (P     _P ;*F,S,T4;*',X-5<$
+XM  X!       8 !( %P!, '   '   '   '   '   '   '   '   '   '  
+XM '   #   "   "   "   "   "               '   '   '  &RIC,S1%
+XM&RAS-#!7!  . 0      &  2  @ 3 ,,  ,.  ,.  $&  $$      (    (
+XM !LJ8S,U11LH<S@R5P0 #@$      !< $@ 6 $P!!  !!  !!  !!  !!  !
+XM!  !!  /_X !_  !!  !!  !!  !!  !!  /_X !!  !!  !!  !!  !!  !
+XM!  !!  ;*F,S-D4;*',Q,#!7!  . 0      &0 2 !P 3  @   @  #\  /^
+XM  8G  8C  8C  X   8   ?   /   '   #P  !X   ^   >   '   #@ 0C
+XM@ XC@ 8#  8#  ?&  /\  !P   @   @   @ !LJ8S,W11LH<SDQ5P0 #@$ 
+XM     !@ $@ 9 $P !  &   ."  !   1   1$  1$  1   1    X  .(  $
+XM        0@  10   (  "(  B(  "(  "( !"( !    !P   @ "   ;*F,S
+XM.$4;*',X.%<$  X!       8 !( & !, $   .   1   Q   Q@  Q   Q  
+XM 0   >   <   <   <   ^, !&( #"( ##X #!X #!P # P # P ! P !CX 
+XM ^(  8$ &RIC,SE%&RAS-#!7!  . 0      &  2  @ 3  P  !P  !P   P
+XM   @          !  !LJ8S0P11LH<S@X5P0 #@$      !@ $@ 8 $P &   
+XM$   ,   (   (   8   8   8   8   8   8   X   8   8   8   8   
+XM8   8   (   (   ,   $   $   "  ;*F,T,44;*',X.%<$  X!       8
+XM !( & !, ,   $   &   "   "   "   #   #   #   #   #   #   #  
+XM #   #   #   #   "   "   "   &   $   $   (  &RIC-#)%&RAS-3)7
+XM!  . 0      $  2  P 3 #   #   #!  C   _^  /Y  'P  'P  $0  ,8
+XM  8.  (( !LJ8S0S11LH<S8Q5P0 #@$      !( $@ / $P 0   8   8   
+XM8   8   8   8  ?_X ?_X  8   8   8   8   8   8  ;*F,T-$4;*',T
+XM,U<$  X!       $ !( "0!, '   '   '   !       "       $   (  
+XM&RIC-#5%&RAS,C57!  . 0      "P 2  , 3 __@ __@ __@!LJ8S0V11LH
+XM<S(U5P0 #@$       0 $@ # $P <   <   <  ;*F,T-T4;*',X,E<$  X!
+XM       6 !( %@!,  ,   (   (   0   0   P   @  !@  !   !   "  
+XM "   &   $   ,   (   8   0   0   P   @  !@  &RIC-#A%&RAS.#A7
+XM!  . 0      &  2 !@ 3 !@  .<  <>  8&  X'  X'  X'  X'  X'  X'
+XM  X'  X'  X'  X'  X'  X'  X'  X'  X'  8'  <&  ,.  /\  !@ !LJ
+XM8S0Y11LH<S@U5P0 #@$      !@ $@ 7 $P !@  #@  #@  '@ !_@ #_@  
+XM#@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  
+XM#@  #@ ;*F,U,$4;*',X-5<$  X!       8 !( %P!, /   _P !PX !@8 
+XM#@< #@< #@<   <   8   X   P  !@  #   &   ,   8   X   P  !P  
+XM!P  #P  #_\ #_\ &RIC-3%%&RAS.#A7!  . 0      &  2 !@ 3 !@  /X
+XM  <,  8&  X&  X'   '   &   .   ,  !\  #\   ,   &   '   '   '
+XM  X'  X'  X'  8&  <.  /\  !@ !LJ8S4R11LH<S@U5P0 #@$      !@ 
+XM$@ 7 $P '   '   /   /   ?   ?   C   C  !C  !#  ##  "#  &#  $
+XM#  ,#  ,#  /_P /_P  '   '   '   '   #  ;*F,U,T4;*',X-5<$  X!
+XM       7 !( %P!,#_X #_X #_X #@  #@  #@  #@  #A  #_P #QX #@8 
+XM  <   <   <   <   < #@< #@< #@< !@8 !PX  _P  /  &RIC-31%&RAS
+XM.#A7!  . 0      &  2 !@ 3 !P  '\  ,.  <&  8!  8   X   X   X0
+XM  _\  _^  \&  X'  X'  X'  X'  X'  X'  X'  8'  <&  $.  '\  !P
+XM !LJ8S4U11LH<S@U5P0 #@$      !< $@ 7 $P/_X /_X  !P  !P  !@  
+XM!@  #   #   #   &   &   .   ,   ,   <   <   8   8   X   X   
+XMX   X  !   ;*F,U-D4;*',X.%<$  X!       8 !( & !, "   /@  XX 
+XM P< !P< !P< !P< !P<  P8  00  ?P  ?P  8X  P8 !@< !@, #@. #@. 
+XM!@, !@, !P<  08  ?P  '  &RIC-3=%&RAS.#A7!  . 0      &  2 !@ 
+XM3 !@  'X  /\  <&  8'  X'  X'  X'  X'  X'  X'  8'  <'  /_  '_
+XM  !'   '   '   '  @&  <&  <,  /X  #@ !LJ8S4X11LH<S8T5P0 #@$ 
+XM     !$ $@ 0 $P <   <   <                                   
+XM        <   <   <  ;*F,U.44;*',X,E<$  X!       1 !( %@!, .  
+XM .   &                                               /   /  
+XM '   "       $       (  &RIC-C!%&RAS-C%7!  . 0      #P 2  \ 
+XM3  !   "@  ,   0  !@  "   .   ^   "   !@   8   &   !        
+XM@!LJ8S8Q11LH<S0S5P0 #@$       X $@ ) $P/_P /_P              
+XM       /_P /_P ;*F,V,D4;*',V,5<$  X!       0 !( #P!,"   !   
+XM @   8   $   #    @   X   T  !   "   ,   P  #   "   &RIC-C-%
+XM&RAS.#57!  . 0      &  2 !< 3 #P  /\  <.  8&  8&  X'   &   .
+XM   .   <   8   P  !@  #@  #   #   #               #   '   ' 
+XM !LJ8S8T11LH<S8W5P0 #@$      !, $@ 1 $P ,  !S@ & 0 ( (   @ 0
+XM<$  C  !"  A"$ !"  !$( 0@P  1  (   & P !G   8  ;*F,V-44;*',X
+XM-5<$  X!       8 !( %P!, /   /   ?@  ?@  9@  9@  9@  QP  PP 
+XM PP  PP  PP !PX !PX !PX !_X !_X #@< #@< # , # , # , ' . &RIC
+XM-C9%&RAS.#57!  . 0      &  2 !< 3 _P  _\  X>  X.  X'  X'  X'
+XM  X&  X.  X,  _\  _\  X.  X'  X'  X'  X'  X'  X'  X'  X.  _\
+XM  _X !LJ8S8W11LH<S@X5P0 #@$      !@ $@ 8 $P ^  !C@ 'C@ '!P .
+XM X . X . X .   .   .   .   .   .   .   .   .   . X . X . X .
+XM X '!P 'CP #_@  ^  ;*F,V.$4;*',X-5<$  X!       8 !( %P!,'_  
+XM'_P '!X ' < ' < ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . 
+XM' . ' . ' < ' < ' X '_P '_@ &RIC-CE%&RAS.#57!  . 0      &  2
+XM !< 3 __  __  __  X   X   X   X   X   X   X   _^  _^  X   X 
+XM  X   X   X   X   X   X   __  __  __ !LJ8S<P11LH<S@U5P0 #@$ 
+XM     !@ $@ 7 $P/_P /_P /_P .   .   .   .   .   .   .   /_@ /
+XM_@ .   .   .   .   .   .   .   .   .   .   .   ;*F,W,44;*',X
+XM.%<$  X!       8 !( & !, /@  ?P  X8 !P, !@, #@, #@. #@  #@  
+XM#@  #@  #@  #A^ #A^ #@. #@. #@. #@. #@. !@. !P>  X^  ?F  /  
+XM&RIC-S)%&RAS.#57!  . 0      &  2 !< 3 X'  X'  X'  X'  X'  X'
+XM  X'  X'  X'  X'  __  __  X'  X'  X'  X'  X'  X'  X'  X'  X'
+XM  X'  X' !LJ8S<S11LH<S@R5P0 #@$      !< $@ 6 $P#_   X   X   
+XMX   X   X   X   X   X   X   X   X   X   X   X   X   X   X   
+XMX   X   X  #_  ;*F,W-$4;*',X.%<$  X!       8 !( & !,  <   < 
+XM  <   <   <   <   <   <   <   <   <   <   <   <   <   <   < 
+XM!P< !P< !P<  P8  XX  ?P  '  &RIC-S5%&RAS.3%7!  . 0      &0 2
+XM !D 3    !P' !P& !P. !P< !P< !PX !PP !QP !Q@ !_@ !_@ !_@ !_P
+XM !_P !XP !XX !P8 !P< !P, !P. !P. !P' !P'     !LJ8S<V11LH<S@U
+XM5P0 #@$      !@ $@ 7 $P.   .   .   .   .   .   .   .   .   .
+XM   .   .   .   .   .   .   .   .   .   .   /_P /_P /_P ;*F,W
+XM-T4;*',X-5<$  X!       8 !( %P!,' . ' . ' . '@> '@> '@> 'P^ 
+XM'P^ 'Y^ 'YV &_V &_F &?& &/& &/& &/& &&& &&& &&& &"& & & & & 
+XM& & &RIC-SA%&RAS.#57!  . 0      &  2 !< 3!X#@!X#@!X#@!\#@!\#
+XM@!^#@!^#@!_#@!W#@!W#@!SC@!QC@!QS@!P[@!P[@!P?@!P?@!P/@!P/@!P'
+XM@!P#@!P#@!P#@!LJ8S<Y11LH<S@X5P0 #@$      !@ $@ 8 $P!^  #_@ '
+XM#@ .!P . X < X < X < X < X < X < X < X < X < X < X < X < X <
+XM X < X , X .!P '#@ #_  !^  ;*F,X,$4;*',X-5<$  X!       8 !( 
+XM%P!,'_@ '_X ' \ ' < ' < ' > ' > ' > ' < ' < ' X '_P '_  '   
+XM'   '   '   '   '   '   '   '   '   &RIC.#%%&RAS.317!  . 0  
+XM    &  2 !H 3 #@  /X  <<  X,  P. !P& !P' !P' !P' !P' !P' !P'
+XM !P' !P' !P' !P' !P' !P' !P& !P.  P>  X\  ?^  /W   #@  ! !LJ
+XM8S@R11LH<S@U5P0 #@$      !@ $@ 7 $P/\  /_  .#@ .!P .!P .!P .
+XM!P .!P .!P .!@ .'  /_  .'  .!@ .!P . P . P . P . P . P . P .
+XM P . X ;*F,X,T4;*',X.%<$  X!       8 !( & !, /   _P !PX #@< 
+XM'@< '@< '@< #@  !P   X   >   /   '@  !P   X   < # > ' > ' > 
+XM#@> #@< !PX  _P  /@ &RIC.#1%&RAS.#57!  . 0      &  2 !< 3!__
+XMP!__P!__P !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P
+XM  !P  !P  !P  !P  !P  !P  !P !LJ8S@U11LH<S@X5P0 #@$      !@ 
+XM$@ 8 $P< X < X < X < X < X < X < X < X < X < X < X < X < X <
+XM X < X < X < X < X < X . X /!P '_P #_   <  ;*F,X-D4;*',X-5<$
+XM  X!       8 !( %P!,. ' & & ' & ' & ' . # , # , #@, #@, !@8 
+XM!@8 !P8 !P8  PP  PP  XP  XP  8P  =@  ?@  ?@  /@  /  &RIC.#=%
+XM&RAS.#57!  . 0      &  2 !< 3!@@P!A@@!AA@!AA@!AA@!AA@!AA@!AQ
+XM@ QQ@ QQ@ SQ@ SY@ [Y  _?  >?  >?  <.  <.  <.  <.  <.  <.  ,&
+XM !LJ8S@X11LH<S@X5P0 #@$      !@ $@ 8 $P, P .!P &!@ &!@ ##  #
+XM#  #C  !^  !^   \   \   \   \   \  !^  !^  #'  ##  ##  &!@ &
+XM!@ ,!P , P 8 8 ;*F,X.44;*',X.%<$  X!       9 !( & !,    ' & 
+XM' . #@, #@, !@8 !P8  PX  XP  ?P  ?@  /@  /   '   '   '   '  
+XM '   '   '   '   '   '   '  &RIC.3!%&RAS.#57!  . 0      &  2
+XM !< 3 ?_@ ?_@  '@  '   /   .   ,   <   8   X   P  !P  !@  #@
+XM  #   '   .   .   <   <   \   __@ __@!LJ8SDQ11LH<SDT5P0 #@$ 
+XM     !@ $@ : $P!^  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !
+XMP  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !^  ;
+XM*F,Y,D4;*',Y-U<$  X!       9 !( &P!,    "   "   !   !    @  
+XM @   0   0   (   (   $   $   "   "   !   !    @   @   0   0 
+XM  (   (   $   $         &RIC.3-%&RAS.317!  . 0      &  2 !H 
+XM3 'X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+XM   X   X   X   X   X   X   X   X   X   X  'X !LJ8SDT11LH<S0S
+XM5P0 #@$      !< $@ ) $P (   (   <   B  !!  !!  " @ $ 0     ;
+XM*F,Y-44;*',R,E<$  X!     /_^ !(  @!,/_^ /_^ &RIC.39%&RAS-#-7
+XM!  . 0      &  2  D 3 !@   @   @   0   0   0   (   (   0 !LJ
+XM8SDW11LH<S<P5P0 #@$      !( $@ 2 $P ^  #_@ '!@ .!P .!P  !P  
+XM#P  /P  QP #!P '!P .!P .!P .!P .!P .#P '_P !@P ;*F,Y.$4;*',X
+XM.%<$  X!       8 !( & !,!@  #P  #P  #P  #P  #P  #P  #_P #XX 
+XM#P< #P< #P> #P> #P> #P> #P> #P> #P> #P> #P< #P< #X\ #_X #OP 
+XM&RIC.3E%&RAS-S!7!  . 0      $@ 2 !( 3 #P  /\  <.  \/  \'  \'
+XM  \   \   \   \   \   \   \'  \'  \'  <.  /\  #X !LJ8S$P,$4;
+XM*',X.%<$  X!       8 !( & !,  >   >   >   >   >   >  <>  _^ 
+XM!X^ !P> !P> #P. #P. #P. #P. #P. #P. #P. #P. !P> !P>  X^  _N 
+XM /. &RIC,3 Q11LH<S<P5P0 #@$      !( $@ 2 $P >  !_@ #CP '!P &
+XM X . X . X /_X /_X .   .   .   .   & X ' P 'AP #_@  ^  ;*F,Q
+XM,#)%&RAS.#57!  . 0      &  2 !< 3 !_  #_  #@  #@  #@  #@  __
+XM  __  '@  '@  '@  '@  '@  '@  '@  '@  '@  '@  '@  '@  '@  '@
+XM  '@ !LJ8S$P,T4;*',X.%<$  X!       2 !( & !, ..  ^^ !_^ !P^ 
+XM!@> #@> #@> #@> #@> #@> #@> #@> #@> #@> !P> !P^  _^  <>   < 
+XM  <   < !P8  _P  '  &RIC,3 T11LH<S@U5P0 #@$      !@ $@ 7 $P'
+XM   /   /   /   /   /   /'@ /_P /AP /!X /!X /!X /!X /!X /!X /
+XM!X /!X /!X /!X /!X /!X /!X /!X ;*F,Q,#5%&RAS.#57!  . 0      
+XM&  2 !< 3 !@  #P  !@              !@  #P  #P  #P  #P  #P  #P
+XM  #P  #P  #P  #P  #P  #P  #P  #P  #P  #P !LJ8S$P-D4;*',Q,#97
+XM!  . 0      &  2 !X 3  X   X   X                   X   X   X
+XM   X   X   X   X   X   X   X   X   X   X   X   X   X   X   X
+XM   X   X  !X  'P  #  !LJ8S$P-T4;*',X-5<$  X!       8 !( %P!,
+XM#@  #@  #@  #@  #@  #@  #@< #@X #@P #AP #A@ #S  #W  #^  #_  
+XM#S@ #Q@ #Q@ #AP #@P #@X #@X #@< &RIC,3 X11LH<S@U5P0 #@$     
+XM !@ $@ 7 $P X   X   X   X   X   X   X   X   X   X   X   X   
+XMX   X   X   X   X   X   X   X   X   \   ?  ;*F,Q,#E%&RAS-C=7
+XM!  . 0      $@ 2 !$ 3!C& !__ !__@!CC@!AA@!AA@!AA@!AA@!AA@!AA
+XM@!AA@!AA@!AA@!AA@!AA@!AA@!AA@!LJ8S$Q,$4;*',V-U<$  X!       2
+XM !( $0!,!AP #_X #P\ #@< #@< #@< #@< #@< #@< #@< #@< #@< #@< 
+XM#@< #@< #@< #@< &RIC,3$Q11LH<S<P5P0 #@$      !( $@ 2 $P ^  #
+XM_@ 'CP '!P /!X . X . X . X . X . X . X . X . X / X '!P 'CP #
+XM_@  ^  ;*F,Q,3)%&RAS.#A7!  . 0      $@ 2 !@ 3     9\  ?^  >/
+XM  <'  <'@ <'@ <#@ <#@ <#@ <#@ <#@ <#@ <'@ <'  >/  ?^  <\  < 
+XM  <   <   <   <   <  !LJ8S$Q,T4;*',X.%<$  X!       2 !( & !,
+XM     _^ !_\ !X\ #P< #@< #@< #@< # < #@< #@< #@< #@< #P< !P< 
+XM!X<  _\  ><   <   <   <   <   <   < &RIC,3$T11LH<S8W5P0 #@$ 
+XM     !( $@ 1 $P' P '#P ''@ '^  'P  '@  '@  '@  '@  '@  '@  '
+XM@  '@  '@  '@  '@  '@  ;*F,Q,35%&RAS-S!7!  . 0      $@ 2 !( 
+XM3 #P  /\  <.  8&  X'  X   <   /   '@  !X   \   .   '  X'  X'
+XM  <.  /\  #X !LJ8S$Q-D4;*',X,E<$  X!       7 !( %@!, '   '  
+XM '   '   '  !_\ !_\  '   '   '   '   '   '   '   '   '   '  
+XM '   '   '   'X  #\ &RIC,3$W11LH<S<P5P0 #@$      !( $@ 2 $P.
+XM!P .!P .!P .!P .!P .!P .!P .!P .!P .!P .!P .!P .!P .#P .#P '
+XM_P 'YP     ;*F,Q,3A%&RAS-C=7!  . 0      $@ 2 !$ 3!P#@ X#  X'
+XM  X'  X'  8&  <.  <.  <,  ,,  ,,  .<  .8  'X  'P  #@  !@ !LJ
+XM8S$Q.44;*',V-U<$  X!       2 !( $0!,&"# """ #&& #&& #'& #'& 
+XM#'& !'$ !OD !OL !J\ !X\ !X\  XX  XX  XX  P8 &RIC,3(P11LH<S<S
+XM5P0 #@$      !, $@ 3 $P    .!P '!@ '#@ #C  !G  !^   \   \   
+XM\   \   \  !V  !F  ##  '#@ &!@ .!P < X ;*F,Q,C%%&RAS.#A7!  .
+XM 0      $@ 2 !@ 3 P!@!X#@ X#  X'  8&  8&  <&  ,.  ,,  ,,  &,
+XM  &,  '8  '8  #8  #P  #P  #P  #P  #@  #@  '   ^   (  !LJ8S$R
+XM,D4;*',V-U<$  X!       2 !( $0!,#_^ #_^   <   X  !X  !P  #@ 
+XM '@  '   .   >   <   X  !X  #P  #_^ #_^ &RIC,3(S11LH<S@X5P0 
+XM#@$      !< $@ 8 $P #P  $   (   (   (   (   (   (   (   (   
+XM0  !P  !P   0   (   (   (   (   (   (   (   (   $   #P ;*F,Q
+XM,C1%&RAS.#)7!  . 0      %P 2 !8 3 !@  !@  !@  !@  !@  !@  !@
+XM  !@  !@  !@          !@  !@  !@  !@  !@  !@  !@  !@  !@  !@
+XM !LJ8S$R-44;*',X.%<$  X!       8 !( & !,    #X   ,   $   $  
+XM $   $   $   &   &   "   !   !@  !   "   &   &   $   $   $  
+XM $   $   ,  #X  &RIC,3(V11LH<S(X5P0 #@$      !< $@ $ $P"   %
+XM@( (88 0'P ;*F,Q,C=%&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$R
+XM.$4;*',Q.5<$  X!       ! !(  0!,    &RIC,3(Y11LH<S$Y5P0 #@$ 
+XM      $ $@ ! $P    ;*F,Q,S!%&RAS,3E7!  . 0       0 2  $ 3   
+XM !LJ8S$S,44;*',Q.5<$  X!       ! !(  0!,    &RIC,3,R11LH<S$Y
+XM5P0 #@$       $ $@ ! $P    ;*F,Q,S-%&RAS,3E7!  . 0       0 2
+XM  $ 3    !LJ8S$S-$4;*',Q.5<$  X!       ! !(  0!,    &RIC,3,U
+XM11LH<S$Y5P0 #@$       $ $@ ! $P    ;*F,Q,S9%&RAS,3E7!  . 0  
+XM     0 2  $ 3    !LJ8S$S-T4;*',Q.5<$  X!       ! !(  0!,    
+XM&RIC,3,X11LH<S$Y5P0 #@$       $ $@ ! $P    ;*F,Q,SE%&RAS,3E7
+XM!  . 0       0 2  $ 3    !LJ8S$T,$4;*',Q.5<$  X!       ! !( 
+XM 0!,    &RIC,30Q11LH<S$Y5P0 #@$       $ $@ ! $P    ;*F,Q-#)%
+XM&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$T,T4;*',Q.5<$  X!    
+XM   ! !(  0!,    &RIC,30T11LH<S$Y5P0 #@$       $ $@ ! $P    ;
+XM*F,Q-#5%&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$T-D4;*',Q.5<$
+XM  X!       ! !(  0!,    &RIC,30W11LH<S$Y5P0 #@$       $ $@ !
+XM $P    ;*F,Q-#A%&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$T.44;
+XM*',Q.5<$  X!       ! !(  0!,    &RIC,34P11LH<S$Y5P0 #@$     
+XM  $ $@ ! $P    ;*F,Q-3%%&RAS,3E7!  . 0       0 2  $ 3    !LJ
+XM8S$U,D4;*',Q.5<$  X!       ! !(  0!,    &RIC,34S11LH<S$Y5P0 
+XM#@$       $ $@ ! $P    ;*F,Q-31%&RAS,3E7!  . 0       0 2  $ 
+XM3    !LJ8S$U-44;*',Q.5<$  X!       ! !(  0!,    &RIC,34V11LH
+XM<S$Y5P0 #@$       $ $@ ! $P    ;*F,Q-3=%&RAS,3E7!  . 0      
+XM 0 2  $ 3    !LJ8S$U.$4;*',Q.5<$  X!       ! !(  0!,    &RIC
+XM,34Y11LH<S$Y5P0 #@$       $ $@ ! $P    ;*F,Q-C!%&RAS,3E7!  .
+XM 0       0 2  $ 3    !LJ8S$V,44;*',Q,#E7!  . 0      (  2 !\ 
+XM3             !    @   0   (      #P  #P  'X  'X  'X  'X  'X
+XM  ,<  ,,  ,,  ,,  ,,  <.  <.  <.  ?^  ?^  X'  X'  P#  P#  P#
+XM !P#@!LJ8S$V,D4;*',Q,3)7!  . 0      (0 2 "  3              @
+XM  !   "   $           #P  #P  'X  'X  'X  'X  'X  ,<  ,,  ,,
+XM  ,,  ,,  <.  <.  <.  ?^  ?^  X'  X'  P#  P#  P# !P#@!LJ8S$V
+XM,T4;*',Q,3)7!  . 0      (0 2 "  3                 !    @   0
+XM   (      __  __  __  X   X   X   X   X   X   X   _^  _^  _^
+XM  X   X   X   X   X   X   X   X   __  __ !LJ8S$V-$4;*',Q,3)7
+XM!  . 0      (0 2 "  3              @  !   "   $           __
+XM  __  __  X   X   X   X   X   X   X   _^  _^  _^  X   X   X 
+XM  X   X   X   X   X   __  __ !LJ8S$V-44;*',Q,#-7!  . 0      
+XM'@ 2 !T 3             ,,  ,,      __  __  __  X   X   X   X 
+XM  X   X   X   _^  _^  X   X   X   X   X   X   X   X   __  __
+XM  __ !LJ8S$V-D4;*',Q,3)7!  . 0      (0 2 "  3               
+XM       @  !P  #8  ,&      /^  !P  !P  !P  !P  !P  !P  !P  !P
+XM  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  !P  /^ !LJ8S$V
+XM-T4;*',Q,#-7!  . 0      '@ 2 !T 3         ,,  ,,            
+XM  ?^  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@
+XM  #@  #@  #@  #@  #@  #@  /\ !LJ8S$V.$4;*',S-U<$  X!       9
+XM !( !P!,     !@  !   "   $   (   8  &RIC,38Y11LH<S,W5P0 #@$ 
+XM     !D $@ ' $P     P   0   (   (   $   &  ;*F,Q-S!%&RAS-#-7
+XM!  . 0      %P 2  D 3      @  !P  "(  $$  $$  ("  0!     !LJ
+XM8S$W,44;*',R.%<$  X!       8 !( ! !,    !PX !PX !PX &RIC,3<R
+XM11LH<S(X5P0 #@$      !< $@ $ $P"   %@( (88 0'P ;*F,Q-S-%&RAS
+XM,3$R5P0 #@$      "  $@ @ $P     P   (   (   $   &          <
+XM X < X < X < X < X < X < X < X < X < X < X < X < X < X < X <
+XM X < X < X < X . X .!P '#P #_@  ^  ;*F,Q-S1%&RAS,3$U5P0 #@$ 
+XM     "$ $@ A $P         0   @  !   "   $           < X < X <
+XM X < X < X < X < X < X < X < X < X < X < X < X < X < X < X <
+XM X < X . X .!P '#P #_@  ^  ;*F,Q-S5%&RAS.#57!  . 0      &  2
+XM !< 3 <   <   <   <   <   <   <   <   <   <   <  !_@ !_@  < 
+XM  <   <   <   <   <   <   <   ?_@ ?_@!LJ8S$W-D4;*',R-5<$  X!
+XM       + !(  P!,/_^ /_^ /_^ &RIC,3<W11LH<S$Y5P0 #@$       $ 
+XM$@ ! $P    ;*F,Q-SA%&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$W
+XM.44;*',S-%<$  X!       8 !( !@!, /@  (   (P  (   (   /@ &RIC
+XM,3@P11LH<S$Q.%<$  X!       8 !( (@!, /@  _X !X\ !P< #@. #@. 
+XM#@  #@  #@  #@  #@  #@  #@  #@  #@  #@  #@. #@. #@. #@, !P< 
+XM XX  ?P  '@  "   "   "   !   !   !@   @   @  !@  /  &RIC,3@Q
+XM11LH<S$P,%<$  X!       2 !( ' !, /   _P !PX #P< #P< #P  #P  
+XM#P  #P  #P  #P  #P  #P< #P< #P< !PX  _P  /   $   $   $   $  
+XM &   "   #   !   !   .  &RIC,3@R11LH<S$P,U<$  X!       > !( 
+XM'0!, @! !<" "#" $ \         #@& #@& #P& #P& #X& #X& #<& #<& 
+XM#,& #.& #&& #'& ##& ##F #!V #!^ # ^ # ^ # > # . # . # & # & 
+XM&RIC,3@S11LH<S@U5P0 #@$      !@ $@ 7 $P' $ (P  0,8  #@      
+XM   &'  /_@ /#P /!P /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X /
+XM!X /!X /!X ;*F,Q.#1%&RAS.#57!  . 0      %@ 2 !< 3 !P  !P  !P
+XM               @   @   @   @   @   @  !P  !P  !P  !P  !P  !P
+XM  !P  !P  !P  !P  !P !LJ8S$X-44;*',X-5<$  X!       7 !( %P!,
+XM #@  #@  #@              #   #   #   '   &   ,   <   X   P  
+XM!P  !@  #@8 !@< !P8  PX  _P  /  &RIC,3@V11LH<S$Y5P0 #@$     
+XM  $ $@ ! $P    ;*F,Q.#=%&RAS.#57!  . 0      &  2 !< 3 <   < 
+XM  <   <   <   <   <   <   <   <   <  !_@ !_@  <   <   <   < 
+XM  <   <   <   <   ?_@ ?_@!LJ8S$X.$4;*',X.%<$  X!       9 !( 
+XM& !,    ' & ' . #@, #@, !@< !P8 !XX  ]P  ?P  ?@  /   /   '  
+XM!_\  '   '   '   '   '   '   '   '   '  &RIC,3@Y11LH<SDW5P0 
+XM#@$      !L $@ ; $P <  !_  #C@ '!P '!P #   !   !P  !X  #^  $
+XM'@ ,#P ,!P , X . P ' P #Q@ !_   ?   /   '@  #@ <#@ ,#@ &#  #
+XM^   X  ;*F,Q.3!%&RAS,3E7!  . 0       0 2  $ 3    !LJ8S$Y,44;
+XM*',Y,5<$  X!       5 !( &0!,      (   (  &(  ?X !PX !P\ #P\ 
+XM#P\ #Q@ #_@ #P  #P  #^  #]@ #P< #P< #X< !_X  _X  _@  P   @  
+XM @      &RIC,3DR11LH<S$P,%<$  X!       < !( ' !, "   &   )  
+XM 8@  0@  @0 ! ( " $          ?@  _X !@< #@< # <   <   \  #\ 
+XM ,<  P< !@< #@< #@< #@< #@< #@\ !_\  8  &RIC,3DS11LH<S$P,%<$
+XM  X!       < !( ' !, "   &   '   (@  00  P(  @( # &         
+XM /P  _X  P< !P< !P. #P. #P. #_^ #_^ #@  #@  #@  #@, !P. !P< 
+XM P<  ?P  '  &RIC,3DT11LH<S$P,%<$  X!       < !( ' !, "   &  
+XM '   (@  00  P   @( # &          /@  _X !X< !P< #P. #P. #@. 
+XM#@. #@. #@. #@. #@. #@. #@. !P< !X\  _X  '  &RIC,3DU11LH<SDW
+XM5P0 #@$      !L $@ ; $P (   <   T   B  !!  " @ & P ( 8      
+XM   /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X /!X '
+XMCX #_X !@  ;*F,Q.39%&RAS.3=7!  . 0      &P 2 !L 3  0   P   @
+XM  !   "   &               'X  /^  8'  X'   '   '   /   _  ''
+XM  ,'  8'  X'  X'  X'  X'  X/  ?W  'G !LJ8S$Y-T4;*',Y-U<$  X!
+XM       ; !( &P!,  @  !@  #   &   ,   (               /P  _X 
+XM X< !P< !P. #P. #P. #_^ #_^ #@  #@  #@  #@. !P. !P<  X8  ?P 
+XM #  &RIC,3DX11LH<SDW5P0 #@$      !L $@ ; $P $   $   (   0   
+XM@   @              !_  #_@ '!P '!P . X . X . X . X . X . X .
+XM X . X . X /!X '!P 'CP #_@  <  ;*F,Q.3E%&RAS.3=7!  . 0      
+XM&P 2 !L 3          P  !@  !   "   &               X'  X'  X'
+XM  X'  X'  X'  X'  X'  X'  X'  X'  X'  X/  X/  \/  ?W  'G !LJ
+XM8S(P,$4;*',Y-U<$  X!       ; !( &P!, $   ,   $   "   !   !  
+XM  @          ?@  _X !@< #@<   <   <   \  #\  <<  P< !@< #@< 
+XM#@< #@< #@< #@\ !_<  >< &RIC,C Q11LH<S$P,%<$  X!       < !( 
+XM' !, "       ,   "       !    @              /P  _X  X< !P< 
+XM!P. #@. #@. #_^ #_^ #@  #@  #@  #@. !P. !P<  X8  ?P  '  &RIC
+XM,C R11LH<SDW5P0 #@$      !L $@ ; $P 0   P   (   $   "   "   
+XM           !_  #_@ '!P '!P . X . X . X . X . X . X . X . X .
+XM X .!X '!P 'CP #_@  <  ;*F,R,#-%&RAS.317!  . 0      &@ 2 !H 
+XM3 !   #   !@   @   0   (   (          X'  X'  X'  X'  X'  X'
+XM  X'  X'  X'  X'  X'  X'  X/  X/  \/  ?W  'G !LJ8S(P-$4;*',Y
+XM,5<$  X!       9 !( &0!,    !PX !PX !PX              ?@  _X 
+XM!@\ # <   <   <   \  #\  <<  P< !@< #@< #@< #@< #@< !@\ !_< 
+XM ^< &RIC,C U11LH<S@X5P0 #@$      !@ $@ 8 $P    !A@ !A@ !A@  
+XM        >  !_  #C@ '!P & P & X . X .!X /_X .   .   .   .   .
+XM X ' P 'AP #_@  ^  ;*F,R,#9%&RAS.3%7!  . 0      &0 2 !D 3   
+XM  &&  &&  &&              '\  /^  <'  <'@ X#@ X#@ X#@ X#@ X#
+XM@ X#@ X#@ X#@ X#@ \'@ <'  ./  /^  #X !LJ8S(P-T4;*',X.%<$  X!
+XM       8 !( & !,    !PX !PX !PX             #@< #@< #@< #@< 
+XM#@< #@< #@< #@< #@< #@< #@< #@< #@\ #@\ !P\  _<  >< &RIC,C X
+XM11LH<S$P-E<$  X!       ? !( '@!, /   (   (@  (   (   /   /  
+XM /   /   /@  ?@  ;@  ;@  ;@  QP  PP  PP  PP  PP !PX !PX !PX 
+XM!_X !_X #@< #@< # < # , # , ' . &RIC,C Y11LH<SDT5P0 #@$     
+XM !L $@ : $P 0   X  !D  !&  ""  $#  ( @          X   X   X   
+XMX   X   X   X   X   X   X   X   X   X   X   X   X   X  ;*F,R
+XM,3!%&RAS.317!  . 0      &0 2 !H 3  !@ '_  ?_  \/  X/ !P/ !P/
+XM !P/@!P/@!P?@!P?@!P_@!PW@!QG@!S'@!S'@!W'@!^'@!^'@!\'@!\'  X'
+XM  P.  _\  _P  P  !LJ8S(Q,44;*',X-5<$  X!       8 !( %P!, ?^ 
+XM ?^  _@  _@  _@  _@  C@ !C@ !C@ !C@ !C^ !C^ ##@ ##@ ##@ #_@ 
+XM#_@ '#@ &#@ &#@ &#^ &#^ .#^ &RIC,C$R11LH<SDT5P0 #@$      !H 
+XM$@ : $P \   @   B   @   @   \           ^  #_@ &!P .!P .!P  
+XM!P  #P  /P  QP #!P '!P .!P .!P .!P .!P .#P ']P !]P ;*F,R,3-%
+XM&RAS.317!  . 0      &P 2 !H 3  0   0   X  !@  "   "   $     
+XM      !@  #P  #P  #P  #P  #P  #P  #P  #P  #P  #P  #P  #P  #P
+XM  #P  #P  #P !LJ8S(Q-$4;*',X-5<$  X!       5 !( %P!,  "   & 
+XM  $  /\  _X !Q\ !P\ #P^ #P^ #@^ #AN #B. #B. #B. #\. #\. #X. 
+XM!P< !@<  _X  _@  @  !   &RIC,C$U11LH<S<P5P0 #@$      !( $@ 2
+XM $P#!@ /_X 8>( 0,$ P,$  ,$  <$  _\ #_\ $,  (,  0,  0,  P,$ P
+XM<, 8^, ?CX '!@ ;*F,R,39%&RAS,3 S5P0 #@$      !X $@ = $P    '
+XM#@ '#@ '#@          \   \  !^  !^  !^  !N  !N  #'  ##  ##  #
+XM#  ##  '#@ '#@ '#@ '_@ '_@ .!P .!P , P , P , P < X ;*F,R,3=%
+XM&RAS-C=7!  . 0      $@ 2 !$ 3 #P  #P  #P  #P  #P  #P  #P  #P
+XM  #P  #P  #P  #P  #P  #P  #P  #P  #P !LJ8S(Q.$4;*',Q,357!  .
+XM 0      (  2 "$ 3 ,$  <.  <.  <.               !@ '_  ?_  X?
+XM  X/ !P/ !P/@!P/@!P?@!P?@!P?@!P_@!PW@!QW@!Q'@!Q'@!^'@!^'@!^'
+XM@!\'@!\'  X'  X.  _\  _P  @  !LJ8S(Q.44;*',Q,#97!  . 0      
+XM'@ 2 !X 3     <.  <.  <.         !P#@!P#@!P#@!P#@!P#@!P#@!P#
+XM@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@ X#@ X'  </
+XM  /^  #X !LJ8S(R,$4;*',Q,3)7!  . 0      (0 2 "  3  0   0   H
+XM  !   "   "   $   $   $   __  __  X   X   X   X   X   X   X 
+XM  X   _^  _^  _^  X   X   X   X   X   X   X   X   __  __ !LJ
+XM8S(R,44;*',X-5<$  X!       8 !( %P!,!PX !PX !PX !PX         
+XM /   /   /   /   /   /   /   /   /   /   /   /   /   /   /  
+XM /   /  &RIC,C(R11LH<S$P-E<$  X!       8 !( '@!,#^  #_P #_X 
+XM#@X #@< #@< #@< #@8 #@8 #@P #AP #CP #CX #@X #@< #@< #@< #@< 
+XM#@< #@< #@X #CX #O@ #@  #@  #@  #@  #@  #@  #@  &RIC,C(S11LH
+XM<S$P.5<$  X!       > !( 'P!,     ?_   '   &   &   $  ?\ !_\ 
+XM#P\ #@\ ' \ ' \ ' \ '!\ '!\ '!\ '#\ '#< ''< '$< '$< 'X< 'X< 
+XM'X< 'P< 'P< #P< #PX #_P #_  #   &RIC,C(T11LH<S$Q,E<$  X!    
+XM   A !( ( !, !   !   #@  &   $   (   0           /   /   ?@ 
+XM ?@  ?@  ;@  ;@  QP  PP  PP  PP  PP !PX !PX !PX !_X !_X #@< 
+XM#@< # , # , # , ' . &RIC,C(U11LH<S$P,%<$  X!       = !( ' !,
+XM    '_^ '_^  /   /   /   /   ?@  ?@  ?@  ;@  ;@  QP  PP  PP 
+XM PP  PP !PX !PX !PX !_X !_X #@< #@< # , # , # , ' . &RIC,C(V
+XM11LH<S@U5P0 #@$      !< $@ 7 $P/_P /_P              \  #_@ &
+XM!@ .!P .!P  !P  #P  /P  QP #!P '!P .!P .!P >!P .!P .#P '_P !
+XM@P ;*F,R,C=%&RAS.#57!  . 0      &  2 !< 3#__@#__@!Q^ !P. !P'
+XM !P' !P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P' !P'
+XM !P. !_^ !_X !LJ8S(R.$4;*',X.%<$  X!       8 !( & !,'__ '__ 
+XM  >   >   >   >  (>  _^ !X^ !P> !P> #P> #P. #P. #P. #P. #P. 
+XM#P. #P. !P> !P> !P^  _N  <. &RIC,C(Y11LH<S$P.5<$  X!       @
+XM !( 'P!, !   #@  "   $   (   8              !_X  .   .   .  
+XM .   .   .   .   .   .   .   .   .   .   .   .   .   .   .  
+XM .   .   _P &RIC,C,P11LH<S$P.5<$  X!       @ !( 'P!, $   <  
+XM $   "   !    @   @         !_X  .   .   .   .   .   .   .  
+XM .   .   .   .   .   .   .   .   .   .   .   .   .   _P &RIC
+XM,C,Q11LH<S$Q-5<$  X!       A !( (0!, !   #@  "   $   (   8  
+XM             ?@ !_X #P< #@, '@. ' . ' . ' . ' . ' . ' . ' . 
+XM' . ' . ' . ' . ' . ' . ' . #@. #@< !PX  _P  '  &RIC,C,R11LH
+XM<S$Y5P0 #@$       $ $@ ! $P    ;*F,R,S-%&RAS,3E7!  . 0      
+XM 0 2  $ 3    !LJ8S(S-$4;*',Q,357!  . 0      (0 2 "$ 3 !   # 
+XM  !@   @   0   (   (          'X  ?^  \'  X# !X#@!P#@!P#@!P#
+XM@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@!P#@ X#@ X'  <.  /\
+XM  !P !LJ8S(S-44;*',Q,#97!  . 0      '@ 2 !X 3 < @ C @! Q   /
+XM          #X  /^  <'  X#@ X#@ X#@ X#@ X#@ X#@ X#@ X#@ X#@ X#
+XM@ X#@ X#@ X#@ X#@ X#@ X#@ X#@ X#@ <'  /^  #X !LJ8S(S-D4;*',X
+XM.%<$  X!       8 !( & !,!P" "," $#$   X          /@  _X !P< 
+XM!P< #@> #@. #@. #@. #@. #@. #@. #@. #@. #@> !P< !P<  _X  /@ 
+XM&RIC,C,W11LH<S$Q.%<$  X!       B !( (@!," $ !@(  @0  0@  /  
+XM &   &               ?@  _P !PX #@< #@< '@< #@, !@  !P   \  
+XM >   '   #@  !P   X   < ' < ' > # < #@< #@< !PX  _P  /  &RIC
+XM,C,X11LH<S$P,U<$  X!       = !( '0!,  $ " ( ! 0  @@  1   1  
+XM .   $               ?  !_P #@P #@X #@8 #@  !P   X   >   '@ 
+XM #P   X   X # \ # X !@P  _@  .  &RIC,C,Y11LH<S$Q-5<$  X!    
+XM   A !( (0!, !   !   #@  &   $   (   8          ' . ' . ' . 
+XM' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . ' . 
+XM' . #@. #@< !P\  _X  /@ &RIC,C0P11LH<S$P,U<$  X!       > !( 
+XM'0!,    !PX !PX !PX         ' ' ' & # , #@, !@8 !P8  PX  XP 
+XM ?P  ?@  ?@  /@  /   '   '   '   '   '   '   '   '   '   '  
+XM&RIC,C0Q11LH<S$P-E<$  X!       8 !( '@!,    !PX !PX !PX     
+XM        '@. #@, #@< !@< !@8 !P8 !PX  PP  PP  XP  YP  9@  9@ 
+XM ?@  /@  /   /   /   .   .   .  #\  !P  &RIC,C0R11LH<S$Y5P0 
+XM#@$       $ $@ ! $P    ;*F,R-#-%&RAS,3E7!  . 0       0 2  $ 
+XM3    !LJ8S(T-$4;*',Q.5<$  X!       ! !(  0!,    &RIC,C0U11LH
+XM<S$Y5P0 #@$       $ $@ ! $P    ;*F,R-#9%&RAS,3E7!  . 0      
+XM 0 2  $ 3    !LJ8S(T-T4;*',Q.5<$  X!       ! !(  0!,    &RIC
+XM,C0X11LH<S(U5P0 #@$       L $@ # $P__X __X __X ;*F,R-#E%&RAS
+XM,3E7!  . 0       0 2  $ 3    !LJ8S(U,$4;*',Q.5<$  X!       !
+XM !(  0!,    &RIC,C4Q11LH<S$Y5P0 #@$       $ $@ ! $P    ;*F,R
+XM-3)%&RAS,S17!  . 0      &  2  8 3 #X  "   "$  "   "   #X !LJ
+XM8S(U,T4;*',U.%<$  X!       0 !( #@!,         $$  ((  00  @@ 
+XM!!  '#  !!   @@  00  ((  $$     &RIC,C4T11LH<S<V5P0 #@$     
+XM !P $@ 4 $P     8   8   8   8   8   8  /_P /_P  8   8   8   
+XM8   8   8   8   8  /_P /_P     ;*F,R-35%&RAS-3A7!  . 0      
+XM#P 2  X 3         ((  $$  ""  !!  !A@ !!  ""  $$  ((        
+X$      X 
+X 
+Xend
+END_OF_FILE
+if test 25267 -ne `wc -c <'./lp.sfp.UU'`; then
+    echo shar: \"'./lp.sfp.UU'\" unpacked with wrong size!
+fi
+# end of './lp.sfp.UU'
+fi
+if test -f './mem.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./mem.c'\"
+else
+echo shar: Extracting \"'./mem.c'\" \(335 characters\)
+sed "s/^X//" >'./mem.c' <<'END_OF_FILE'
+X/*	Adapter clone routines */
+X
+X#ifdef	NOMEM
+X
+Xmemcpy(to, from, len)
+Xchar *to, *from;
+Xint len; {
+X    /* Well, yeah, I could use Duff's device, but what the hey,
+X       it's *your* fault for not having a decent O/S */
+X    while(len--) *to++ = *from++;
+X}
+X
+Xmemset(buf, c, cnt)
+Xchar *buf, c;
+Xint cnt; {
+X    while(cnt--) *buf++ = c;
+X}
+X
+X#endif
+END_OF_FILE
+if test 335 -ne `wc -c <'./mem.c'`; then
+    echo shar: \"'./mem.c'\" unpacked with wrong size!
+fi
+# end of './mem.c'
+fi
+if test -f './pbm2e24.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./pbm2e24.c'\"
+else
+echo shar: Extracting \"'./pbm2e24.c'\" \(3421 characters\)
+sed "s/^X//" >'./pbm2e24.c' <<'END_OF_FILE'
+X#include <stdio.h>
+X#include <varargs.h>
+X
+X/*
+X	version 1.00, Copyright (C) 1991, klaus schallhorn, <klaus@cnix.uucp>
+X
+X	Permission to use, copy, modify, and distribute this software and its
+X	documentation for any purpose and without fee is hereby granted, provided
+X	that the above copyright notice appear in all copies and that both that
+X	copyright notice and this permission notice appear in supporting
+X	documentation.  This software is provided "as is" without express or
+X	implied warranty.
+X*/
+X
+X#ifndef	min
+X#define	min(a,b)	((a<b)?a:b)
+X#define	max(a,b)	((a>b)?a:b)
+X#endif
+X
+Xunsigned char io[512];
+Xunsigned char pixrow[24][512];
+Xunsigned char bitval[]=
+X{
+X	0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01,
+X	0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01,
+X	0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+X};
+X
+Xdie(va_alist)
+Xva_dcl
+X{
+X	va_list args;
+X	char *fmt;
+X
+X	va_start(args);
+X	fmt = va_arg(args, char *);
+X	fprintf(stderr,"pbmtoe24: ");
+X	vfprintf(stderr, fmt, args);
+X	va_end(args);
+X	exit(1);
+X}
+Xmain(ac,av)
+Xint ac;
+Xchar *av[];
+X{
+X	FILE *in;
+X	int cols, rows, row, eof, i, j, k, maxcol;
+X	unsigned char a;
+X	char *fname;
+X
+X	in = NULL;
+X	if (ac == 2)
+X	{
+X		if ((in = fopen(av[1], "r")) == NULL)
+X			die("can't open %s\n",av[1]);
+X		fname = av[1];
+X	}
+X	if (in == NULL)
+X	{
+X		if (isatty(fileno(stdin)))
+X			die(" need infile [or stdin]\n");
+X		in = stdin;
+X		fname = "(stdin)";
+X	}
+X	if (fgets((char*)io, 20, in) == NULL || strncmp(io, "P4", 2))
+X		die("%s doesn't look like a pbm file\n",fname);
+X	for (;;)
+X	{
+X		if (fgets((char*)io, 256, in) == NULL)
+X			die("%s doesn't look like a pbm file\n",fname);
+X		if (io[0] != '#')
+X		{
+X			if (sscanf(io, "%d %d",&cols,&rows) != 2)
+X				die("%s doesn't look like a pbm file\n",fname);
+X			break;
+X		}
+X	}
+X	if (!(cols % 8))
+X		cols /= 8;
+X	else cols = 1+(cols/8);
+X
+X	printf("\033@\0333\030");
+X	/* ESC @ to sane printer */
+X	/* ESC 3 \030 24/180 line spacing */
+X
+X	for (eof=row=0; ; )
+X	{
+X		for (i=0; i<24 && row<rows; i++, row++)
+X		{
+X			if (fread(pixrow[i], cols, 1, in) != 1)
+X			{
+X				eof = TRUE;
+X				break;
+X			}
+X		}
+X		if (i < 24)
+X		{
+X			for (; i<24; i++)
+X				memset(pixrow[i], '\0', cols);
+X			eof = TRUE;
+X		}
+X						/* trim white space */
+X		for (maxcol = cols-1; maxcol >= 0; --maxcol)
+X			if (pixrow[0][maxcol] || 
+X				pixrow[1][maxcol] || pixrow[2][maxcol] || 
+X				pixrow[3][maxcol] || pixrow[4][maxcol] || 
+X				pixrow[5][maxcol] || pixrow[6][maxcol] || 
+X				pixrow[7][maxcol] || pixrow[8][maxcol] || 
+X				pixrow[9][maxcol] || pixrow[10][maxcol] || 
+X				pixrow[11][maxcol] || pixrow[12][maxcol] || 
+X				pixrow[13][maxcol] || pixrow[14][maxcol] || 
+X				pixrow[15][maxcol] || pixrow[16][maxcol] || 
+X				pixrow[17][maxcol] || pixrow[18][maxcol] || 
+X				pixrow[19][maxcol] || pixrow[20][maxcol] || 
+X				pixrow[21][maxcol] || pixrow[22][maxcol] || 
+X				pixrow[23][maxcol])
+X			    break;
+X
+X		if (maxcol >= 0)
+X		{
+X			++maxcol;
+X			printf("\033*'");
+X			putc((maxcol*8)%256,stdout);
+X			putc((maxcol*8)/256,stdout);
+X			for (j=0; j<=maxcol; j++)
+X			{
+X				for (k=0; k<8; k++)
+X				{
+X					a = '\0';
+X					for (i=0; i<8; i++)
+X						if (pixrow[i][j] & bitval[k])
+X							a |= bitval[i];
+X					putc(a,stdout);
+X
+X					a = '\0';
+X					for (; i<16; i++)
+X						if (pixrow[i][j] & bitval[k])
+X							a |= bitval[i];
+X					putc(a,stdout);
+X
+X					a = '\0';
+X					for (; i<24; i++)
+X						if (pixrow[i][j] & bitval[k])
+X							a |= bitval[i];
+X					putc(a, stdout);
+X				}
+X			}
+X		}
+X		putc('\n', stdout);
+X		if (eof)
+X			break;
+X	}
+X	printf("\f\033@");
+X	exit(0);
+X}
+END_OF_FILE
+if test 3421 -ne `wc -c <'./pbm2e24.c'`; then
+    echo shar: \"'./pbm2e24.c'\" unpacked with wrong size!
+fi
+# end of './pbm2e24.c'
+fi
+echo shar: End of archive 1 \(of 4\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+George Orwell was an Optimist

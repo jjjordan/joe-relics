@@ -1,0 +1,2090 @@
+Path: funic!fuug!mcsun!Germany.EU.net!rrz.uni-koeln.de!unidui!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!jvnc.net!darwin.sura.net!zaphod.mps.ohio-state.edu!caen!umeecs!umn.edu!csus.edu!netcom.com!netcomsv!spud.Hyperion.COM!spud.Hyperion.COM!not-for-mail
+From: koreth@spud.Hyperion.COM (Steven Grimm)
+Newsgroups: alt.sources
+Subject: WorkMan (X CD player program for Suns) beta 3.0 part04/06
+Date: 15 Nov 1992 14:36:32 -0800
+Organization: Hyperion, Mountain View, CA, USA
+Lines: 2080
+Message-ID: <1e6jdgINNism@spud.Hyperion.COM>
+NNTP-Posting-Host: spud.hyperion.com
+
+Archive-name: workman-b3.0/part04
+Submitted-by: koreth@hyperion.com
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 4 (of 6)."
+# Contents:  database.c display.c
+# Wrapped by koreth@gerbilmeister on Sun Nov 15 14:20:19 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'database.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'database.c'\"
+else
+echo shar: Extracting \"'database.c'\" \(22717 characters\)
+sed "s/^X//" >'database.c' <<'END_OF_FILE'
+X/*
+X * @(#)database.c	1.23	11/15/92
+X *
+X * Manage the CD database.  All these routines assume that the "cd" global
+X * structure contains current information (as far as the outside world knows;
+X * obviously it won't contain track titles just after a CD is inserted.)
+X */
+X#define RCFILE "/.workmanrc"
+X#define DBFILE "/.workmandb"
+Xstatic char *ident = "@(#)database.c	1.23 11/15/92";
+X
+X#include <errno.h>
+X#include <stdio.h>
+X#include <sys/types.h>
+X#include <fcntl.h>
+X#include <sys/param.h>
+X#include <unistd.h>
+X#include <sys/time.h>
+X#include "struct.h"
+X
+X#define SWALLOW_LINE(fp) { int c; while ((c = getc(fp)) != '\n' && c != EOF); }
+X
+Xvoid *malloc(), *realloc();
+Xchar *strchr(), *getenv();
+X
+Xint	suppress_locking = 0;	/* Turn off locking of datafile (dangerous) */
+X
+Xchar	*rcfile = NULL;		/* Personal rcfile */
+Xchar	**databases = NULL;	/* NULL-terminated list of databases */
+X
+Xchar	*otherrc = NULL;	/* Unrecognized cruft from start of rcfile */
+X
+Xlong	rcpos, rclen;		/* XXX */
+X
+Xint	found_in_db, found_in_rc;
+Xlong	holepos, firstpos;
+X
+Xextern int cur_stopmode, cur_playnew, cur_ntracks, cur_nsections;
+Xextern int mark_a, mark_b;
+X
+X/* Copy into a malloced string. */
+Xvoid
+Xstrmcpy(t, s)
+X	char	**t, *s;
+X{
+X	if (*t != NULL)
+X		free(*t);
+X
+X	*t = malloc(strlen(s) + 1);
+X	if (*t == NULL)
+X	{
+X		perror("strmcpy");
+X		exit(1);
+X	}
+X
+X	(void) strcpy(*t, s);
+X}
+X
+X/* Add to a malloced string. */
+Xvoid
+Xstrmcat(t, s)
+X	char	**t, *s;
+X{
+X	int	len = strlen(s) + 1;
+X
+X	if (*s == '\0')
+X		return;
+X
+X	if (*t != NULL)
+X	{
+X		len += strlen(*t);
+X		*t = realloc(*t, len);
+X		if (*t == NULL)
+X		{
+X			perror("strmcat");
+X			exit(1);
+X		}
+X		strcat(*t, s);
+X	}
+X	else
+X		strmcpy(t, s);
+X}
+X
+X/*
+X * split_workmandb()
+X *
+X * Split the WORKMANDB environment variable, if any, into a list of database
+X * files in the global "databases".  If WORKMANDB is not available, make
+X * a single entry with $HOME/DBFILE.
+X *
+X * Also, fill the "rcfile" global with the personal preferences filename.
+X */
+Xvoid
+Xsplit_workmandb()
+X{
+X	int	ndbs, i;
+X	char	*home, *wmdb;
+X
+X	if (rcfile == NULL && (rcfile = getenv("WORKMANRC")) == NULL)
+X	{
+X		if ((home = getenv("HOME")) == NULL)
+X		{
+Xnohome:
+X			fprintf(stderr, "$HOME is not set!  Despair!\n");
+X			exit(1);
+X		}
+X
+X		rcfile = malloc(strlen(home) + sizeof(RCFILE));
+X		if (rcfile == NULL)
+X		{
+Xnomem:
+X			perror("split_workmandb()");
+X			exit(1);
+X		}
+X
+X		strcpy(rcfile, home);
+X		strcat(rcfile, RCFILE);
+X	}
+X
+X	if (databases == NULL)
+X	{
+X		if ((wmdb = getenv("WORKMANDB")) == NULL)
+X		{
+X			if ((home = getenv("HOME")) == NULL)
+X				goto nohome;
+X
+X			wmdb = malloc(strlen(home) + sizeof(DBFILE));
+X			if (wmdb == NULL)
+X				goto nomem;
+X
+X			databases = malloc(2 * sizeof (databases[0]));
+X			if (databases == NULL)
+X				goto nomem;
+X
+X			strcpy(wmdb, home);
+X			strcat(wmdb, DBFILE);
+X			databases[0] = wmdb;
+X			databases[1] = NULL;
+X		}
+X		else
+X		{
+X			ndbs = 1;
+X			for (home = wmdb; *home; home++)
+X				if (*home == ':')
+X				{
+X					*home = '\0';
+X					ndbs++;
+X				}
+X			
+X			databases = malloc((ndbs + 1) * sizeof(databases[0]));
+X			if (databases == NULL)
+X				goto nomem;
+X			
+X			for (i = 0; i < ndbs; i++)
+X			{
+X				databases[i] = wmdb;
+X				wmdb += strlen(wmdb) + 1;
+X			}
+X
+X			databases[i] = NULL;
+X		}
+X	}
+X}
+X
+X/*
+X * print_cdinfo(cd, prefs)
+X *
+X * cd		A pointer to a cdinfo struct.
+X * prefs	Flag: write personal preferences?
+X *
+X * Print a CD's information (in more or less readable form) to a buffer.
+X * Returns a pointer to the buffer.
+X *
+X * XXX - could be more efficient about calling strmcat() and strlen().
+X */
+Xchar *
+Xprint_cdinfo(cd, prefs)
+X	struct cdinfo	*cd;
+X	int		prefs;
+X{
+X	int		i;
+X	char		tempbuf[2000];	/* XXX - is this always big enough? */
+X	static char	*cdibuf = NULL;
+X	struct playlist	*l;
+X
+X	sprintf(tempbuf, "tracks %d", cd->ntracks);
+X	for (i = 0; i < cur_ntracks; i++)
+X		if (cd->trk[i].section < 2)
+X			sprintf(tempbuf + strlen(tempbuf), " %d",
+X				cd->trk[i].start);
+X	sprintf(tempbuf + strlen(tempbuf), " %d\n", cd->length);
+X
+X	strmcpy(&cdibuf, tempbuf);
+X
+X	if (cur_nsections)
+X	{
+X		sprintf(tempbuf, "sections %d", cur_nsections);
+X		for (i = 0; i < cur_ntracks; i++)
+X			if (cd->trk[i].section > 1)
+X				sprintf(tempbuf + strlen(tempbuf), " %d",
+X					cd->trk[i].start);
+X		sprintf(tempbuf + strlen(tempbuf), "\n");
+X
+X		strmcat(&cdibuf, tempbuf);
+X	}
+X
+X	if (prefs)
+X	{
+X		if (cd->autoplay)
+X			strmcat(&cdibuf, "autoplay\n");
+X		for (l = cd->lists; l != NULL && l->name != NULL; l++)
+X		{
+X			strmcat(&cdibuf, "playlist ");
+X
+X			i = strlen(cdibuf) - 1;
+X			strmcat(&cdibuf, l->name);
+X			while (cdibuf[++i])
+X				if (cdibuf[i] == ' ' || cdibuf[i] == '\t')
+X					cdibuf[i] = '_';
+X
+X			if (l->list != NULL)
+X			{
+X				for (i = 0; l->list[i]; i++)
+X					;
+X				sprintf(tempbuf, " %d", i);
+X				strmcat(&cdibuf, tempbuf);
+X				for (i = 0; l->list[i]; i++)
+X				{
+X					sprintf(tempbuf, " %d", l->list[i]);
+X					strmcat(&cdibuf, tempbuf);
+X				}
+X				strmcat(&cdibuf, "\n");
+X			}
+X			else
+X				strmcat(&cdibuf, " 0\n");
+X		}
+X
+X		if (cd->volume)
+X		{
+X			sprintf(tempbuf, "cdvolume %d\n", cd->volume);
+X			strmcat(&cdibuf, tempbuf);
+X		}
+X
+X		if (cd->playmode)
+X		{
+X			sprintf(tempbuf, "playmode %d\n", cd->playmode);
+X			strmcat(&cdibuf, tempbuf);
+X		}
+X
+X		if (mark_a)
+X		{
+X			sprintf(tempbuf, "mark %d START\n", mark_a);
+X			strmcat(&cdibuf, tempbuf);
+X		}
+X		if (mark_b)
+X		{
+X			sprintf(tempbuf, "mark %d END\n", mark_b);
+X			strmcat(&cdibuf, tempbuf);
+X		}
+X
+X		if (cd->otherrc)
+X			strmcat(&cdibuf, cd->otherrc);
+X
+X		for (i = 0; i < cur_ntracks; i++)
+X		{
+X			if (cd->trk[i].avoid)
+X			{
+X				sprintf(tempbuf, "dontplay %d\n", i + 1);
+X				strmcat(&cdibuf, tempbuf);
+X			}
+X			if (cd->trk[i].volume)
+X			{
+X				sprintf(tempbuf, "volume %d %d\n", i + 1,
+X					cd->trk[i].volume);
+X				strmcat(&cdibuf, tempbuf);
+X			}
+X			if (cd->trk[i].otherrc)
+X				strmcat(&cdibuf, cd->trk[i].otherrc);
+X		}
+X	}
+X	else
+X	{
+X		if (cd->cdname[0])
+X		{
+X			strmcat(&cdibuf, "cdname ");
+X			strmcat(&cdibuf, cd->cdname);
+X			strmcat(&cdibuf, "\n");
+X		}
+X
+X		if (cd->artist[0])
+X		{
+X			strmcat(&cdibuf, "artist ");
+X			strmcat(&cdibuf, cd->artist);
+X			strmcat(&cdibuf, "\n");
+X		}
+X
+X		if (cd->otherdb)
+X			strmcat(&cdibuf, cd->otherdb);
+X
+X		for (i = 0; i < cur_ntracks; i++)
+X		{
+X			if (cd->trk[i].section > 1)
+X				strmcat(&cdibuf, "s-");
+X			strmcat(&cdibuf, "track ");
+X			if (cd->trk[i].songname != NULL)
+X				strmcat(&cdibuf, cd->trk[i].songname);
+X			strmcat(&cdibuf, "\n");
+X			if (cd->trk[i].contd)
+X			{
+X				if (cd->trk[i].section > 1)
+X					strmcat(&cdibuf, "s-");
+X				strmcat(&cdibuf, "continue\n");
+X			}
+X			if (cd->trk[i].otherdb)
+X				strmcat(&cdibuf, cd->trk[i].otherdb);
+X		}
+X	}
+X
+X	return (cdibuf);
+X}
+X
+X/*
+X * Open the rcfile for reading or writing.
+X *
+X *	name		Filename
+X *	mode		"r" or "w"
+X */
+XFILE *
+Xopen_rcfile(name, mode)
+X	char	*name, *mode;
+X{
+X	FILE	*fp;
+X
+X	fp = fopen(name, mode);
+X	if (fp == NULL)
+X	{
+X		if (errno != ENOENT || mode[0] == 'w')
+X			perror(name);
+X	}
+X	else if (mode[0] == 'w') /* create -- put data in so locks work */
+X	{
+X		fputs("# WorkMan database file\n", fp);
+X		fclose(fp);
+X		fp = fopen(name, "r+");
+X		if (fp == NULL)
+X			if (errno != ENOENT)
+X				perror(name);
+X	}
+X
+X	return (fp);
+X}
+X
+X/*
+X * Load a new-format database file, searching for a match with the currently
+X * inserted CD.  Modify the in-core copy of the CD info based on what's found
+X * in the database.
+X *
+X * Returns 1 if there was a match or 0 if not.
+X *
+X *	fp		FILE* of database or rcfile.
+X *	prefs		1 if we're searching .workmanrc, 0 for .workmandb
+X *	scan		Scan for "tracks" location and entry size only
+X *	holesize_wanted	How big a hole we're looking for, if any.
+X *
+X * If a hole was found along the way, update the global "holepos" with its
+X * starting offset in the file.  A hole is defined as a bunch of blank lines
+X * preceding a "tracks" line.  Holepos will contain the best match.
+X *
+X * In addition, "firstpos" will be filled with the position of the first
+X * "tracks" keyword, so we know how much room is available for global
+X * settings at the rcfile's start.
+X */
+Xsearch_db(fp, prefs, scan, holesize_wanted)
+X	FILE	*fp;
+X	int	prefs, scan, holesize_wanted;
+X{
+X	char	keyword[64], listname[64], *c;
+X	int	i, j, track, listsize, ntracks, scratch, searching = 1;
+X	int	*trackmap, gotsections = 0;
+X	long	pos, thisholepos = -1, holesize = 99991239;
+X	struct playlist	*l;
+X
+X	rclen = 0;
+X
+X	/* We may not find any holes at all! */
+X	if (holesize_wanted)
+X		holepos = -1;
+X
+X	/*
+X	 * Since we access track numbers indirectly (to handle sections
+X	 * with at least a little elegance), the track mapping needs to be
+X	 * set up before we read anything.  Initially it must assume that
+X	 * no sections will appear in this datafile.
+X	 */
+X	trackmap = malloc(sizeof(int) * cur_ntracks);
+X	if (trackmap == NULL)
+X	{
+X		perror("trackmap");
+X		exit(1);
+X	}
+X	j = 0;
+X	for (i = 0; i < cd->ntracks; i++)
+X	{
+X		trackmap[i] = j;
+X		while (cd->trk[++j].section > 1)
+X			;
+X	}
+X
+X	if (prefs)
+X		freeup(&otherrc);
+X	firstpos = -1;
+X
+X	while (! feof(fp))
+X	{
+X		pos = ftell(fp);
+X
+X		keyword[0] = '\0';
+X		fscanf(fp, "%s", keyword);
+X		if (keyword[0] == '\0')		/* Blank line. */
+X		{
+X			if (thisholepos < 0)
+X				thisholepos = pos;
+X			continue;
+X		}
+X
+X		/* Strip off "s-" if we've seen a "sections" keyword */
+X		if (gotsections && keyword[0] == 's' && keyword[1] == '-')
+X			for (c = &keyword[2]; (c[-2] = *c) != '\0'; c++)
+X				;
+X
+X		/* If this is the start of a CD entry, see if it matches. */
+X		if (! strcmp(keyword, "tracks"))
+X		{
+X			/* Is this the end of a hole? */
+X			if (holesize_wanted && (thisholepos >= 0))
+X			{
+X				/* Yep.  Is it better than the last one? */
+X				if (pos - thisholepos < holesize && pos -
+X						thisholepos >= holesize_wanted)
+X				{
+X					holepos = thisholepos;
+X					holesize = pos - thisholepos;
+X				}
+X				thisholepos = -1;
+X			}
+X
+X			/* Is it the start of the CD entries? */
+X			if (firstpos == -1)
+X				firstpos = pos;
+X
+X			/* Is this the end of the entry we really wanted? */
+X			if (! searching)
+X			{
+X				rclen = pos - rcpos;
+X				break;
+X			}
+X
+X			fscanf(fp, "%d", &ntracks);
+X
+X			if (ntracks != cd->ntracks)
+X			{
+Xchomp:
+X				SWALLOW_LINE(fp);
+X				continue;
+X			}
+X
+X			track = 0;
+X			for (i = 0; i < ntracks; i++)
+X			{
+X				fscanf(fp, "%d", &scratch);
+X				if (scratch != cd->trk[track].start)
+X					break;
+X				while (cd->trk[++track].section > 1)
+X					;
+X			}
+X			if (i != ntracks)
+X				goto chomp;
+X
+X			fscanf(fp, "%d", &scratch);
+X
+X			if (scratch != cd->length)
+X				goto chomp;
+X
+X			/* Found it! */
+X			rcpos = pos;
+X			track = 0;
+X			searching = 0;
+X
+X			SWALLOW_LINE(fp);	/* Get rid of newline */
+X		}
+X
+X		/* Global mode stuff goes here */
+X		else if (! strcmp(keyword, "whendone"))
+X		{
+X			getc(fp);
+X			i = getc(fp);	/* only first letter is used */
+X			if (cur_stopmode == -1)	/* user's setting preferred */
+X				cur_stopmode = i == 's' ? 0 : i == 'r' ? 1 : 2;
+X			do
+X				i = getc(fp);
+X			while (i != '\n' && i != EOF);
+X		}
+X
+X		else if (! strcmp(keyword, "playnew"))
+X		{
+X			if (cur_playnew == -1)
+X				cur_playnew = 1;
+X		}
+X
+X		/* If we're searching, skip to the next "tracks" line. */
+X		else if ((searching || scan) && !(prefs && firstpos == -1))
+X			SWALLOW_LINE(fp)
+X
+X		else if (! strcmp(keyword, "sections"))
+X		{
+X			gotsections = 1;
+X			fscanf(fp, "%d", &ntracks);
+X
+X			free(trackmap);
+X			trackmap = (int *) malloc(sizeof(int) *
+X						(cur_ntracks + ntracks));
+X			if (trackmap == NULL)
+X			{
+X				perror("section mapping");
+X				exit(1);
+X			}
+X
+X			/*
+X			 * If sections are already defined, use these as a
+X			 * reference, mapping this CD entry's section numbers
+X			 * to the ones in core.
+X			 *
+X			 * Otherwise, split the CD up according to the sections
+X			 * listed here.
+X			 */
+X			if (cur_nsections)
+X			{
+X				track = 0;
+X				i = 0;
+X				while (ntracks)
+X				{
+X					ntracks--;
+X					fscanf(fp, "%d", &scratch);
+X					while (scratch > cd->trk[track].start)
+X					{
+X						if (cd->trk[track].section < 2)
+X							trackmap[i++] = track;
+X						++track;
+X
+X						if (track == cur_ntracks)
+X							break;
+X					}
+X
+X					/* rc has later sections than db... */
+X					if (track == cur_ntracks)
+X						break;
+X
+X					/* Matches can be approximate */
+X					if (scratch+75 > cd->trk[track].start &&
+X					    scratch-75 < cd->trk[track].start)
+X						trackmap[i++] = track++;
+X					else
+X						trackmap[i++] = -1;
+X					
+X					if (track == cur_ntracks)
+X						break;
+X				}
+X
+X				/* This only happens if track == cur_ntracks */
+X				while (ntracks--)
+X					trackmap[i++] = -1;
+X
+X				while (track < cur_ntracks)
+X				{
+X					if (cd->trk[track].section < 2)
+X						trackmap[i++] = track;
+X					track++;
+X				}
+X
+X				track = 0;
+X				SWALLOW_LINE(fp);
+X			}
+X			else
+X			{
+X				while (ntracks--)
+X				{
+X					fscanf(fp, "%d", &scratch);
+X					split_trackinfo(scratch);
+X				}
+X
+X				for (i = 0; i < cur_ntracks; i++)
+X				{
+X					trackmap[i] = i;
+X					/* split_trackinfo() sets this */
+X					cd->trk[i].contd = 0;
+X				}
+X
+X				SWALLOW_LINE(fp);
+X			}
+X		}
+X
+X		else if (! strcmp(keyword, "track"))
+X		{
+X			char buf[502];
+X
+X			getc(fp);	/* lose the space */
+X			/* don't overwrite existing track names. */
+X			if (trackmap[track] == -1)
+X				SWALLOW_LINE(fp)
+X			else if (cd->trk[trackmap[track]].songname &&
+X					cd->trk[trackmap[track]].songname[0])
+X				do
+X					i = getc(fp);
+X				while (i != '\n' && i != EOF);
+X			else
+X			{
+X				fgets(buf, sizeof(buf), fp);
+X				if (i = strlen(buf))
+X					buf[i - 1] = '\0';
+X				strmcpy(&cd->trk[trackmap[track]].songname,
+X									buf);
+X			}
+X			track++;
+X		}
+X
+X		else if (! strcmp(keyword, "playmode"))
+X			fscanf(fp, "%d", &cd->playmode);
+X
+X		else if (! strcmp(keyword, "autoplay"))
+X			cd->autoplay = 1;
+X
+X		else if (! strcmp(keyword, "cdname"))
+X		{
+X			getc(fp);	/* lose the space */
+X			/* don't overwrite existing cd name. */
+X			if (cd->cdname[0])
+X				do
+X					i = getc(fp);
+X				while (i != '\n' && i != EOF);
+X			else
+X			{
+X				fgets(cd->cdname, sizeof(cd->cdname), fp);
+X				if (i = strlen(cd->cdname))
+X					cd->cdname[i - 1] = '\0';
+X			}
+X		}
+X
+X		else if (! strcmp(keyword, "artist"))
+X		{
+X			getc(fp);	/* lose the space */
+X			/* don't overwrite existing artist names. */
+X			if (cd->artist[0])
+X				do
+X					i = getc(fp);
+X				while (i != '\n' && i != EOF);
+X			else
+X			{
+X				fgets(cd->artist, sizeof(cd->artist), fp);
+X				if (i = strlen(cd->artist))
+X					cd->artist[i - 1] = '\0';
+X			}
+X		}
+X
+X		else if (! strcmp(keyword, "cdvolume"))
+X			fscanf(fp, "%d", &cd->volume);
+X
+X		else if (! strcmp(keyword, "dontplay"))
+X		{
+X			fscanf(fp, "%d", &i);
+X			if (trackmap[i - 1] != -1)
+X				cd->trk[trackmap[i - 1]].avoid = 1;
+X		}
+X
+X		else if (! strcmp(keyword, "continue"))
+X		{
+X			if (trackmap[track - 1] != -1)
+X				cd->trk[trackmap[track - 1]].contd = 1;
+X		}
+X
+X		else if (! strcmp(keyword, "volume"))
+X		{
+X			fscanf(fp, "%d", &i);
+X			if (trackmap[i - 1] == -1)
+X				SWALLOW_LINE(fp)
+X			else
+X			{
+X				i = trackmap[i - 1];
+X				fscanf(fp, "%d", &cd->trk[i].volume);
+X				if (cd->trk[i].volume > 32)
+X					cd->trk[i].volume = 0;
+X			}
+X		}
+X
+X		else if (! strcmp(keyword, "playlist"))
+X		{
+X			getc(fp);
+X			fscanf(fp, "%s", listname);
+X
+X/* XXX take this out at some point */
+X			if (! strcmp(listname, "Default"))
+X				strcpy(listname, "List A");
+X
+X			for (i = 0; listname[i]; i++)
+X				if (listname[i] == '_')
+X					listname[i] = ' ';
+X
+X			l = new_list(cd, listname);
+X			if (l == NULL)
+X			{
+Xplnomem:
+X				perror("playlist read");
+X				exit(1);
+X			}
+X
+X			fscanf(fp, "%d", &listsize);
+X
+X			l->list = malloc(sizeof(int) * (listsize + 1));
+X			if (l->list == NULL)
+X				goto plnomem;
+X
+X			/* Leave out tracks that weren't in .workmandb. */
+X			j = 0;
+X			for (i = 0; i < listsize; i++)
+X			{
+X				fscanf(fp, "%d", &scratch);
+X				scratch = trackmap[scratch - 1];
+X				if (scratch != -1)
+X					l->list[j++] = scratch + 1;
+X			}
+X
+X			l->list[j] = 0;
+X		}
+X
+X		else if (! strcmp(keyword, "mark"))
+X		{
+X			int mark_val = -1, mark_namelen;
+X			char mark_name[32];
+X
+X			fscanf(fp, "%d", &mark_val);
+X			if (mark_val == -1)
+X				goto chomp;
+X
+X			if (getc(fp) != ' ')
+X				continue;
+X
+X			fgets(mark_name, sizeof(mark_name), fp);
+X			if (mark_namelen = strlen(mark_name))
+X				mark_name[mark_namelen - 1] = '\0';
+X
+X			if (! strcmp(mark_name, "START"))
+X				set_abtimer(0, mark_val);
+X			else if (! strcmp(mark_name, "END"))
+X				set_abtimer(1, mark_val);
+X		}
+X
+X		/* Unrecognized keyword.  Put it in the right place. */
+X		else
+X		{
+X			char	**buf, input[BUFSIZ];
+X
+X			if (track && trackmap[track - 1] == -1)
+X			{
+X				SWALLOW_LINE(fp);
+X				continue;
+X			}
+X
+X			i = track ? trackmap[track - 1] : 0;
+X			buf = prefs ? i ? &cd->trk[i].otherrc : &cd->otherrc :
+X				i ? &cd->trk[i].otherdb : &cd->otherdb;
+X			if (firstpos == -1)
+X				if (prefs)
+X					buf = &otherrc;
+X				else
+X					goto chomp;
+X
+X			strmcat(buf, keyword);
+X			do {
+X				input[sizeof(input) - 1] = 'x';
+X				fgets(input, sizeof(input), fp);
+X				strmcat(buf, input);
+X			} while (input[sizeof(input) - 1] != 'x');
+X		}
+X	}
+X
+X	if (rclen == 0 && !searching)
+X		rclen = pos - rcpos;
+X
+X	return (! searching);
+X}
+X
+X/*
+X * Delay some amount of time without using interval timers.
+X */
+Xvoid
+Xspinwheels(secs)
+X	int	secs;
+X{
+X	struct timeval	tv;
+X
+X	tv.tv_usec = 0;
+X	tv.tv_sec = secs;
+X	select(0, NULL, NULL, NULL, &tv);
+X}
+X
+X/*
+X * Lock a file.  Time out after a little while if we can't get a lock;
+X * this usually means the locking system is broken.
+X *
+X * Unfortunately, if there are lots of people contending for a lock,
+X * this can result in the file not getting locked when it probably should.
+X */
+Xint
+Xlockit(fd, type)
+X	int	fd;
+X	int	type;
+X{
+X	struct flock	fl;
+X	int		result, timer = 0;
+X
+X	if (suppress_locking)
+X		return (0);
+X
+X	fl.l_type = type;
+X	fl.l_whence = 0;
+X	fl.l_start = 0;
+X	fl.l_len = 0;
+X
+X	while ((result = fcntl(fd, F_SETLK, &fl)) < 0)
+X	{
+X		if (errno != EACCES || errno != EAGAIN)
+X			break;
+X		if (timer++ == 30)
+X		{
+X			errno = ETIMEDOUT;
+X			break;
+X		}
+X
+X		spinwheels(1);
+X	}
+X
+X	return (result);
+X}
+X
+X/*
+X * Search all the database files and our personal preference file for
+X * more information about the current CD.
+X */
+Xvoid
+Xload()
+X{
+X	FILE		*fp;
+X	char		**dbfile;
+X	int		locked = 0;
+X
+X	if (databases == NULL)
+X		split_workmandb();
+X
+X	dbfile = databases;
+X
+X	found_in_db = 0;
+X
+X	do {
+X		fp = open_rcfile(*dbfile, "r");
+X		if (fp != NULL)
+X		{
+X			if (lockit(fileno(fp), F_RDLCK))
+X				perror("Couldn't get read lock");
+X			else
+X				locked = 1;
+X
+X			if (search_db(fp, 0, 0, 0))
+X			{
+X				found_in_db = 1;
+X				cd->whichdb = *dbfile;
+X			}
+X
+X			if (locked && lockit(fileno(fp), F_UNLCK))
+X				perror("Couldn't relinquish lock");
+X
+X			fclose(fp);
+X		}
+X	} while (*++dbfile != NULL && cd->whichdb == NULL);
+X
+X	fp = open_rcfile(rcfile, "r");
+X	if (fp != NULL)
+X	{
+X		locked = 0;
+X		if (lockit(fileno(fp), F_RDLCK))
+X			perror("Couldn't get read lock");
+X		else
+X			locked = 1;
+X
+X		rcpos = 0;
+X		found_in_rc = search_db(fp, 1, 0, 0);
+X		if (! found_in_rc)
+X			cd->autoplay = get_playnew();
+X
+X		if (locked && lockit(fileno(fp), F_UNLCK))
+X			perror("Couldn't relinquish lock");
+X
+X		fclose(fp);
+X	}
+X
+X	if (cur_playnew == -1)
+X		cur_playnew = 0;
+X}
+X
+X/*
+X * save_globals()
+X *
+X * Save the global preferences, scooting CD entries to the end if needed.
+X * The assumption here is that the rcfile is locked, and that firstpos has
+X * been set by a previous scan.
+X */
+Xvoid
+Xsave_globals(fp)
+XFILE *fp;
+X{
+X	char	*globes = NULL, *cdentry = NULL, temp[100];
+X	long	curpos;
+X	int	globesize, hit_cdent = 0, c;
+X
+X	if (otherrc)
+X		strmcpy(&globes, otherrc);
+X
+X	if (cur_stopmode == 1 || cur_stopmode == 2)
+X	{
+X		sprintf(temp, "whendone %s\n", cur_stopmode == 1 ? "repeat" :
+X			"eject");
+X		strmcat(&globes, temp);
+X	}
+X
+X	if (cur_playnew == 1)
+X		strmcat(&globes, "playnew\n");
+X
+X	curpos = firstpos;
+X	if (curpos < 0)
+X		curpos = 0;
+X
+X	fseek(fp, curpos, SEEK_SET);
+X
+X	if (firstpos < (globesize = globes != NULL ? strlen(globes) : 0))
+X	{
+X		while (1)
+X		{
+X			temp[sizeof(temp)-1] = 'x';
+X
+X			if (fgets(temp, sizeof(temp), fp) == NULL)
+X			{
+X				fseek(fp, 0, SEEK_SET);
+X				if (globes != NULL)
+X				{
+X					fwrite(globes, globesize, 1, fp);
+X					free(globes);
+X				}
+X				if (cdentry != NULL)
+X				{
+X					fwrite(cdentry, strlen(cdentry), 1, fp);
+X					free(cdentry);
+X				}
+X				return;
+X			}
+X
+X			if (! strncmp(temp, "tracks ", 7))
+X			{
+X				hit_cdent = 1;
+X				if (curpos >= globesize)
+X					break;
+X			}
+X
+X			if (! hit_cdent)
+X			{
+X				curpos += strlen(temp);
+X				if (temp[sizeof(temp)-1] == '\0')
+X					while ((c = getc(fp)) != '\n' &&
+X								c != EOF)
+X						curpos++;
+X				if (c == '\n')
+X					curpos++;
+X
+X				continue;
+X			}
+X
+X			strmcat(&cdentry, temp);
+X			curpos += strlen(temp);
+X			while (temp[sizeof(temp)-1] == '\0')
+X			{
+X				temp[sizeof(temp)-1] = 'x';
+X				if (fgets(temp, sizeof(temp), fp) == NULL)
+X					break;
+X				strmcat(&cdentry, temp);
+X				curpos += strlen(temp);
+X			}
+X		} 
+X
+X		if (cdentry != NULL)
+X		{
+X			fseek(fp, 0, SEEK_END);
+X			fwrite(cdentry, strlen(cdentry), 1, fp);
+X			free(cdentry);
+X		}
+X	}
+X
+X	if (globes != NULL)
+X	{
+X		fseek(fp, 0, SEEK_SET);
+X		fwrite(globes, globesize, 1, fp);
+X		free(globes);
+X	}
+X
+X	while (globesize++ < curpos)
+X		putc('\n', fp);
+X}
+X
+X/*
+X * save_entry()
+X *
+X * Save the CD information to one database.
+X *
+X *	fp	FILE* of database to save to.
+X *	pref	0 for hard data, 1 for preferences.
+X *
+X * If an entry for this CD exists already, overwrite it with the new entry
+X * if the new entry is the same size or smaller, or with newlines if the new
+X * entry is larger (in which case the new entry is appended to the file.)
+X *
+X * Also, if the preference information is being updated, save it to the
+X * file while we've got it locked.  Scoot stuff from the beginning of
+X * the file to the end as needed to facilitate this.
+X *
+X * XXX Preference-saving should probably be done elsewhere, like in an
+X * Apply button on the Goodies popup.
+X */
+Xsave_entry(fp, pref)
+X	FILE	*fp;
+X	int	pref;
+X{
+X	char		*buf;
+X	int		len, i, locked = 0;
+X
+X	if (lockit(fileno(fp), F_WRLCK))
+X		perror("Warning: Couldn't get write lock");
+X	else
+X		locked = 1;
+X
+X	buf = print_cdinfo(cd, pref);
+X	len = strlen(buf);	/* doesn't return if there's an error */
+X
+X	rcpos = -1;
+X	search_db(fp, pref, 1, len);
+X	if (rcpos != -1)		/* XXX */
+X	{
+X		fseek(fp, rcpos, SEEK_SET);
+X		if (rclen >= len && holepos == -1)
+X		{
+X			fputs(buf, fp);
+X			for (i = len; i < rclen; i++)
+X				fputc('\n', fp);
+X		}
+X		else
+X		{
+X			for (i = 0; i < rclen; i++)
+X				fputc('\n', fp);
+X			if (holepos >= 0)
+X				fseek(fp, holepos, SEEK_SET);
+X			else
+X				fseek(fp, 0, SEEK_END);
+X			fputs(buf, fp);
+X		}
+X	}
+X	else
+X	{
+X		if (holepos >= 0)
+X			fseek(fp, holepos, SEEK_SET);
+X		else
+X			fseek(fp, 0, SEEK_END);
+X		fputs(buf, fp);
+X	}
+X
+X	if (pref)
+X		save_globals(fp);
+X
+X	fflush(fp);
+X
+X	if (locked && lockit(fileno(fp), F_UNLCK))
+X		perror("Warning: Couldn't relinquish write lock");
+X}
+X
+X/*
+X * save()
+X *
+X * Save CD information to the appropriate datafile (the first file in the
+X * list, unless the entry came from another database file) and to the
+X * personal prefs file.
+X */
+Xsave()
+X{
+X	FILE		*fp;
+X
+X	fp = open_rcfile(rcfile, "r+");
+X	if (fp == NULL)
+X	{
+X		if (errno == ENOENT)	/* doesn't exist already */
+X			fp = open_rcfile(rcfile, "w");
+X		if (fp == NULL)
+X			return (0);
+X	}
+X
+X	save_entry(fp, 1);
+X
+X	fclose(fp);
+X
+X	if (cd->whichdb == NULL || access(cd->whichdb, W_OK))
+X		cd->whichdb = databases[0];
+X
+X	if ((fp = open_rcfile(cd->whichdb, "r+")) == NULL)
+X	{
+X		if (errno == ENOENT)
+X			fp = open_rcfile(cd->whichdb, "w");
+X		if (fp == NULL)
+X			return (0);
+X	}
+X
+X	save_entry(fp, 0);
+X	fclose(fp);
+X
+X	return (1);
+X}
+END_OF_FILE
+if test 22717 -ne `wc -c <'database.c'`; then
+    echo shar: \"'database.c'\" unpacked with wrong size!
+fi
+# end of 'database.c'
+fi
+if test -f 'display.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'display.c'\"
+else
+echo shar: Extracting \"'display.c'\" \(25211 characters\)
+sed "s/^X//" >'display.c' <<'END_OF_FILE'
+X/*
+X * @(#)display.c	1.48 11/15/92
+X *
+X * display.c - update the status indicators and other display elements.
+X */
+Xstatic char *ident = "@(#)display.c	1.48 11/15/92";
+X
+X#include <stdio.h>
+X#include <sys/param.h>
+X#include <sys/types.h>
+X#include <xview/xview.h>
+X#include <xview/panel.h>
+X#include "workman_ui.h"
+X#include "struct.h"
+X
+Xvoid	continued();
+Xvoid	setup_itimer();
+Xvoid	init_stats();
+Xvoid	avoid_track();
+Xvoid	keep_settings();
+Xvoid	cd_volume();
+Xvoid	set_default_volume();
+Xchar *	listentry();
+Xchar *	trackname();
+Xint *	get_playlist();
+Xvoid	kill_stats();
+Xvoid	insert_into_playlist();
+Xvoid	scoot_stuff();
+Xint	switch_playlists();
+X
+Xextern Panel_item quitbutton;
+Xextern Rect	*track_rect;
+Xextern int	add_height, small_height, basic_spacing;
+X
+X/*
+X * Global object definitions.
+X */
+Xextern window1_objects	*Workman_window1;
+Xextern popup1_objects	*Workman_popup1;
+Xextern about_objects	*Workman_about;
+Xextern goodies_objects	*Workman_goodies;
+Xextern plpopup_objects	*Workman_plpopup;
+X
+Xextern int num_names, num_nalloc, my_cdname, my_artist;
+Xextern int cur_track, cur_pos_abs, cur_pos_rel, cur_tracklen, cur_cdlen,
+X	cur_cdmode, cur_ntracks, cur_nsections, cur_lasttrack;
+Xextern int cur_frame;
+Xextern char *cur_cdname, *cur_artist;
+Xextern int displayed_track, pop_track, *pop_list, pop_listsize, pl_item,
+X	pl_listnum;
+Xextern char *empty;
+Xextern int min_lines;
+Xextern int mark_a, mark_b;
+Xextern int manual_volume;
+Xextern int window_is_open;
+Xextern int dont_retry;
+Xextern int dismiss_button;
+X
+X/*
+X * Change the icon label. 
+X */
+Xvoid
+Xicon_label(string)
+X	char	*string;
+X{
+X	Xv_opaque	icon;
+X
+X	icon = xv_get(Workman_window1->window1, FRAME_ICON);
+X	xv_set(icon, ICON_LABEL, string, NULL);
+X	xv_set(Workman_window1->window1, FRAME_ICON, icon, NULL);
+X}
+X
+X/*
+X * Center the track list.
+X */
+Xvoid
+Xcenter_tracks()
+X{
+X	Rect *tracks;
+X	int x, cwidth;
+X	
+X	cwidth = xv_get(Workman_window1->controls1, XV_WIDTH);
+X
+X	tracks = (Rect *) xv_get(Workman_window1->tracks, PANEL_ITEM_RECT);
+X	x = (cwidth - tracks->r_width) / 2;
+X	if (x < 0)
+X		x = 0;
+X	xv_set(Workman_window1->tracks, PANEL_ITEM_X, x, NULL);
+X}
+X
+Xstatic Xv_opaque *tracknames = NULL;
+X
+X/*
+X * Center all the read-only titles.
+X */
+Xvoid
+Xcenter_titles()
+X{
+X	Rect *message;
+X	int x, cwidth, i;
+X	
+X	cwidth = xv_get(Workman_window1->controls1, XV_WIDTH);
+X
+X	message = (Rect *) xv_get(Workman_window1->cdname_display,
+X		PANEL_ITEM_RECT);
+X	x = (cwidth - message->r_width) / 2;
+X	if (x < 0)
+X		x = 0;
+X	xv_set(Workman_window1->cdname_display, PANEL_ITEM_X, x, NULL);
+X
+X	message = (Rect *) xv_get(Workman_window1->artist_display,
+X		PANEL_ITEM_RECT);
+X	x = (cwidth - message->r_width) / 2;
+X	if (x < 0)
+X		x = 0;
+X	xv_set(Workman_window1->artist_display, PANEL_ITEM_X, x, NULL);
+X
+X	for (i = 0; num_nalloc && (i < num_names); i++)
+X		if (tracknames[i] != NULL)
+X		{
+X			message = (Rect *) xv_get(tracknames[i],
+X							PANEL_ITEM_RECT);
+X			x = (cwidth - message->r_width) / 2;
+X			if (x < 0)
+X				x = 0;
+X			xv_set(tracknames[i], PANEL_ITEM_X, x, NULL);
+X		}
+X}
+X
+X/*
+X * Search backwards to find a track's real title or artist.
+X *
+X * Those with weak stomachs should skip over this.
+X */
+Xchar *
+Xbacktitle(track, c)
+X	int	track;
+X	char	c;
+X{
+X	int	i;
+X	char	*name, *p;
+X	static char *newname = NULL;
+X
+X	if (newname != NULL)
+X		free(newname);
+X
+X	for (i = track - 2; i > -1; i--)
+X	{
+X		name = trackname(i);
+X		do {
+X			p = strchr(name, c);
+X			if (p != NULL && (p[1] && p[1] != '/' || p[2] != '/') &&
+X					(p == name || (p > name+1 &&
+X					p[-1] == '/' && p[-2] == '/')))
+X				break;
+X			name = p + 1;
+X		} while (p != NULL);
+X
+X		if (p != NULL)	/* found one! */
+X		{
+X			name = p + 1;
+X			do
+X				p = strchr(p + 1, '/');
+X			while (p != NULL && p[1] && p[1] != '/');
+X
+X			if (p != NULL)
+X				*p = '\0';
+X			newname = malloc(strlen(name) + 1);
+X			if (newname == NULL)
+X				perror("malloc");
+X			else
+X				strcpy(newname, name);
+X			if (p != NULL)
+X				*p = '/';
+X
+X			return (newname);
+X		}
+X	}
+X
+X	return (NULL);
+X}
+X
+X/*
+X * Update the track name, using "//" as a line delimiter.  Grow the number
+X * of tracks as necessary; never actually get rid of a message object, but
+X * rather hide all the unused ones.
+X */
+Xvoid
+Xnew_trackname_display(title, track)
+X	char	*title;
+X	int	track;
+X{
+X	int	tnum = 0, i, newline, new_height, did_artist = 0,
+X		did_cdname = 0, lineheight;
+X	char	*c, *old, *at;
+X
+X#define ip Workman_window1
+X	if (xv_get(ip->cdname_display, XV_SHOW) == FALSE)
+X		return;
+X
+X	while (*title)
+X	{
+X		if (*title != '@' && *title != '+' && num_nalloc == tnum)
+X		{
+X			if (tracknames == NULL)
+X				tracknames = (Xv_opaque *)malloc(++num_nalloc *
+X					sizeof(Xv_opaque));
+X			else
+X				tracknames = (Xv_opaque *)realloc(tracknames,
+X					sizeof (Xv_opaque) * ++num_nalloc);
+X			if (tracknames == NULL)
+X			{
+X				perror("track display");
+X				exit(1);
+X			}
+X
+X			lineheight = (int) xv_get(Workman_window1->
+X				cdname_display, XV_HEIGHT);
+X			tracknames[tnum] = xv_create(Workman_window1->controls1,
+X				PANEL_MESSAGE, PANEL_ITEM_X, 0, PANEL_ITEM_Y,
+X				xv_get(Workman_window1->cdname_display,
+X				PANEL_ITEM_Y) + lineheight + basic_spacing +
+X				tnum * (lineheight + basic_spacing / 2),
+X				XV_SHOW, FALSE, NULL);
+X			if (tracknames[tnum] == NULL)
+X			{
+X				fprintf(stderr, "Couldn't display title\n");
+X				--num_nalloc;
+X				break;
+X			}
+X		}
+X
+X		for (c = title; *c && ! (c[0] == '/' && c[1] == '/'); c++)
+X			;
+X
+X		newline = *c;
+X		if (newline)
+X			*c = '\0';
+X
+X		if (*title == '@')
+X			if (title[1])
+X			{
+X				xv_set(ip->artist_display, PANEL_LABEL_STRING,
+X					title + 1, NULL);
+X				did_artist = 1;
+X				tnum--;
+X			}
+X			else
+X			{
+X				old = backtitle(track, '@');
+X				if (old != NULL)
+X				{
+X					xv_set(ip->artist_display,
+X						PANEL_LABEL_STRING, old, NULL);
+X					did_artist = 1;
+X				}
+X				tnum--;
+X			}
+X		else if (*title == '+')
+X			if (title[1])
+X			{
+X				xv_set(ip->cdname_display, PANEL_LABEL_STRING,
+X					title + 1, NULL);
+X				did_cdname = 1;
+X				tnum--;
+X			}
+X			else
+X			{
+X				old = backtitle(track, '+');
+X				if (old != NULL)
+X				{
+X					xv_set(ip->cdname_display,
+X						PANEL_LABEL_STRING, old, NULL);
+X					did_cdname = 1;
+X				}
+X				tnum--;
+X			}
+X		else if (tracknames[tnum] != NULL)
+X			xv_set(tracknames[tnum], PANEL_LABEL_STRING, title,
+X				NULL);
+X
+X		if (newline)
+X		{
+X			*c = '/';
+X			title = c + 2;
+X		}
+X		else
+X			title = c;
+X		tnum++;
+X	}
+X
+X	for (i = tnum; i < num_names; i++)
+X		if (tracknames[i] != NULL)
+X			xv_set(tracknames[i], XV_SHOW, FALSE, NULL);
+X
+X	if (my_cdname && ! did_cdname)
+X		xv_set(ip->cdname_display, PANEL_LABEL_STRING,
+X			xv_get(Workman_popup1->cdname, PANEL_VALUE), NULL);
+X	if (my_artist && ! did_artist)
+X		xv_set(ip->artist_display, PANEL_LABEL_STRING,
+X			xv_get(Workman_popup1->artist, PANEL_VALUE), NULL);
+X	center_titles();
+X	my_cdname = did_cdname;
+X	my_artist = did_artist;
+X
+X	if (min_lines == -1)
+X		if (tnum < num_names)
+X			new_height = 0;
+X		else
+X		{
+X			new_height = (tnum - num_names) *
+X				((int)xv_get(Workman_window1->cdname_display,
+X				XV_HEIGHT) + 4);
+X			num_names = tnum;
+X		}
+X	else
+X		if (tnum < min_lines)
+X		{
+X			new_height = (min_lines - num_names) *
+X				((int)xv_get(Workman_window1->cdname_display,
+X				XV_HEIGHT) + 4);
+X			num_names = min_lines;
+X		}
+X		else
+X		{
+X			new_height = (tnum - num_names) *
+X				((int)xv_get(Workman_window1->cdname_display,
+X				XV_HEIGHT) + 4);
+X			num_names = tnum;
+X		}
+X	
+X	scoot_stuff(new_height, 1);
+X
+X#undef ip
+X	for (i = 0; i < tnum; i++)
+X		if (tracknames[i] != NULL)
+X			xv_set(tracknames[i], XV_SHOW, TRUE, NULL);
+X
+X	center_titles();
+X}
+X
+X/* A bunch of numbers for button labels. */
+Xchar **numbered_buttons = NULL;
+X
+X/*
+X * Update the per-track information.  This is called once every time we
+X * see we're on a new track.
+X */
+Xvoid
+Xnew_track(ip)
+Xwindow1_objects *ip;
+X{
+X	static int title_lines = 1;
+X	static Xv_opaque *titles = NULL;
+X	static int num_titles = 0;
+X	popup1_objects	*pu = Workman_popup1;
+X	char	scratch[20];
+X
+X	if (cur_track == -1)
+X		return;
+X	new_trackname_display(trackname(cur_track - 1)[0] ?
+X		trackname(cur_track - 1) : "Unknown track name", cur_track);
+X	xv_set(ip->songpos, PANEL_MIN_VALUE, 0, PANEL_MAX_VALUE, 
+X		tracklen(cur_track - 1), PANEL_INACTIVE, FALSE, PANEL_VALUE,
+X		cur_frame < cd->trk[cur_track - 1].start ? 0 : cur_pos_rel,
+X		NULL);
+X	sprintf(scratch, "%2d:%02d", tracklen(cur_track - 1) / 60,
+X		tracklen(cur_track - 1) % 60);
+X	xv_set(ip->tracklen, PANEL_LABEL_STRING, scratch, NULL);
+X	xv_set(ip->cdgauge, PANEL_MIN_VALUE, 0, PANEL_MAX_VALUE, get_runtime(),
+X		PANEL_INACTIVE, FALSE, NULL);
+X	sprintf(scratch, "%2d:%02d", get_runtime() / 60, get_runtime() % 60);
+X	xv_set(ip->cdlen, PANEL_LABEL_STRING, scratch, NULL);
+X	xv_set(ip->tracks, PANEL_VALUE, cur_track - 1, PANEL_CHOICE_STRING,
+X		cur_track - 1, numbered_buttons[cur_track - 1], NULL);
+X	xv_set(ip->cdgauge, PANEL_VALUE, cur_pos_abs, NULL);
+X	xv_set(Workman_goodies->split, PANEL_INACTIVE,
+X		cd->trk[cur_track - 1].data, NULL);
+X	xv_set(Workman_goodies->delete, PANEL_INACTIVE,
+X		cd->trk[cur_track - 1].section < 2, NULL);
+X	sprintf(scratch, "Track %d", cd->trk[cur_track - 1].track);
+X	if (cd->trk[cur_track - 1].section)
+X		sprintf(scratch + strlen(scratch), ".%d",
+X			cd->trk[cur_track - 1].section);
+X	icon_label(scratch);
+X	figure_volume(ip);
+X	displayed_track = cur_track;
+X}
+X
+X/*
+X * Update all the moving status indicators.
+X */
+Xvoid
+Xshow_stats(ip)
+Xwindow1_objects *ip;
+X{
+X	static char	trk_time[6], abs_time[6];
+X	static int	old_cdmode = -1;
+X	int		timemode, pos;
+X
+X/* If we're on a different track than we used to be, update the track info */
+X	if (cur_cdmode == 1 && displayed_track != cur_track)
+X		new_track(ip);
+X
+X/* Update the current play mode */
+X	if (old_cdmode != cur_cdmode)
+X	{
+X		old_cdmode = cur_cdmode;
+X		xv_set(ip->mode, PANEL_VALUE, cur_cdmode, NULL);
+X	}
+X
+X	if (! window_is_open)
+X		return;
+X
+X/* Update the track timer and slider */
+X	if (displayed_track == -1)
+X		cur_tracklen = cur_cdlen;
+X
+X	timemode = xv_get(Workman_goodies->timemode, PANEL_VALUE);
+X
+X	if (timemode == 0)
+X	{
+X		if (cur_track > 0 && cur_frame < cd->trk[cur_track - 1].start)
+X			(void) sprintf(trk_time, "-%1d:%02d", cur_pos_rel / 60,
+X				cur_pos_rel % 60);
+X		else
+X			(void) sprintf(trk_time, "%02d:%02d", cur_pos_rel / 60,
+X				cur_pos_rel % 60);
+X		(void) sprintf(abs_time, "%02d:%02d", cur_pos_abs / 60,
+X			cur_pos_abs % 60);
+X	}
+X	else
+X	{
+X		pos = tracklen(cur_track - 1) - cur_pos_rel;
+X		if (pos < 0)	/* transitioning between tracks... */
+X			pos = 0;
+X		(void) sprintf(trk_time, "%02d:%02d", pos / 60, pos % 60);
+X		(void) sprintf(abs_time, "%02d:%02d", (get_runtime() -
+X			cur_pos_abs) / 60, (get_runtime() - cur_pos_abs) % 60);
+X	}
+X	if (strcmp(trk_time, (char *)xv_get(ip->tracktimer, PANEL_LABEL_STRING)))
+X		xv_set(ip->tracktimer, PANEL_LABEL_STRING, trk_time, NULL);
+X	if ((cur_pos_rel % 5) == 0 && xv_get(ip->songpos, PANEL_VALUE) !=
+X								cur_pos_rel)
+X		xv_set(ip->songpos, PANEL_VALUE, (cur_track > 0 && cur_frame <
+X			cd->trk[cur_track - 1].start) ? 0 : cur_pos_rel, NULL);
+X
+X/* Update the CD gauge */
+X	if (strcmp(abs_time, (char *)xv_get(ip->cdtimer, PANEL_LABEL_STRING)))
+X		xv_set(ip->cdtimer, PANEL_LABEL_STRING, abs_time, NULL);
+X	if ((cur_pos_rel % 10) == 0 && xv_get(ip->cdgauge, PANEL_VALUE) !=
+X								cur_pos_abs)
+X		xv_set(ip->cdgauge, PANEL_VALUE, cur_pos_abs, NULL);
+X
+X/* Are we past the beginning of the a-b repeat block? */
+X	if (mark_a && cur_frame > mark_a)
+X	{
+X		if (xv_get(Workman_goodies->b, PANEL_INACTIVE) == TRUE)
+X			xv_set(Workman_goodies->b, PANEL_INACTIVE, FALSE, NULL);
+X	}
+X	else
+X		if (xv_get(Workman_goodies->b, PANEL_INACTIVE) == FALSE)
+X		{
+X			xv_set(Workman_goodies->b, PANEL_INACTIVE, TRUE, NULL);
+X			if (! xv_get(Workman_goodies->abrepeat, PANEL_VALUE))
+X				xv_set(Workman_goodies->blabel, PANEL_INACTIVE,
+X					TRUE, NULL);
+X		}
+X
+X	if (xv_get(Workman_goodies->a, PANEL_INACTIVE) == (cur_cdmode == 1))
+X	{
+X		xv_set(Workman_goodies->a, PANEL_INACTIVE, cur_cdmode != 1,
+X			NULL);
+X		if (cur_cdmode != 1)
+X			xv_set(Workman_goodies->b, PANEL_INACTIVE, TRUE, NULL);
+X	}
+X}
+X
+X/*
+X * Populate the numbered buttons.  This has to be done in a fairly stupid
+X * manner since XView doesn't copy choice strings to its own buffers.
+X */
+Xvoid
+Xfill_buttons()
+X{
+X	Xv_opaque t = Workman_window1->tracks;
+X	int	i, oldheight;
+X	char	temp[20];
+X
+X	xv_set(t, XV_SHOW, FALSE, NULL);
+X
+X	if (numbered_buttons != NULL)
+X	{
+X		for (i = 0; numbered_buttons[i]; i++)
+X			free(numbered_buttons[i]);
+X		free(numbered_buttons);
+X	}
+X
+X	numbered_buttons = (char **) calloc(cur_ntracks + 1, sizeof(char **));
+X	if (numbered_buttons == NULL)
+X	{
+X		perror("fill_buttons");
+X		exit(1);
+X	}
+X
+X	track_rect = (Rect *) xv_get(t, PANEL_ITEM_RECT);
+X	oldheight = track_rect->r_height;
+X
+X	xv_set(t, PANEL_CHOICE_STRINGS, " ", NULL, NULL);
+X
+X	for (i = 0; i < cur_ntracks; i++)
+X	{
+X		if (cd->trk[i].section)
+X			sprintf(temp, "%2d.%d", cd->trk[i].track,
+X				cd->trk[i].section);
+X		else
+X			sprintf(temp, "%*d", cur_nsections ? 3 : 2,
+X				cd->trk[i].track);
+X		
+X		numbered_buttons[i] = (char *) malloc(strlen(temp) + 1);
+X		if (numbered_buttons[i] == NULL)
+X		{
+X			perror("fill_buttons");
+X			exit(1);
+X		}
+X		strcpy(numbered_buttons[i], temp);
+X
+X		xv_set(t, PANEL_CHOICE_STRING, i, numbered_buttons[i], NULL);
+X	}
+X
+X	numbered_buttons[i] = NULL;
+X
+X	xv_set(t, PANEL_CHOICE_NROWS, 1, NULL);
+X	i = 1;
+X	while (xv_get(t, XV_WIDTH) + 5 >= xv_get(Workman_window1->controls1,
+X								XV_WIDTH))
+X		xv_set(t, PANEL_CHOICE_NROWS, ++i, NULL);
+X
+X	center_tracks();
+X
+X	track_rect = (Rect *) xv_get(t, PANEL_ITEM_RECT);
+X	add_height = track_rect->r_height - small_height;
+X	scoot_stuff(track_rect->r_height - oldheight, 0);
+X
+X	xv_set(t, XV_SHOW, TRUE, NULL);
+X}
+X
+X/*
+X * Set the CD length gauge to the right length for the whole CD.
+X */
+Xvoid
+Xreset_cdlen(ip)
+Xwindow1_objects *ip;
+X{
+X	char	scratch[16];
+X
+X	xv_set(ip->cdgauge, PANEL_MIN_VALUE, 0, PANEL_MAX_VALUE, get_runtime(),
+X		PANEL_INACTIVE, FALSE, NULL);
+X	sprintf(scratch, "%2d:%02d", get_runtime() / 60, get_runtime() % 60);
+X	xv_set(ip->cdlen, PANEL_LABEL_STRING, scratch, NULL);
+X}
+X
+X/*
+X * Fill up the track scrolling list and the track number menu.
+X */
+Xvoid
+Xfill_lists()
+X{
+X	popup1_objects	*pu = Workman_popup1;
+X	plpopup_objects	*pl = Workman_plpopup;
+X	int i;
+X
+X	xv_set(pu->tracklist, XV_SHOW, FALSE, NULL);
+X	for (i = 0; i < cur_ntracks; i++)
+X	{
+X		xv_set(xv_get(pl->playlist, PANEL_ITEM_MENU), MENU_APPEND_ITEM,
+X			xv_create(NULL, MENUITEM, MENU_NOTIFY_PROC,
+X			insert_into_playlist, MENU_RELEASE,
+X			MENU_STRING, numbered_buttons[i], XV_KEY_DATA, 1234, i +
+X			1, NULL), NULL);
+X		xv_set(pu->tracklist, PANEL_LIST_INSERT, i, NULL);
+X		xv_set(pu->tracklist, PANEL_LIST_STRING, i, listentry(i), NULL);
+X	}
+X
+X	xv_set(pu->tracklist, XV_SHOW, TRUE, NULL);
+X
+X	xv_set(xv_get(pl->playlist, PANEL_ITEM_MENU), MENU_NCOLS,
+X		xv_get(Workman_window1->tracks, PANEL_CHOICE_NROWS), NULL);
+X}
+X
+X/*
+X * Initialize all the status indicators (a new CD has been inserted.)
+X * This only initializes the static values; the rest are done by show_stats().
+X */
+Xvoid
+Xinit_stats(ip)
+Xwindow1_objects *ip;
+X{
+X	popup1_objects	*pu = Workman_popup1;
+X	plpopup_objects	*pl = Workman_plpopup;
+X	int i, *list;
+X	Panel_setting update_title();
+X
+X	reset_cdlen(ip);
+X	xv_set(ip->mode, PANEL_VALUE, 4, NULL);
+X	icon_label("Stop");
+X	xv_set(pu->artist, PANEL_VALUE, cur_artist, PANEL_INACTIVE, FALSE,
+X		NULL);
+X	xv_set(pu->cdname, PANEL_VALUE, cur_cdname, PANEL_INACTIVE, FALSE,
+X		NULL);
+X	xv_set(ip->artist_display, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(ip->cdname_display, PANEL_INACTIVE, FALSE, NULL);
+X	update_title(pu->cdname, NULL);
+X	xv_set(pu->tracklist, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->trackname, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->trackoptions, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pl->playlist, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pl->playlists, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pl->listname, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pl->button7, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->whichvolume, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->defaultvolume, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->defaultspeaker, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(Workman_goodies->balance, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(Workman_goodies->indexscan, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->playmode, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->button1, PANEL_INACTIVE, FALSE, NULL);
+X	xv_set(pu->button8, PANEL_INACTIVE, FALSE, NULL);
+X	fill_buttons(ip);
+X	fill_lists();
+X
+X	xv_set(ip->tracks, PANEL_CHOOSE_ONE, TRUE, PANEL_CHOOSE_NONE, TRUE,
+X		PANEL_VALUE, -1, NULL);
+X	xv_set(pu->whichvolume, PANEL_VALUE, 0, PANEL_DEFAULT_VALUE, 1, NULL);
+X	xv_set(pu->defaultvolume, PANEL_VALUE, get_default_volume(0), NULL);
+X	set_default_volume(pu->defaultvolume, get_default_volume(0), NULL);
+X	xv_set(pu->tracklist, PANEL_LIST_SELECT, 0, TRUE, NULL);
+X	update_trackname(pu->trackname, NULL, trackname(0),
+X		PANEL_LIST_OP_SELECT, NULL, 0);
+X
+X	if (cd->lists != NULL)
+X	{
+X		for (i = 0; cd->lists[i].name != NULL; i++)
+X		{
+X			xv_set(ip->shuffle, PANEL_CHOICE_STRING, i + 2,
+X				cd->lists[i].name, NULL);
+X			xv_set(pl->playlists, PANEL_LIST_INSERT, i,
+X				PANEL_LIST_STRING, i, cd->lists[i].name, NULL);
+X		}
+X
+X		(void) switch_playlists(pl->playlists, NULL, NULL,
+X			PANEL_LIST_OP_SELECT, NULL, 0);
+X	}
+X	else
+X		pop_listsize = 0;
+X
+X	xv_set(ip->shuffle, PANEL_VALUE, get_playmode(), PANEL_DEFAULT_VALUE,
+X		(get_playmode() + 1) % (cd->lists == NULL ? 2 : i + 2), NULL);
+X	next_playmode_default(ip->shuffle, get_playmode(), NULL);
+X
+X	xv_set(pu->autoplay, PANEL_VALUE, get_autoplay(), NULL);
+X	xv_set(pu->playmode, PANEL_VALUE, get_playmode(), NULL);
+X
+X	displayed_track = -1;
+X	cur_cdmode = 4;
+X}
+X
+X/*
+X * Clean out the lists/menus that contain track numbers.
+X */
+Xvoid
+Xcleanout_lists()
+X{
+X	popup1_objects	*pu = Workman_popup1;
+X	plpopup_objects	*pl = Workman_plpopup;
+X	Menu			m;
+X	int i;
+X
+X	xv_set(pu->tracklist, XV_SHOW, FALSE, NULL);
+X	i = xv_get(pu->tracklist, PANEL_LIST_NROWS);
+X	m = (Menu) xv_get(pl->playlist, PANEL_ITEM_MENU);
+X	while (--i > -1)
+X	{
+X		xv_set(m, MENU_REMOVE, i + 2, NULL);
+X		xv_set(pu->tracklist, PANEL_LIST_DELETE, i, NULL);
+X	}
+X	xv_set(pu->tracklist, XV_SHOW, TRUE, NULL);
+X}
+X
+X/*
+X * CD has been ejected.  Remove all the status information.
+X */
+Xvoid
+Xkill_stats(ip)
+Xwindow1_objects *ip;
+X{
+X	popup1_objects	*pu = Workman_popup1;
+X	plpopup_objects	*pl = Workman_plpopup;
+X	Menu			m;
+X	int i, height;
+X
+X	xv_set(ip->songpos, PANEL_INACTIVE, TRUE, PANEL_VALUE, 0, NULL);
+X	xv_set(ip->cdgauge, PANEL_INACTIVE, TRUE, PANEL_VALUE, 0, NULL);
+X	new_trackname_display("", 0);
+X	xv_set(ip->artist_display, PANEL_INACTIVE, TRUE, PANEL_LABEL_STRING,
+X		"No artist", NULL);
+X	xv_set(ip->cdname_display, PANEL_INACTIVE, TRUE, PANEL_LABEL_STRING,
+X		"No CD name", NULL);
+X	center_titles();
+X	icon_label("No CD");
+X
+X	cleanout_lists();
+X
+X	xv_set(pl->playlist, XV_SHOW, FALSE, NULL);
+X	i = xv_get(pl->playlist, PANEL_LIST_NROWS);
+X	while (--i > -1)
+X		xv_set(pl->playlist, PANEL_LIST_DELETE, i, NULL);
+X	xv_set(pl->playlist, XV_SHOW, TRUE, NULL);
+X
+X	i = xv_get(pl->playlists, PANEL_LIST_NROWS);
+X	while (--i > -1)
+X	{
+X		xv_set(pl->playlists, PANEL_LIST_DELETE, i, NULL);
+X	}
+X
+X	xv_set(pu->tracklist, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->trackname, PANEL_INACTIVE, TRUE, PANEL_VALUE, empty, NULL);
+X	xv_set(pu->trackoptions, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->artist, PANEL_INACTIVE, TRUE, PANEL_VALUE, empty, NULL);
+X	xv_set(pu->cdname, PANEL_INACTIVE, TRUE, PANEL_VALUE, empty, NULL);
+X	xv_set(pl->playlist, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->playlists, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->listname, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->delete, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->button5, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->button6, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pl->button7, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->balance, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->a, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->b, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->alabel, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->blabel, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->abrepeat, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->split, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->delete, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(Workman_goodies->indexscan, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->whichvolume, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->defaultvolume, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->defaultspeaker, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->playmode, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->button1, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(pu->button8, PANEL_INACTIVE, TRUE, NULL);
+X	xv_set(ip->tracks, PANEL_CHOICE_STRINGS, "No CD in drive", NULL, NULL);
+X	xv_set(ip->tracktimer, PANEL_LABEL_STRING, "00:00", NULL);
+X	xv_set(ip->cdtimer, PANEL_LABEL_STRING, "00:00", NULL);
+X	xv_set(ip->tracklen, PANEL_LABEL_STRING, "0:00", NULL);
+X	xv_set(ip->cdlen, PANEL_LABEL_STRING, "0:00", NULL);
+X	xv_set(ip->shuffle, PANEL_CHOICE_STRINGS, "Normal", "Shuffle",
+X		NULL, PANEL_VALUE, 0, PANEL_DEFAULT_VALUE, 1, NULL);
+X	center_tracks();
+X
+X	if (track_rect != NULL)
+X		scoot_stuff(-add_height, 0);
+X
+X	pop_track = 0;
+X	pl_item = -1;
+X	displayed_track = 0;
+X	mark_a = mark_b = 0;
+X	manual_volume = 0;
+X}
+X
+X/*
+X * Event interpose function.  Update window_is_open and a bunch of the
+X * quiescent displays.  Check for a CD if we aren't polling the player
+X * and there wasn't a CD before.
+X */
+XNotify_value
+Xcheck_open(f, event, arg, type)
+X	Frame			f;
+X	Notify_event		event;
+X	Notify_arg		arg;
+X	Notify_event_type 	type;
+X{
+X	Notify_value	val;
+X	int		was_opened = window_is_open;
+X	int		old_retry;
+X
+X	val = (Notify_value) notify_next_event_func(f, event, arg, type);
+X	window_is_open = ! xv_get(f, FRAME_CLOSED);
+X
+X	if (window_is_open && ! was_opened)
+X	{
+X		show_stats(Workman_window1);
+X		xv_set(Workman_window1->cdgauge, PANEL_VALUE, cur_pos_abs,
+X			NULL);
+X		xv_set(Workman_window1->songpos, PANEL_VALUE, cur_pos_rel,
+X			NULL);
+X
+X		if (dont_retry && cur_cdmode == 5)
+X		{
+X			old_retry = dont_retry;
+X			dont_retry = 0;
+X			handle_timer(Workman_window1->window1, 0);
+X			dont_retry = old_retry;
+X		}
+X	}
+X
+X	return (val);
+X}
+X
+X/*
+X * Scoot stuff in the main window up or down, as appropriate.  Pass a code for
+X * the topmost thing to scoot (0 = sliders, 1 = tracks) and the distance to
+X * scoot, with negative meaning scoot up.
+X */
+Xvoid
+Xscoot_stuff(distance, topmost)
+X	int	distance, topmost;
+X{
+X#define ip Workman_window1
+X	if (distance < 0)
+X	{
+X		xv_set(ip->window1, XV_HEIGHT, xv_get(ip->window1,
+X			XV_HEIGHT) + distance, NULL);
+X		if (topmost >= 1)
+X			xv_set(ip->tracks, PANEL_ITEM_Y, xv_get(ip->tracks,
+X				PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->tracktimer, PANEL_ITEM_Y, xv_get(ip->tracktimer,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->songpos, PANEL_ITEM_Y, xv_get(ip->songpos,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->tracklen, PANEL_ITEM_Y, xv_get(ip->tracklen,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->speaker, PANEL_ITEM_Y, xv_get(ip->speaker,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->volume, PANEL_ITEM_Y, xv_get(ip->volume,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->mode, PANEL_ITEM_Y, xv_get(ip->mode,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->repeat, PANEL_ITEM_Y, xv_get(ip->repeat,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->shuffle, PANEL_ITEM_Y, xv_get(ip->shuffle,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdtimer, PANEL_ITEM_Y, xv_get(ip->cdtimer,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdgauge, PANEL_ITEM_Y, xv_get(ip->cdgauge,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdlen, PANEL_ITEM_Y, xv_get(ip->cdlen,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button4, PANEL_ITEM_Y, xv_get(ip->button4,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button3, PANEL_ITEM_Y, xv_get(ip->button3,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button2, PANEL_ITEM_Y, xv_get(ip->button2,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		if (dismiss_button)
+X			xv_set(quitbutton, PANEL_ITEM_Y, xv_get(quitbutton,
+X				PANEL_ITEM_Y) + distance, NULL);
+X	}
+X	else if (distance > 0)
+X	{
+X		xv_set(ip->window1, XV_HEIGHT, xv_get(ip->window1,
+X			XV_HEIGHT) + distance, NULL);
+X		if (dismiss_button)
+X			xv_set(quitbutton, PANEL_ITEM_Y, xv_get(quitbutton,
+X				PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button4, PANEL_ITEM_Y, xv_get(ip->button4,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button3, PANEL_ITEM_Y, xv_get(ip->button3,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->button2, PANEL_ITEM_Y, xv_get(ip->button2,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdtimer, PANEL_ITEM_Y, xv_get(ip->cdtimer,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdgauge, PANEL_ITEM_Y, xv_get(ip->cdgauge,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->cdlen, PANEL_ITEM_Y, xv_get(ip->cdlen,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->volume, PANEL_ITEM_Y, xv_get(ip->volume,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->speaker, PANEL_ITEM_Y, xv_get(ip->speaker,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->mode, PANEL_ITEM_Y, xv_get(ip->mode,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->shuffle, PANEL_ITEM_Y, xv_get(ip->shuffle,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->repeat, PANEL_ITEM_Y, xv_get(ip->repeat,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->tracktimer, PANEL_ITEM_Y, xv_get(ip->tracktimer,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->songpos, PANEL_ITEM_Y, xv_get(ip->songpos,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		xv_set(ip->tracklen, PANEL_ITEM_Y, xv_get(ip->tracklen,
+X			PANEL_ITEM_Y) + distance, NULL);
+X		if (topmost >= 1)
+X			xv_set(ip->tracks, PANEL_ITEM_Y, xv_get(ip->tracks,
+X				PANEL_ITEM_Y) + distance, NULL);
+X	}
+X}
+X#undef ip
+END_OF_FILE
+if test 25211 -ne `wc -c <'display.c'`; then
+    echo shar: \"'display.c'\" unpacked with wrong size!
+fi
+# end of 'display.c'
+fi
+echo shar: End of archive 4 \(of 6\).
+cp /dev/null ark4isdone
+MISSING=""
+for I in 1 2 3 4 5 6 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 6 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

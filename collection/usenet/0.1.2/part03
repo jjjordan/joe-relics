@@ -1,0 +1,2018 @@
+Path: funic!fuug!mcsun!unido!ira.uka.de!chx400!ieee.org!sdd.hp.com!caen!garbo.ucc.umass.edu!m2c!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOE Version 0.1.2: Part 3 of 4
+Message-ID: <1992Jan23.110652.19840@wpi.WPI.EDU>
+Date: 23 Jan 92 11:06:52 GMT
+Sender: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Organization: Kadath Tours, Inc.
+Lines: 2008
+
+
+*** Cut here
+X  while(--size);
+X return 0;
+X }
+X}
+X
+Xint tupp(c)
+Xunsigned char c;
+X{
+Xif(c>='a' && c<='z') return c+'A'-'a';
+Xelse return c;
+X}
+X
+Xint fmicmp(string,size)
+Xunsigned char *string;
+Xint size;
+X{
+Xunsigned char *x;
+Xif(point==hole) point=ehole;
+Xif(hole>point && hole<point+size && hole!=ehole)
+X {
+X if(fmcmp(string,hole-point)) return 1;
+X else
+X  {
+X  x=point;
+X  point=ehole;
+X  if(fmcmp(string+(hole-x),size-(hole-x)))
+X   {
+X   point=x;
+X   return 1;
+X   }
+X  else
+X   {
+X   point=x;
+X   return 0;
+X   }
+X  }
+X }
+Xelse
+X {
+X x=point;
+X do
+X  if(tupp(*(x++))!=tupp(*(string++))) return 1;
+X  while(--size);
+X return 0;
+X }
+X}
+X
+Xint fmsave(file,size)
+XFILE *file;
+XTXTSIZ size;
+X{
+Xif(!size) return 1;
+Xif(point==hole) point=ehole;
+Xif(hole>point && hole<point+size && hole!=ehole)
+X {
+X if(hole-point!=fwrite(point,1,hole-point,file)) return 0;
+X if(size-(hole-point)!=fwrite(ehole,1,size-(hole-point),file)) return 0;
+X return 1;
+X }
+Xelse
+X return size==fwrite(point,1,size,file);
+X}
+X
+Xint fminsfil(file)
+XFILE *file;
+X{
+Xstruct stat buf;
+XTXTSIZ amount;
+Xfstat(fileno(file),&buf);
+Xif(buf.st_size==0) return 1;
+Xfminsu(buf.st_size);
+Xchanged=1;
+Xfmhole();
+Xfmbig(buf.st_size);
+Xamount=fread(hole,1,buf.st_size,file);
+Xhole+=amount;
+Xreturn amount==buf.st_size;
+X}
+X
+X/* Output a message string which might possibly longer than width */
+X/* if flg is set and the string is longer than the line, the cursor is
+X * left at the last position on the line.  If it is clear, the cursor may be
+X * elsewhere because of screen optimization. */
+X/* if flg1 is set, attribute escape sequences \i and \u are taken to mean
+X * switch to inverse or switch to underline attributes
+X */
+X
+Xmsgout(row,str,flg,flg1)
+Xunsigned char *str;
+X{
+Xint j=0, c, att=0;
+Xint *too=scrn+width*row;
+Xloop:
+Xif(j==width-1)
+X {
+X if(flg) cpos(row,j);
+X return;
+X }
+Xif(!*str)
+X {
+X hclreol:
+X cpos(row,j);
+X eputs("\033[K");
+X while(j!=width-1) *too++ =' ', ++j;
+X return;
+X }
+Xif(*str=='\\' && flg1 && (str[1]=='i' || str[1]=='u'))
+X {
+X ++str;
+X if(!*str) goto hclreol;
+X if(*str=='u')
+X  {
+X  att^=UNDERLINE;
+X  ++str;
+X  goto loop;
+X  }
+X if(*str=='i')
+X  {
+X  att^=INVERSE;
+X  ++str;
+X  goto loop;
+X  }
+X }
+Xc= *str++ | att;
+Xif(c!= *too)
+X {
+X cpos(row,j);
+X tputcc(*too= c);
+X oxpos++;
+X }
+X++too; ++j;
+Xgoto loop;
+X}
+X
+Xint getl(prompt,dat)
+Xunsigned char *prompt;
+Xunsigned char *dat;
+X{
+Xint ch,x,y;
+Xint flag=0;
+Xunsigned char buf[PATHSIZE];
+Xstrcpy(buf,prompt);
+Xstrcat(buf," (^C to abort): ");
+Xy=strlen(buf);
+Xstrcat(buf,dat);
+Xx=strlen(buf);
+Xwhile(1)
+X {
+X if(x>width-1) msgout(height-1,buf+x-(width-1),1,0);
+X else msgout(height-1,buf,1,0);
+X ch=anext();
+X if(ch=='`')
+X  {
+X  flag=1;
+X  continue;
+X  }
+X if(ch>=32 && ch!=127 || flag)
+X  {
+X  if(flag)
+X   {
+X   flag=0;
+X   ch&=0x1f;
+X   }
+X  buf[x+1]=0, dat[x+1-y]=0;
+X  buf[x]=ch, dat[x++-y]=ch;
+X  continue;
+X  }
+X if(ch=='L'-'@')
+X  {
+X  ch= -1;
+X  break;
+X  }
+X if(ch==13 || ch==10)
+X  {
+X  ch=1;
+X  break;
+X  }
+X if((ch==8 || ch==127) && x-y)
+X  {
+X  x--;
+X  dat[x-y]=0;
+X  buf[x]=0;
+X  continue;
+X  }
+X/*
+X if(ch==9)
+X  {
+X  dat[x-y]=0;
+X  docomplete(dat);
+X  strcpy(buf+y,dat);
+X  x=strlen(buf);
+X  continue;
+X  }
+X*/
+X if(ch==3)
+X  {
+X  ch=0;
+X  break;
+X  }
+X }
+Xreturn ch;
+X}
+X
+Xmsg(ms)
+Xunsigned char *ms;
+X{
+Xmsgout(height-1,ms,1,1);
+Xanext();
+X}
+X
+Xint askyn(ms)
+Xunsigned char *ms;
+X{
+Xint ch;
+Xmsgout(height-1,ms,1,1);
+Xup:
+Xch=anext();
+Xswitch(ch)
+X {
+Xcase 'y':
+Xcase 'n':
+X eputc(ch);
+X ch&=0x5f;
+X break;
+Xcase 'Y':
+Xcase 'N':
+X eputc(ch);
+X break;
+Xcase 3:
+X ch= -1;
+X break;
+Xdefault:
+X goto up;
+X }
+Xreturn ch;
+X}
+X
+Xint query(ms)
+Xunsigned char *ms;
+X{
+Xmsgout(height-1,ms,1,1);
+Xreturn anext();
+X}
+X
+Xint nquery(ms)
+Xunsigned char *ms;
+X{
+Xmsgout(height-1,ms,1,1);
+Xcpos(ypos,xpos);
+Xreturn anext();
+X}
+X
+Ximsg()
+X{
+Xattrib(0);
+Xif(omsg) msgout(1,omsg,0,1);
+Xupd=1;
+Xmsgout(height-1,"\\i** Joe's Own Editor version 0.1.2 (1991) **\\i",0,1);
+Xcpos(1,0);
+X}
+X
+Xint pic;
+Xint autoind;
+Xint overwrite;
+Xint wrap;
+Xint tabmagic;
+XTXTSIZ rmargin;
+X
+Xint options=0;
+Xunsigned char sstring[PATHSIZE];
+Xunsigned char rstring[PATHSIZE];
+Xint len;
+X
+XTXTSIZ markb=0;
+XTXTSIZ marke=0;
+X
+XTXTSIZ added;
+XTXTSIZ extend;
+Xint leave;       /* set if editor should now exit */
+X
+XTXTSIZ getrcol()
+X{
+XTXTSIZ x,y;
+Xunsigned char ch;
+Xx=fmnote();
+Xif(fmnrnl()) fmgetc();
+Xy=0;
+Xwhile(fmnote()!=x)
+X {
+X ch=fmgetc();
+X if(ch==TAB)
+X  while((++y)&7);
+X else
+X  y++;
+X }
+Xreturn y;
+X}
+X
+Xgocol(x)
+XTXTSIZ x;
+X{
+XTXTSIZ y;
+Xint ch;
+Xif(fmnrnl()) fmgetc();
+Xextend=0;
+Xfor(y=0;y!=x;y++)
+X {
+X if(fmeof()) goto dn;
+X ch=fmgetc();
+X if(ch==NL)
+X  {
+X  fmpoint(fmnote()-1);
+X  extend=x;
+X  return;
+X  }
+X if(ch==TAB)
+X  {
+X  while((++y)&7)
+X   {
+X   if(y==x)
+X    {
+X    fmpoint(fmnote()-1);
+Xdn:
+X    extend=x;
+X    return;
+X    }
+X   }
+X  y--;
+X  }
+X }
+X}
+X
+XTXTSIZ calcs()
+X{
+XTXTSIZ y=0;
+Xif(fmnrnl()) fmgetc();
+Xextend=0;
+Xwhile(! (fmeof()?1:fmrc()==NL))
+X if(fmrc()==' ')
+X  {
+X  ++y;
+X  fmgetc();
+X  }
+X else if(fmrc()==TAB)
+X  {
+X  do ++y; while(y%TABWIDTH);
+X  fmgetc();
+X  }
+X else break;
+Xreturn y;
+X}
+X
+Xunfill()
+X{
+Xfmfnl();
+Xextend=0;
+Xwhile(fmnote())
+X {
+X unsigned char x=fmrgetc();
+X if(x==' ' || x==TAB) fmdel(1);
+X else
+X  {
+X  fmgetc();
+X  break;
+X  }
+X }
+X}
+X
+X/* Fill from end of line to extend position */
+X
+Xfillup()
+X{
+XTXTSIZ x;
+Xif(extend && pic)
+X {
+X x=getrcol();
+X while(extend>x)
+X  {
+X  fminsc(' ');
+X  fmgetc();
+X  ++x;
+X  }
+X }
+Xextend=0;
+X}
+X
+X/* Save current buffer in named file.  Returns 0 on error.  Clears 'changed'
+X * variable if sucessfull
+X */
+X
+Xint saveit1(tos)
+Xunsigned char *tos;
+X{
+Xunsigned char sting[PATHSIZE];
+XTXTSIZ temp=fmnote();
+Xfmpoint(0);
+Xhandle=fopen(tos,"w+");
+Xif(handle)
+X {
+X if(!fmsave(handle,fmsize()))
+X  {
+X  sprintf(sting,"\\iError writing to file %s\\i",tos);
+X  msg(sting);
+X  fmpoint(temp);
+X  return(0);
+X  }
+X fmpoint(temp);
+X if(fclose(handle)==EOF)
+X  {
+X  sprintf(sting,"\\iError closing file %s\\i",tos);
+X  msg(sting);
+X  fmpoint(temp);
+X  return(0);
+X  }
+X changed=0;
+X curbuf->changed=0;
+X return(1);
+X }
+Xelse
+X {
+X sprintf(sting,"\\iError opening file %s\\i",tos);
+X msg(sting);
+X fmpoint(temp);
+X return(0);
+X }
+X}
+X
+Xrewrite()
+X{
+Xunsigned char s[25];
+Xint *t,c;
+Xoxpos= 0;
+Xoypos= 0;
+Xtops= 0;
+Xbots= height-1;
+Xsmode=0;
+Xif(scroll) sprintf(s,"\033[m\033[1;%dr\033[H\033[J",height);
+Xelse sprintf(s,"\033[m\033[H\033[J");
+Xeputs(s);
+Xt=scrn;
+Xc=width*height;
+Xdo *(t++)= ' '; while(--c);
+Xupd=1;
+Xnewy=1;
+Xupdall=1;
+Xif(helpon) hupd=1;
+X}
+X
+X/* Toggle help text */
+X
+Xthelp()
+X{
+Xstruct window *x;
+Xnewy=1;
+Xupd=1;
+Xif(helpon)
+X {
+X x=topwin;
+X do
+X  {
+X  if(x->hheight) x->height=x->hheight;
+X  else x->height*=height, x->height/=height-wind;
+X  x=x->next;
+X  }
+X  while(x!=topwin);
+X wind=0, hupd=0;
+X }
+Xelse
+X {
+X if(helplines>height-3) wind=height-3;
+X else wind=helplines;
+X hupd=1;
+X x=topwin;
+X do
+X  {
+X  x->hheight=x->height;
+X  x->height*=height-wind;
+X  x->height/=height;
+X  x=x->next;
+X  }
+X  while(x!=topwin);
+X }
+Xhelpon= !helpon;
+Xwfit();
+X}
+X
+X/* Move cursor to beginning of file */
+X
+Xbof()
+X{
+Xextend=0;
+Xfmpoint(0);
+Xnewy=1;
+X}
+X
+X/* Move cursor to beginning of line */
+X
+Xbol()
+X{
+Xif(fmnrnl()) fmgetc();
+Xextend=0;
+X}
+X
+X/* Move cursor to end of line */
+X
+Xeol()
+X{
+Xextend=0;
+Xfmfnl();
+X}
+X
+X/* Move cursor to end of file */
+X
+Xeof()
+X{
+Xextend=0;
+Xfmpoint(fmsize());
+Xnewy=1;
+X}
+X
+X/* Move cursor right */
+X
+Xurtarw()
+X{
+Xfillup();
+Xextend=0;
+Xif(fmeof())
+X {
+X if(pic)
+X  {
+X  into:
+X  fminsc(' ');
+X  fmgetc();
+X  }
+X return;
+X }
+Xelse if(fmrc()==NL)
+X {
+X if(pic) goto into;
+X bol();
+X udnarw();
+X return;
+X }
+Xfmgetc();
+X}
+X
+Xrtarw()
+X{
+Xfillup();
+Xextend=0;
+Xif(fmeof())
+X {
+X if(pic)
+X  {
+X  into:
+X  fminsc(' ');
+X  fmgetc();
+X  }
+X return;
+X }
+Xelse if(fmrc()==NL)
+X {
+X if(pic) goto into;
+X newy=1;
+X }
+Xfmgetc();
+X}
+X
+Xultarw()
+X{
+Xif(extend)
+X {
+X extend=0;
+X return;
+X }
+Xfillup();
+Xif(fmnote())
+X {
+X fmpoint(fmnote()-1);
+X if(fmrc()==NL)
+X  {
+X  fmgetc();
+X  uuparw();
+X  eol();
+X  }
+X }
+X}
+X
+Xltarw()
+X{
+Xif(extend)
+X {
+X extend=0;
+X return;
+X }
+Xfillup();
+Xif(fmnote())
+X fmpoint(fmnote()-1);
+Xif(fmrc()==NL) newy=1;
+X}
+X
+X/* Move cursor up */
+X
+Xuparw()
+X{
+XTXTSIZ x;
+Xx=getcol();
+Xbol();
+Xif(fmnote())
+X {
+X fmpoint(fmnote()-1);
+X if(fmnrnl())
+X  fmgetc();
+X }
+Xgocol(x);
+Xnewy=1;
+X}
+X
+X/* user's cursor up routine (uses scrolling regions) */
+X
+Xuuparw()
+X{
+XTXTSIZ sve=fmnote();
+Xint y=(curwin->wind+1)*width;
+Xint x;
+Xif(scroll)
+X {
+X if(fmnrnl())
+X  {
+X  if(fmnote()+1==saddr)
+X   {
+X   if(fmnrnl()) fmgetc();
+X   saddr=fmnote();
+X   setregn(curwin->wind+1,curwin->wind+(curwin->height-1));
+X   cpos(curwin->wind+1,oxpos);
+X   attrib(0);
+X   eputs("\033M");
+X   for(x=(curwin->wind+curwin->height)*width-1;x>=y+width;x--)
+X    scrn[x]=scrn[x-width];
+X   for(x=y;x<y+width;x++) scrn[x]= ' ';
+X   }
+X  fmpoint(sve);
+X  }
+X else
+X  fmpoint(sve);
+X }
+Xuparw();
+X}
+X
+X/* Move cursor down */
+X
+Xdnarw()
+X{
+XTXTSIZ x;
+Xnewy=1;
+Xx=getcol();
+Xif(!fmfnl())
+X bol();
+Xelse
+X fmgetc();
+Xgocol(x);
+X}
+X
+X/* user's down arrow function */
+X
+Xudnarw()
+X{
+XTXTSIZ sve=fmnote();
+Xint x;
+Xif(!fmfnl())
+X {
+X if(pic)
+X  {
+X  fminsc(NL);
+X  fmpoint(sve);
+X  udnarw();
+X  return;
+X  }
+X else
+X  {
+X  goto cant;
+X  }
+X }
+Xif(scroll)
+X {
+X if(ypos!=curwin->height+curwin->wind-1) goto cant;
+X for(x=0;x!=curwin->height-2;x++) fmnrnl();
+X fmfnl();
+X fmgetc();
+X saddr=fmnote();
+X setregn(curwin->wind+1,curwin->wind+curwin->height-1);
+X cpos((curwin->wind+curwin->height-1),oxpos);
+X attrib(0);
+X eputc(10);
+X for(x=(curwin->wind+1)*width;x!=(curwin->wind+curwin->height-1)*width;x++)
+X  scrn[x]=scrn[x+width];
+X for(x=(curwin->wind+curwin->height-1)*width;
+X     x!=(curwin->wind+curwin->height)*width;x++)
+X  scrn[x]= ' ';
+X }
+Xcant:
+Xfmpoint(sve);
+Xdnarw();
+X}
+X
+X/* Magic Tabs (tm) */
+X
+XTXTSIZ tabcol;	/* Original column of text preceeded by tab stops */
+X
+Xtabmark()
+X{
+XTXTSIZ cur=fmnote();
+Xunsigned char c;
+Xtabcol=0;
+Xif(!tabmagic) return;
+Xwhile(!fmeof())
+X {
+X c=fmgetc();
+X if(c=='\t')
+X  {
+X  while(!fmeof())
+X   {
+X   c=fmgetc();
+X   if(c=='\n') break;
+X   if(c!='\t')
+X    {
+X    fmrgetc();
+X    tabcol=getrcol();
+X    break;
+X    }
+X   }
+X  fmpoint(cur); return;
+X  }
+X if(c=='\n') break;
+X }
+Xfmpoint(cur); return;
+X}
+X
+Xtabfix()
+X{
+XTXTSIZ cur=fmnote(),newcol;
+Xunsigned char c;
+Xif(!tabcol) return;
+Xwhile(!fmeof())
+X {
+X c=fmgetc();
+X if(c=='\t')
+X  {
+X  while(!fmeof())
+X   {
+X   c=fmgetc();
+X   if(c=='\n') break;
+X   if(c!='\t')
+X    {
+X    fmrgetc();
+X    newcol=getrcol();
+X    while(newcol<tabcol)
+X     {
+X     fminsc('\t');
+X     newcol+=8;
+X     }
+X    fmrgetc();
+X    while(newcol>tabcol)
+X     {
+X     if(fmrgetc()=='\t')
+X      {
+X      fmdel(1);
+X      newcol-=8;
+X      }
+X     else break;
+X     }
+X    break;
+X    }
+X   }
+X  fmpoint(cur); return;
+X  }
+X if(c=='\n') break;
+X }
+Xfmpoint(cur); return;
+X}
+X
+X/* Delete character under cursor */
+X
+Xdelch()
+X{
+Xunsigned char c;
+Xint x;
+Xif(extend && pic) return;
+Xif(extend)
+X {
+X extend=0;
+X return;
+X }
+Xif(!fmeof())
+X {
+X if((c=fmrc())==NL && scroll)
+X  {
+X  if(ypos<curwin->wind+curwin->height-2)
+X   {
+X   for(x=(ypos+1)*width;x<width*(curwin->wind+curwin->height-1);x++)
+X    scrn[x]=scrn[x+width];
+X   for(x=(curwin->wind+curwin->height-1)*width;
+X   x<(curwin->wind+curwin->height)*width;x++) scrn[x]= ' ';
+X   setregn(ypos+1,(curwin->wind+curwin->height-1));
+X   cpos((curwin->wind+curwin->height-1),oxpos);
+X   attrib(0);
+X   eputc(10);
+X   }
+X  fmdel(1);
+X  }
+X else if(c==TAB) fmdel(1);
+X else
+X  {
+X  tabmark();
+X  fmdel(1);
+X  tabfix();
+X  }
+X }
+X}
+X
+Xtype(ch)
+Xunsigned char ch;
+X{
+Xint ox=oxpos;
+Xint x,y;
+XTXTSIZ temp, temp1;
+Xint eflag=0;
+Xif(quote8th)
+X {
+X quote8th=0;
+X ch|=128;
+X }
+Xypos=oypos;
+Xif(extend)
+X {
+X if(ch!=NL) fillup();
+X else extend=0;
+X eflag=1;
+X }
+Xif(ch==NL)
+X {
+X if(overwrite && !tabmagic && !fmeof()) fmdel(1);
+X fminsc(ch);
+X fmgetc();
+X newy=1;
+X if(ypos!=(curwin->wind+curwin->height-1))
+X  {
+X  if(!fmeof())
+X   {
+X   if(ypos<curwin->wind+curwin->height-2 && scroll)
+X    {
+X    setregn(ypos+1,(curwin->wind+curwin->height-1));
+X    cpos(ypos+1,oxpos);
+X    attrib(0);
+X    eputs("\033M");
+X    cpos(ypos+1,0);
+X    for(x=(curwin->wind+curwin->height)*width-1;x>=(ypos+2)*width;x--)
+X     scrn[x]=scrn[x-width];
+X    for(x=(ypos+1)*width;x<(ypos+2)*width;x++) scrn[x]=' ';
+X    }
+X   else cpos(ypos+1,0);
+X   }
+X  else
+X   cpos(ypos+1,0);
+X  }
+X else if(scroll)
+X   {
+X   setregn(curwin->wind+1,(curwin->wind+curwin->height-1));
+X   cpos((curwin->height+curwin->wind-1),0);
+X   attrib(0);
+X   eputc(10);
+X   for(x=curwin->wind*width;x<(curwin->wind+curwin->height-1)*width;x++)
+X    scrn[x]=scrn[x+width];
+X   for(x=(curwin->wind+curwin->height-1)*width;
+X       x<(curwin->wind+curwin->height)*width;x++) scrn[x]= ' ';
+X   temp=fmnote();
+X   fmpoint(saddr);
+X   fmfnl();
+X   fmgetc();
+X   saddr=fmnote();
+X   fmpoint(temp);
+X   }
+X if(ox<(width-2) && (fmeof()) && scroll) uuu=1;
+X if(autoind)
+X  {
+X  temp=fmnote();
+X  uparw();
+X  for(x=0;1;x++)
+X   {
+X   ch=fmgetc();
+X   if(!(ch==' ' || ch==TAB)) break;
+X   temp1=fmnote();
+X   fmpoint(temp);
+X   fminsc(ch);
+X   uuu=0;
+X   added++;
+X   fmpoint(temp1);
+X   temp++;
+X   }
+X  fmpoint(fmnote()-(x+1));
+X  dnarw();
+X  y=overwrite, overwrite=0;
+X  for(;x;x--) rtarw();
+X  overwrite=y;
+X  }
+X }
+Xelse
+X {
+X if(overwrite)
+X  {
+X  if(!tabmagic)
+X   {
+X   if(!fmeof())
+X    {
+X    unsigned char c=fmrc();
+X    fmdel(1);
+X    if(ch!=TAB && c!=TAB && c!=NL && ox<(width-2)) uuu=1;
+X    }
+X   else if(ch!=TAB && ox<(width-2)) uuu=1;
+X   }
+X  else
+X   if(fmrc()!=NL && !fmeof())
+X    if(ch==TAB && fmrc()!=TAB)
+X     {
+X     TXTSIZ foo=getrcol();
+X     do
+X      {
+X      if(fmeof()) break;
+X      if(fmrc()==NL) break;
+X      if(fmrc()==TAB)
+X       {
+X       fmdel(1);
+X       break;
+X       }
+X      else fmdel(1);
+X      ++foo;
+X      }
+X      while(foo&7);
+X     }
+X    else if(ch!=TAB && fmrc()==TAB)
+X     {
+X     TXTSIZ tt;
+X     tabmark();
+X     if(tt=tabcol)
+X      {
+X      fminsc(ch);
+X      tabmark();
+X      fmdel(1);
+X      if(tabcol!=tt) fmdel(1);
+X      }
+X     }
+X    else
+X     {
+X     fmdel(1);
+X     if(ch!=TAB && ox<(width-2)) uuu=1;
+X     }
+X   else if(ox<(width-2) && ch!=TAB) uuu=1;
+X  }
+X if(wrap)
+X  {
+X  unsigned char xx;
+X  if(getrcol()<rmargin) goto skip;
+X  if(ch==' ')
+X   fminsc(' '), rtarw();
+X  else
+X   {
+X   temp=fmnote();
+X   while(1)
+X    {
+X    if(fmnote())
+X     {
+X     fmpoint(fmnote()-1);
+X     xx=fmrc();
+X     if(xx==NL) break;
+X     if(xx==' ' || x==TAB)
+X      {
+X      fmdel(1);
+X      added=0;
+X      type(NL);
+X      temp+=added;
+X      break;
+X      }
+X     }
+X    else break;
+X    }
+X   fmpoint(temp);
+X   fminsc(ch);
+X   rtarw();
+X   uuu=0;
+X   }
+X  }
+X else
+X  {
+Xskip:
+X  if(overwrite || ch==TAB) fminsc(ch);
+X  else
+X   {
+X   tabmark();
+X   fminsc(ch);
+X   tabfix();
+X   }
+X  if(ch!=TAB && ch!=NL)
+X   {
+X   int cc=showas(ch);
+X   if(fmnote()>=markb && fmnote()<marke) cc^=INVERSE;
+X   fmgetc();
+X   tputcc(cc);
+X   scrn[ypos*width+oxpos]=cc;
+X   oxpos++;
+X   if(fmeof()) { if(!eflag && ox<width-2) uuu=1; }
+X   else if(fmrc()==NL && !eflag && ox<width-2) uuu=1;
+X   }
+X  else fmgetc();
+X  }
+X }
+X}
+X
+Xitype(ch)
+Xunsigned char ch;
+X{
+Xint x,y;
+XTXTSIZ temp,temp1;
+Xif(extend)
+X {
+X if(ch!= NL) fillup();
+X else extend=0;
+X }
+Xif(ch==NL)
+X {
+X fminsc(ch);
+X fmgetc();
+X newy=1;
+X if(autoind)
+X  {
+X  temp=fmnote();
+X  uparw();
+X  for(x=0;1;x++)
+X   {
+X   ch=fmgetc();
+X   if(!(ch==' ' || ch==TAB)) break;
+X   temp1=fmnote();
+X   fmpoint(temp);
+X   fminsc(ch);
+X   added++;
+X   fmpoint(temp1);
+X   temp++;
+X   }
+X  fmpoint(fmnote()-(x+1));
+X  dnarw();
+X  y=overwrite, overwrite=0;
+X  for(;x;x--) rtarw();
+X  overwrite=y;
+X  }
+X }
+Xelse
+X {
+X if(overwrite)
+X  if(!fmeof()) fmdel(1);
+X if(wrap)
+X  {
+X  if(getrcol()<rmargin) goto skip;
+X  if(ch==' ')
+X   fminsc(' '), rtarw();
+X  else
+X   {
+X   temp=fmnote();
+X   while(1)
+X    {
+X    if(fmnote())
+X     {
+X     fmpoint(fmnote()-1);
+X     x=fmrc();
+X     if(x==NL) break;
+X     if(x==' ' || x==TAB)
+X      {
+X      fmdel(1);
+X      added=0;
+X      itype(NL);
+X      temp+=added;
+X      break;
+X      }
+X     }
+X    else break;
+X    }
+X   fmpoint(temp);
+X   fminsc(ch);
+X   rtarw();
+X   }
+X  }
+X else
+X  {
+Xskip:
+X  fminsc(ch);
+X  rtarw();
+X  }
+X }
+X}
+X
+X/* Insert space */
+X
+Xinss()
+X{
+Xint t=overwrite;
+Xif(extend)
+X {
+X extend=0;
+X return;
+X }
+Xoverwrite=0;
+Xtype(' ');
+Xltarw();
+Xoverwrite=t;
+X}
+X
+X/* Deleting backspace */
+X
+Xbacks()
+X{
+Xint flag=0,c;
+Xif(extend)
+X {
+X extend=0;
+X return;
+X }
+Xif(fmeof()) c=1;
+Xelse if(fmrc()==NL) c=1;
+Xif(fmnote())
+X {
+X ultarw();
+X if(fmrc()==TAB) flag=1;
+X if(overwrite && !tabmagic)
+X  {
+X  itype(' ');
+X  ultarw();
+X  }
+X else if(overwrite && tabmagic)
+X  {
+X  if(c) delch();
+X  else if(!flag)
+X   {
+X   itype(' ');
+X   ltarw();
+X   }
+X  }
+X else delch();
+X if(oxpos && !flag)
+X  {
+X  eputc(8), tputcc(32), eputc(8), oxpos--,scrn[oypos*width+oxpos]=32;
+X  if(fmeof()) uuu=1;
+X  else if(fmrc()==NL || overwrite) uuu=1;
+X  }
+X }
+X}
+X
+X/* quit: exit without saving */
+X
+Xeexit()
+X{
+Xint c;
+Xif(curwin->next==curwin)
+X {
+X if(changed)
+X  {
+X  c=askyn("Do you really want to throw away this file?"); 
+X  if(c=='N') return;
+X  if(c== -1) return;
+X  dclose();
+X  eputs("\nFile not saved.\r\n");
+X  }
+X else
+X  {
+X  dclose();
+X  eputs("\nFile not changed so no update needed\r\n");
+X  }
+X leave=1;
+X }
+Xelse
+X {
+X struct window *t=curwin;
+X if(changed && curbuf->count==1)
+X  {
+X  c=askyn("Do you really want to throw away this file?");
+X  if(c=='N') return;
+X  if(c== -1) return;
+X  }
+X if(curbuf->count==1)
+X  {
+X  killundo();
+X  killredo();
+X  free(curbuf->buf), free(curbuf);
+X  if(curbuf==markbuf) markbuf=0;
+X  }                           
+X else curbuf->count--;
+X curwin->next->prev=curwin->prev;
+X curwin->prev->next=curwin->next;
+X curwin=curwin->prev;
+X free(t);
+X ldwin(curwin);
+X if(topwin==t) topwin=curwin;
+X wfit();
+X }
+X}
+X
+Xpgup()
+X{
+Xint nlins=curwin->height-1;
+Xint hlins=nlins/2;
+Xint x,y;
+XTXTSIZ curpos,z;
+Xif(!hlins) hlins=1;
+Xz=getcol();
+Xcurpos=fmnote();
+Xfmpoint(saddr);
+Xfor(x=0;x<hlins;x++)
+X {
+X if(!fmnrnl())
+X  {
+X  if(!x)
+X   {
+X   gocol(z);
+X   newy=1;
+X   return;
+X   }
+X  else
+X   break;
+X  }
+X }
+Xif(fmnrnl()) fmgetc();
+Xsaddr=fmnote();
+Xfmpoint(curpos);
+Xsetregn(curwin->wind+1,(curwin->wind+curwin->height-1));
+Xcpos(curwin->wind+1,oxpos);
+Xattrib(0);
+Xfor(y=0;y<x;y++)
+X {
+X if(scroll) eputs("\033M");
+X fmnrnl();
+X }
+Xif(fmnrnl()) fmgetc();
+Xcpos(oypos,oxpos);
+Xgocol(z);
+Xx*=width;
+Xif(scroll) for(y=(curwin->wind+1)*width;y<x+(curwin->wind+1)*width;y++)
+X {
+X scrn[y+x]=scrn[y];
+X scrn[y]= ' ';
+X }
+X}
+X
+Xpgdn()
+X{
+Xint nlins=curwin->height-1;
+Xint hlins=nlins/2;
+XTXTSIZ curpos,z;
+Xint x,y;
+Xz=getcol();
+Xcurpos=fmnote();
+Xx=nlins;
+Xfmpoint(saddr);
+Xdo
+X {
+X if(fmfnl()) fmgetc();
+X else
+X  {
+X  newy=1;
+X  gocol(z);
+X  return;
+X  }
+X }
+X while(--x);
+Xfor(x=1;x<hlins;x++)
+X {
+X if(fmfnl()) fmgetc();
+X else break;
+X }
+X
+Xfmpoint(saddr);
+Xfor(y=0;y<x;y++)
+X {
+X fmfnl();
+X fmgetc();
+X }
+Xsaddr=fmnote();
+X
+Xsetregn(curwin->wind+1,(curwin->wind+curwin->height-1));
+Xcpos((curwin->wind+curwin->height-1),oxpos);
+Xfmpoint(curpos);
+Xattrib(0);
+Xfor(y=0;y<x;y++)
+X {
+X fmfnl();
+X fmgetc();
+X if(scroll) eputc(10);
+X }
+X
+Xgocol(z);
+Xcpos(ypos,xpos);
+Xif(scroll)
+X {
+X y=width*x;
+X for(curpos=(curwin->wind+1)*width+y;curpos<(curwin->wind+curwin->height)*
+X     width;curpos++)
+X  scrn[curpos-y]=scrn[curpos];
+X for(curpos=(curwin->wind+curwin->height)*width-width*x;
+X     curpos<(curwin->wind+curwin->height)*width;curpos++)
+X  scrn[curpos]= ' ';
+X }
+X}
+X
+Xdeleol()
+X{
+XTXTSIZ temp=fmnote();
+XTXTSIZ temp1;
+Xif(extend && pic) return;
+Xextend=0;
+Xfmfnl();
+Xtemp1=fmnote()-temp;
+Xfmpoint(temp);
+Xif(temp1) fmdel(temp1);
+X}
+X
+Xkilllin()
+X{
+Xextend=0;
+Xif(!fmeof())
+X {
+X if(fmrc()==NL) delch();
+X else deleol();
+X }
+X}
+X
+Xdellin()
+X{
+Xbol();
+Xdeleol();
+Xdelch();
+X}
+X
+Xfixpath(s)
+Xunsigned char *s;
+X{
+Xunsigned char tmp[PATHSIZE], *p, c;
+Xstruct passwd *passwd;
+Xif(*s=='~')
+X {
+X p=s+1;
+X while(*p!='/' && *p) ++p;
+X if(c= *p)
+X  {
+X  *p=0;
+X  if(passwd=getpwnam(s+1))
+X   {
+X   *p=c;
+X   strcpy(tmp,passwd->pw_dir);
+X   strcat(tmp,p);
+X   strcpy(s,tmp);
+X   }
+X  }
+X }
+X}
+X
+X/*
+X
+Xstruct list
+X {
+X struct list *next;
+X unsigned char *name;
+X };
+X
+Xunsigned char *complete(list,name)
+Xstruct list *list;
+Xunsigned char *name;
+X{
+Xstruct list *found=0;
+Xint x;
+Xwhile(list)
+X {
+X for(x=0;name[x] && list->name[x];++x) if(name[x]!=list->name[x]) goto next;
+X if(found) return 0;
+X found=list;
+X next:
+X list=list->next;
+X }
+Xif(found) return found->name;
+Xelse return 0;
+X}
+X
+Xstruct list *getnames(name)
+Xunsigned char *name;
+X{
+XDIR *dir=opendir(name);
+Xstruct direct *dirent;
+Xstruct list *first=0, *next=0;
+Xif(dir)
+X {
+X while(dirent=readdir(dir))
+X  {
+X  if(next) next=next->next=malloc(sizeof(struct list));
+X  else first=next=malloc(sizeof(struct list));
+X  next->next=0;
+X  next->name=strdupp(dirent->d_name);
+X  }
+X closedir(dir);
+X }
+Xreturn first;
+X}
+X
+Xrmlist(list)
+Xstruct list *list;
+X{
+Xstruct list *nxt;
+Xif(list)
+X do
+X  nxt=list->next, free(list);
+X  while(list=nxt);
+X}
+X
+Xdocomplete(s)
+Xunsigned char *s;
+X{
+Xstruct list *list=getnames(".");
+Xunsigned char *name;
+Xif(!list) return;
+Xname=complete(list,s);
+Xif(name) strcpy(s,name);
+Xelse eputc(7);
+Xrmlist(list);
+X}
+X
+X*/
+X
+Xexsave()
+X{
+Xunsigned char sting[PATHSIZE];
+Xif(!changed)
+X {
+X eexit();
+X return;
+X }
+Xif(gfnam[0]==0)
+X {
+X if(!getl("Save file",gfnam))
+X  return;
+X fixpath(gfnam);
+X }
+Xelse if(!backup)
+X {
+X sprintf(sting,"/bin/cp %s %s~",gfnam,gfnam);
+X cpos(height-2,0);
+X system(sting);
+X cpos(ypos,xpos);
+X }
+Xif(saveit1(gfnam))
+X {
+X sprintf(sting,"\nFile %s saved.\r\n",gfnam);
+X if(curwin->next==curwin)
+X  {
+X  dclose();
+X  eputs(sting);
+X  leave=1;
+X  }
+X else
+X  eexit();
+X }
+X}
+X
+Xsaveit()
+X{
+Xunsigned char gfnam1[PATHSIZE];
+Xunsigned char sting[PATHSIZE];
+Xstrcpy(gfnam1,gfnam);
+Xif(!getl("Save file",gfnam1))
+X return;
+Xfixpath(gfnam1);
+Xif(!gfnam1[0]) return;
+Xif(!backup && !strcmp(gfnam1,gfnam))
+X {
+X sprintf(sting,"/bin/cp %s %s~",gfnam,gfnam);
+X cpos(height-2,0);
+X system(sting);
+X cpos(ypos,xpos);
+X }
+Xsaveit1(gfnam1);
+X}
+X
+Xfindline()
+X{
+Xunsigned char sting[PATHSIZE];
+XTXTSIZ x;
+Xsting[0]=0;
+Xif(!getl("Goto line",sting))
+X return;
+Xx=atol(sting);
+Xif(!x)
+X {
+X msg("\\iBad line number\\i");
+X return;
+X }
+Xx--;
+Xbof();
+Xfor(;x;x--)
+X {
+X if(!fmfnl()) break;
+X fmgetc();
+X }
+Xnewy=1;
+Xcntr=1;
+Xreturn;
+X}
+X
+Xrepeat()
+X{
+Xunsigned char sting[PATHSIZE];
+XTXTSIZ x;
+Xsting[0]=0;
+Xif(!getl("Repeat",sting))
+X return;
+Xx=atol(sting);
+Xnrepeatamnt=x;
+X}
+X
+Xint search()
+X{
+Xif(options&s_backwards)
+X {
+X while(fmnote())
+X  {
+X  fmrgetc();
+X  if(options&s_ignore) { if(!fmicmp(sstring,len)) return 1; }
+X  else if(!fmcmp(sstring,len)) return 1;
+X  }
+X return 0;
+X }
+Xelse
+X {
+X while(fmnote()+len<=fmsize())
+X  {
+X  if(!(options&s_ignore)) { if(!fmcmp(sstring,len)) return 1; }
+X  else if(!fmicmp(sstring,len)) return 1;
+X  fmgetc();
+X  }
+X return 0;
+X }
+X}
+X
+Xfind(c)
+X{
+Xint x;
+Xint opts=0;
+Xint n=0;
+Xint rest=0;
+Xint rlen;
+XTXTSIZ p;
+Xunsigned char ss[80];
+Xextend=0;
+Xif(c=='L'-'@' && sstring[0]) goto srch;
+Xss[0]=0;
+Xif(!(x=getl("Search string",ss))) return;
+Xif(x== -1)
+X {
+X if(ss[0])
+X  strcpy(sstring,ss);
+X goto srch;
+X }
+Xif(!ss[0]) return;
+Xstrcpy(sstring,ss);
+Xss[0]=0;
+Xif(!getl("(I)gnore case (B)ackwards (R)eplace n",ss)) return;
+Xfor(x=0;ss[x];x++)
+X {
+X if(ss[x]=='i' || ss[x]=='I') opts|=s_ignore;
+X if(ss[x]=='b' || ss[x]=='B') opts|=s_backwards;
+X if(ss[x]=='r' || ss[x]=='R') opts|=s_replace;
+X if(ss[x]=='x' || ss[x]=='X') opts|=s_regex;
+X if(ss[x]>='0' && ss[x]<='9') n*=10, n+=ss[x]-'0';
+X }
+Xoptions=opts;
+Xif(options&s_replace)
+X {
+X ss[0]=0;
+X if(!(x=getl("Replace with",ss))) return;
+X if(x!= -1)
+X  strcpy(rstring,ss);
+X }
+Xsrch:
+Xif(!sstring[0]) return;
+Xlen=strlen(sstring);
+Xrlen=strlen(rstring);
+Xrpt:
+Xp=fmnote();
+Xif(search())
+X {
+X if(!(options&s_backwards)) fmpoint(fmnote()+len);
+X if(options&s_replace)
+X  {
+X  if(rest) goto dn;
+X  newy=1;
+X  upd=1;
+X  cntr=1;
+X  extend=0;
+X  dupdate();
+Xagain:
+X  x=nquery(
+X  "Replace? (Yes, No, ^C to abort or R to replace rest without asking)");
+X  if(x=='n' || x=='N') goto rpt;
+X  if(x== 3) return;
+X  if(x=='y' || x=='Y') goto dn;
+X  if(x=='r' || x=='R')
+X   {
+X   rest=1;
+X   goto dn;
+X   }
+X  goto again;
+Xdn:
+X  if(options&s_backwards)
+X   {
+X   fmdel(len);
+X   fminss(rstring,rlen);
+X   }
+X  else
+X   {
+X   fmpoint(fmnote()-len);
+X   fmdel(len);
+X   fminss(rstring,rlen);
+X   fmpoint(fmnote()+rlen);
+X   }
+X  if(n)
+X   if(n==1) goto exi;
+X   else n--;
+X  goto rpt;
+X  }
+X else if(n)
+X  {
+X  if(n==1) goto exi;
+X  n--;
+X  goto rpt;
+X  }
+X }
+Xelse
+X {
+X if(!(options&s_replace) || n>1)
+X  msg("Not found");
+X fmpoint(p);
+X return;
+X }
+Xexi:
+Xcntr=1;
+Xnewy=1;
+X}
+X
+Xfindnext()
+X{
+Xfind('L'-'@');
+X}
+X
+Xfindfirst()
+X{
+Xfind(0);
+X}
+X
+Xstruct buffer *markbuf;
+X
+Xsetbeg()
+X{
+Xmarkb=fmnote();
+Xif(markbuf!=curbuf)
+X {
+X markbuf=curbuf;
+X marke=0;
+X }
+X}
+X
+Xsetend()
+X{
+Xmarke=fmnote();
+Xif(markbuf!=curbuf)
+X {
+X markbuf=curbuf;
+X markb=0;
+X }
+X}
+X
+Xwriteblk()
+X{
+Xunsigned char gfnam1[PATHSIZE];
+Xunsigned char sting[PATHSIZE];
+XTXTSIZ sv=fmnote();
+Xstruct buffer *bt=curbuf;
+Xif(markbuf)
+X {
+X stbuf(curbuf);
+X ldbuf(markbuf);
+X }
+Xif(markb>=marke || marke>fmsize() || !markbuf)
+X {
+X msg("\\iNo block\\i");
+X if(markbuf)
+X  ldbuf(bt);
+X return;
+X }
+Xgfnam1[0]=0;
+Xif(!getl("File to write block to",gfnam1))
+X {
+X ldbuf(bt);
+X return;
+X }
+Xfixpath(gfnam1);
+Xhandle=fopen(gfnam1,"w+");
+Xif(handle)
+X {
+X fmpoint(markb);
+X if(!fmsave(handle,marke-markb))
+X  {
+X  sprintf(sting,"\\iError writting to file %s\\i",gfnam1);
+X  msg(sting);
+X  }
+X stbuf(markbuf);
+X ldbuf(bt);
+X fmpoint(sv);
+X fclose(handle);
+X }
+Xelse
+X {
+X ldbuf(bt);
+X sprintf(sting,"\\iError opening file %s\\i",gfnam1);
+X msg(sting);
+X }
+X}
+X
+Xcmdblk()
+X{
+Xunsigned char ch;
+Xint fr[2];
+Xint fw[2];
+Xunsigned char gfnam1[PATHSIZE];
+Xunsigned char sting[PATHSIZE];
+XTXTSIZ sv=fmnote(), sz;
+Xstruct buffer *bt=curbuf;
+Xif(markbuf)
+X {
+X stbuf(curbuf);
+X ldbuf(markbuf);
+X }
+Xif(markb>=marke || marke>fmsize() || !markbuf)
+X {
+X marke=markb=0;
+X markbuf=bt;
+X }
+Xgfnam1[0]=0;
+Xif(markb==marke)
+X {
+X if(!getl("Command to capture:",gfnam1))
+X  {
+X  ldbuf(bt);
+X  return;
+X  }
+X }
+Xelse if(!getl("Command to pipe block through:",gfnam1))
+X {
+X ldbuf(bt);
+X return;
+X }
+Xfixpath(gfnam1);
+Xpipe(fr);
+Xpipe(fw);
+Xdclose();
+Xeputc('\n');
+Xaclose();
+Xif(!fork())
+X {
+X signorm();
+X printf("%s\n",gfnam1);
+X if(markb!=marke) close(0);
+X close(1);
+X if(markb!=marke) dup(fw[0]);
+X dup(fr[1]);
+X close(fw[0]);
+X close(fr[1]);
+X close(fw[1]);
+X close(fr[0]);
+X execl("/bin/sh","/bin/sh","-c",gfnam1,0);
+X exit(0);
+X }
+Xclose(fr[1]);
+Xclose(fw[0]);
+Xif(fork())
+X {
+X if(bt==markbuf) if(sv>=markb && sv<marke) sv=markb;
+X sz=marke-markb;
+X fmpoint(markb);
+X if(sz) fmdel(sz);
+X if(bt==markbuf) if(sv>markb) sv-=sz;
+X close(fw[1]);
+X stbuf(markbuf);
+X ldbuf(bt);
+X fmpoint(sv);
+X markbuf=bt;
+X markb=sv;
+X while(1==read(fr[0],&ch,1)) putchar(ch), fminsc(ch), fmgetc();
+X fflush(stdout);
+X close(fr[0]);
+X marke=fmnote();
+X fmpoint(markb);
+X wait(0);
+X wait(0);
+X }
+Xelse
+X {
+X fmpoint(markb);
+X while(fmnote()!=marke)
+X  {
+X  ch=fmgetc();
+X  write(fw[1],&ch,1);
+X  }
+X close(fw[1]);
+X _exit();
+X }
+Xaopen();
+Xrewrite();
+Xupdall=1;
+Xnewy=1;
+X}
+X
+Xdelblk()
+X{
+Xstruct buffer *bt=curbuf;
+XTXTSIZ x=fmnote();
+XTXTSIZ sz;
+Xif(markbuf)
+X {
+X stbuf(curbuf);
+X ldbuf(markbuf);
+X }
+Xif(marke<=markb || marke>fmsize() || !markbuf)
+X {
+X msg("\\iNo block\\i");
+X if(markbuf)
+X  ldbuf(bt);
+X return;
+X }
+Xif(bt==markbuf) if(x>=markb && x<marke) x=markb;
+Xsz=marke-markb;
+Xfmpoint(markb);
+Xfmdel(sz);
+Xif(bt==markbuf) if(x>markb) x-=sz;
+Xstbuf(markbuf);
+Xldbuf(bt);
+Xfmpoint(x);
+Xupdall=1;
+Xnewy=1;
+X}
+X
+Xmoveblk()
+X{
+Xunsigned char *t;
+XTXTSIZ sz, x=fmnote();
+Xstruct buffer *bt=curbuf;
+Xif(markbuf)
+X {
+X stbuf(curbuf);
+X ldbuf(markbuf);
+X }
+Xif(marke<=markb || marke>fmsize() || !markbuf)
+X {
+X msg("\\iNo block\\i");
+X if(markbuf)
+X  ldbuf(bt);
+X return;
+X }
+Xif(x>=markb && x<=marke && bt==markbuf)
+X {
+X x=markb;
+X ldbuf(bt);
+X return;
+X }
+Xsz=marke-markb;
+Xt=(unsigned char *)malloc(sz);
+Xfmpoint(markb);
+Xfmcpy(t,sz);
+Xfmdel(sz);
+Xif(bt==markbuf) if(x>markb) x-=sz, newy=1;
+Xstbuf(markbuf); 
+Xldbuf(bt);
+Xfmpoint(x);
+Xfminss(t,sz);
+Xfree(t);
+Xmarkb=x;
+Xmarke=x+sz;
+Xmarkbuf=bt;
+Xupdall=1;
+X}
+X
+Xcpyblk()
+X{
+Xunsigned char *t;
+XTXTSIZ x=fmnote();
+Xstruct buffer *bt=curbuf;
+XTXTSIZ sz;
+Xif(markbuf)
+X {
+X stbuf(curbuf);
+X ldbuf(markbuf);
+X }
+Xif(marke<=markb || marke>fmsize() || !markbuf)
+X {
+X msg("\\iNo block\\i");
+X if(markbuf)
+X  ldbuf(bt);
+X return;
+X }
+Xsz=marke-markb;
+Xt=(unsigned char *)malloc(sz);
+Xfmpoint(markb);
+Xfmcpy(t,sz);
+Xstbuf(markbuf);
+Xldbuf(bt); 
+Xfmpoint(x);
+Xfminss(t,sz);
+Xfree(t);
+Xmarke=x+sz;
+Xmarkb=x;
+Xmarkbuf=bt;
+Xupdall=1;
+X}
+X
+Xinsfil()
+X{
+Xunsigned char gfnam1[PATHSIZE];
+Xunsigned char sting[PATHSIZE];
+Xgfnam1[0]=0;
+Xif(!getl("File to insert",gfnam1)) return;
+Xfixpath(gfnam1);
+Xhandle=fopen(gfnam1,"r");
+Xif(handle)
+X {
+X if(!fminsfil(handle))
+X  {
+X  sprintf(sting,"\\iError inserting file %s\\i",gfnam1);
+X  msg(sting);
+X  }
+X newy=1;
+X fclose(handle);
+X }
+Xelse
+X {
+X sprintf(sting,"\\iError opening file %s\\i",gfnam1);
+X msg(sting);
+X return;
+X }
+X}
+X
+Xpush()
+X{
+Xdclose();
+Xshell();
+Xrewrite();
+X}
+X
+Xsuspend()
+X{
+Xdclose();
+Xsusp();
+Xrewrite();
+X}
+X
+Xioverwrite() { overwrite= !overwrite; }
+Xiwrap() { wrap= !wrap; }
+Xiautoind() { autoind= !autoind; }
+Xitabmagic() { tabmagic= !tabmagic; }
+Xipic() { pic= !pic; }
+Xooverwrite() { overwrite=0; }
+Xowrap() { wrap=0; }
+Xoautoind() { autoind=0; }
+Xotabmagic() { tabmagic=0; }
+Xopic() { pic=0; }
+X
+Xsetrmargin()
+X{
+Xunsigned char sting[80];
+Xsprintf(sting,"%d",rmargin);
+Xif(!getl("Right margin",sting)) return;
+Xrmargin=atol(sting);
+Xif(rmargin<2) rmargin=2;
+X}
+X
+Xmode()
+X{
+Xunsigned char s[PATHSIZE];
+Xs[0]=0;
+Xstrcat(s,"(R)ght Mrgn ");
+Xif(overwrite) strcat(s,"(I) Overtype ");
+Xelse strcat(s,"(I)nsert ");
+Xif(tabmagic) strcat(s,"(T)ab Magic on ");
+Xelse strcat(s,"(T)ab Magic off ");
+Xif(wrap) strcat(s,"(W)rap on ");
+Xelse strcat(s,"(W)rap off ");
+Xif(autoind) strcat(s,"(A) Indent on ");
+Xelse strcat(s,"(A) Indent off ");
+Xif(pic) strcat(s,"(P)ic on: ");
+Xelse strcat(s,"(P)ic off: ");
+*** Cut here
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

@@ -1,0 +1,1897 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!haven.umd.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 03 of 17
+Message-ID: <1992Nov19.052217.25569@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:22:17 GMT
+Lines: 1887
+
+
+
+#!/bin/sh
+# this is part.03 (part 3 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/DirMgr.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 3; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/DirMgr.c'
+else
+echo 'x - continuing file xmfm/DirMgr.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/DirMgr.c' &&
+X
+X                     F I L T E R    R O U T I N E S
+X
+X *---------------------------------------------------------------------------*/
+X
+int DirectoryMgrFilterName
+#ifdef UseFunctionPrototypes
+X	(DirEntry *de, char *fsm)
+#else
+X	(de,fsm)
+DirEntry *de;
+char *fsm;
+X
+#endif
+{
+#ifndef	NO_REGEXP
+X	return(RegExpMatch(DirEntryFileName(de),fsm));
+#else
+X	return(TRUE);
+#endif
+} /* End DirectoryMgrFilterName */
+SHAR_EOF
+echo 'File xmfm/DirMgr.c is complete' &&
+chmod 0644 xmfm/DirMgr.c ||
+echo 'restore of xmfm/DirMgr.c failed'
+Wc_c="`wc -c < 'xmfm/DirMgr.c'`"
+test 12374 -eq "$Wc_c" ||
+	echo 'xmfm/DirMgr.c: original size 12374, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/Directory.c ==============
+if test -f 'xmfm/Directory.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/Directory.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/Directory.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/Directory.c' &&
+/****************************************************************************
+X
+X        Directory.c
+X
+X	This file contains the C code that implements the directory
+X	iteration and file information subsystem.
+X
+X	This code is intended to be used as a convenient, machine
+X	independent interface to iterate through the contents of a
+X	directory.
+X
+X ****************************************************************************/
+X
+#include "Directory.h"
+#include "RegExp.h"
+X
+/*--------------------------------------------------------------------------*
+X
+X        L O W    L E V E L    D I R E C T O R Y    I N T E R F A C E
+X
+X *--------------------------------------------------------------------------*/
+X
+int DirectoryOpen
+#ifdef UseFunctionPrototypes
+X	(char *dir_name, Directory *dp)
+#else
+X	(dir_name,dp)
+char *dir_name;
+Directory *dp;
+X
+#endif
+{
+X	DirectoryDir(dp) = opendir(dir_name);
+X	if (DirectoryDir(dp) == NULL) return(FALSE);
+X	if (DirectoryPathExpand(dir_name,DirectoryPath(dp)) == NULL)
+X	{
+X		closedir(DirectoryDir(dp));
+X		return(FALSE);
+X	}
+X	return(TRUE);
+} /* End DirectoryOpen */
+X
+X
+void DirectoryRestart
+#ifdef UseFunctionPrototypes
+X	(Directory *dp)
+#else
+X	(dp)
+Directory *dp;
+X
+#endif
+{
+X	rewinddir(DirectoryDir(dp));
+} /* End DirectoryRestart */
+X
+X
+void DirectoryClose
+#ifdef UseFunctionPrototypes
+X	(Directory *dp)
+#else
+X	(dp)
+Directory *dp;
+X
+#endif
+{
+X	closedir(DirectoryDir(dp));
+} /* End DirectoryClose */
+X
+X
+long DirectoryTellPosition
+#ifdef UseFunctionPrototypes
+X	(Directory *dp)
+#else
+X	(dp)
+Directory *dp;
+X
+#endif
+{
+X	return(telldir(DirectoryDir(dp)));
+} /* End DirectoryTellPosition */
+X
+X
+void DirectorySetPosition
+#ifdef UseFunctionPrototypes
+X	(Directory *dp, long int pos)
+#else
+X	(dp,pos)
+Directory *dp;
+long pos;
+X
+#endif
+{
+X	seekdir(dp,pos);
+} /* End DirectorySetPosition */
+X
+X
+int DirectoryReadNextEntry
+#ifdef UseFunctionPrototypes
+X	(Directory *dp, DirEntry *de)
+#else
+X	(dp,de)
+Directory *dp;
+DirEntry *de;
+X
+#endif
+{
+X	u_short orig_file_type;
+X	static struct dirent *_ep;
+X	static struct stat _lstats,_stats,_dstats;
+X	char full_path[MAXPATHLEN + 2];
+X	char temp_path[MAXPATHLEN + 2];
+X
+X	_ep = readdir(DirectoryDir(dp));
+X	if (_ep == NULL) return(FALSE);
+X	strcpy(DirEntryFileName(de),_ep->d_name);
+X	strcpy(full_path,DirectoryPath(dp));
+X	strcat(full_path,DirEntryFileName(de));
+X
+X	if (lstat(full_path,&_lstats) != 0) return(FALSE);
+X
+X	orig_file_type = _lstats.st_mode & S_IFMT;
+X	switch (orig_file_type)
+X	{
+X	    case S_IFDIR:
+X		DirEntryType(de) = F_TYPE_DIR;
+X		break;
+X	    case S_IFREG:
+X		DirEntryType(de) = F_TYPE_FILE;
+X		break;
+X	    case S_IFCHR:
+X		DirEntryType(de) = F_TYPE_CHAR_SPECIAL;
+X		break;
+X	    case S_IFBLK:
+X		DirEntryType(de) = F_TYPE_BLOCK_SPECIAL;
+X		break;
+X	    case S_IFLNK:
+X		DirEntryType(de) = F_TYPE_SYM_LINK;
+X		break;
+X	    case S_IFSOCK:
+X		DirEntryType(de) = F_TYPE_SOCKET;
+X		break;
+#ifdef S_IFIFO
+X	    case S_IFIFO:
+X		DirEntryType(de) = F_TYPE_FIFO;
+X		break;
+#endif
+X	    default:
+X		DirEntryType(de) = orig_file_type;
+X		break;
+X	}
+X
+X	DirEntryIsBrokenLink(de) = FALSE;
+X	DirEntryIsDirectoryLink(de) = FALSE;
+X	if (DirEntryIsSymLink(de))			/* Symbolic Link */
+X	{
+X		if (stat(full_path,&_stats) != 0)	/* Can't Stat File */
+X		{
+X			DirEntryIsBrokenLink(de) = TRUE;
+X			_stats = _lstats;
+X		}
+X		    else				/* Link Not Broken */
+X		{
+#ifdef SLOW_DIRLINK_TEST
+X			if (DirectoryPathExpand(full_path,temp_path) != NULL)
+X			{
+#else
+X			if ((_stats.st_mode & S_IFMT) == S_IFDIR)
+X			{
+#endif
+X				DirEntryIsDirectoryLink(de) = TRUE;
+X			}
+X
+X		}
+X	}
+X	    else					/* Not Symbolic Link */
+X	{
+X		_stats = _lstats;
+X	}
+X
+X	FileInfoOrigMode(DirEntrySelfInfo(de)) = _lstats.st_mode;
+X	FileInfoProt(DirEntrySelfInfo(de)) = _lstats.st_mode & 0777;
+X	FileInfoUserID(DirEntrySelfInfo(de)) = _lstats.st_uid;
+X	FileInfoGroupID(DirEntrySelfInfo(de)) = _lstats.st_gid;
+X	FileInfoFileSize(DirEntrySelfInfo(de)) = _lstats.st_size;
+X	FileInfoLastAccess(DirEntrySelfInfo(de)) = _lstats.st_atime;
+X	FileInfoLastModify(DirEntrySelfInfo(de)) = _lstats.st_mtime;
+X	FileInfoLastStatusChange(DirEntrySelfInfo(de)) = _lstats.st_ctime;
+X
+X	FileInfoOrigMode(DirEntryActualInfo(de)) = _stats.st_mode;
+X	FileInfoProt(DirEntryActualInfo(de)) = _stats.st_mode & 0777;
+X	FileInfoUserID(DirEntryActualInfo(de)) = _stats.st_uid;
+X	FileInfoGroupID(DirEntryActualInfo(de)) = _stats.st_gid;
+X	FileInfoFileSize(DirEntryActualInfo(de)) = _stats.st_size;
+X	FileInfoLastAccess(DirEntryActualInfo(de)) = _stats.st_atime;
+X	FileInfoLastModify(DirEntryActualInfo(de)) = _stats.st_mtime;
+X	FileInfoLastStatusChange(DirEntryActualInfo(de)) = _stats.st_ctime;
+X
+X	return(TRUE);
+} /* End DirectoryReadNextEntry */
+X
+X
+char *DirectoryPathExpand
+#ifdef UseFunctionPrototypes
+X	(char *old_path, char *new_path)
+#else
+X	(old_path,new_path)
+char *old_path,*new_path;
+X
+#endif
+{
+X	register char *p;
+X	char path[MAXPATHLEN + 2];
+X
+X	if (getwd(path) == NULL) return(NULL);
+X	if (chdir(old_path) != 0) return(NULL);
+X	if (getwd(new_path) == NULL) strcpy(new_path,old_path);
+X	if (chdir(path) != 0) return(NULL);
+X	for (p = new_path; *p != '\0'; p++);
+X	if ((p != new_path) && *(p - 1) != '/')
+X	{
+X		*p++ = '/';
+X		*p = '\0';
+X	}
+X	return(new_path);
+} /* End DirectoryPathExpand */
+X
+X
+/*---------------------------------------------------------------------------*
+X
+X             D I R E C T O R Y    E N T R Y    R O U T I N E S
+X
+X *---------------------------------------------------------------------------*/
+X
+void DirEntryDump
+#ifdef UseFunctionPrototypes
+X	(FILE *fp, DirEntry *de)
+#else
+X	(fp,de)
+FILE *fp;
+DirEntry *de;
+X
+#endif
+{
+X	fprintf(fp,"%20s, Size %7d, Prot %3o\n",
+X		DirEntryFileName(de),DirEntryFileSize(de),DirEntryProt(de));
+} /* End DirEntryDump */
+SHAR_EOF
+chmod 0644 xmfm/Directory.c ||
+echo 'restore of xmfm/Directory.c failed'
+Wc_c="`wc -c < 'xmfm/Directory.c'`"
+test 5543 -eq "$Wc_c" ||
+	echo 'xmfm/Directory.c: original size 5543, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/RegExp.c ==============
+if test -f 'xmfm/RegExp.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/RegExp.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/RegExp.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/RegExp.c' &&
+/****************************************************************************
+X
+X	RegExp.c
+X
+X	This file contains the C code for the regular expression
+X	matching code.
+X
+X	The routines supported act as a more friendly, user level
+X	interface to the regexp regular expression matching system.
+X
+X ****************************************************************************/
+X
+#include "RegExp.h"
+#ifndef NO_REGEXP
+#include <regexp.h>
+#endif
+X
+void RegExpCompile
+#ifdef UseFunctionPrototypes
+X	(char *regexp, char *fsm_ptr, int fsm_length)
+#else
+X	(regexp,fsm_ptr,fsm_length)
+char *regexp,*fsm_ptr;
+int fsm_length;
+X
+#endif
+{
+#ifndef NO_REGEXP
+X	compile(regexp,fsm_ptr,&(fsm_ptr[fsm_length]),'\0');
+#endif
+} /* End RegExpCompile */
+X
+X
+int RegExpMatch
+#ifdef UseFunctionPrototypes
+X	(char *string, char *fsm_ptr)
+#else
+X	(string,fsm_ptr)
+char *string,*fsm_ptr;
+X
+#endif
+{
+#ifndef NO_REGEXP
+X	if (advance(string,fsm_ptr) != 0)
+X		return(TRUE);
+X	    else
+X		return(FALSE);
+#else
+X	return(TRUE);
+#endif
+} /* End RegExpMatch */
+X
+X
+void _RegExpError
+#ifdef UseFunctionPrototypes
+X	(int val)
+#else
+X	(val)
+int val;
+X
+#endif
+{
+X	fprintf(stderr,"Regular Expression Error %d\n",val);
+X	exit(-1);
+} /* End _RegExpError */
+X
+X
+void RegExpPatternToRegExp
+#ifdef UseFunctionPrototypes
+X	(char *pattern, char *reg_exp)
+#else
+X	(pattern,reg_exp)
+char *pattern,*reg_exp;
+X
+#endif
+{
+X	int in_bracket;
+X
+X	in_bracket = 0;
+X	while (*pattern != '\0')
+X	{
+X		if (in_bracket)
+X		{
+X			if (*pattern == ']') in_bracket = 0;
+X			*reg_exp++ = *pattern++;
+X		}
+X		    else
+X		{
+X			switch (*pattern)
+X			{
+X			    case '[':
+X				in_bracket = 1;
+X				*reg_exp++ = '[';
+X				break;
+X			    case '?':
+X				*reg_exp++ = '.';
+X				break;
+X			    case '*':
+X				*reg_exp++ = '.';
+X				*reg_exp++ = '*';
+X				break;
+X			    case '.':
+X				*reg_exp++ = '\\';
+X				*reg_exp++ = '.';
+X				break;
+X			    default:
+X				*reg_exp++ = *pattern;
+X				break;
+X			}
+X			++ pattern;
+X		}
+X	}
+X	*reg_exp++ = '$';
+X	*reg_exp++ = '\0';
+} /* End RegExpPatternToRegExp */
+SHAR_EOF
+chmod 0644 xmfm/RegExp.c ||
+echo 'restore of xmfm/RegExp.c failed'
+Wc_c="`wc -c < 'xmfm/RegExp.c'`"
+test 1948 -eq "$Wc_c" ||
+	echo 'xmfm/RegExp.c: original size 1948, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/applicat.c ==============
+if test -f 'xmfm/applicat.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/applicat.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/applicat.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/applicat.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/applicat.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:34 $
+X * Version: $Revision: 1.10 $
+X * Purpose: Create the application windows and set up callbacks
+X *
+X * Revision history:
+X *	4 Aug 92	added filter stuff to ResetFilesInPanes
+X *	4 Aug 92	added R5 hooks to allow editres to look at this applic
+X *	5 Aug 92	put Toolbars in scrolled windows, 
+X *			to stop clipping on resize
+X *	5 Aug 92	set dir label above panes only, instead of across form
+X *	6 Aug 92	removed scrolled windows from Toolbars,
+X *			reset dir label as before. let left edge of
+X *			toolbars be free
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X *	11 Nov 92	follow symbolic links to show dirs as dirs, not files.
+X *			Moved Rogers drag 'n drop to drag.c
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <sys/types.h>
+#include <sys/stat.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "xmvararg.h"
+#include "DirMgr.h"
+#include "const.h"
+#include "types.h"
+X
+#ifdef RDD
+#include "rdd.h"
+#endif /* RDD */
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern Widget CreateApplication (
+#ifdef UseFunctionPrototypes
+X	Widget parent
+#endif
+);
+extern void ResetFilesInPanes (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void ClearToolbar (
+#ifdef UseFunctionPrototypes
+X	Widget *toolbar
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern Widget CreateMenu (
+#ifdef UseFunctionPrototypes
+X	Widget parent, XtPointer user_data
+#endif
+);
+extern void FileButtonPressedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileButtonReleasedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileToolButtonPressedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+#ifdef ALLOW_EDITRES
+extern void _XEditResCheckMessages ();
+#endif /* ALLOW_EDITRES */
+X
+#ifdef MOTIF_DD
+extern  void MotifDDRegisterToolbar (
+#ifdef UseFunctionPrototypes
+X	Widget button
+#endif
+);
+#endif /* MOTIF_DD */
+X
+#ifdef RDD
+extern void DirDrop (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer call, XtPointer client_data
+#endif
+);
+extern void ExecutableDrop (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer call, XtPointer client_data
+#endif
+);
+extern void MainWindowDrop (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer call, XtPointer client_data
+#endif
+);
+extern void ToolbarDrop (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer call, XtPointer client_data
+#endif
+);
+#endif /* RDD */
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern GC gc;
+extern GC gc_reversed;
+extern file_action *actions;
+X
+#ifdef RDD
+extern XtTranslations trans_table;
+#endif /* RDD */
+X
+#ifdef MOTIF_DD
+extern XtTranslations trans_table;
+#endif /* MOTIF_DD */
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+Widget CreateApplication (
+#ifdef UseFunctionPrototypes
+X	Widget parent
+#endif
+);	/*  create main window		*/ 
+DirectoryMgr *GetFilesInDir (
+#ifdef UseFunctionPrototypes
+X	void
+#endif
+);
+X
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+XXmString empty_string;
+X
+X
+/* #define SIZE_KLUDGE */
+X
+X
+/*************************************************************************
+X * Function: SetGeometry ()
+X * Purpose: set the geometry of components in the form
+X * In parameters: directory_label, files_toolbar, dirs_toobar, pane
+X * Function result:
+X * Precondition: all args are non-null children of a form
+X * Postcondition: all args are set in the following geometry
+X *		--------------------------
+X *             |               dir label  |
+X *             |--------------------------|
+X *             | files       |            |
+X *             | toolbar     |  pane      |
+X *             |-------------|            |
+X *             | dirs        |            |
+X *             | toolbar     |            |
+X *              --------------------------
+X ************************************************************************/ 
+static void
+SetGeometry 
+#ifdef UseFunctionPrototypes
+X	(Widget directory_label, Widget files_toolbar, Widget dirs_toolbar, Widget pane)
+#else
+X	(directory_label, files_toolbar, dirs_toolbar, pane)
+X	Widget directory_label;
+X	Widget files_toolbar;
+X	Widget dirs_toolbar;
+X	Widget pane;
+X
+#endif
+{
+X	XtVaSetValues (directory_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNrightAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+X
+X	XtVaSetValues (files_toolbar,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) directory_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNbottomAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNbottomPosition,	(XtArgVal) 45,
+X			NULL);
+X
+X	XtVaSetValues (dirs_toolbar,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNtopPosition,		(XtArgVal) 50,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X                        XmNbottomAttachment,    (XtArgVal) XmATTACH_FORM,
+X			NULL);
+X
+X	XtVaSetValues (pane,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) directory_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNleftWidget,		(XtArgVal) files_toolbar,
+X			XmNrightAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNbottomAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+}
+X
+/*************************************************************************
+X * Function: CreateFilesToolbar ()
+X * Purpose: create the files toolbar and populate it with toolbar buttons
+X * In parameters: form, dpi
+X * Function result: files toolbar widget
+X * Precondition: form is non-null
+X * Postcondition: toolbar + buttons created, each button has dpi in user data
+X ************************************************************************/ 
+static Widget
+CreateFilesToolbar 
+#ifdef UseFunctionPrototypes
+X	(Widget form, dir_pane_info *dpi)
+#else
+X	(form, dpi)
+X	Widget form;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	Widget	button,
+X		files_toolbar,
+X		*files_toolbar_buttons;
+X	int 	i;
+X	tool_button_info *tbi;
+X		
+X	files_toolbar_buttons = (Widget *) XtMalloc (sizeof (Widget) *
+X						FILES_TOOLBAR_SIZE);
+X	dpi -> files_toolbar = files_toolbar_buttons;
+X
+X	files_toolbar = XmVaCreateRowColumn (form, "files_toolbar",
+X			XmNpacking,		(XtArgVal) XmPACK_COLUMN,
+X			XmNorientation,		(XtArgVal) XmHORIZONTAL,
+#ifdef SIZE_KLUDGE
+X			/* set to 4 when we only show 3 is because of
+X			   dummy widget in 4th row */
+X			XmNnumColumns, 		(XtArgVal) 4,
+#else
+X                        XmNnumColumns,          (XtArgVal) 3,
+#endif /*SIZE_KLUDGE*/
+X			XmNadjustLast,		(XtArgVal) False,
+X			NULL);
+X	XtManageChild (files_toolbar);
+X
+X	for (i = 0; i < FILES_TOOLBAR_SIZE; i++)
+X	{
+X		tbi = (tool_button_info *) XtMalloc (sizeof (tool_button_info));
+X		tbi -> dpi = dpi;
+X
+X		button =
+X		files_toolbar_buttons[i] =
+X			XmVaCreatePushButton (files_toolbar, "file_button",
+X				XmNlabelString, (XtArgVal) empty_string,
+X				XmNuserData, (XtArgVal) tbi,
+X				NULL);
+X		XtAddCallback (button,
+X			XmNactivateCallback, FileToolButtonPressedCB,
+X			NULL);
+X		XtManageChild (button);
+X		XtSetSensitive (button, False);
+X
+#ifdef RDD
+X		rddAddDropHandler (button,
+X				ToolbarDrop, NULL);
+#endif /* RDD */
+X
+#ifdef MOTIF_DD
+X                MotifDDRegisterToolbar (button);
+#endif /* MOTIF_DD */
+X	}
+X
+#ifdef SIZE_KLUDGE
+X	{	/* kludge to force the row column to give
+X		   us the size buttons we want.  It doesn't
+X		   tamper with the size of DrawButtons
+X		*/
+X
+X	 	Widget dummy;
+X		dummy = XmVaCreateDrawnButton (files_toolbar, "dummy",
+X				XmNmappedWhenManaged, (XtArgVal) False,
+X				NULL);
+X		XtManageChild (dummy);
+X	}
+#endif /*SIZE_KLUDGE */
+X
+X	return files_toolbar;
+}
+X
+/*************************************************************************
+X * Function: ClearToolbar ()
+X * Purpose: empty out the files toolbar of any actions
+X * In parameters: toolbar
+X * Function result: 
+X * Precondition: 
+X * Postcondition: all toolbar buttons show empty string
+X ************************************************************************/ 
+void
+ClearToolbar 
+#ifdef UseFunctionPrototypes
+X	(Widget *toolbar)
+#else
+X	(toolbar)
+X	Widget *toolbar;
+X
+#endif
+{
+X	int i;
+X	
+X	for (i = 0; i < FILES_TOOLBAR_SIZE; i++)
+X	{
+X		if ( !XtIsSensitive (*toolbar))
+X			return;	
+X		XtVaSetValues (*toolbar,
+X				XmNlabelString, empty_string,
+X				NULL);
+X		XtSetSensitive (*toolbar, False);
+X		toolbar++;
+X	}
+}
+X
+/*************************************************************************
+X * Function: CreateDirsToolbar ()
+X * Purpose: create the dirs toolbar and populate it with toolbar buttons
+X * In parameters: form, dpi
+X * Function result: dirs toolbar widget
+X * Precondition: form is non-null
+X * Postcondition: toolbar + buttons created, each button has dpi in user data
+X ************************************************************************/ 
+static Widget
+CreateDirsToolbar 
+#ifdef UseFunctionPrototypes
+X	(Widget form, dir_pane_info *dpi)
+#else
+X	(form, dpi)
+X	Widget form;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	Widget	button,
+X		dirs_toolbar,
+X		*dirs_toolbar_buttons;
+X	int	i;
+X	tool_button_info *tbi;
+X
+X	dirs_toolbar_buttons = (Widget *) XtMalloc (sizeof (Widget) *
+X						DIRS_TOOLBAR_SIZE);
+X	dpi -> dirs_toolbar = dirs_toolbar_buttons;
+X
+X	dirs_toolbar = XmVaCreateRowColumn (form, "dirs_toolbar",
+X			XmNpacking,		(XtArgVal) XmPACK_COLUMN,
+X			XmNorientation,		(XtArgVal) XmHORIZONTAL,
+#ifdef SIZE_KLUDGE
+X			/* set to 4 when we only show 3 is because of
+X			   dummy widget in 4th row */
+X			XmNnumColumns, 		(XtArgVal) 4,
+#else
+X                        XmNnumColumns,          (XtArgVal) 3,
+#endif /*SIZE_KLUDGE*/
+X                        XmNadjustLast,           (XtArgVal) False,
+X			NULL);
+X	XtManageChild (dirs_toolbar);
+X
+X	for (i = 0; i < DIRS_TOOLBAR_SIZE; i++)
+X	{	tbi = (tool_button_info *) XtMalloc (sizeof (tool_button_info));
+X		tbi -> dpi = dpi;
+X
+X		button =
+X		dirs_toolbar_buttons[i] =
+X			XmVaCreatePushButton (dirs_toolbar, "dir_button",
+X				XmNlabelString, (XtArgVal) empty_string,
+X				XmNuserData, (XtArgVal) tbi,
+X				NULL);
+X		XtAddCallback (button,
+X			XmNactivateCallback, FileToolButtonPressedCB,
+X			NULL);
+X		XtManageChild (button);
+X		XtSetSensitive (button, False);
+X
+#ifdef RDD
+X		rddAddDropHandler (button,
+X				ToolbarDrop, NULL);
+#endif /* RDD */
+X
+#ifdef MOTIF_DD
+X                MotifDDRegisterToolbar (button);
+#endif /* MOTIF_DD */
+X	}
+X
+#ifdef SIZE_KLUDGE
+X	{	/* kludge to force the row column to give
+X		   us the size buttons we want.  It doesn't
+X		   tamper with the size of DrawButtons
+X		*/
+X	 	Widget dummy;
+X		dummy = XmVaCreateDrawnButton (dirs_toolbar, "dummy",
+X				XmNmappedWhenManaged, (XtArgVal) False,
+X				NULL);
+X		XtManageChild (dummy);
+X	}
+#endif /*SIZE_KLUDGE*/
+X
+X	return dirs_toolbar;
+}
+X
+#ifdef ALLOW_ROWCOL_RESIZE
+/*************************************************************************
+X * Function: ScrolledWindowResized ()
+X * Purpose: the scrolled window containing files has changed in size.
+X *	Need to rearrange widgets in it.
+X * In parameters: w, event, args, num_args
+X * Function result: 
+X * Precondition: 
+X * Postcondition: number of columns is maximum for new width
+X ************************************************************************/
+X
+/* ARGSUSED */ 
+static void
+ScrolledWindowResized 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XEvent *event, char **args, Cardinal *num_args)
+#else
+X	(w, event, args, num_args)
+X	Widget w;
+X	XEvent *event;
+X	char **args;
+X	Cardinal *num_args;
+X
+#endif
+{       Dimension pane_width, button_width;
+X        int num_columns;
+X        Widget button;
+X        dir_pane_info *dpi;
+X
+#ifdef DEBUG
+X	fprintf (stderr, "resize on scrolled widget to width %d height %d\n",
+X			(XConfigureEvent *) event -> width,
+X			(XConfgureEvent *) event -> height);
+#endif
+X
+X        XtVaGetValues (w,
+X                        XmNuserData, &dpi,
+X                        XmNwidth, &pane_width,
+X                        NULL);
+X
+X        /* find a non-null button, or give up */
+X        if (dpi -> files_buttons != NULL)
+X                button = dpi -> files_buttons -> widget;
+X        else if (dpi -> dirs_buttons != NULL)
+X                button = dpi -> dirs_buttons -> widget;
+X
+X        else if (dpi -> executables_buttons != NULL)
+X                button = dpi -> executables_buttons -> widget;
+X
+X        else return;
+X
+X        XtVaGetValues (button, XmNwidth, &button_width, NULL);
+X
+X        num_columns = (int) (pane_width / button_width);
+X
+#ifdef DEBUG
+X        fprintf (stderr, "number of columns in panes set to %d\n",
+X                        num_columns);
+#endif /* DEBUG */
+X
+X        /* set the numColumns in each pane */
+X        XtVaSetValues (dpi -> executables_pane,
+X                        XmNnumColumns, (XtArgVal) num_columns,
+X                        XmNpacking, (XtArgVal) XmPACK_COLUMN,
+X                        NULL);
+X        XtVaSetValues (dpi -> files_pane,
+X                        XmNnumColumns, (XtArgVal) num_columns,
+X                        XmNpacking, (XtArgVal) XmPACK_COLUMN,
+X                       NULL);
+X        XtVaSetValues (dpi -> dirs_pane,
+X                        XmNnumColumns, (XtArgVal) num_columns,
+X                        XmNpacking, (XtArgVal) XmPACK_COLUMN,
+X                        NULL);
+}
+#endif /* ALLOW_ROWCOL_RESIZE */
+X
+/*************************************************************************
+X * Function: CreatePane ()
+X * Purpose: create files, directories display area
+X * In parameters: form, dpi
+X * Function result: pane widget
+X * Side effects; fields in dpi point to 3 pane children
+X * Precondition: form is non-null
+X * Postcondition: pane created with children in this geometric relation
+X *                --------------
+X *               | executables  |
+X *               | pane         |
+X *                --------------
+X *               | files pane   |
+X *                --------------
+X *               | dirs pane    |
+X *                --------------
+X ************************************************************************/ 
+static Widget
+CreatePane 
+#ifdef UseFunctionPrototypes
+X	(Widget form, dir_pane_info *dpi)
+#else
+X	(form, dpi)
+X	Widget form;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	Widget	pane,
+X		dirs_pane,
+X		files_pane,
+X		executables_pane,
+X		rc1, rc2, rc3,
+X		file_filter_label,
+X		dir_filter_label,
+X		executable_filter_label,
+X		sw1, sw2, sw3;
+X	XtActionsRec actions_rec;
+X	XtTranslations trans_table;
+X
+#ifdef ALLOW_ROWCOL_RESIZE
+X	/* the action called by this is to allow the number of columns
+X	   to be dynamically reset when the enclosing pane is resized.
+X	   It throws up a RowCol bug under Motif 1.1.0
+X	*/
+X	/* we need to spot when the user horizontally resizes panes
+X	   to reset number of columns of files shown */
+X        actions_rec.string = "resize";
+X        actions_rec.proc = ScrolledWindowResized;
+X
+X	XtAddActions (&actions_rec, 1);
+X	trans_table = XtParseTranslationTable ("<Configure>: resize()");
+#endif /* ALLOW_ROWCOL_RESIZE */
+X
+X	pane = XmVaCreatePanedWindow (form, "pane",
+X			NULL);
+X
+X	/* create the executable files section */
+X	/* a row column of a label and a row column of drawn buttons */
+X
+X	rc1 = XmVaCreatePanedWindow (pane, "exec_rc", 
+X                        XmNsashHeight, (XtArgVal) 1,
+X                        XmNseparatorOn, (XtArgVal) False,
+X                        XmNspacing, (XtArgVal) 0,
+X                        XmNuserData, (XtArgVal) dpi,
+X                        NULL);
+X
+X	executable_filter_label = XmVaCreateLabel (rc1,
+X					"executable_filter_label",
+X					NULL);
+X
+X	sw1 = XmVaCreateScrolledWindow (rc1, "exec_sw",
+X			XmNscrollingPolicy, (XtArgVal) XmAUTOMATIC,
+X                        XmNuserData, (XtArgVal) dpi,
+X			NULL);
+X
+#ifdef ALLOW_ROWCOL_RESIZE
+X	/* look for configure (resize) events on one of the panes */
+X	XtOverrideTranslations (sw1, trans_table);
+#endif /* ALLOW_ROWCOL_RESIZE */
+X
+X	executables_pane = XmVaCreateRowColumn (sw1, "executables_pane",
+X				       NULL);
+X	{	/* kludge to force the row column to give
+X		   us the size buttons we want.  It doesn't
+X		   tamper with the size of DrawButtons
+X		*/
+X	 	Widget dummy;
+X		dummy = XmVaCreateDrawnButton (executables_pane, "dumm",
+X				XmNmappedWhenManaged, (XtArgVal) False,
+X				NULL);
+X		XtManageChild (dummy);
+X		XtUnmanageChild (dummy);
+X	}
+X	XtVaSetValues (sw1,
+X			XmNworkWindow, (XtArgVal) executables_pane,
+X			NULL);
+X
+X	/* create the ordinary files section */
+X	/* a row column of a label and a row column of drawn buttons */
+X
+X	rc2 = XmVaCreatePanedWindow (pane, "file_rc", 
+X                        XmNsashHeight, (XtArgVal) 1,
+X                        XmNseparatorOn, (XtArgVal) False,
+X                        XmNspacing, (XtArgVal) 0,
+X                        NULL);
+X
+X	file_filter_label = XmVaCreateLabel (rc2,
+X					"file_filter_label",
+X					NULL);
+X
+X	sw2 = XmVaCreateScrolledWindow (rc2, "file_sw",
+X			XmNscrollingPolicy, (XtArgVal) XmAUTOMATIC,
+X			NULL);
+X
+X	files_pane = XmVaCreateRowColumn (sw2, "files_pane",
+X				          NULL);
+X
+X	XtVaSetValues (sw2,
+X			XmNworkWindow, (XtArgVal) files_pane,
+X			NULL);
+X
+X	/* create the directories section */
+X	/* a row column of a label and a row column (in a scrolled window)
+X	   of drawn buttons */
+X
+X	rc3 = XmVaCreatePanedWindow (pane, "dir_rc", 
+X                        XmNsashHeight, (XtArgVal) 1,
+X                        XmNseparatorOn, (XtArgVal) False,
+X                        XmNspacing, (XtArgVal) 0,
+X                        NULL);
+X
+X	dir_filter_label = XmVaCreateLabel (rc3,
+X					"dir_filter_label",
+X					NULL);
+X
+X	sw3 = XmVaCreateScrolledWindow (rc3, "dir_sw",
+X			XmNscrollingPolicy, (XtArgVal) XmAUTOMATIC,
+X			NULL);
+X
+X	dirs_pane = XmVaCreateRowColumn (sw3, "dirs_pane",
+X		 	NULL);
+X
+X	XtVaSetValues (sw3,
+X			XmNworkWindow, (XtArgVal) dirs_pane,
+X			NULL);
+X
+X	XtManageChild (executables_pane);
+X	XtManageChild (executable_filter_label);
+X	XtManageChild (rc1);
+X	XtManageChild (sw1);
+X
+X	XtManageChild (files_pane);
+X	XtManageChild (file_filter_label);
+X	XtManageChild (rc2);
+X	XtManageChild (sw2);
+X
+X	XtManageChild (dirs_pane);
+X	XtManageChild (dir_filter_label);
+X	XtManageChild (rc3);
+X	XtManageChild (sw3);
+X
+X	dpi -> executables_pane = executables_pane;
+X	dpi -> files_pane = files_pane;
+X	dpi -> dirs_pane = dirs_pane;
+X        dpi -> file_filter_label = file_filter_label;
+X        dpi -> dir_filter_label = dir_filter_label;
+X        dpi -> executable_filter_label = executable_filter_label;
+X
+X	return pane;
+}
+X
+/*************************************************************************
+X * Function: CreateApplication ()
+X * Purpose: create a toplevel widget
+X * In parameters: parent
+X * Function result: toplevel widget in managed state
+X * Precondition: parent is non-null widget
+X * Postcondition: widget hierarchy set up and managed
+X ************************************************************************/ 
+Widget CreateApplication 
+#ifdef UseFunctionPrototypes
+X	(Widget parent)
+#else
+X	(parent)  
+Widget		parent;		/*  parent widget	*/ 
+X
+#endif
+{ 
+X	Widget		main,
+X			form,
+X			directory_label,
+X			pane,
+X			menu,
+X			dirs_toolbar,
+X			files_toolbar;
+X 
+X	char	str[128];
+X	DirectoryMgr *files;
+X	dir_pane_info *dpi;
+X
+#ifdef ALLOW_EDITRES
+X	XtAddEventHandler (parent, (EventMask) 0, True,
+X				_XEditResCheckMessages, NULL);
+#endif
+X
+X	empty_string = XmStringCreateSimple ("           ");
+X
+X	dpi = (dir_pane_info *) XtMalloc (sizeof (dir_pane_info));
+X
+X	main = XmVaCreateMainWindow (parent, "main", 
+X			XmNuserData, (XtArgVal) dpi,
+X			NULL);
+#ifdef RDD
+/*	seems to override other drops 
+X	rddAddDropHandler (main,
+X				MainWindowDrop, NULL);
+*/
+#endif /* RDD */
+X
+X	form = XmVaCreateForm (main, "form",
+X			NULL);
+X
+X
+X	directory_label = XmVaCreateLabel (form, "directory_label",
+X					NULL);
+X	files_toolbar = CreateFilesToolbar (form, dpi);
+X
+X	dirs_toolbar = CreateDirsToolbar (form, dpi);
+X
+X	pane = CreatePane (form, dpi);
+X
+X	files = GetFilesInDir ();
+X	dpi -> dirs_buttons = NULL;
+X	dpi -> files_buttons = NULL;
+X	dpi -> executables_buttons = NULL;
+X
+X	menu = CreateMenu (main, (XtPointer) dpi);
+X
+X	XtManageChild (menu);
+X	XtManageChild (dirs_toolbar);
+X	XtManageChild (files_toolbar);
+X	XtManageChild (pane);
+X	XtManageChild (directory_label);
+X	XtManageChild (form);
+X	XtManageChild (main);
+X
+X	SetGeometry (directory_label, files_toolbar, dirs_toolbar, pane);
+X
+X	/* set up the user data stuff */
+X	dpi -> directory_label = directory_label;
+X	dpi -> directory_manager = files;
+X	dpi -> file_selected = NULL;
+X	dpi -> file_button_selected = NULL;
+X	dpi -> dir_selected = NULL;
+X	dpi -> executable_selected = NULL;
+X	dpi -> toplevel = parent;
+X        dpi -> run_dialog = NULL;
+X        dpi -> info_dialog = NULL;
+X
+X	XmMainWindowSetAreas (main, menu, NULL, NULL, NULL, form);
+X
+X	return (main);
+} 
+X
+X
+/*************************************************************************
+X * Function: GetFilesInDir ()
+X * Purpose: return a list of files in current directory
+X * Function result: list of files
+X * Precondition: none
+X * Postcondition: list of files returned
+X ************************************************************************/ 
+DirectoryMgr *GetFilesInDir 
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{
+X        DirectoryMgr *dm;
+X	char path[MAXPATHLEN];
+X
+X	getcwd (path, MAXPATHLEN);
+X
+X	dm = DirectoryMgrSimpleOpen(path,DIR_MGR_SORT_NAME_DIRS_FIRST, (char *)NULL);
+X        if (dm == NULL)
+X        {
+X                fprintf(stderr,"Can't open directory mgr for '%s'\n",path);
+X                exit(-1);
+X        }
+X	return (dm);
+}
+X
+#ifdef OLD_CODE
+/*************************************************************************
+X * Function: SetFilesInPane ()
+X * Purpose: Set up the file names in buttons in each of the panes
+X * In parameters: dm, dirs_pane, executables_pane, files_pane, dpi
+X * Out parameters: dpi contents changed by indirection
+X * Precondition: directory list in dm, 3 non-null pane widgets,
+X *               dpi points to existing structure
+X * Postcondition: some fields in dpi filled in, panes populated with
+X *                buttons of file names
+X ************************************************************************/ 
+int
+SetFilesInPanes (dm, dirs_pane, executables_pane, files_pane, dpi)
+X	DirectoryMgr *dm;
+X	Widget dirs_pane;
+X	Widget files_pane;
+X	dir_pane_info *dpi;
+{
+X        DirEntry *de;
+X	Widget button;
+X	aWidgetList *dbi, *fbi, *xbi;
+X	pane_button_info *pbi;
+X
+X	while (1)
+X        {
+X                de = DirectoryMgrNextEntry(dm);
+X                if (de == NULL) break;
+X
+X		pbi = (pane_button_info *)
+X			XtMalloc (sizeof (pane_button_info));
+X		pbi -> name = de -> filename;
+X		pbi -> dpi = dpi;
+X
+X
+X		/* place dirs in dir pane */
+X		if (DirEntryIsDir (de) ||
+X			DirEntryIsSymLink (de) &&
+X				S_ISDIR (FileInfoOrigMode (DirEntryActualInfo (de))))
+X		{
+X			pbi -> file_type = DIR_TYPE;
+X			button = XmVaCreatePushButton (dirs_pane,
+X					de -> filename,
+X					XmNuserData, (XtArgVal) pbi,
+X					NULL);
+X			/* link into list */
+X			if (dpi -> dirs_buttons == NULL)
+X			{	dpi -> dirs_buttons =
+X				dbi = (aWidgetList *)
+X					XtMalloc (sizeof (aWidgetList));
+X			} else {
+X				dbi -> next = (aWidgetList *)
+X						 XtMalloc (sizeof (aWidgetList));
+X				dbi = dbi -> next;
+X			}
+X			dbi -> widget = button;
+X			dbi -> next = NULL;
+X
+X			XtAddCallback (button, XmNarmCallback,
+X						FileButtonPressedCB,
+X						NULL);
+X			XtAddCallback (button,
+X				XmNactivateCallback, FileButtonReleasedCB,
+X				NULL);
+X		}
+X		/* and executables in executables pane */
+X		else if ((FileInfoProt( DirEntryActualInfo (de))
+X				& (S_IXUSR | S_IXOTH | S_IXGRP)) != 0)
+X		{
+X			pbi -> file_type = EXECUTABLE_TYPE;
+X			button = XmVaCreatePushButton (executables_pane,
+X					de -> filename,
+X					XmNuserData, (XtArgVal) pbi,
+X					NULL);
+X			/* link into list */
+X			if (dpi -> executables_buttons == NULL)
+X			{	dpi -> executables_buttons =
+X				xbi = (aWidgetList *)
+X					XtMalloc (sizeof (aWidgetList));
+X			} else {
+X				xbi -> next = (aWidgetList *)
+X						 XtMalloc (sizeof (aWidgetList));
+X				xbi = xbi -> next;
+X			}
+X			xbi -> widget = button;
+X			xbi -> next = NULL;
+X
+X			XtAddCallback (button, XmNarmCallback,
+X						FileButtonPressedCB,
+X						NULL);
+X			XtAddCallback (button,
+X				XmNactivateCallback, FileButtonReleasedCB,
+X				NULL);
+X		}
+X		/* everything else in files pane */
+X		else
+X		{
+X			pbi -> file_type = FILE_TYPE;
+X			button = XmVaCreatePushButton (files_pane,
+X					de -> filename,
+X					XmNuserData, (XtArgVal) pbi,
+X					NULL);
+X
+X			/* link into list */
+X			if (dpi -> files_buttons == NULL)
+X			{	dpi -> files_buttons =
+X				fbi = (aWidgetList *)
+X					XtMalloc (sizeof (aWidgetList));
+X			} else {
+X				fbi -> next = (aWidgetList *)
+X						 XtMalloc (sizeof (aWidgetList));
+X				fbi = fbi -> next;
+X			}
+X			fbi -> widget = button;
+X			fbi -> next = NULL;
+X			XtAddCallback (button, XmNarmCallback,
+X						FileButtonPressedCB,
+X						NULL);
+X			XtAddCallback (button,
+X				XmNactivateCallback, FileButtonReleasedCB,
+X				NULL);
+X		}
+X		XtManageChild (button);
+X        }
+}
+#endif /* OLD_CODE */
+X
+X
+/*************************************************************************
+X * Function: DrawnButtonExposedCB ()
+X * Purpose: handle expose events on file buttons
+X * In parameters: button, client_data, call_data
+X * Function returns:
+X * Precondition: expose event generated for w
+X * Postcondition: label redrawn
+X *************************************************************************/
+X
+/* ARGSUSED */
+void
+DrawnButtonExposedCB 
+#ifdef UseFunctionPrototypes
+X	(Widget button, XtPointer client_data, XtPointer call_data)
+#else
+X	(button, client_data, call_data)
+X	Widget button;
+X	XtPointer client_data, call_data;
+X
+#endif
+{	pane_button_info *pbi;
+X	Dimension height;
+X
+X	XtVaGetValues (button,
+X			XmNuserData, (XtArgVal) &pbi,
+X			XmNheight, (XtArgVal) &height,
+X			NULL);
+X
+X	XDrawImageString (XtDisplay (button),
+X			XtWindow (button),
+X			pbi -> gc, 0, (int) height - 5, 
+X			pbi -> name,
+X			strlen (pbi -> name));
+}
+X
+/*************************************************************************
+X * Function: set_pixmap ()
+X * Purpose: set the visual pixmap for this file type
+X * In parameters: button, name, file_type
+X * Function returns:
+X * Side effects: pbi for this button has pixmap, insensitive_pixmap set
+X * Precondition: none 
+X * Postcondition: pixmap set as labelPixmap resource
+X *************************************************************************/
+static void
+set_pixmap 
+#ifdef UseFunctionPrototypes
+X	(Widget button, char *name, char file_type)
+#else
+X	(button, name, file_type)
+X	Widget button;
+X	char *name;
+X	char file_type;
+X
+#endif
+{
+X	Pixmap pixmap, pixmap_reversed;
+X	file_action *pfa;
+X	Pixel fg, bg;
+X	pane_button_info *pbi;
+X
+X	/* find existing colours used in button */
+X	XtVaGetValues (button,
+X			XmNforeground, &fg,
+X			XmNbackground, &bg,
+X			NULL);
+X
+X        /* find file pattern matching this name */
+X        pfa = actions;
+X        while (pfa != NULL)
+X                if (pfa -> file_type == file_type &&
+X                        RegExpMatch (name, pfa -> fsm_ptr))
+X                        break;
+X                else    pfa = pfa -> next;
+X
+X        if (pfa == NULL)
+X        {
+X		fprintf (stderr, "cant find pattern for %s\n", name);
+X		return;
+X        }
+X
+X	/* destroy old pixmaps */
+X	XtVaGetValues (button,
+X			XmNuserData, (XtArgVal) &pbi,
+X			NULL);
+X	XmDestroyPixmap (XtScreen (button), pbi -> pixmap);
+X	XmDestroyPixmap (XtScreen (button), pbi -> pixmap_reversed);
+X
+X	/* find the pixmap for this file */
+X	pixmap = XmGetPixmap ( XtScreen (button),
+X				pfa -> pixmap, fg, bg);
+X	pixmap_reversed = XmGetPixmap ( XtScreen (button),
+X				pfa -> pixmap, bg, fg);
+X
+X	if (pixmap == XmUNSPECIFIED_PIXMAP)
+X	{	fprintf (stderr, "cant find pixmap %s\n", pfa -> pixmap);
+X		/* reasonable default */
+X		pixmap = XmGetPixmap ( XtScreen (button),
+X					"xlogo32", fg, bg);
+X		pixmap_reversed = XmGetPixmap ( XtScreen (button),
+X					"xlogo32", bg, fg);
+X	}
+X		
+X	XtVaSetValues (button,
+X			XmNlabelPixmap, (XtArgVal) pixmap,
+X			NULL);
+X	pbi -> pixmap = pixmap;
+X	pbi -> pixmap_reversed = pixmap_reversed;
+}
+X
+/*************************************************************************
+X * Function: new_pane_button ()
+X * Purpose: crete a new button in one of the panes
+X * In parameters: de, dpi, file_type
+X * Function returns: new node of a widget list 
+X * Precondition: 
+X * Postcondition: new node created with callbacks set
+X *************************************************************************/
+aWidgetList *
+new_pane_button 
+#ifdef UseFunctionPrototypes
+X	(char *filename, char *button_name, dir_pane_info *dpi, Widget parent, char file_type)
+#else
+X	(filename, button_name, dpi, parent, file_type)
+X	char *filename;
+X	char *button_name;
+X	dir_pane_info *dpi;
+X	Widget parent;
+X	char file_type;
+X
+#endif
+{
+X	pane_button_info *pbi;
+X	Widget button;
+X	aWidgetList *dbi;
+X	static Pixmap label_bug_pixmap = NULL;
+X
+X	/* set information needed for this button */
+X	pbi = (pane_button_info *)
+X		XtMalloc (sizeof (pane_button_info));
+X	pbi -> name = filename;
+X	pbi -> dpi = dpi;
+X	pbi -> file_type = file_type;
+X	pbi -> pixmap = XmUNSPECIFIED_PIXMAP;
+X	pbi -> pixmap_reversed = XmUNSPECIFIED_PIXMAP;
+X	pbi -> gc = gc;
+X	pbi -> gc_reversed = gc_reversed;
+X
+X	/* if recompute_size == True, and we don't have a pixmap
+X	   set at create time, then it always takes its size as 0x0.
+X	   This is (at least) a Motif 1.1.0 fix, that sets a dummy one
+X	*/
+X	if (label_bug_pixmap == NULL)
+X	{	Pixel fg, bg;
+X
+X		XtVaGetValues (parent,
+X				XmNforeground, (XtArgVal) &fg,
+X				XmNbackground, (XtArgVal) &bg,
+X				NULL);
+X		label_bug_pixmap = XmGetPixmap (XtScreen (parent),
+X					"xlogo32", bg, fg);
+X	}
+X
+X	button = XmVaCreateDrawnButton (parent,
+X				button_name,
+X				XmNuserData, (XtArgVal) pbi,
+X				XmNlabelType, (XtArgVal) XmPIXMAP,
+X				XmNlabelPixmap, (XtArgVal) label_bug_pixmap,
+X				XmNmultiClick, (XtArgVal) XmMULTICLICK_KEEP,
+X				XmNrecomputeSize, (XtArgVal) False,
+#ifdef RDD
+X				XmNtranslations, (XtArgVal) trans_table,
+#endif /* RDD */
+#ifdef MOTIF_DD
+X				XmNtranslations, (XtArgVal) trans_table,
+#endif /* MOTIF_DD */
+X				NULL);
+X	/* create a new node for list */
+X	dbi = (aWidgetList *)
+X			XtMalloc (sizeof (aWidgetList));
+X	dbi -> widget = button;
+X	dbi -> next = NULL;
+X
+X	XtAddCallback (button, XmNarmCallback,
+X				FileButtonPressedCB,
+X				NULL);
+X	XtAddCallback (button, XmNactivateCallback,
+X				FileButtonReleasedCB,
+X				NULL);
+X	XtAddCallback (button, XmNexposeCallback,
+X				DrawnButtonExposedCB,
+X				NULL);
+X	XtManageChild (button);
+X
+X	set_pixmap (button, pbi -> name, file_type);
+X
+X	return dbi;
+}
+X
+/*************************************************************************
+X * Function: reset_label ()
+X * Purpose: change the label in a widget
+X * In parameters: w, label
+X * Out parameters: 
+X * Precondition: w is a child of Label.
+X * Postcondition: w has label set
+X *************************************************************************/
+void
+reset_label 
+#ifdef UseFunctionPrototypes
+X	(Widget w, char *label, char file_type)
+#else
+X	(w, label, file_type)
+X	Widget w;
+X	char * label;
+X	char file_type;
+X
+#endif
+{	XmString xmstr;
+X	pane_button_info *pbi;
+X
+X	/* reset the label in the button */
+X	xmstr = XmStringCreateSimple (label);
+X	XtVaSetValues (w,
+X			XmNlabelString, (XtArgVal) xmstr,
+X			NULL);
+X	XmStringFree (xmstr);
+X
+X	/* reset the name in the button info */
+X	XtVaGetValues (w, XmNuserData, &pbi);
+X	pbi -> name = label;
+X
+X	set_pixmap (w, label, file_type);
+}
+X
+/*************************************************************************
+X * Function: SetDirectoryLabel ()
+X * Purpose: set the current dir path in the Label widget showing above panes
+X * In parameters:  dir_label, dm
+X * Out parameters: 
+X * Precondition: 
+X * Postcondition: labelString in dir_label set to current dir
+X ************************************************************************/ 
+static void
+SetDirectoryLabel 
+#ifdef UseFunctionPrototypes
+X	(Widget dir_label, DirectoryMgr *dm)
+#else
+X	(dir_label, dm)
+X	Widget dir_label;
+X	DirectoryMgr *dm;
+X
+#endif
+{
+X	char *dir;
+X	XmString xmdir;
+X	char full_dir[MAXPATHLEN];
+X
+X	dir = DirectoryPath (DirectoryMgrDir (dm));
+X	strcpy (full_dir, "Directory: ");
+X	strcat (full_dir, dir);
+X	xmdir = XmStringCreateSimple (full_dir);
+X	XtVaSetValues (dir_label,
+X			XmNlabelString, xmdir,
+X			NULL);
+X	XmStringFree (xmdir);
+}
+X
+X
+/*************************************************************************
+X * Function: ResetFilesInPane ()
+X * Purpose: Set up the file names in buttons in each of the panes
+X * In parameters:  dpi
+X * Out parameters: dpi contents changed by indirection
+X * Precondition: directory list in dm, 3 non-null pane widgets,
+X *               dpi points to existing structure
+X * Postcondition: some fields in dpi filled in, panes populated with
+X *                buttons of file names
+X ************************************************************************/ 
+void
+ResetFilesInPanes 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi)
+#else
+X	(dpi)
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	DirectoryMgr *dm;
+X        DirEntry *de;
+X	aWidgetList *dbi, *fbi, *xbi;
+X	Bool first_dbi = True;
+X	Bool first_fbi = True;
+X	Bool first_xbi = True;
+X
+X	dm = dpi -> directory_manager;
+X	dbi = dpi -> dirs_buttons;
+X	fbi = dpi -> files_buttons;
+X	xbi = dpi -> executables_buttons;
+X
+X	SetDirectoryLabel (dpi -> directory_label, dm);
+X
+X	/* turn off visibility to stop flickering */
+X	XtUnmapWidget (XtParent (dpi -> files_pane));
+X	XtUnmapWidget (XtParent (dpi -> executables_pane));
+X	XtUnmapWidget (XtParent (dpi -> dirs_pane));
+X
+X        /* ensure we are at the beginning of the directory list */
+X        DirectoryMgrRestart (dm);
+X
+X	while ( (de = DirectoryMgrNextEntry(dm)) != NULL)
+X        {
+X		/* explanation of grotty code:
+X		   there are three lists of buttons, and buttons are
+X		   added to or modified in each list.  A procedure is
+X		   not used because parameterisation looks grotty.
+X		   For each list, there are four cases, like this:
+X
+X		   if list is NULL, create new button, with trailing
+X			pointer set to it
+X		   else if list is non-NULL, but you are at the beginning,
+X				change the label of first button
+X				and keep the pointer set to it
+X		   else if next button is NULL, create next button and set
+X				pointer to it
+X		   else move to next button and change its label
+X		*/
+X
+X		/* place dirs in dir pane */
+X		if (DirEntryIsDir (de) ||
+X			DirEntryIsSymLink (de) &&
+X				S_ISDIR (FileInfoOrigMode (DirEntryActualInfo (de))))
+X		{
+X			/* does it match pattern? else discard it */
+X			if ( !RegExpMatch (DirEntryFileName (de),
+X					dpi -> dir_filter_regexp))
+X				continue;
+X
+X			if (dpi -> dirs_buttons == NULL) 
+X			{	/* create another button with its info */
+X				dpi -> dirs_buttons =
+X				dbi = new_pane_button (de -> filename,
+X							"dir_pane_button", dpi,
+X							dpi -> dirs_pane,
+X							DIR_TYPE);
+#ifdef RDD
+X				rddAddDropHandler (dbi -> widget,
+X					DirDrop, NULL);
+#endif /* RDD */
+X				first_dbi = False;
+X			}
+X			else if (first_dbi)
+X			{	reset_label (dbi -> widget,
+X						de -> filename,
+X						DIR_TYPE);
+X				first_dbi = False;
+X				XtManageChild (dbi -> widget);
+X			}
+X			else if (dbi -> next == NULL)
+X			{
+X				dbi -> next = new_pane_button (de -> filename,
+X							"dir_pane_button",
+X							dpi,
+X							dpi -> dirs_pane,
+X							DIR_TYPE);
+X				dbi = dbi -> next;
+#ifdef RDD
+X				rddAddDropHandler (dbi -> widget,
+X					DirDrop, NULL);
+#endif /* RDD */
+X			} else
+X			{
+X				dbi = dbi -> next;
+X				reset_label (dbi -> widget,
+X						de -> filename,
+X						DIR_TYPE);
+X				/* in case it was unmanaged by earlier dir change */
+X				XtManageChild (dbi -> widget);
+X			}
+X		}
+X		/* and executables in executables pane */
+X		else if ((FileInfoOrigMode( DirEntryActualInfo (de))
+X				& (S_IXUSR | S_IXOTH | S_IXGRP)) != 0)
+X		{
+X			/* does it match pattern? else discard it */
+X			if ( !RegExpMatch (DirEntryFileName (de),
+X					dpi -> executable_filter_regexp))
+X				continue;
+X
+X			if (dpi -> executables_buttons == NULL) 
+X			{	/* create another button with its info */
+X				dpi -> executables_buttons =
+X				xbi = new_pane_button (de -> filename,
+X							"exec_pane_button", dpi,
+X							dpi -> executables_pane,
+X							EXECUTABLE_TYPE);
+#ifdef RDD
+X				rddAddDropHandler (xbi -> widget,
+X					ExecutableDrop, NULL);
+#endif /* RDD */
+X				first_xbi = False;
+X			}
+X			else if (first_xbi)
+X			{	reset_label (xbi -> widget,
+X						de -> filename,
+X						EXECUTABLE_TYPE);
+X				first_xbi = False;
+X				XtManageChild (xbi -> widget);
+X			}
+X			else if (xbi -> next == NULL)
+X			{
+X				xbi -> next = new_pane_button (de -> filename,
+X							"exec_pane_button",
+X							dpi,
+X							dpi -> executables_pane,
+X							EXECUTABLE_TYPE);
+X				xbi = xbi -> next;
+#ifdef RDD
+X				rddAddDropHandler (xbi -> widget,
+X					ExecutableDrop, NULL);
+#endif /* RDD */
+X			} else
+X			{
+X				xbi = xbi -> next;
+X				reset_label (xbi -> widget,
+X						de -> filename,
+X						EXECUTABLE_TYPE);
+X
+X				/* in case it was unmanaged by earlier dir change */
+X				XtManageChild (xbi -> widget);
+X			}
+X		}
+X		/* everything else in files pane */
+X		else
+X		/* does it match pattern? else discard it */
+X		if (RegExpMatch (DirEntryFileName (de),
+X				dpi -> file_filter_regexp))
+X		{
+X			if (dpi -> files_buttons == NULL) 
+X			{	/* create another button with its info */
+X				dpi -> files_buttons =
+X				fbi = new_pane_button (de -> filename,
+X							"file_pane_button", dpi,
+X							dpi -> files_pane,
+X							FILE_TYPE);
+X				first_fbi = False;
+X			}
+X			else if (first_fbi)
+X			{	reset_label (fbi -> widget,
+X						de -> filename,
+X						FILE_TYPE);
+X				first_fbi = False;
+X				XtManageChild (fbi -> widget);
+X			}
+X			else if (fbi -> next == NULL)
+X			{
+X				fbi -> next = new_pane_button (de -> filename,
+X							"file_pane_button",
+X							dpi,
+X							dpi -> files_pane,
+X							FILE_TYPE);
+X				fbi = fbi -> next;
+X			} else
+X			{
+X				fbi = fbi -> next;
+X				reset_label (fbi -> widget,
+X						de -> filename,
+X						FILE_TYPE);
+X				XtManageChild (fbi -> widget);
+X			}
+X		}
+X        }
+X	/* if the new lists are shorter than the old ones, there will
+X	   be buttons left over that should have no contents. They
+X	   have to be unmanaged. First, advance trailing pointers */
+X	if (!first_dbi && dbi != NULL) dbi = dbi -> next;
+X	if (!first_xbi && xbi != NULL) xbi = xbi -> next;
+X	if (!first_fbi && fbi != NULL) fbi = fbi -> next;
+X
+X	while (dbi != NULL)
+X	{
+X		XtUnmanageChild (dbi -> widget);
+X		dbi = dbi -> next;
+X	}
+X	while (xbi != NULL)
+X	{
+X		XtUnmanageChild (xbi -> widget);
+X		xbi = xbi -> next;
+X	}
+X	while (fbi != NULL)
+X	{
+X		XtUnmanageChild (fbi -> widget);
+X		fbi = fbi -> next;
+SHAR_EOF
+true || echo 'restore of xmfm/applicat.c failed'
+fi
+echo 'End of  part 3'
+echo 'File xmfm/applicat.c is continued in part 4'
+echo 4 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

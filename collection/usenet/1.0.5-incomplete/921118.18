@@ -1,0 +1,1687 @@
+Xref: funic comp.unix.bsd:8294 alt.sources:4910
+Path: funic!fuug!mcsun!Germany.EU.net!news.netmbx.de!mailgzrz.TU-Berlin.DE!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!jvnc.net!darwin.sura.net!wupost!cs.utexas.edu!sun-barr!news2me.EBay.Sun.COM!exodus.Eng.Sun.COM!sun!amdahl!paulp
+From: paulp@uts.amdahl.com (Paul Popelka)
+Newsgroups: comp.unix.bsd,alt.sources
+Subject: [386bsd] mountable DOS filesystem code, Part 2/5
+Message-ID: <bbqe03ZmbbYI00@amdahl.uts.amdahl.com>
+Date: 17 Nov 92 17:26:02 GMT
+Followup-To: comp.unix.bsd
+Organization: Amdahl Corporation, Sunnyvale CA
+Lines: 1676
+
+
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	/sys/pcfs/pcfs_vnops.c
+#
+echo x - /sys/pcfs/pcfs_vnops.c
+sed 's/^X//' >/sys/pcfs/pcfs_vnops.c << 'END-of-/sys/pcfs/pcfs_vnops.c'
+X/*
+X *  Written by Paul Popelka (paulp@uts.amdahl.com)
+X *
+X *  You can do anything you want with this software,
+X *    just don't say you wrote it,
+X *    and don't remove this notice.
+X *
+X *  This software is provided "as is".
+X *
+X *  The author supplies this software to be publicly
+X *  redistributed on the understanding that the author
+X *  is not responsible for the correct functioning of
+X *  this software in any circumstances and is not liable
+X *  for any damages caused by this software.
+X *
+X *  October 1992
+X */
+X
+X#include "param.h"
+X#include "systm.h"
+X#include "namei.h"
+X#include "resourcevar.h"	/* defines plimit structure in proc struct */
+X#include "kernel.h"
+X#include "file.h"		/* define FWRITE ... */
+X#include "stat.h"
+X#include "buf.h"
+X#include "proc.h"
+X#include "mount.h"
+X#include "vnode.h"
+X#include "specdev.h"		/* defines plimit structure in the proc struct */
+X#include "malloc.h"
+X
+X#include "dir.h"		/* defines dirent structure		*/
+X
+X#include "bpb.h"
+X#include "direntry.h"
+X#include "denode.h"
+X#include "pcfsmount.h"
+X#include "fat.h"
+X/*
+X *  Some general notes:
+X *
+X *  In the ufs filesystem the inodes, superblocks, and indirect
+X *  blocks are read/written using the vnode for the filesystem.
+X *  Blocks that represent the contents of a file are read/written
+X *  using the vnode for the file (including directories when
+X *  they are read/written as files).
+X *  This presents problems for the dos filesystem because data
+X *  that should be in an inode (if dos had them) resides in the
+X *  directory itself.  Since we must update directory entries
+X *  without the benefit of having the vnode for the directory
+X *  we must use the vnode for the filesystem.  This means that
+X *  when a directory is actually read/written (via read, write,
+X *  or readdir, or seek) we must use the vnode for the filesystem
+X *  instead of the vnode for the directory as would happen in ufs.
+X *  This is to insure we retreive the correct block from the
+X *  buffer cache since the hash value is based upon the vnode
+X *  address and the desired block number.
+X */
+X
+X/*
+X *  Create a regular file.
+X *  On entry the directory to contain the file being
+X *  created is locked.  We must release before we
+X *  return.
+X *  We must also free the pathname buffer pointed at
+X *  by ndp->ni_pnbuf, always on error, or only if the
+X *  SAVESTART bit in ni_nameiop is clear on success.
+X */
+Xint
+Xpcfs_create(ndp, vap, p)
+X	struct nameidata *ndp;
+X	struct vattr *vap;
+X	struct proc *p;
+X{
+X	struct denode ndirent;
+X	struct direntry *ndirp = &ndirent.de_de;
+X	struct denode *dep;
+X	struct denode *pdep = VTODE(ndp->ni_dvp);
+X	int error;
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_create(ndp %08x, vap %08x, p %08x\n", ndp, vap, p);
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  Create a directory entry for the file, then call
+X *  createde() to have it installed.
+X *  NOTE: DOS files are always executable.  We use the
+X *  absence of the owner write bit to make the file readonly.
+X */
+X	bzero(&ndirent, sizeof(ndirent));
+X	unix2dostime(&time, (union dosdate *)&ndirp->deDate,
+X		(union dostime *)&ndirp->deTime);
+X	unix2dosfn((unsigned char *)ndp->ni_ptr, ndirp->deName, ndp->ni_namelen);
+X	ndirp->deAttributes = (vap->va_mode & VWRITE) ? 0 : ATTR_READONLY;
+X	ndirp->deStartCluster = 0;
+X	ndirp->deFileSize = 0;
+X	ndirent.de_pmp = pdep->de_pmp;
+X	ndirent.de_dev = pdep->de_dev;
+X	ndirent.de_devvp = pdep->de_devvp;
+X	if ((error = createde(&ndirent, ndp, &dep)) == 0) {
+X		ndp->ni_vp = DETOV(dep);
+X		if ((ndp->ni_nameiop & SAVESTART) == 0)
+X			free(ndp->ni_pnbuf, M_NAMEI);
+X	} else {
+X		free(ndp->ni_pnbuf, M_NAMEI);
+X	}
+X	deput(pdep);		/* release parent dir	*/
+X	return error;
+X}
+X
+Xint
+Xpcfs_mknod(ndp, vap, cred, p)
+X	struct nameidata *ndp;
+X	struct vattr *vap;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	int error;
+X
+X	switch (vap->va_type) {
+X	case VDIR:
+X		error = pcfs_mkdir(ndp, vap, p);
+X		break;
+X
+X/*
+X *  pcfs_create() sets ndp->ni_vp.
+X */
+X	case VREG:
+X		error = pcfs_create(ndp, vap, p);
+X		break;
+X
+X	default:
+X		error = EINVAL;
+X		break;
+X	}
+X	return error;
+X}
+X
+X/*
+X *  Since DOS directory entries that describe directories
+X *  have 0 in the filesize field, we take this opportunity (open)
+X *  to find out the length of the directory and plug it
+X *  into the denode structure.
+X */
+Xint
+Xpcfs_open(vp, mode, cred, p)
+X	struct vnode *vp;
+X	int mode;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	int error = 0;
+X	unsigned long sizeinclusters;
+X	struct denode *dep = VTODE(vp);
+X
+X	if (dep->de_Attributes & ATTR_DIRECTORY) {
+X		error = pcbmap(dep, 0xffff, 0, &sizeinclusters);
+X		if (error == E2BIG) {
+X			dep->de_FileSize =
+X				sizeinclusters * dep->de_pmp->pm_bpcluster;
+X			error = 0;
+X		} else
+X			printf("pcfs_open(): pcbmap returned %d\n", error);
+X	}
+X	return 0;
+X}
+X
+Xint
+Xpcfs_close(vp, fflag, cred, p)
+X	struct vnode *vp;
+X	int fflag;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	struct denode *dep = VTODE(vp);
+X
+X	if (vp->v_usecount > 1  &&  !(dep->de_flag & DELOCKED))
+X		DETIMES(dep, &time);
+X	return 0;
+X}
+X
+Xint
+Xpcfs_access(vp, mode, cred, p)
+X	struct vnode *vp;
+X	int mode;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	int dosmode;
+X	struct denode *dep = VTODE(vp);
+X
+X/*
+X *  Root gets to do anything.  Even execute a file
+X *  without the x-bit on?  But, for dos filesystems
+X *  every file is executable.  I may regret this.
+X */
+X	if (cred->cr_uid == 0)
+X		return 0;
+X
+X/*
+X *  mode is filled with a combination of VREAD, VWRITE,
+X *  and/or VEXEC bits turned on.  In an octal number these
+X *  are the Y in 0Y00.
+X *
+X *  Since the dos filesystem doesn't have the concept of
+X *  file ownership we just give everybody read and execute
+X *  access and write access if the readonly bit is off.
+X */
+X	dosmode = VEXEC | VREAD |
+X		((dep->de_Attributes & ATTR_READONLY) ? 0 : VWRITE);
+X	return ((dosmode & mode) != 0) ? 0 : EACCES;
+X}
+X
+Xint
+Xpcfs_getattr(vp, vap, cred, p)
+X	struct vnode *vp;
+X	struct vattr *vap;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	unsigned int cn;
+X	struct denode *dep = VTODE(vp);
+X
+X	DETIMES(dep, &time);
+X	vap->va_fsid = dep->de_dev;
+X	/* The following computation of the fileid must be the
+X	 * same as that used in pcfs_readdir() to compute d_fileno.
+X	 * If not, pwd doesn't work. */
+X	if (dep->de_Attributes & ATTR_DIRECTORY) {
+X		if ((cn = dep->de_StartCluster) == PCFSROOT)
+X			cn = 1;
+X	} else {
+X		if ((cn = dep->de_dirclust) == PCFSROOT)
+X			cn = 1;
+X		cn = (cn << 16) | (dep->de_diroffset & 0xffff);
+X	}
+X	vap->va_fileid = cn;
+X	vap->va_mode = (dep->de_Attributes & ATTR_READONLY) ? 0555 : 0777;
+X	if (dep->de_Attributes & ATTR_DIRECTORY)
+X		vap->va_mode |= S_IFDIR;
+X	vap->va_nlink = 1;
+X	vap->va_gid = 0;
+X	vap->va_uid = 0;
+X	vap->va_rdev = 0;
+X	vap->va_size = dep->de_FileSize;
+X	vap->va_size_rsv = 0;
+X	dos2unixtime((union dosdate *)&dep->de_Date,
+X		(union dostime *)&dep->de_Time, &vap->va_atime);
+X	vap->va_atime.tv_usec = 0;
+X	vap->va_mtime.tv_sec = vap->va_atime.tv_sec;
+X	vap->va_mtime.tv_usec = 0;
+X	vap->va_ctime.tv_sec = vap->va_atime.tv_sec;
+X	vap->va_ctime.tv_usec = 0;
+X	vap->va_flags = dep->de_flag;
+X	vap->va_gen = 0;
+X	vap->va_blocksize = dep->de_pmp->pm_bpcluster;
+X	vap->va_bytes = (dep->de_FileSize + dep->de_pmp->pm_crbomask) &
+X		~(dep->de_pmp->pm_crbomask);
+X	vap->va_bytes_rsv = 0;
+X	vap->va_type = vp->v_type;
+X	return 0;
+X}
+X
+Xint
+Xpcfs_setattr(vp, vap, cred, p)
+X	struct vnode *vp;
+X	struct vattr *vap;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	int error = 0;
+X	struct denode *dep = VTODE(vp);
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_setattr(): vp %08x, vap %08x, cred %08x, p %08x\n",
+X	vp, vap, cred, p);
+X#endif /* defined(PCFSDEBUG) */
+X	if ((vap->va_type != VNON)  ||
+X	    (vap->va_nlink != VNOVAL)  ||
+X	    (vap->va_fsid != VNOVAL)  ||
+X	    (vap->va_fileid != VNOVAL)  ||
+X	    (vap->va_blocksize != VNOVAL)  ||
+X	    (vap->va_rdev != VNOVAL)  ||
+X	    (vap->va_bytes != VNOVAL)  ||
+X	    (vap->va_gen != VNOVAL)  ||
+X	    (vap->va_uid != (u_short)VNOVAL)  ||
+X	    (vap->va_gid != (u_short)VNOVAL)  ||
+X	    (vap->va_atime.tv_sec != VNOVAL)) {
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_setattr(): returning EINVAL\n");
+Xprintf("    va_type %d, va_nlink %x, va_fsid %x, va_fileid %x\n",
+X	vap->va_type, vap->va_nlink, vap->va_fsid, vap->va_fileid);
+Xprintf("    va_blocksize %x, va_rdev %x, va_bytes %x, va_gen %x\n",
+X	vap->va_blocksize, vap->va_rdev, vap->va_bytes, vap->va_gen);
+Xprintf("    va_uid %x, va_gid %x, va_atime.tv_sec %x\n",
+X	vap->va_uid, vap->va_gid, vap->va_atime.tv_sec);
+X#endif /* defined(PCFSDEBUG) */
+X		return EINVAL;
+X	}
+X
+X	if (vap->va_size != VNOVAL) {
+X		if (vp->v_type == VDIR)
+X			return EISDIR;
+X		if (error = detrunc(dep, vap->va_size, 0))
+X			return error;
+X	}
+X	if (vap->va_mtime.tv_sec != VNOVAL) {
+X		dep->de_flag |= DEUPD;
+X		if (error = deupdat(dep, &vap->va_mtime, 1))
+X			return error;
+X	}
+X
+X/*
+X *  DOS files only have the ability to have thier
+X *  writability attribute set, so we use the owner
+X *  write bit to set the readonly attribute.
+X */
+X	if (vap->va_mode != (u_short)VNOVAL) {
+X		/* We ignore the read and execute bits */
+X		if (vap->va_mode & VWRITE)
+X			dep->de_Attributes &= ~ATTR_READONLY;
+X		else
+X			dep->de_Attributes |= ATTR_READONLY;
+X		dep->de_flag |= DEUPD;
+X	}
+X
+X	if (vap->va_flags != VNOVAL) {
+X		if (error = suser(cred, &p->p_acflag))
+X			return error;
+X		if (cred->cr_uid == 0)
+X			dep->de_flag = vap->va_flags;
+X		else {
+X			dep->de_flag &= 0xffff0000;
+X			dep->de_flag |= (vap->va_flags & 0xffff);
+X		}
+X		dep->de_flag |= DEUPD;
+X	}
+X	return error;
+X}
+X
+X/*debug*/int brc[2];
+X
+Xint
+Xpcfs_read(vp, uio, ioflag, cred)
+X	struct vnode *vp;
+X	struct uio *uio;
+X	int ioflag;
+X	struct ucred *cred;
+X{
+X	int error = 0;
+X	int diff;
+X	int isadir;
+X	long n;
+X	long on;
+X	daddr_t bn;
+X	daddr_t lbn;
+X	daddr_t rablock;
+X	struct buf *bp;
+X	struct denode *dep = VTODE(vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X/*
+X *  If they didn't ask for any data, then we
+X *  are done.
+X */
+X	if (uio->uio_resid == 0)
+X		return 0;
+X	if (uio->uio_offset < 0)
+X		return EINVAL;
+X
+X	isadir = dep->de_Attributes & ATTR_DIRECTORY;
+X	do {
+X		lbn = uio->uio_offset >> pmp->pm_cnshift;
+X		on  = uio->uio_offset &  pmp->pm_crbomask;
+X		n = MIN((unsigned)(pmp->pm_bpcluster - on), uio->uio_resid);
+X		diff = dep->de_FileSize - uio->uio_offset;
+X		if (diff <= 0)
+X			return 0;
+X		/* convert cluster # to block # if a directory */
+X		if (isadir) {
+X			error = pcbmap(dep, lbn, &lbn, 0);
+X			if (error)
+X				return error;
+X		}
+X		if (diff < n)
+X			n = diff;
+X/*
+X *  If we are operating on a directory file then be
+X *  sure to do i/o with the vnode for the filesystem
+X *  instead of the vnode for the directory.
+X */
+X		if (isadir) {
+X			error = bread(pmp->pm_devvp, lbn, pmp->pm_bpcluster,
+X				NOCRED, &bp);
+X		} else {
+X			rablock = lbn + 1;
+X			if (vp->v_lastr + 1 == lbn  &&
+X			    rablock * pmp->pm_bpcluster < dep->de_FileSize) {
+X				error = breada(vp, lbn, pmp->pm_bpcluster,
+X					rablock, pmp->pm_bpcluster, NOCRED, &bp);
+Xbrc[0]++;
+X			} else {
+X				error = bread(vp, lbn, pmp->pm_bpcluster, NOCRED,
+X					&bp);
+Xbrc[1]++;
+X			}
+X			vp->v_lastr = lbn;
+X		}
+X		n = MIN(n, pmp->pm_bpcluster - bp->b_resid);
+X		if (error) {
+X			brelse(bp);
+X			return error;
+X		}
+X		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
+X/*
+X *  If we have read everything from this block or
+X *  have read to end of file then we are done with
+X *  this block.  Mark it to say the buffer can be reused if
+X *  need be.
+X */
+X		if (n + on == pmp->pm_bpcluster  ||
+X		    uio->uio_offset == dep->de_FileSize)
+X			bp->b_flags |= B_AGE;
+X		brelse(bp);
+X	} while (error == 0  &&  uio->uio_resid > 0  && n != 0);
+X	return error;
+X}
+X
+X/*
+X *  Write data to a file or directory.
+X */
+Xint
+Xpcfs_write(vp, uio, ioflag, cred)
+X	struct vnode *vp;
+X	struct uio *uio;
+X	int ioflag;
+X	struct ucred *cred;
+X{
+X	int n;
+X	int isadir;
+X	int croffset;
+X	int resid;
+X	int osize;
+X	int error;
+X	unsigned long cluster;
+X	unsigned long nextcluster;
+X	unsigned long lastcluster;
+X	daddr_t bn;
+X	struct buf *bp;
+X	struct proc *p = uio->uio_procp;
+X	struct vnode *thisvp;
+X	struct denode *dep = VTODE(vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_write(vp %08x, uio %08x, ioflag %08x, cred %08x\n",
+X	vp, uio, ioflag, cred);
+Xprintf("pcfs_write(): diroff %d, dirclust %d, startcluster %d\n",
+X	dep->de_diroffset, dep->de_dirclust, dep->de_StartCluster);
+X#endif /* defined(PCFSDEBUG) */
+X
+X	switch (vp->v_type) {
+X	case VREG:
+X		if (ioflag & IO_APPEND)
+X			uio->uio_offset = dep->de_FileSize;
+X		isadir = 0;
+X		thisvp = vp;
+X		break;
+X
+X	case VDIR:
+X		if ((ioflag & IO_SYNC) == 0)
+X			panic("pcfs_write(): non-sync directory update");
+X		isadir = 1;
+X		thisvp = pmp->pm_devvp;
+X		break;
+X
+X	default:
+X		panic("pcfs_write(): bad file type");
+X		break;
+X	}
+X
+X	if (uio->uio_offset < 0) {
+X		return EINVAL;
+X	}
+X	if (uio->uio_resid == 0)
+X		return 0;
+X
+X/*
+X *  If they've exceeded their filesize limit, tell them about it.
+X */
+X	if (vp->v_type == VREG  &&  p  &&
+X	    ((uio->uio_offset + uio->uio_resid) >
+X	     p->p_rlimit[RLIMIT_FSIZE].rlim_cur)) {
+X		psignal(p, SIGXFSZ);
+X		return EFBIG;
+X	}
+X
+X/*
+X *  If attempting to write beyond the end of the root
+X *  directory we stop that here because the root directory
+X *  can not grow.
+X */
+X	if ((dep->de_Attributes & ATTR_DIRECTORY)  &&
+X	    dep->de_StartCluster == PCFSROOT  &&
+X	    (uio->uio_offset+uio->uio_resid) > dep->de_FileSize)
+X		return ENOSPC;
+X
+X/*
+X *  If the offset we are starting the write at is beyond the
+X *  end of the file, then they've done a seek.  Unix filesystems
+X *  allow files with holes in them, DOS doesn't so we must
+X *  fill the hole with zeroed blocks.  We do this by calling
+X *  our seek function.  This could probably be cleaned up
+X *  someday.
+X */
+X	if (uio->uio_offset > dep->de_FileSize) {
+X		error = pcfs_seek(vp, (off_t)0, uio->uio_offset, cred);
+X		if (error)
+X			return error;
+X	}
+X
+X/*
+X *  Remember some values in case the write fails.
+X */
+X	resid = uio->uio_resid;
+X	osize = dep->de_FileSize;
+X
+X	do {
+X		bn = uio->uio_offset >> pmp->pm_cnshift;
+X/*
+X *  If we are appending to the file and we are on a
+X *  cluster boundary, then allocate a new cluster
+X *  and chain it onto the file.
+X */
+X		if (uio->uio_offset == dep->de_FileSize  &&
+X		    (uio->uio_offset & pmp->pm_crbomask) == 0) {
+X			if (error = extendfile(dep, &bp, 0))
+X				break;
+X		} else {
+X/*
+X *  The block we need to write into exists,
+X *  so just read it in.
+X */
+X			if (isadir) {
+X				error = pcbmap(dep, bn, &bn, 0);
+X				if (error)
+X					return error;
+X			}
+X			error = bread(thisvp, bn, pmp->pm_bpcluster, cred, &bp);
+X			if (error) {
+X				brelse(bp);
+X				return error;
+X			}
+X		}
+X		croffset = uio->uio_offset & pmp->pm_crbomask;
+X		n = MIN(uio->uio_resid, pmp->pm_bpcluster-croffset);
+X		if (uio->uio_offset+n > dep->de_FileSize) {
+X			dep->de_FileSize = uio->uio_offset + n;
+X			vnode_pager_setsize(vp, dep->de_FileSize);	/* why? */
+X		}
+X		(void) vnode_pager_uncache(vp);		/* why not? */
+X		/* Should these vnode_pager_* functions be done on dir files? */
+X
+X/*
+X *  Copy the data from user space into the buf header.
+X */
+X		error = uiomove(bp->b_un.b_addr+croffset, n, uio);
+X
+X/*
+X *  If they want this synchronous then write it and wait
+X *  for it.  Otherwise, if on a cluster boundary write it
+X *  asynchronously so we can move on to the next block
+X *  without delay.  Otherwise do a delayed write because
+X *  we may want to write somemore into the block later.
+X */
+X		if (ioflag & IO_SYNC)
+X			(void) bwrite(bp);
+X		else
+X		if (n + croffset == pmp->pm_bpcluster) {
+X			bp->b_flags |= B_AGE;
+X			bawrite(bp);
+X		} else
+X			bdwrite(bp);
+X		dep->de_flag |= DEUPD;
+X	} while (error == 0  &&  uio->uio_resid > 0);
+X
+X/*
+X *  If the write failed and they want us to, truncate
+X *  the file back to the size it was before the write
+X *  was attempted.
+X */
+X	if (error && (ioflag & IO_UNIT)) {
+X		detrunc(dep, osize, ioflag & IO_SYNC);
+X		uio->uio_offset -= resid - uio->uio_resid;
+X		uio->uio_resid   = resid;
+X	}
+X	if (!error && (ioflag & IO_UNIT))
+X		error = deupdat(dep, &time, 1);
+X	return error;
+X}
+X
+Xint
+Xpcfs_ioctl(vp, com, data, fflag, cred, p)
+X	struct vnode *vp;
+X	int com;
+X	caddr_t data;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	return ENOTTY;
+X}
+X
+Xint
+Xpcfs_select(vp, which, fflags, cred, p)
+X	struct vnode *vp;
+X	int which;
+X	int fflags;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	return 1;		/* DOS filesystems never block? */
+X}
+X
+Xint
+Xpcfs_mmap(vp, fflags, cred, p)
+X	struct vnode *vp;
+X	int fflags;
+X	struct ucred *cred;
+X	struct proc *p;
+X{
+X	return EINVAL;
+X}
+X
+X/*
+X *  Flush the blocks of a file to disk.
+X *
+X *  This function is worthless for vnodes that represent
+X *  directories.
+X *  Maybe we could just do a sync if they try an fsync
+X *  on a directory file.
+X */
+Xint
+Xpcfs_fsync(vp, fflags, cred, waitfor, p)
+X	struct vnode *vp;
+X	int fflags;
+X	struct ucred *cred;
+X	int waitfor;
+X	struct proc *p;
+X{
+X	struct denode *dep = VTODE(vp);
+X
+X	if (fflags & FWRITE)
+X		dep->de_flag |= DEUPD;
+X/*
+X *  Does this call to vflushbuf() do anything?  I can
+X *  find no code anywhere that sets v_dirtyblkhd in the
+X *  vnode, which vflushbuf() seems to depend upon.
+X */
+X	vflushbuf(vp, waitfor == MNT_WAIT ? B_SYNC : 0);
+X	return deupdat(dep, &time, waitfor == MNT_WAIT);
+X}
+X
+X/*
+X *  Since the dos filesystem does not allow files with
+X *  holes in them we must fill the file with zeroed
+X *  blocks when a seek past the end of file happens.
+X *
+X *  It seems that nothing in the kernel calls the filesystem
+X *  specific file seek functions.  And, someone on the
+X *  net told me that NFS never sends announcements of
+X *  seeks to the server.  So, if pcfs ever becomes
+X *  NFS mountable it will have to use other means to
+X *  fill in holes in what would be a sparse file.
+X */
+Xint
+Xpcfs_seek(vp, oldoff, newoff, cred)
+X	struct vnode *vp;
+X	off_t oldoff;
+X	off_t newoff;
+X	struct ucred *cred;
+X{
+X	int error = 0;
+X	off_t foff;
+X	daddr_t bn;
+X	unsigned long cluster;
+X	unsigned long lastcluster;
+X	struct buf *bp;
+X	struct denode *dep = VTODE(vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_seek(vp %08x, oldoff %d, newoff %d, cred %08x)\n",
+X	vp, oldoff, newoff, cred); 
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  Compute the offset of the first byte after the
+X *  last block in the file.
+X *  If seeking beyond the end of file then fill the
+X *  file with zeroed blocks up to the seek address.
+X */
+X	foff = (dep->de_FileSize + (pmp->pm_bpcluster-1)) & ~pmp->pm_crbomask;
+X#if defined(PCFSDEBUG)
+Xprintf("seek: newoff %d > foff %d\n", newoff, foff);
+X#endif /* defined(PCFSDEBUG) */
+X	if (newoff > foff) {
+X/*
+X *  If this is the root directory and we are
+X *  attempting to seek beyond the end disallow
+X *  it.  DOS filesystem root directories can
+X *  not grow.
+X */
+X		if (vp->v_flag & VROOT)
+X			return EINVAL;
+X/*
+X *  If this is a directory and the caller is not
+X *  root, then do not let them seek beyond the end
+X *  of file.  If we allowed this then users could
+X *  cause directories to grow.  Is this really that
+X *  important?
+X */
+X		if (dep->de_Attributes & ATTR_DIRECTORY) {
+X			if (error = suser(cred, NULL)) {
+X				return error;
+X			}
+X		}
+X/*
+X *  Allocate and chain together as many clusters as
+X *  are needed to get to newoff.
+X */
+X		while (foff < newoff) {
+X			if (error = extendfile(dep, &bp, 0))
+X				return error;
+X			dep->de_flag |= DEUPD;
+X			bdwrite(bp);
+X			foff += pmp->pm_bpcluster;
+X			dep->de_FileSize += pmp->pm_bpcluster;
+X		} /* end while() */
+X		dep->de_FileSize = newoff;
+X		return deupdat(dep, &time);
+X	}
+X	return 0;
+X}
+X
+Xint
+Xpcfs_remove(ndp, p)
+X	struct nameidata *ndp;
+X	struct proc *p;
+X{
+X	int error;
+X	struct denode *dep = VTODE(ndp->ni_vp);
+X	struct denode *ddep = VTODE(ndp->ni_dvp);
+X
+X	error = removede(ndp);
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_remove(), dep %08x, v_usecount %d\n", dep, ndp->ni_vp->v_usecount);
+X#endif /* defined(PCFSDEBUG) */
+X	if (ddep == dep)
+X		vrele(DETOV(dep));
+X	else
+X		deput(dep);	/* causes pcfs_inactive() to be called via vrele() */
+X	deput(ddep);
+X	return error;
+X}
+X
+X/*
+X *  DOS filesystems don't know what links are.
+X */
+Xint
+Xpcfs_link(vp, ndp, p)
+X	struct vnode *vp;
+X	struct nameidata *ndp;
+X	struct proc *p;
+X{
+X	return EINVAL;
+X}
+X
+X/*
+X *  Renames on files require moving the denode to
+X *  a new hash queue since the denode's location is
+X *  used to compute which hash queue to put the file in.
+X *  Unless it is a rename in place.  For example "mv a b".
+X *
+X *  What follows is the basic algorithm:
+X *
+X *	if (file move) {
+X *		if (dest file exists) {
+X *			remove dest file
+X *		}
+X *		if (dest and src in same directory) {
+X *			rewrite name in existing directory slot
+X *		} else {
+X *			write new entry in dest directory
+X *			update offset and dirclust in denode
+X *			move denode to new hash chain
+X *			clear old directory entry
+X *		}
+X *	} else {  directory move
+X *		if (dest directory exists) {
+X *			if (dest is not empty) {
+X *				return ENOTEMPTY
+X *			}
+X *			remove dest directory
+X *		}
+X *		if (dest and src in same directory) {
+X *			rewrite name in existing entry
+X *		} else {
+X *			be sure dest is not a child of src directory
+X *			write entry in dest directory
+X *			update "." and ".." in moved directory
+X *			update offset and dirclust in denode
+X *			move denode to new hash chain
+X *			clear old directory entry for moved directory
+X *		}
+X *	}
+X *
+X *  On entry:
+X *    source's parent directory is unlocked
+X *    source file or directory is unlocked
+X *    destination's parent directory is locked
+X *    destination file or directory is locked if it exists
+X *
+X *  On exit:
+X *    all denodes should be released
+X *  Notes:
+X *    I'm not sure how the memory containing the pathnames
+X *    pointed at by the nameidata structures is freed, there
+X *    may be some memory bleeding for each rename done.
+X */
+Xint
+Xpcfs_rename(fndp, tndp, p)
+X	struct nameidata *fndp;
+X	struct nameidata *tndp;
+X	struct proc *p;
+X{
+X	unsigned char toname[11];
+X	int error;
+X	int newparent = 0;
+X	int sourceisadirectory = 0;
+X	unsigned long to_dirclust;
+X	unsigned long to_diroffset;
+X	unsigned long cn;
+X	daddr_t bn;
+X	struct denode *fddep;	/* from file's parent directory	*/
+X	struct denode *fdep;	/* from file or directory	*/
+X	struct denode *tddep;	/* to file's parent directory	*/
+X	struct denode *tdep;	/* to file or directory		*/
+X	struct pcfsmount *pmp;
+X	struct direntry *dotdotp;
+X	struct direntry *ep;
+X	struct buf *bp;
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_rename(fndp %08x, tndp %08x, p %08x\n", fndp, tndp, p);
+X#endif /* defined(PCFSDEBUG) */
+X	fddep = VTODE(fndp->ni_dvp);
+X	fdep  = VTODE(fndp->ni_vp);
+X	tddep = VTODE(tndp->ni_dvp);
+X	tdep  = tndp->ni_vp ? VTODE(tndp->ni_vp) : NULL;
+X	pmp = fddep->de_pmp;
+X
+X/*
+X *  Convert the filename in tdnp into a dos filename.
+X *  We copy this into the denode and directory entry
+X *  for the destination file/directory.
+X */
+X	unix2dosfn((unsigned char *)tndp->ni_ptr, toname, tndp->ni_namelen);
+X
+X/*
+X *  At this point this is the lock state of the denodes:
+X *   fddep referenced
+X *   fdep  referenced
+X *   tddep locked
+X *   tdep  locked if it exists
+X */
+X
+X/*
+X *  Be sure we are not renaming ".", "..", or an alias of ".".
+X *  This leads to a crippled directory tree.  It's pretty tough
+X *  to do a "ls" or "pwd" with the "." directory entry missing,
+X *  and "cd .." doesn't work if the ".." entry is missing.
+X */
+X	if (fdep->de_Attributes & ATTR_DIRECTORY) {
+X		if ((fndp->ni_namelen == 1  &&  fndp->ni_ptr[0] == '.')  ||
+X		    fddep == fdep  || /* won't happen ? */
+X		    fndp->ni_isdotdot) {
+X			VOP_ABORTOP(tndp);
+X			vput(tndp->ni_dvp);
+X			if (tndp->ni_vp)
+X				vput(tndp->ni_vp);
+X			VOP_ABORTOP(fndp);
+X			vrele(fndp->ni_dvp);
+X			vrele(fndp->ni_vp);
+X			return EINVAL;
+X		}
+X		sourceisadirectory = 1;
+X	}
+X
+X/*
+X *  If we are renaming a directory, and the directory
+X *  is being moved to another directory, then we must
+X *  be sure the destination directory is not in the
+X *  subtree of the source directory.  This could orphan
+X *  everything under the source directory.
+X *  doscheckpath() unlocks the destination's parent
+X *  directory so we must look it up again to relock it.
+X */
+X	if (fddep->de_StartCluster != tddep->de_StartCluster)
+X		newparent = 1;
+X	if (sourceisadirectory && newparent) {
+X		if (tdep) {
+X			deput(tdep);
+X			tdep = NULL;
+X		}
+X		/* doscheckpath() deput()'s tddep */
+X		error = doscheckpath(fdep, tddep, tndp->ni_cred);
+X		tddep = NULL;
+X		if (error) {
+X			goto bad;
+X		}
+X		if ((tndp->ni_nameiop & SAVESTART) == 0)
+X			panic("pcfs_rename(): lost to startdir");
+X		if (error = lookup(tndp, p)) {
+X			goto bad;
+X		}
+X		tddep = VTODE(tndp->ni_dvp);
+X		tdep  = tndp->ni_vp ? VTODE(tndp->ni_vp) : NULL;
+X	}
+X
+X/*
+X *  If the destination exists, then be sure its type (file or dir)
+X *  matches that of the source.  And, if it is a directory make
+X *  sure it is empty.  Then delete the destination.
+X */
+X	if (tdep) {
+X		if (tdep->de_Attributes & ATTR_DIRECTORY) {
+X			if (!sourceisadirectory) {
+X				error = ENOTDIR;
+X				goto bad;
+X			}
+X			if (!dosdirempty(tdep)) {
+X				error = ENOTEMPTY;
+X				goto bad;
+X			}
+X		} else {	/* destination is file */
+X			if (sourceisadirectory) {
+X				error = EISDIR;
+X				goto bad;
+X			}
+X		}
+X		to_dirclust = tdep->de_dirclust;
+X		to_diroffset = tdep->de_diroffset;
+X		if (error = removede(tndp)) {
+X			goto bad;
+X		}
+X		deput(tdep);
+X		tdep = NULL;
+X
+X/*
+X *  Remember where the slot was for createde().
+X */
+X		tndp->ni_pcfs.pcfs_count = 1;
+X		tndp->ni_pcfs.pcfs_cluster = to_dirclust;
+X		tndp->ni_pcfs.pcfs_offset  = to_diroffset;
+X	}
+X
+X/*
+X *  If the source and destination are in the same
+X *  directory then just read in the directory entry,
+X *  change the name in the directory entry and
+X *  write it back to disk.
+X */
+X	if (newparent == 0) {
+X		/* tddep and fddep point to the same denode here */
+X		DELOCK(fdep);		/* tddep is already locked */
+X		if (error = readde(fdep, &bp, &ep)) {
+X			/* readde() does brelse() on error */
+X			DEUNLOCK(fdep);
+X			goto bad;
+X		}
+X		bcopy(toname, ep->deName, 11);
+X		if (error = bwrite(bp)) {
+X			DEUNLOCK(fdep);
+X			goto bad;
+X		}
+X		bcopy(toname, fdep->de_Name, 11);	/* update denode */
+X/*
+X *  fdep locked
+X *  fddep and tddep point to the same denode which is locked
+X *  tdep is unlocked and unreferenced
+X */
+X	} else {
+X/*
+X *  If the source and destination are in different
+X *  directories, then mark the entry in the source
+X *  directory as deleted and write a new entry in the
+X *  destination directory.  Then move the denode to
+X *  the correct hash chain for its new location in
+X *  the filesystem.  And, if we moved a directory,
+X *  then update its .. entry to point to the new
+X *  parent directory.
+X */
+X		DELOCK(fdep);
+X		bcopy(toname, fdep->de_Name, 11);	/* update denode */
+X		if (error = createde(fdep, tndp, (struct denode **)0)) {
+X			/* should put back filename */
+X			DEUNLOCK(fdep);
+X			goto bad;
+X		}
+X		DELOCK(fddep);
+X		if (error = readde(fdep, &bp, &ep)) { /* read source de */
+X			DEUNLOCK(fdep);
+X			DEUNLOCK(fddep);
+X			goto bad;
+X		}
+X		ep->deName[0] = SLOT_DELETED;
+X		if (error = bwrite(bp)) {
+X			DEUNLOCK(fdep);
+X			DEUNLOCK(fddep);
+X			goto bad;
+X		}
+X		fdep->de_dirclust = tndp->ni_pcfs.pcfs_cluster;
+X		fdep->de_diroffset = tndp->ni_pcfs.pcfs_offset;
+X		reinsert(fdep);
+X		DEUNLOCK(fddep);
+X	}
+X	/* fdep is still locked here */
+X
+X/*
+X *  If we moved a directory to a new parent directory,
+X *  then we must fixup the ".." entry in the moved
+X *  directory.
+X */
+X	if (sourceisadirectory  &&  newparent) {
+X		cn = fdep->de_StartCluster;
+X		if (cn == PCFSROOT) {
+X			/* this should never happen */
+X			panic("pcfs_rename(): updating .. in root directory?\n");
+X		} else {
+X			bn = cntobn(pmp, cn);
+X		}
+X		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
+X			NOCRED, &bp);
+X		if (error) {
+X			brelse(bp);
+X			/* should really panic here, fs is corrupt */
+X			DEUNLOCK(fdep);
+X			goto bad;
+X		}
+X		dotdotp = (struct direntry *)bp->b_un.b_addr + 1;
+X		dotdotp->deStartCluster = tddep->de_StartCluster;
+X		error = bwrite(bp);
+X		DEUNLOCK(fdep);
+X		if (error) {
+X			/* should really panic here, fs is corrupt */
+X			goto bad;
+X		}
+X	} else {
+X		DEUNLOCK(fdep);
+X	}
+Xbad:;
+X	vrele(DETOV(fdep));
+X	vrele(DETOV(fddep));
+X	if (tdep)
+X		vput(DETOV(tdep));
+X	if (tddep)
+X		vput(DETOV(tddep));
+X	return error;
+X}
+X
+Xstruct {
+X	struct direntry dot;
+X	struct direntry dotdot;
+X} dosdirtemplate = {
+X	".       ", "   ",		/* the . entry */
+X	ATTR_DIRECTORY,			/* file attribute */
+X	0,0,0,0,0,0,0,0,0,0,		/* resevered */
+X	1234, 1234,			/* time and date */
+X	0,				/* startcluster */
+X	0,				/* filesize */
+X	"..      ", "   ",		/* the .. entry */
+X	ATTR_DIRECTORY,			/* file attribute */
+X	0,0,0,0,0,0,0,0,0,0,		/* resevered */
+X	1234, 1234,			/* time and date */
+X	0,				/* startcluster */
+X	0,				/* filesize */
+X};
+X
+Xint
+Xpcfs_mkdir(ndp, vap, p)
+X	struct nameidata *ndp;
+X	struct vattr *vap;
+X	struct proc *p;
+X{
+X	int bn;
+X	int error;
+X	unsigned long newcluster;
+X	struct denode *pdep;
+X	struct denode *ndep;
+X	struct vnode *pvp;
+X	struct direntry *denp;
+X	struct denode ndirent;
+X	struct pcfsmount *pmp;
+X	struct buf *bp;
+X
+X	pvp = ndp->ni_dvp;
+X	pdep = VTODE(pvp);
+X
+X/*
+X *  If this is the root directory and there is no space left
+X *  we can't do anything.  This is because the root directory
+X *  can not change size.
+X */
+X	if (pdep->de_StartCluster == PCFSROOT  &&  ndp->ni_pcfs.pcfs_count == 0) {
+X		free(ndp->ni_pnbuf, M_NAMEI);
+X		deput(pdep);
+X		return ENOSPC;
+X	}
+X
+X	pmp = pdep->de_pmp;
+X
+X/*
+X *  Allocate a cluster to hold the about to be created directory.
+X */
+X	if (error = clusteralloc(pmp, &newcluster, CLUST_EOFE)) {
+X		free(ndp->ni_pnbuf, M_NAMEI);
+X		deput(pdep);
+X		return error;
+X	}
+X
+X/*
+X *  Now fill the cluster with the "." and ".." entries.
+X *  And write the cluster to disk.  This way it is there
+X *  for the parent directory to be pointing at if there
+X *  were a crash.
+X */
+X	bn = cntobn(pmp, newcluster);
+X	bp = getblk(pmp->pm_devvp, bn, pmp->pm_bpcluster); /* always succeeds */
+X	bzero(bp->b_un.b_addr, pmp->pm_bpcluster);
+X	bcopy(&dosdirtemplate, bp->b_un.b_addr, sizeof dosdirtemplate);
+X	denp = (struct direntry *)bp->b_un.b_addr;
+X	denp->deStartCluster = newcluster;
+X	unix2dostime(&time, (union dosdate *)&denp->deDate,
+X		(union dostime *)&denp->deTime);
+X	denp++;
+X	denp->deStartCluster = pdep->de_StartCluster;
+X	unix2dostime(&time, (union dosdate *)&denp->deDate,
+X		(union dostime *)&denp->deTime);
+X	if (error = bwrite(bp)) {
+X		clusterfree(pmp, newcluster);
+X		free(ndp->ni_pnbuf, M_NAMEI);
+X		deput(pdep);
+X		return error;
+X	}
+X
+X/*
+X *  Now build up a directory entry pointing to the newly
+X *  allocated cluster.  This will be written to an empty
+X *  slot in the parent directory.
+X */
+X	ndep = &ndirent;
+X	bzero(ndep, sizeof(*ndep));
+X	unix2dosfn((unsigned char *)ndp->ni_ptr, ndep->de_Name, ndp->ni_namelen);
+X	unix2dostime(&time, (union dosdate *)&ndep->de_Date,
+X		(union dostime *)&ndep->de_Time);
+X	ndep->de_StartCluster = newcluster;
+X	ndep->de_Attributes = ATTR_DIRECTORY;
+X	ndep->de_pmp = pmp;	/* createde() needs this	*/
+X
+X	error = createde(ndep, ndp, &ndep);
+X	if (error) {
+X		clusterfree(pmp, newcluster);
+X	} else {
+X		ndp->ni_vp = DETOV(ndep);
+X	}
+X	free(ndp->ni_pnbuf, M_NAMEI);
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_mkdir(): deput(%08x), vnode %08x\n", pdep, DETOV(pdep));
+X#endif /* defined(PCFSDEBUG) */
+X	deput(pdep);
+X	return error;
+X}
+X
+Xint
+Xpcfs_rmdir(ndp, p)
+X	struct nameidata *ndp;
+X	struct proc *p;
+X{
+X	struct denode *ddep;
+X	struct denode *dep;
+X	int error = 0;
+X
+X	ddep = VTODE(ndp->ni_dvp);	/* parent dir of dir to delete	*/
+X	dep  = VTODE(ndp->ni_vp);	/* directory to delete	*/
+X
+X/*
+X *  Don't let "rmdir ." go thru.
+X */
+X	if (ddep == dep) {
+X		vrele(DETOV(dep));
+X		deput(dep);
+X		return EINVAL;
+X	}
+X
+X/*
+X *  Be sure the directory being deleted is empty.
+X */
+X	if (dosdirempty(dep) == 0) {
+X		error = ENOTEMPTY;
+X		goto out;
+X	}
+X
+X/*
+X *  Delete the entry from the directory.  For dos filesystems
+X *  this gets rid of the directory entry on disk, the in memory
+X *  copy still exists but the de_refcnt is <= 0.  This prevents
+X *  it from being found by deget().  When the deput() on dep is
+X *  done we give up access and eventually pcfs_reclaim() will
+X *  be called which will remove it from the denode cache.
+X */
+X	if (error = removede(ndp))
+X		goto out;
+X
+X/*
+X *  This is where we decrement the link count in the parent
+X *  directory.  Since dos filesystems don't do this we just
+X *  purge the name cache and let go of the parent directory
+X *  denode.
+X */
+X	cache_purge(DETOV(ddep));
+X	deput(ddep);
+X	ndp->ni_dvp = NULL;	/* getting rid of parent dir pointer? */
+X
+X/*
+X *  Truncate the directory that is being deleted.
+X */
+X	error = detrunc(dep, (u_long)0, IO_SYNC);
+X	cache_purge(DETOV(dep));
+X
+Xout:;
+X	if (ndp->ni_dvp)
+X		deput(ddep);
+X	deput(dep);
+X	return error;
+X}
+X
+X/*
+X *  DOS filesystems don't know what symlinks are.
+X */
+Xint
+Xpcfs_symlink(ndp, vap, target, p)
+X	struct nameidata *ndp;
+X	struct vattr *vap;
+X	char *target;
+X	struct proc *p;
+X{
+X	return EINVAL;
+X}
+X
+X/*
+X *  Dummy dirents to simulate the "." and ".." entries
+X *  of the root directory in a dos filesystem.  Dos doesn't
+X *  provide these.
+X *  Note that each entry must be the same size as a dos
+X *  directory entry (32 bytes).
+X */
+Xstruct dos_dirent {
+X	u_long d_fileno;
+X	u_short d_reclen;
+X	u_short d_namlen;
+X	u_char d_name[24];
+X} rootdots[2] = {
+X    {
+X	1,				/* d_fileno			*/
+X	sizeof(struct direntry),	/* d_reclen			*/
+X	1,				/* d_namlen			*/
+X	"."				/* d_name			*/
+X    },
+X    {
+X	1,				/* d_fileno			*/
+X	sizeof(struct direntry),	/* d_reclen			*/
+X	2,				/* d_namlen			*/
+X	".."				/* d_name			*/
+X    }
+X};
+X
+Xint
+Xpcfs_readdir(vp, uio, cred, eofflagp)
+X	struct vnode *vp;
+X	struct uio *uio;
+X	struct ucred *cred;
+X	int *eofflagp;
+X{
+X	int error = 0;
+X	int diff;
+X	long n;
+X	long on;
+X	long lost;
+X	long count;
+X	unsigned long cn;
+X	unsigned long fileno;
+X	long bias = 0;
+X	daddr_t bn;
+X	daddr_t lbn;
+X	struct buf *bp;
+X	struct denode *dep = VTODE(vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	struct direntry *dentp;
+X	struct dirent *prev;
+X	struct dirent *crnt;
+X	unsigned char dirbuf[512];	/* holds converted dos directories */
+Xint i=0;
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_readdir(): vp %08x, uio %08x, cred %08x, eofflagp %08x\n",
+X	vp, uio, cred, eofflagp);
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  pcfs_readdir() won't operate properly on regular files
+X *  since it does i/o only with the the filesystem vnode,
+X *  and hence can retrieve the wrong block from the buffer
+X *  cache for a plain file.  So, fail attempts to readdir()
+X *  on a plain file.
+X */
+X	if ((dep->de_Attributes & ATTR_DIRECTORY) == 0)
+X		return ENOTDIR;
+X
+X/*
+X *  If the user buffer is smaller than the size of one dos
+X *  directory entry or the file offset is not a multiple of
+X *  the size of a directory entry, then we fail the read.
+X */
+X	count = uio->uio_resid & ~(sizeof(struct direntry)-1);
+X	lost  = uio->uio_resid - count;
+X	if (count < sizeof(struct direntry)  ||
+X	    (uio->uio_offset & (sizeof(struct direntry)-1)))
+X		return EINVAL;
+X	uio->uio_resid = count;
+X	uio->uio_iov->iov_len = count; /* does this assume the vector is big enough? */
+X
+X/*
+X *  If they are reading from the root directory then,
+X *  we simulate the . and .. entries since these don't
+X *  exist in the root directory.  We also set the offset
+X *  bias to make up for having to simulate these entries.
+X *  By this I mean that at file offset 64 we read the first entry
+X *  in the root directory that lives on disk.
+X */
+X	if (dep->de_StartCluster == PCFSROOT) {
+X/*printf("pcfs_readdir(): going after . or .. in root dir, offset %d\n",
+X	uio->uio_offset);*/
+X		bias = 2*sizeof(struct direntry);
+X		if (uio->uio_offset < 2*sizeof(struct direntry)) {
+X			error = uiomove((char *)rootdots + uio->uio_offset,
+X				sizeof rootdots - uio->uio_offset, uio);
+X			goto out;
+X		}
+X	}
+X	do {
+X		lbn = (uio->uio_offset-bias) >> pmp->pm_cnshift;
+X		on  = (uio->uio_offset-bias) &  pmp->pm_crbomask;
+X		n = MIN((unsigned)(pmp->pm_bpcluster - on), uio->uio_resid);
+X		diff = dep->de_FileSize - (uio->uio_offset - bias);
+X		if (diff <= 0)
+X			return 0;
+X		if (diff < n)
+X			n = diff;
+X		error = pcbmap(dep, lbn, &bn, &cn);
+X		if (error)
+X			break;
+X		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, &bp);
+X		n = MIN(n, pmp->pm_bpcluster - bp->b_resid);
+X		if (error) {
+X			brelse(bp);
+X			return error;
+X		}
+X
+X/*
+X *  code to convert from dos directory entries to ufs directory entries
+X */
+X		dentp = (struct direntry *)bp->b_un.b_addr + on;
+X		prev = 0;
+X		crnt = (struct dirent *)dirbuf;
+X		while ((char *)dentp < bp->b_un.b_addr + n) {
+X/*printf("rd: dentp %08x prev %08x crnt %08x deName %02x attr %02x\n",
+X	dentp, prev, crnt, dentp->deName[0], dentp->deAttributes);*/
+X/*
+X *  If we have an empty entry or a slot from a deleted
+X *  file, or a volume label entry just concatenate its
+X *  space onto the end of the previous entry or,
+X *  manufacture an empty entry if there is no previous
+X *  entry.
+X *  If the entry is empty then set a flag saying finish
+X *  out the block but signal an end of file since empty
+X *  slots mean there are no further entries of interest
+X *  in the directory.
+X */
+X			if (dentp->deName[0] == SLOT_EMPTY  ||
+X			    dentp->deName[0] == SLOT_DELETED  ||
+X			    (dentp->deAttributes & ATTR_VOLUME)) {
+X				if (prev) {
+X					prev->d_reclen += sizeof(struct direntry);
+X				} else {
+X					prev = crnt;
+X					prev->d_fileno = 0;
+X					prev->d_reclen = sizeof(struct direntry);
+X					prev->d_namlen = 0;
+X					prev->d_name[0] = 0;
+X				}
+X			} else {
+X				/* this computation of d_fileno must match
+X				 * the computation of va_fileid in pcfs_getattr */
+X				if (dentp->deAttributes & ATTR_DIRECTORY) {
+X					/* if this is the root directory */
+X					if ((fileno = dentp->deStartCluster) == PCFSROOT)
+X						fileno = 1;
+X				} else {
+X					/* if the file's dirent lives in root dir */
+X					if ((fileno = cn) == PCFSROOT)
+X						fileno = 1;
+X					fileno = (fileno << 16) |
+X						((dentp - (struct direntry *)bp->b_un.b_addr) & 0xffff);
+X				}
+X				crnt->d_fileno = fileno;
+X				crnt->d_reclen = sizeof(struct direntry);
+X				crnt->d_namlen = dos2unixfn(dentp->deName,
+X					(unsigned char *)crnt->d_name);
+X/*printf("readdir: file %s, fileno %08x, attr %02x, start %08x\n",
+X	crnt->d_name, crnt->d_fileno, dentp->deAttributes, dentp->deStartCluster);*/
+X				prev = crnt;
+X			}
+X			crnt = (struct dirent *)((char *)crnt + sizeof(struct direntry));
+X
+X/*
+X *  If our intermediate buffer is full then copy
+X *  its contents to user space.  I would just
+X *  use the buffer the buf header points to but,
+X *  I'm afraid that when we brelse() it someone else
+X *  might find it in the cache and think its contents
+X *  are valid.  Maybe there is a way to invalidate
+X *  the buffer before brelse()'ing it.
+X */
+X			if ((unsigned char *)crnt >= &dirbuf[sizeof dirbuf]) {
+X				error = uiomove(dirbuf, n, uio);
+X				if (error)
+X					break;
+X				prev = 0;
+X				crnt = (struct dirent *)dirbuf;
+X			}
+X			dentp++;
+X		}
+X
+X/*
+X *  If we have read everything from this block or
+X *  have read to end of file then we are done with
+X *  this block.  Mark it to say the buffer can be reused if
+X *  need be.
+X */
+X		if (n + on == pmp->pm_bpcluster  ||
+X		    (uio->uio_offset-bias) == dep->de_FileSize)
+X			bp->b_flags |= B_AGE;
+X		brelse(bp);
+X	} while (error == 0  &&  uio->uio_resid > 0  && n != 0);
+Xout:;
+X	uio->uio_resid += lost;
+X
+X/*
+X *  I don't know why we bother setting this eofflag, getdirentries()
+X *  in vfs_syscalls.c doesn't bother to look at it when we return.
+X */
+X	if (dep->de_FileSize - uio->uio_offset - bias <= 0)
+X		*eofflagp = 1;
+X	else
+X		*eofflagp = 0;
+X	return error;
+X}
+X
+X/*
+X *  DOS filesystems don't know what symlinks are.
+X */
+Xint
+Xpcfs_readlink(vp, uio, cred)
+X	struct vnode *vp;
+X	struct uio *uio;
+X	struct ucred *cred;
+X{
+X	return EINVAL;
+X}
+X
+Xint
+Xpcfs_abortop(ndp)
+X	struct nameidata *ndp;
+X{
+X	if ((ndp->ni_nameiop & (HASBUF | SAVESTART)) == HASBUF)
+X		FREE(ndp->ni_pnbuf, M_NAMEI);
+X	return 0;
+X}
+X
+Xint
+Xpcfs_lock(vp)
+X	struct vnode *vp;
+X{
+X	struct denode *dep = VTODE(vp);
+X
+X	DELOCK(dep);
+X	return 0;
+X}
+X
+Xint
+Xpcfs_unlock(vp)
+X	struct vnode *vp;
+X{
+X	struct denode *dep = VTODE(vp);
+X
+X	if (!(dep->de_flag & DELOCKED))
+X		panic("pcfs_unlock: denode not locked");
+X	DEUNLOCK(dep);
+X	return 0;
+X}
+X
+Xint
+Xpcfs_islocked(vp)
+X	struct vnode *vp;
+X{
+X	return VTODE(vp)->de_flag & DELOCKED ? 1 : 0;
+X}
+X
+X/*
+X *  vp - address of vnode file the file
+X *  bn - which cluster we are interested in mapping to
+X *    a filesystem block number.
+X *  vpp - returns the vnode for the block special file
+X *    holding the filesystem containing the file of interest
+X *  bnp - address of where to return the filesystem
+X *    relative block number
+X */
+Xint
+Xpcfs_bmap(vp, bn, vpp, bnp)
+X	struct vnode *vp;
+X	daddr_t bn;
+X	struct vnode **vpp;
+X	daddr_t *bnp;
+X{
+X	struct denode *dep = VTODE(vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X	if (vpp != NULL)
+X		*vpp = dep->de_devvp;
+X	if (bnp == NULL)
+X		return 0;
+X	return pcbmap(dep, bn << (pmp->pm_cnshift - pmp->pm_bnshift), bnp, 0);
+X}
+X
+Xint
+Xpcfs_strategy(bp)
+X	struct buf *bp;
+X{
+X	struct denode *dep = VTODE(bp->b_vp);
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	struct vnode *vp;
+X	int error;
+X
+X	if (bp->b_vp->v_type == VBLK  ||  bp->b_vp->v_type == VCHR)
+X		panic("pcfs_strategy: spec");
+X/*
+X *  If we don't already know the filesystem relative
+X *  block number then get it using pcbmap().  If pcbmap()
+X *  returns the block number as -1 then we've got a hole
+X *  in the file.  DOS filesystems don't allow files with
+X *  holes, so we shouldn't ever see this.
+X */
+X	if (bp->b_blkno == bp->b_lblkno) {
+X		if (error = pcbmap(dep,
+X			bp->b_lblkno << (pmp->pm_cnshift - pmp->pm_bnshift),
+X			&bp->b_blkno, 0))
+X			return error;
+X		if ((long)bp->b_blkno == -1)
+X			clrbuf(bp);
+X	}
+X	if ((long)bp->b_blkno == -1) {
+X		biodone(bp);
+X		return 0;
+X	}
+X#ifdef DIAGNOSTIC
+X#endif /* defined(DIAGNOSTIC) */
+X/*
+X *  Read/write the block from/to the disk that contains the desired
+X *  file block.
+X */
+X	vp = dep->de_devvp;
+X	bp->b_dev = vp->v_rdev;
+X	(*(vp->v_op->vop_strategy))(bp);
+X	return 0;
+X}
+X
+Xint
+Xpcfs_print(vp)
+X	struct vnode *vp;
+X{
+X	struct denode *dep = VTODE(vp);
+X
+X	printf("tag VT_PCFS, startcluster %d, dircluster %d, diroffset %d ",
+X		dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
+X	printf(" dev %d, %d, %s\n",
+X		major(dep->de_dev), minor(dep->de_dev),
+X		dep->de_flag & DELOCKED ? "(LOCKED)" : "");
+X	if (dep->de_spare0) {
+X		printf("    owner pid %d", dep->de_spare0);
+X		if (dep->de_spare1)
+X			printf(" waiting pid %d", dep->de_spare1);
+X		printf("\n");
+X	}
+X}
+X
+Xint
+Xpcfs_advlock(vp, id, op, fl, flags)
+X	struct vnode *vp;
+X	caddr_t id;
+X	int op;
+X	struct flock *fl;
+X	int flags;
+X{
+X	return EINVAL;		/* we don't do locking yet		*/
+X}
+X
+Xstruct vnodeops pcfs_vnodeops = {
+X	pcfs_lookup,
+X	pcfs_create,
+X	pcfs_mknod,
+X	pcfs_open,
+X	pcfs_close,
+X	pcfs_access,
+X	pcfs_getattr,
+X	pcfs_setattr,
+X	pcfs_read,
+X	pcfs_write,
+X	pcfs_ioctl,
+X	pcfs_select,
+X	pcfs_mmap,
+X	pcfs_fsync,
+X	pcfs_seek,
+X	pcfs_remove,
+X	pcfs_link,
+X	pcfs_rename,
+X	pcfs_mkdir,
+X	pcfs_rmdir,
+X	pcfs_symlink,
+X	pcfs_readdir,
+X	pcfs_readlink,
+X	pcfs_abortop,
+X	pcfs_inactive,
+X	pcfs_reclaim,
+X	pcfs_lock,
+X	pcfs_unlock,
+X	pcfs_bmap,
+X	pcfs_strategy,
+X	pcfs_print,
+X	pcfs_islocked,
+X	pcfs_advlock,
+X};
+END-of-/sys/pcfs/pcfs_vnops.c
+exit

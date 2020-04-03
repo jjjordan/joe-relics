@@ -1,0 +1,1778 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 04 of 17
+Message-ID: <1992Nov19.052231.25622@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:22:31 GMT
+Lines: 1768
+
+
+
+#!/bin/sh
+# this is part.04 (part 4 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/applicat.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 4; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/applicat.c'
+else
+echo 'x - continuing file xmfm/applicat.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/applicat.c' &&
+X	}
+X
+X 
+X	/* turn visibility back on for panes */
+X	XtMapWidget (XtParent (dpi -> files_pane));
+X	XtMapWidget (XtParent (dpi -> executables_pane));
+X	XtMapWidget (XtParent (dpi -> dirs_pane));
+}
+SHAR_EOF
+echo 'File xmfm/applicat.c is complete' &&
+chmod 0644 xmfm/applicat.c ||
+echo 'restore of xmfm/applicat.c failed'
+Wc_c="`wc -c < 'xmfm/applicat.c'`"
+test 39204 -eq "$Wc_c" ||
+	echo 'xmfm/applicat.c: original size 39204, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/builtin.c ==============
+if test -f 'xmfm/builtin.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/builtin.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/builtin.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/builtin.c' &&
+/*************************************************************************
+X * File: builtin.c
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:36 $
+X * Version: $Revision: 1.7 $
+X * Purpose: Handle builtin calls to the file manager. These are calls that
+X *	must be done internally (eg change directory) or for efficiency
+X *	(none yet)
+X * Revision history:
+X *	4 Aug 92	filter part added to open dir
+X *	6 Aug 92	busy cursor when changing/opening dir
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "types.h"
+#include "const.h"
+#include "xmvararg.h"
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern XmString empty_string;
+extern int pane_count;
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern DirectoryMgr *GetFilesInDir (
+#ifdef UseFunctionPrototypes
+X	void
+#endif
+);
+extern void invert_colours (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern Widget CreateApplication (
+#ifdef UseFunctionPrototypes
+X	Widget parent
+#endif
+);
+extern Bool XtChdir (
+#ifdef UseFunctionPrototypes
+X	char *dir
+#endif
+);
+extern void BusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void UnBusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void builtin_info (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void ResetFilesInPanes (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+void builtin_command (
+#ifdef UseFunctionPrototypes
+X	char *command, dir_pane_info *dpi
+#endif
+);
+void builtin_chdir (
+#ifdef UseFunctionPrototypes
+X	char *dir, dir_pane_info *dpi
+#endif
+);
+void builtin_opendir (
+#ifdef UseFunctionPrototypes
+X	char *dir, dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+X
+X
+/*************************************************************************
+X * Function: SetWMTitle()
+X * Purpose: set the title of window and icon.
+X * In parameters: dir, toplevel
+X * Precondition:
+X * Postcondition: title and icon title set to dir
+X ************************************************************************/ 
+static void
+SetWMTitle 
+#ifdef UseFunctionPrototypes
+X	(char *dir, Widget toplevel)
+#else
+X	(dir, toplevel)
+X	char * dir;
+X	Widget toplevel;
+X
+#endif
+{	char *p;
+X	int len;
+X
+X	/* set the new window manager title
+X	   the icon will only show a small amount, so use end of path
+X	*/
+X	len = strlen (dir);
+X	if (strlen (dir) <= 1)
+X		/* root */
+X		p = dir;
+X	else
+X	{	/* backup over trailing / in dir */
+X		p = dir + len - 2;
+X		while (p > dir && *(p - 1) != '/' )
+X			p--;
+X	}
+X
+X	XtVaSetValues (toplevel,
+X		XmNtitle, dir,
+X		XmNiconName, p,
+X		NULL);
+}
+X
+/*************************************************************************
+X * Function: builtin_chdir ()
+X * Purpose: handle a change of directory request
+X * In parameters: dir, dpi
+X * Precondition: dir is an existing directory relative to current one
+X * Postcondition: panes are repainted to show the new directory, and
+X *                values are set in dpi for this.
+X ************************************************************************/ 
+void
+builtin_chdir 
+#ifdef UseFunctionPrototypes
+X	(char *dir, dir_pane_info *dpi)
+#else
+X	(dir, dpi)
+X	char * dir;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	DirectoryMgr *dm;
+X	Widget *files_toolbar;
+X	int i;
+X
+#ifdef DEBUG
+X	fprintf (stderr, "built in: chdir %s\n", dir);
+#endif
+X	if (XtChdir (dir) == False)
+X		/* chdir failed, no changes */
+X		return;
+X
+X	/* turn off the highlighted dir */
+X	if (dpi -> file_selected != NULL)
+X		invert_colours (dpi -> file_button_selected);
+X	dpi -> file_button_selected = NULL;
+X	dpi -> file_selected = NULL;
+X
+X	/* void the file toolbar */
+X	files_toolbar = dpi -> files_toolbar;
+X	for (i = 0; i < FILES_TOOLBAR_SIZE; i++)
+X	{	XtVaSetValues (files_toolbar[i],
+X				XmNlabelString, (XtArgVal) empty_string,
+X				NULL);
+X		XtSetSensitive (files_toolbar[i], False);
+X	}
+X
+X	BusyCursor (dpi -> toplevel);
+X	DirectoryMgrClose (dpi -> directory_manager);
+X	dm = GetFilesInDir ();
+X	dpi -> directory_manager = dm;
+X	ResetFilesInPanes (dpi);
+X	UnBusyCursor (dpi -> toplevel);
+X	SetWMTitle (
+X		DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)),
+X		dpi -> toplevel);
+}
+X
+X
+/*************************************************************************
+X * Function: builtin_opendir ()
+X * Purpose: handle a change of directory request
+X * In parameters: dir, dpi
+X * Precondition: dir is an existing directory relative to current one
+X * Postcondition: panes are repainted to show the new directory, and
+X *                values are set in dpi for this.
+X ************************************************************************/ 
+void
+builtin_opendir 
+#ifdef UseFunctionPrototypes
+X	(char *dir, dir_pane_info *dpi)
+#else
+X	(dir, dpi)
+X	char * dir;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	Widget shell, dir_pane;
+X	dir_pane_info *new_dpi;
+X
+#ifdef DEBUG
+X	fprintf (stderr, "built in: opendir %s\n", dir);
+#endif
+X	if (XtChdir (dir) == False)
+X		/* chdir failed, no changes */
+X		return;
+X	
+X	pane_count++;
+X
+X	shell = XtCreateApplicationShell ("shell",
+X				vendorShellWidgetClass,
+X				NULL, 0);
+/*
+X	shell = XtAppCreateShell ("shell",
+X				vendorShellWidgetClass,
+X				NULL, 0);
+*/
+X
+X	dir_pane = CreateApplication (shell);
+X	XtManageChild (dir_pane);
+X
+X	XtPopup (shell, XtGrabNone);
+X
+X        /* set files in panes */
+X        XtVaGetValues (dir_pane,
+X                        XmNuserData, (XtArgVal) &new_dpi,
+X                        NULL);
+X
+X	/* copy over filters */
+X	new_dpi -> file_filter = XtMalloc (strlen (dpi -> file_filter) + 1);	
+X	strcpy (new_dpi -> file_filter, dpi -> file_filter);
+X
+X	/* a compiled regexp is an opaque string, that I suspect may
+X	   contain NULL bytes. To stop strcpy stopping on them, use
+X	   bcopy instead
+X	*/
+X	bcopy (dpi -> file_filter_regexp, new_dpi -> file_filter_regexp,
+X		FSM_LENGTH);
+X
+X	new_dpi -> dir_filter = XtMalloc (strlen (dpi -> dir_filter) + 1);	
+X	strcpy (new_dpi -> dir_filter, dpi -> dir_filter);
+X
+X	bcopy (dpi -> dir_filter_regexp, new_dpi -> dir_filter_regexp,
+X		FSM_LENGTH);
+X
+X	new_dpi -> executable_filter = 
+X		XtMalloc (strlen (dpi -> executable_filter) + 1);	
+X	strcpy (new_dpi -> executable_filter, dpi -> executable_filter);
+X
+X	bcopy (dpi -> executable_filter_regexp, 
+X		new_dpi -> executable_filter_regexp,
+X		FSM_LENGTH);
+X
+X        SetFiltersInLabels (new_dpi);
+X
+X	/* and now set the files in the panes */
+X	BusyCursor (new_dpi -> toplevel);
+X        ResetFilesInPanes (new_dpi);
+X	SetActionsInDirsToolbar (new_dpi);
+X	UnBusyCursor (new_dpi -> toplevel);
+X
+X	SetWMTitle (
+X		DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)),
+X		dpi -> toplevel);
+X
+}
+X
+X
+X
+/*************************************************************************
+X * Function: builtin_command ()
+X * Purpose: handle any of the builtin commands
+X * In parameters: command
+X * Out parameters:
+X * Precondition:command is a non-null builtin command
+X * Postcondition: builtin command has been executed
+X ************************************************************************/ 
+void
+builtin_command 
+#ifdef UseFunctionPrototypes
+X	(char *command, dir_pane_info *dpi)
+#else
+X	(command, dpi)
+X	char *command;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	/* these start with a $ - lose that, and then look */
+X	command++;
+X	
+X	if (strncmp (command, CHDIR_COMMAND, LEN_CHDIR_COMMAND) == 0)
+X	{
+X		/* lose the builtin part */
+X		command += LEN_CHDIR_COMMAND + 1;
+X		builtin_chdir (command, dpi);
+X		return;
+X	}
+X	
+X	if (strncmp (command, OPENDIR_COMMAND, LEN_OPENDIR_COMMAND) == 0)
+X	{
+X		/* lose the builtin part */
+X		command += LEN_OPENDIR_COMMAND + 1;
+X		builtin_opendir (command, dpi);
+X		return;
+X	}
+X	if (strncmp (command, INFO_COMMAND, LEN_INFO_COMMAND) == 0)
+X	{
+X		builtin_info (dpi);
+X		return;
+X	}
+}
+SHAR_EOF
+chmod 0644 xmfm/builtin.c ||
+echo 'restore of xmfm/builtin.c failed'
+Wc_c="`wc -c < 'xmfm/builtin.c'`"
+test 8841 -eq "$Wc_c" ||
+	echo 'xmfm/builtin.c: original size 8841, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/buttoncb.c ==============
+if test -f 'xmfm/buttoncb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/buttoncb.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/buttoncb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/buttoncb.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/buttoncb.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:37 $
+X * Version: $Revision: 1.9 $
+X * Purpose: handle the callback events from various buttons being pressed
+X *
+X * Revision history:
+X *	7 Aug 92	stdin of no-xterm do_commands set to /dev/null
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <Xm/Xm.h>
+#include <X11/cursorfont.h>
+#include <string.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+#include "types.h"
+#ifdef RDD
+#include "rdd.h"
+#endif
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void FileButtonPressedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileButtonReleasedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileToolButtonPressedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void do_command (
+#ifdef UseFunctionPrototypes
+X	char *command, int run_in_xterm, int pause_after_exec, dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void builtin_command (
+#ifdef UseFunctionPrototypes
+X	char *command, dir_pane_info *dpi
+#endif
+);
+extern void BusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void UnBusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void PromptDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, char **answer
+#endif
+);
+extern Bool XtChdir (
+#ifdef UseFunctionPrototypes
+X	char *dir
+#endif
+);
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern file_action *actions;
+extern XmString empty_string;
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+static void expand_command (
+#ifdef UseFunctionPrototypes
+X	char **command, char **argv, int argc, char *action
+#endif
+);
+void do_command (
+#ifdef UseFunctionPrototypes
+X	char *command, int run_in_xterm, int pause_after_exec, dir_pane_info *dpi
+#endif
+);
+void expand_prompt ();
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+X
+#define XTERM_STR "xterm -title '"
+#define PAUSEME_STR "' -exec pauseme '"
+#define EXEC_STR "' -exec sh -c '"
+X
+#define COMM_SIZE		4096
+#define IS_WHITE_SPACE(c)	((c) == ' ' || (c) == '\t' || (c) == '\n')
+#define STRING_LEN_CHECK(size)	if ((int)(new_str + (size) - *command) > COMM_SIZE)\
+X				{	fprintf (stderr, "action too long\n");\
+X					*new_str = '\0';\
+X					return;}
+X
+/*************************************************************************
+X * Function: invert_colours ()
+X * Purpose: swap  the fg and bg of the label and pixmap
+X * In parameters: w
+X * Out parameters:
+X * Side effects: pne_button_info of button has label, pixmap swapped
+X *	with inverted versions
+X * Precondition:
+X * Postcondition: label shows inverted.
+X ************************************************************************/ 
+void
+invert_colours 
+#ifdef UseFunctionPrototypes
+X	(Widget w)
+#else
+X	(w)
+X	Widget w;
+X
+#endif
+{	
+X	pane_button_info *pbi;
+X	Pixmap tmp_pixmap;
+X	GC tmp_gc;
+X
+X	if (w == NULL)
+X		return;
+X	XtVaGetValues (w,
+X		XmNuserData, (XtArgVal) &pbi,
+X		NULL);
+X	
+X	/* swap the gc and pixmap with reversed forms */
+X	tmp_pixmap = pbi -> pixmap;
+X	pbi -> pixmap = pbi -> pixmap_reversed;
+X	pbi -> pixmap_reversed = tmp_pixmap;
+X
+X	tmp_gc = pbi -> gc;
+X	pbi -> gc = pbi -> gc_reversed;
+X	pbi -> gc_reversed = tmp_gc;
+X
+X	/* set the reversed pixmap in the button */
+X	XtVaSetValues (w,
+X		XmNlabelPixmap, (XtArgVal) pbi -> pixmap,
+X		NULL);
+X	
+X	/* and force a redisplay to redraw name */
+X	XClearArea (XtDisplay (w), XtWindow (w),
+X			0, 0, 0, 0, True);
+}
+/*************************************************************************
+X * Function: FileButtonPressedCB ()
+X * Purpose: handle a button press in any of the panes i.e. a file has
+X *          been selected
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: a button for a file, executable, or 
+X *               directory has been pressed
+X * Postcondition: toolbar buttons set up to reflect actions for this 
+X *               selected file
+X * Warning: this function is called by others that set last 2 params
+X *	to NULL
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileButtonPressedCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{	
+X	pane_button_info *pbi;
+X	tool_button_info *tbi;
+X	file_action *pfa;
+X	action_pair *pap;
+X	XmString xmstr;
+X	int button;
+X	Widget tool_button;
+X
+#ifdef DEBUG
+X	fprintf (stderr, "button pressed\n");
+#endif
+X	/* get the user data */
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &pbi,
+X			NULL);
+X
+X	/* set the last selected back to normal and invert this one */
+X	if (pbi -> dpi -> file_selected != NULL)
+X		invert_colours (pbi -> dpi -> file_button_selected);
+X	invert_colours (w);
+X	
+X	/* set the file selected */
+X	pbi -> dpi -> file_selected = pbi -> name;
+X	pbi -> dpi -> file_button_selected = w;
+X	pbi -> dpi -> executable_selected = NULL;
+X	pbi -> dpi -> dir_selected = NULL;
+X
+X	/* find file pattern matching this name */
+X	pfa = actions;
+X	while (pfa != NULL)
+X		if (pfa -> file_type == pbi -> file_type &&
+X			RegExpMatch (pbi -> name, pfa -> fsm_ptr))
+X			break;
+X		else	pfa = pfa -> next;
+X
+X	/* description of this file type */
+X	if (pfa != NULL)
+X		pbi -> dpi -> description =  pfa -> description; 
+X	else	pbi -> dpi -> description =  NULL;
+X	
+X	button = 0;
+X	/* set actions in toolbar */
+X	if (pfa != NULL)
+X	{
+X		pap = pfa -> actions;
+X		while (button < FILES_TOOLBAR_SIZE && pap != NULL)
+X		{
+X			tool_button = (pbi -> dpi -> files_toolbar) [button];
+X
+X			/* set the action label in the button */
+X			xmstr = XmStringCreateLtoR (pap -> action_label,
+X					XmSTRING_DEFAULT_CHARSET);
+X			XtVaSetValues (tool_button,
+X					XmNlabelString, (XtArgVal) xmstr,
+X					NULL);
+X			XmStringFree (xmstr);
+X
+X			/* set the action in the buttons user data */
+X			XtVaGetValues (tool_button,
+X					XmNuserData, (XtArgVal) &tbi,
+X					NULL);
+X			tbi -> action = pap -> action;
+X			tbi -> prompt = pap -> prompt;
+X			tbi -> run_in_xterm = pap -> run_in_xterm;
+X			tbi -> pause_after_exec = pap -> pause_after_exec;
+X			tbi -> has_prompt = pap -> has_prompt;
+X
+X			XtSetSensitive (tool_button, True);
+X			button++;
+X			pap = pap -> next;
+X		}
+X	}
+X	/* empty out the remaining buttons */
+X	for ( ; button < FILES_TOOLBAR_SIZE; button++)
+X	{
+X		tool_button = (pbi -> dpi -> files_toolbar) [button];
+X		/* break out as soon as we hit an already insensitive button */
+X		if (XtIsSensitive (tool_button) == False)
+X			break;
+X		XtVaSetValues (tool_button,
+X				XmNlabelString, (XtArgVal) empty_string,
+X				NULL);
+X		XtSetSensitive (tool_button, False);
+X	}
+X
+#ifdef RDD
+X	/* set the drag cursor */
+X	{	Window root;
+X		int x, y;
+X		unsigned int width, height;
+X		unsigned int border_width, depth;
+X
+X		XGetGeometry (XtDisplay (pbi -> dpi -> toplevel),
+X				pbi -> pixmap,
+X				&root,
+X				&x, &y, &width, &height,
+X				&border_width, &depth);
+X		rddSetDragPixmap (pbi -> pixmap, width, height);
+X	}
+#endif
+}
+X
+X
+/*************************************************************************
+X * Function: FileButtonReleasedCB ()
+X * Purpose: handle a button release in any of the panes i.e. a file has
+X *          been selected. Check if it is a multiclick, and if so
+X *	    execute default action.
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: a button for a file, executable, or 
+X                 directory has been released
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileButtonReleasedCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{	pane_button_info *pbi;
+X	XmDrawnButtonCallbackStruct *c_data= (XmDrawnButtonCallbackStruct *) call_data;
+X
+#ifdef DEBUG
+X	fprintf (stderr, "button released\n");
+#endif
+X	/* get the user data */
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &pbi, NULL);
+X	/* if it was a double click, execute
+X	   the default action. default action is in
+X	   the first toolbar button, if sensitive */
+X	if ((c_data -> click_count) > 1 &&
+X		XtIsSensitive ((pbi -> dpi -> files_toolbar) [0]))
+X	{	/* set the busy cursor as a signal that something happens */
+X		BusyCursor (pbi -> dpi -> toplevel);
+X
+X		/* fake default action on button */
+X		FileToolButtonPressedCB ( (pbi -> dpi -> files_toolbar) [0],
+X					NULL, NULL);
+X	        UnBusyCursor (pbi -> dpi -> toplevel);
+X	}
+}
+X
+/*************************************************************************
+X * Function: FileToolbarButtonPressed ()
+X * Purpose: handle a button press in the file toolbar
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: button in toolbar pressed
+X * Postcondition: action for that button on selected file executed
+X ************************************************************************/ 
+void
+FileToolButtonPressedCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data, call_data;
+X
+#endif
+{
+X	tool_button_info *tbi;
+X	char *command;
+X	char *argv[10];
+X	int argc;
+X	char *prompt_answer;
+X	int len_arg;
+X
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &tbi,
+X			NULL);
+X
+X	argv[0] = tbi -> dpi -> file_selected;
+X	if (argv[0] != NULL)
+X		argc = 1;
+X	else	argc = 0;
+X	if (tbi -> has_prompt)
+X	{	PromptDialog (w, tbi -> prompt, True, &prompt_answer);
+X		if (prompt_answer == NULL)
+X			return;
+X		/* set answer into args array */
+X		while (*prompt_answer != '\0' && argc < 10)
+X		{	while (IS_WHITE_SPACE (*prompt_answer))
+X				prompt_answer++;
+X			argv[argc] = prompt_answer;
+X			argc++;
+X			len_arg = strcspn (prompt_answer, " \t\n");
+X			if (prompt_answer[len_arg] == '\0')
+X				break;
+X			else
+X			{	prompt_answer[len_arg] = '\0';
+X				prompt_answer += len_arg + 1;
+X			}
+X		}
+X	}
+#ifdef DEBUG
+X	for (len_arg = 0; len_arg < argc; len_arg++)
+X		fprintf (stderr, "Arg %d is %s\n", len_arg, argv[len_arg]);
+#endif
+X
+#ifdef OLD_PATTERN
+X	/* next step: replace 2nd arg by argv */
+X	expand_command (&command, tbi -> dpi -> file_selected, tbi -> action);
+#else
+X	expand_command (&command, argv, argc, tbi -> action);
+#endif
+X
+#ifdef DEBUG
+X	fprintf (stderr, "action %s\n", tbi -> action);
+X	fprintf (stderr, "on file %s\n", tbi -> dpi -> file_selected);
+X	fprintf (stderr, "new command: %s\n", command);
+#endif
+X
+X	/* make sure we are in the right directory for this pane */
+X	XtChdir (DirectoryPath (DirectoryMgrDir (tbi -> dpi -> directory_manager)));
+X
+#ifdef DEBUG
+X	{	char path[MAXPATHLEN];
+X		fprintf (stderr, "changing to directory %s\n",
+X			DirectoryPath (DirectoryMgrDir (tbi -> dpi -> directory_manager)));
+X
+X        	getcwd (path, MAXPATHLEN);
+X		fprintf (stderr, "now in directory %s\n", path);
+X	}
+#endif
+X
+X	if (*command == '$')
+X		builtin_command (command, tbi -> dpi);
+X	else
+X		do_command (command, tbi -> run_in_xterm, 
+X				     tbi -> pause_after_exec,
+X                                     tbi -> dpi);
+X	XtFree (command);
+}
+X
+X
+#ifdef OLD_PATTERN
+/*************************************************************************
+X * Function: expand_command ()
+X * Purpose: this expands out the action into a command
+X * 	    it uses the Make patterns of
+X *		$$ = $
+X *		$* = stem of file name
+X *		$@ = file name
+X * In parameters: file, action
+X * Out parameters: command
+X * Precondition: action is a string that can be applied to the file
+X * Postcondition: command is the action with filename replaced
+X *                according to patterns above
+X ************************************************************************/ 
+static void
+expand_command (command, file, action)
+X	char **command;
+X	char *file;
+X	char *action;
+{
+X	int old_len, new_len;
+X	int file_len, stem_len;
+X	char *p;
+X	char *new_str;
+X	char *stem;
+X
+X	/* find some constant lengths */
+X	old_len = strlen (action);
+X	file_len = strlen (file);
+X	for (stem_len = file_len; stem_len > 0; stem_len--)
+X		if (file[stem_len - 1] == '.')
+X			break;
+X	stem_len--;
+X
+X	/* create the stem string */
+X	stem = XtMalloc (stem_len + 1);
+X	strncpy (stem, file, stem_len);
+X	stem[stem_len + 1] = '\0';
+X
+X	/* find the length of the new string */
+X	new_len = 0;
+X	p = action;
+X	while (*p != '\0')
+X	{	if (*p == '$')
+X		switch ( *(p+1) )
+X		{	case '$':	new_len++;
+X					p += 2;
+X					break;
+X			case '@':	new_len += file_len;
+X					p += 2;
+X					break;
+X			case '*':	new_len += stem_len;
+X					p += 2;
+X					break;
+X			default:	new_len++;
+X					p++;
+X		} else {
+X			new_len++;
+X			p++;
+X		}
+X	}
+X
+X	/* create the new string */
+X	*command = new_str = (char *) XtMalloc (new_len + 1);
+X
+X	/* and populate it */
+X	p = action; 
+X	while (*p != '\0')
+X	{	if (*p == '$')
+X		switch ( *(p+1) )
+X		{	case '$':	*new_str = '$';
+X					new_str++;
+X					p += 2;
+X					break;
+X			case '@':	strcpy (new_str, file);
+X					new_str += file_len;
+X					p += 2;
+X					break;
+X			case '*':	strcpy (new_str, stem);
+X					new_str += stem_len;
+X					p += 2;
+X					break;
+X			default:	*new_str++ = *p++;
+X					
+X		} else {
+X			new_len++;
+X			*new_str++ = *p++;
+X		}
+X	}
+X	*new_str = '\0';
+}
+#else /* OLD_PATTERN */
+/*************************************************************************
+X * Function: expand_command ()
+X * Purpose: this expands out the action into a command
+X * 	    it uses the ksh patterns of
+X *		\c = c
+X *		$0 = selected file
+X *		$d = n-th parameter in prompt
+X *		$* = string of entire prompt 
+X *		${d#p} = d-th param less pattern p from front
+X *		${d%p} = d-th param less pattern p from end
+X * In parameters: argv, argc, action
+X * Out parameters: command
+X * Precondition: action is a string that can be applied to the file
+X * Postcondition: command is the action with patterns replaced
+X *                according to params in argv
+X ************************************************************************/ 
+static void
+expand_command 
+#ifdef UseFunctionPrototypes
+X	(char **command, char **argv, int argc, char *action)
+#else
+X	(command, argv, argc, action)
+X	char **command;
+X	char **argv;
+X	int argc;
+X	char *action;
+X
+#endif
+{
+X	char *p;
+X	char *new_str;
+X	int digit;
+X	char *end_brace_pos;
+X	int arg_len, pat_len;
+X
+X	/* create the new string, hopefully too big */
+X	*command = new_str = (char *) XtMalloc (4096);
+X
+X	/* and populate it */
+X	p = action; 
+X	while (*p != '\0')
+X	{	if (*p == '\\')
+X		{	/* escape sequence */
+X			STRING_LEN_CHECK (2);
+X			p++;
+X			*new_str++ = *p++;
+X			continue;
+X		}
+X		if (*p == '$')
+X		{	 p++;
+X			if (isdigit (*p))
+X			{	/* $d param subst */
+X				digit = *p++ - '0';
+X				if (digit >= argc)
+X					/* off the end of the argv array */
+X					continue;
+X				arg_len = strlen (argv[digit]);
+X				STRING_LEN_CHECK (arg_len);
+X				strcpy (new_str, argv[digit]);
+X				new_str += arg_len;
+X				continue;
+X			}
+X			if (*p == '*')
+X			{	/* $* all params subst */
+X				int i;
+X
+X				for (i = 1; i < argc; i++)
+X				{	arg_len = strlen (argv[i]);
+X					STRING_LEN_CHECK (arg_len);
+X					strcpy (new_str, argv[i]);
+X					new_str += arg_len;
+X					if (i < argc - 1)
+X						/* change \0 to ' ' */
+X						*new_str++ = ' ';
+X				}
+X				p++;
+X				continue;
+X			}
+X			if (*p != '{')
+X			{	/* pass $ through - not one of our patterns */
+X				STRING_LEN_CHECK (2);
+X				*new_str++ = '$';
+X				*new_str++ = *p++;
+X				continue;
+X			}
+X			/* it's '${' so should end in '}' */
+X			end_brace_pos = strchr (p, '}');
+X			if (end_brace_pos == NULL)
+X			{	/* dunno what to do - no closing brace */
+X				fprintf (stderr, "no closing } in action!\n");
+X				continue;
+X			}
+X			p++;
+X			if (!isdigit (*p))
+X			{	/* pass it through - not a positional param */
+X				STRING_LEN_CHECK ((int)(end_brace_pos - p) + 2);
+X				*new_str++ = '$';
+X				*new_str++ = '{';
+X				while (p != end_brace_pos + 1)
+X					*new_str++ = *p++;
+X			}
+X			/* its ${d...}. Is ... NULL, %, #? */
+X			digit = *p - '0';
+X			STRING_LEN_CHECK (1);
+X			p++;
+X			if (p == end_brace_pos)
+X			{	/* ${d} param subst */
+X				arg_len = strlen (argv[digit]);
+X				STRING_LEN_CHECK (arg_len);
+X				strcpy (new_str, argv[digit]);	 
+X				new_str += arg_len;
+X				p++;	/* skip past '}' */
+X				continue;
+X			}
+X			if (*p == '#')
+X			{	/* ${d#pat} take pattern off the front */
+X				p++;
+X				pat_len = (int) (end_brace_pos - p);
+X				if (strncmp (argv[digit],p,
+X					pat_len) != 0)
+X				{	 /* no match, copy whole arg */
+X					strcpy (new_str, argv[digit]);
+X					new_str += strlen (argv[digit]);
+X					p += pat_len + 1;
+X					continue;
+X				}
+X				/* copy part after match */
+X				strcpy (new_str, argv[digit] + pat_len);
+X				new_str +=strlen (argv[digit]) - pat_len;
+X				p += pat_len + 1;
+X				continue;
+X			}
+X			if (*p == '%')
+X			{	/* ${d%pat} take pattern off the end */
+X				int stem_len, arg_len;
+X				char *tail;
+X
+X				p++;
+X				pat_len = (int) (end_brace_pos - p);
+X				arg_len = strlen (argv[digit]);
+X				stem_len = arg_len - pat_len;
+X
+X				/* pattern should start at tail */
+X				tail = argv[digit] + stem_len;
+X				if (strncmp (tail, p, pat_len) != 0)
+X				{	/* no match, copy all */
+X					strcpy (new_str, argv[digit]);
+X					new_str += arg_len;
+X					p += pat_len + 1;
+X					continue;
+X				}
+X				/* copy first part only, upto pattern */
+X				strncpy (new_str, argv[digit], stem_len);
+X				new_str += stem_len;
+X				p += pat_len + 1;
+X				continue;
+X			}
+X			/* dunno what it is */
+X			fprintf (stderr, "unknown pattern %s in action\n",
+X					p);
+X			continue;
+X		}
+X		/* copy any other char */
+X		*new_str++ = *p++;
+X	}
+X	*new_str = '\0';
+}
+#endif /* OLD_PATTERN */
+X
+X
+/*************************************************************************
+X * Function: do_comand ()
+X * Purpose: execute the selected command
+X * In parameters: command, run_in_xterm, pause_after_exec
+X * Out parameters:
+X * Precondition: command is a valid Unix command
+X * Postcondition: action specified by command running asynchronously
+X ************************************************************************/ 
+void 
+do_command 
+#ifdef UseFunctionPrototypes
+X	(char *command, int run_in_xterm, int pause_after_exec, dir_pane_info *dpi)
+#else
+X	(command, run_in_xterm, pause_after_exec, dpi)
+X	char *command;
+X	Bool run_in_xterm;
+X	Bool pause_after_exec;
+X        dir_pane_info *dpi;
+X
+#endif
+{
+X	int len_new_command;
+X	char *new_command;
+X        int pid;
+X
+X	if (run_in_xterm && pause_after_exec)
+X	{
+X		len_new_command = 2 * strlen (command) + 
+X					strlen (XTERM_STR) +
+X					strlen (PAUSEME_STR) + 4;
+X		/* leave space for \0 terminator */
+X		new_command = XtMalloc (len_new_command + 1);
+X		strcpy (new_command, XTERM_STR);
+X		strcat (new_command, command);
+X		strcat (new_command, PAUSEME_STR);
+X		strcat (new_command, command);
+X                strcat (new_command, "' ");
+X        }
+X	else if (run_in_xterm)
+X	{
+X		len_new_command = 2 * strlen (command) + 
+X					strlen (XTERM_STR) + 
+X					strlen (EXEC_STR) + 4;
+X		new_command = XtMalloc (len_new_command + 1);
+X		strcpy (new_command, XTERM_STR);
+X		strcat (new_command, command);
+X		strcat (new_command, EXEC_STR);
+X		strcat (new_command, command);
+X                strcat (new_command, "' ");
+X
+X	}
+X	else	/* run as an X application, or into existing xterm */
+X	{
+X		len_new_command =  strlen (command) + 13;
+X		new_command = XtMalloc (len_new_command + 1);
+X		strcpy (new_command, command);
+X		/* make sure that if it attempts to read from stdin,
+X		   it fails (eg. an interactive shell not run in an xterm) */
+X		strcat (new_command, " < /dev/null ");
+X	}
+X
+/*	system (new_command);
+X	XtFree (new_command);
+X */
+X        if ((pid = fork ()) > 0)
+X        {        /* parent */
+X                 add_pid (pid, dpi);
+X        }
+X        else     /* child */
+X        {
+X                system (new_command);
+X                XtFree (new_command); 
+X		exit (0);
+X        }                
+}
+X
+SHAR_EOF
+chmod 0644 xmfm/buttoncb.c ||
+echo 'restore of xmfm/buttoncb.c failed'
+Wc_c="`wc -c < 'xmfm/buttoncb.c'`"
+test 20831 -eq "$Wc_c" ||
+	echo 'xmfm/buttoncb.c: original size 20831, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/drag.c ==============
+if test -f 'xmfm/drag.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/drag.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/drag.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/drag.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/drag.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:40 $
+X * Version: $Revision: 1.2 $
+X * Purpose:
+X *
+X * Revision history:
+X *         3 Nov 92        lint-ed
+X *	  11 Nov 92	   moved Rogers drag'n drop to here
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <sys/param.h>
+X
+#ifdef MOTIF_DD
+#include <Xm/DragIcon.h>
+#include <Xm/DragDrop.h>
+#include <Xm/AtomMgr.h>
+#include <X11/Xatom.h>
+#endif
+X
+#ifdef RDD
+#include "rdd.h"
+#endif
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void FileToolButtonPressed ();
+extern void FileButtonPressed ();
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+#ifdef MOTIF_DD
+extern void MotifDDStartAction (
+#ifdef UseFunctionPrototypes
+X	Widget w, XButtonEvent *event
+#endif
+);
+#endif
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+#ifdef MOTIF_DD
+XXtTranslations trans_table;
+Atom TEXT;
+static pane_button_info *pbi;
+static Widget drag_icon = NULL;
+X
+String myTranslations =
+X		"#override\n\
+X		<Btn2Down>:	Arm() MotifDDStartAction()\n\
+X		<Btn2Up>:	Activate() Disarm()";
+XXtActionsRec dragActions [] =
+X                 { {"MotifDDStartAction", (XtActionProc) MotifDDStartAction} };
+#endif /* MOTIF_DD */
+X
+X
+#ifdef RDD
+/*************************************************************************
+X * Function: DirDrop ()
+X * Purpose: handler for when a widget is dropped on a directory button
+X * In parameters: w, call, cbs
+X * Function result:
+X * Precondition: drop message to widget w (a directory button) has occurred
+X * Postcondition: 
+X ************************************************************************/ 
+void
+DirDrop 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer call, XtPointer client_data)
+#else
+X	(w, call, client_data)
+X	Widget w;
+X	XtPointer call;
+X	XtPointer client_data;
+X
+#endif
+{	pane_button_info *pbi;
+X	RddCallbackStruct *cbs = (RddCallbackStruct *) client_data;
+X
+X	XtVaGetValues (w,
+X		XmNuserData, &pbi, NULL);
+#ifdef DEBUG
+X	fprintf (stderr, "drop on directory %s of file %s", 
+X			pbi -> name, cbs -> data);
+#endif
+}
+X
+/*************************************************************************
+X * Function: ExecutableDrop ()
+X * Purpose: handler for when a widget is dropped on an executable button
+X * In parameters: w, call, cbs
+X * Function result:
+X * Precondition: drop message to widget w (an executable button) has occurred
+X * Postcondition: 
+X ************************************************************************/ 
+void
+ExecutableDrop 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer call, XtPointer client_data)
+#else
+X	(w, call, client_data)
+X	Widget w;
+X	XtPointer call;
+X	XtPointer client_data;
+X
+#endif
+{	pane_button_info *pbi;
+X	RddCallbackStruct *cbs = (RddCallbackStruct *) client_data;
+X
+X	XtVaGetValues (w,
+X		XmNuserData, &pbi, NULL);
+#ifdef DEBUG
+X	fprintf (stderr, "drop on executable %s of file %s", 
+X			pbi -> name, cbs -> data);
+#endif
+}
+X
+/*************************************************************************
+X * Function: MainWindowDrop ()
+X * Purpose: handler for when a widget is dropped on an executable button
+X * In parameters: w, call, cbs
+X * Function result:
+X * Precondition: drop message to widget w (an executable button) has occurred
+X * Postcondition: 
+X ************************************************************************/ 
+void
+MainWindowDrop 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer call, XtPointer client_data)
+#else
+X	(w, call, client_data)
+X	Widget w;
+X	XtPointer call;
+X	XtPointer client_data;
+X
+#endif
+{	pane_button_info *pbi;
+X	RddCallbackStruct *cbs = (RddCallbackStruct *) client_data;
+X
+X	XtVaGetValues (w,
+X		XmNuserData, &pbi, NULL);
+#ifdef DEBUG
+X	fprintf (stderr, "drop on main window of file %s", 
+X			 cbs -> data);
+#endif
+}
+X
+/*************************************************************************
+X * Function: ToolbarDrop ()
+X * Purpose: handler for when a widget is dropped on a toobar button
+X * In parameters: w, call, cbs
+X * Function result:
+X * Precondition: drop message to widget w (a toolbar button) has occurred
+X * Postcondition: action corresponding to toolbar button has been done
+X ************************************************************************/ 
+void
+ToolbarDrop 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer call, XtPointer client_data)
+#else
+X	(w, call, client_data)
+X	Widget w;
+X	XtPointer call;
+X	XtPointer client_data;
+X
+#endif
+{
+X	RddCallbackStruct *cbs = (RddCallbackStruct *) client_data;
+#ifdef DEBUG
+X	fprintf (stderr, "File dropped: %s", cbs -> data);
+#endif
+X	FileToolButtonPressedCB (w, NULL, NULL);
+}
+#endif /* RDD */
+X
+#ifdef MOTIF_DD
+/*************************************************************************
+X *
+X * DRAG SIDE OF MOTIF DRAG AND DROP
+X *
+X *************************************************************************/
+X
+/*************************************************************************
+X * Function: MotifDragConvertProc ()
+X * Purpose: convert data into form suitable to send to drop client
+X * In parameters: w, selection, target, client_data
+X * Out parameters: typeRtn, valueRtn, formatRtn, max_lengthRtn
+X * Precondition: 
+X * Postcondition: full path name of selected file set as data
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+Boolean
+MotifDragConvertProc 
+#ifdef UseFunctionPrototypes
+X	(Widget w, Atom *selection, Atom *target, Atom *typeRtn, XtPointer *valueRtn, long unsigned int *lengthRtn, int *formatRtn, long unsigned int *max_lengthRtn, XtPointer client_data, XtRequestId *request_id)
+#else
+X	(w, selection, target,
+X	typeRtn, valueRtn, lengthRtn, formatRtn,
+X	max_lengthRtn, client_data,
+X	request_id)
+X	Widget		w;
+X	Atom		*selection;
+X	Atom		*target;
+X	Atom		*typeRtn;
+X	XtPointer	*valueRtn;
+X	unsigned long	*lengthRtn;
+X	int		*formatRtn;
+X	unsigned long	*max_lengthRtn;
+X	XtPointer	client_data;
+X	XtRequestId	*request_id;
+X
+#endif
+{
+X	char *path;
+X
+X	if (*target != XA_STRING)
+X		return False;
+X	/* build up full path name for file */
+X	path = (char *) XtMalloc (MAXPATHLEN);
+X	strcpy (path, DirectoryPath (DirectoryMgrDir (pbi -> dpi -> directory_manager)));
+X	strcat (path, pbi -> name);
+X	*lengthRtn = strlen (path);
+X	*typeRtn = XA_STRING;
+X	*valueRtn = path;
+X	*formatRtn = 8;		/* dont know what 8 means */
+#ifdef DEBUG_DD
+X	fprintf (stderr, "starting drop for %s\n", path);
+#endif
+X	return True;
+}
+X
+/*************************************************************************
+X * Function: MotifDDStartAction ()
+X * Purpose: what to do when a drag begins
+X * In parameters: w, event
+X * Out parameters:
+X * Precondition: 
+X * Postcondition:  icon set to image, drag started
+X ************************************************************************/ 
+void MotifDDStartAction 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XButtonEvent *event)
+#else
+X	(w, event)
+X	Widget w;
+X	XButtonEvent *event;
+X
+#endif
+{	Atom	exportList[1];
+X	Arg	args[10];
+X        int n;
+X
+X        /* store in a global variable the user data for this button
+X           till I figure out which widgets take part in what 
+X           The widget in the ConvertProc doesn't seem to be this one
+X         */
+X        XtVaGetValues (w, XmNuserData, &pbi, NULL);
+X
+X	if (drag_icon == NULL)
+X	{	n = 0;
+X		/* set the pixmap to be the icon of the file
+X		   used reverse icon cos it has been selected by now */
+X		XtSetArg (args[n], XmNpixmap, pbi -> pixmap_reversed); n++;
+X		drag_icon = XmCreateDragIcon (w, "drag_icon", args, n);
+X	}
+X	else
+X	XtVaSetValues (w,
+X			XmNpixmap, pbi -> pixmap_reversed,
+X			NULL);
+X	
+X	exportList[0] = XA_STRING;
+X        n = 0;
+X	XtSetArg (args[n], XmNexportTargets,	(XtArgVal) exportList); n++;
+X        XtSetArg (args[n], XmNnumExportTargets,	(XtArgVal) 1); n++;
+X	XtSetArg (args[n], XmNdragOperations,	(XtArgVal) XmDROP_COPY); n++;
+X	XtSetArg (args[n], XmNconvertProc,	(XtArgVal) MotifDragConvertProc); n++;
+X	XtSetArg (args[n], XmNsourcePixmapIcon,	(XtArgVal) drag_icon); n++;
+X
+#ifdef DEBUG_DD
+X        fprintf (stderr, "starting drag\n");
+#endif  /* DEBUG_DD */
+X
+X	XmDragStart (w, (XEvent *) event, args, n);
+}
+X
+/*************************************************************************
+X * Function: InitMotifDD
+X * Purpose         : set up global values for Motif DD
+X * In parameters   : app_shell, app_context
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : soem vbls set
+X ************************************************************************/
+void InitMotifDD 
+#ifdef UseFunctionPrototypes
+X	(Widget app_shell, XtAppContext app_context)
+#else
+X	(app_shell, app_context)
+X        Widget app_shell;
+X        XtAppContext app_context;
+X
+#endif
+{
+X
+X	/* MOTIF_DD add action MotifDDStartAction */
+X	{
+X		XtActionsRec actions;
+X		actions.string	= "MotifDDStartAction";
+X		actions.proc	= MotifDDStartAction;
+X		XtAppAddActions (app_context, &actions, 1);
+X	}
+X	trans_table = XtParseTranslationTable (myTranslations);
+X	
+X	/* set the atom to allow communication with other widgets */
+X	TEXT = XmInternAtom (XtDisplay (app_shell),
+X				"TEXT", False);
+#ifdef DEBUG_DD
+X        fprintf (stderr, "initialised Motif drag n' drop\n");
+#endif /* DEBUG_DD */
+X
+}
+X 
+/*************************************************************************
+X *
+X * DROP SIDE OF MOTIF DRAG AND DROP
+X *
+X *************************************************************************/
+X
+/*************************************************************************
+X * Function: ToolbarTransferProc
+X * Purpose         : execute the action on the dropped file
+X * In parameters   : all of them
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : legal drop site -> action executed on drop file
+X ************************************************************************/
+X
+/* ARGSUSED */
+static void
+ToolbarTransferProc 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer closure, Atom *seltype, Atom *type, XtPointer value, long unsigned int *length, int format)
+#else
+X	(w, closure, seltype,
+X              type, value, length, format)
+X       Widget w;
+X       XtPointer closure;
+X       Atom *seltype;
+X       Atom *type;
+X       XtPointer value;
+X       unsigned long *length;
+X       int format;
+X
+#endif
+{
+X      tool_button_info *tbi;
+X       char selected_file[MAXPATHLEN];
+X      
+X       if (*type == XA_STRING)
+X       {
+#              ifdef DEBUG_DD
+X                     fprintf (stderr, "drop data received okay: %s %s\n",
+X                              (char *) value);
+#              endif
+X               /* closure has the button we just dropped on.
+X                  Suppose a user has dropped from a *different*
+X                  pane - probably an error. We must check that the
+X                  file already selected in this pane is the same as
+X                  the file we have just dropped here!
+X               */
+X               XtVaGetValues (closure, XmNuserData, &tbi, NULL);
+X               strcpy (selected_file,
+X                       DirectoryPath (DirectoryMgrDir (tbi -> dpi -> directory_manager)));
+X
+X               strcat (selected_file, tbi -> dpi -> file_selected);
+#              ifdef DEBUG_DD
+X                     fprintf (stderr, "current selected file in this pane %s\n",
+X                            selected_file);
+#              endif
+X               if (strcmp (value, selected_file) == 0)
+X                      FileToolButtonPressedCB (closure, NULL, NULL);
+X       }
+#      ifdef DEBUG_DD
+X       else
+X                     fprintf (stderr, "drop data not ok\n");
+#      endif
+}
+/*************************************************************************
+X * Function: HandleToolbarDrop
+X * Purpose         : start drop on toolbar button
+X * In parameters   : w, client_data, call_data
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   :
+X ************************************************************************/
+X
+/* ARGSUSED */
+static void
+HandleToolbarDrop 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XmDropProcCallback DropData)
+#else
+X	(w, client_data, DropData)
+X       Widget w;
+X       XtPointer client_data;
+X       XmDropProcCallback DropData;
+X
+#endif
+{
+X       
+X       XmDropTransferEntryRec transferEntries[2];
+X       Arg args[10];
+X       int n;
+X
+X       n = 0;
+X       if (DropData -> dropAction != (unsigned char) XmDROP ||
+X              DropData -> operation != (unsigned char) XmDROP_COPY)
+X       {      XtSetArg (args[n], XmNtransferStatus, XmTRANSFER_FAILURE); n++;
+#             ifdef DEBUG_DD
+X              fprintf (stderr, "drop: receive type failed\n");
+#              endif
+X       }
+X       else
+X       {      transferEntries[0].target = XA_STRING;
+X              transferEntries[0].client_data = (XtPointer) w;
+X              XtSetArg (args[n], XmNdropTransfers, transferEntries); n++;
+X              XtSetArg (args[n], XmNnumDropTransfers, 1); n++;
+X              XtSetArg (args[n], XmNtransferProc, ToolbarTransferProc); n++;
+#             ifdef DEBUG_DD
+X              fprintf (stderr, "drop: receive type okay\n");
+#              endif
+X       }
+X       
+X       XmDropTransferStart (DropData -> dragContext, args, n);
+}
+X
+/*************************************************************************
+X * Function: MotifDDRegisterToolbar
+X * Purpose         : let the Motif DD system know about this toolbar button
+X * In parameters   : button
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : button registered in DD
+X ************************************************************************/
+void 
+MotifDDRegisterToolbar 
+#ifdef UseFunctionPrototypes
+X	(Widget button)
+#else
+X	(button)
+X       Widget button;
+X
+#endif
+{
+X       Atom importList[1];
+X       Arg args[10];
+X       int n;
+X
+X       importList[0] = XA_STRING;
+X       n = 0;
+X       XtSetArg (args[n], XmNimportTargets, (XtArgVal) importList); n++;
+X       XtSetArg (args[n], XmNnumImportTargets, (XtArgVal) 1); n++;
+X       XtSetArg (args[n], XmNdropSiteOperations, (XtArgVal) XmDROP_COPY); n++;
+X       XtSetArg (args[n], XmNdropProc, (XtArgVal) HandleToolbarDrop); n++;
+X       XmDropSiteRegister (button, args, n);
+}
+#endif /* MOTIF_DD */
+SHAR_EOF
+chmod 0644 xmfm/drag.c ||
+echo 'restore of xmfm/drag.c failed'
+Wc_c="`wc -c < 'xmfm/drag.c'`"
+test 15392 -eq "$Wc_c" ||
+	echo 'xmfm/drag.c: original size 15392, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/file_act.c ==============
+if test -f 'xmfm/file_act.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/file_act.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/file_act.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/file_act.c' &&
+/*************************************************************************
+X * File: file_act.c
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:42 $
+X * Version: $Revision: 1.6 $
+X * Purpose: read in the set of actions for files, directories 
+X *          and executables. See the user manual for the syntax used.
+X *          The file for these actions is $HOME/.xmfmrc
+X * Revision history:
+X *	4 Aug 92	added filter actions as preamble
+X *	7 Aug 92	looks in XAPPRESDIR for xmfmrc
+X *	11 Aug 92	added description field to xmfmrc
+X *	   Oct		input file format revised
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <Xm/Xm.h>
+#include <X11/Intrinsic.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "RegExp.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+SHAR_EOF
+true || echo 'restore of xmfm/file_act.c failed'
+fi
+echo 'End of  part 4'
+echo 'File xmfm/file_act.c is continued in part 5'
+echo 5 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

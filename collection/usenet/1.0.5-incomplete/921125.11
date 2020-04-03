@@ -1,0 +1,68 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!uunet!noc.near.net!lynx!usenet
+From: ratinox@splinter.coe.northeastern.edu (Richard Pieri)
+Subject: Re: Zap a user
+In-Reply-To: Tod McQuillin's message of Mon, 23 Nov 1992 13:10:08 -0500 
+Message-ID: <RATINOX.92Nov23155139@splinter.coe.northeastern.edu>
+Lines: 52
+Sender: usenet@lynx.dac.northeastern.edu (usenet dummy)
+X-Posting-Software: GNUS 3.14.1 [ NNTP-based News Reader for GNU Emacs ]
+Reply-To: ratinox@meceng.coe.northeastern.edu
+X-Signature-Virus-Protection: Version 1.51
+X-Get-A-Clue: Have two, they're small.
+Organization: 3WA, Boston Office. Or Nu Meta Chi. Take your pick.
+References: <gf4Fu0O00WB7EcL1RX@andrew.cmu.edu>
+Date: Mon, 23 Nov 1992 20:48:50 GMT
+
+>>>>> In article <gf4Fu0O00WB7EcL1RX@andrew.cmu.edu>, Tod McQuillin
+>>>>> <tm8t+@andrew.cmu.edu> writes:
+
+TM> Recently one of our (ever watchful for ways to improve efficiency)
+TM> machine room operators came to me and asked if there was a way to
+TM> automate the procedure of knocking users off the system.
+TM> Frequently people would call him and say "My terminal is frozen,
+TM> can you kill all my proceses?".
+
+Education is, of course, the best solution. But sometimes you need to
+kill everything a single user is running, or whatever. This script
+grew from a small function one of NU's sysmonsters wrote for bash, I
+turned it into a nicer shell script, and was further cleaned up by
+another NU sysmonster. One nice feature is that it won't try to kill
+itself while it's trying to kill something else.
+
+-----begin "thwap" script-----
+#!/bin/sh
+#
+# Rat's thwap script, diffed a tiny bit.
+#
+# Kills all processes with a certain string in them.
+
+if [ $# -lt 1 ]; then
+  echo "usage: $0 [-signal] user|process [user|process ...]"
+  exit 1
+fi
+
+case $1 in
+  -* )
+    sig="-1"
+    shift
+    ;;
+  * )
+    sig="-9"
+esac
+
+for proc in $@ ; do
+  for pid in `ps auxw | grep -v awk | awk "/$proc/{print \\$2}"`; do
+    if [ $pid -ne $$ ]; then
+      echo kill $sig $pid
+      kill $sig $pid
+    fi
+  done
+done
+-----end-----
+
+--Rat
+||||| | | | |  |  |  |   |   |    |    |    |   |   |  |  |  |  | | | | | |||||
+Northeastern's Stainless Steel Rat          ratinox@meceng.coe.northeastern.edu
+It is a proud and lonely thing to be a Stainless Steel Rat.
+                                                        --`Slippery' Jim DiGriz

@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!hamblin.math.byu.edu!news.byu.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 5 of 10
+Message-ID: <By2MJv.Kyq@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:50:19 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part5
+
+X  }
+X else execmd(m->n,m->k);
+if(leave) return;
+if(flg) umclear();
+X
+undomark();
+}
+X
+void exemac(m)
+MACRO *m;
+{
+record(m);
+exmacro(m);
+}
+X
+static int eungotten;
+static int eungottenc;
+X
+static CONTEXT *cntxts[]= { &cmain, &cprmpt,&cttab,&cfprmpt,&cthelp,0 };
+X
+void eungetc(c)
+{
+if(c==MAXINT) return;
+if(curmacro)
+X {
+X --macroptr;
+X return;
+X }
+else
+X {
+X eungotten=1;
+X eungottenc=c;
+X unmac();
+X }
+}
+X
+int dengetc()
+{
+int c;
+if(eungotten)
+X {
+X eungotten=0;
+X c=eungottenc;
+X }
+else c=ngetc(maint->t);
+return c;
+}
+X
+int engetc()
+{
+MACRO *m;
+int c;
+if(eungotten)
+X {
+X eungotten=0;
+X c=eungottenc;
+X }
+else if(curmacro)
+X {
+X if(curmacro->n!=macroptr && !curmacro->steps[macroptr]->steps &&
+X    curmacro->steps[macroptr]->n==typen) c=curmacro->steps[macroptr++]->k;
+X else c=MAXINT;
+X }
+else c=ngetc(maint->t);
+record(m=mkmacro(c,1,typen)); rmmacro(m);
+return c;
+}
+X
+void edupd()
+{
+W *w;
+dofollows();
+ttflsh();
+nscroll(maint->t);
+dsphlp(maint);
+w=maint->curwin; do
+X {
+X if(w->y!= -1)
+X  {
+X  w->watom->disp(w);
+X  if(w->msgb)
+X   {
+X   msgout(w->t->t,w->y+w->h-1,w->msgb);
+X   w->msgb=0;
+X   w->t->t->updtab[w->y+w->h-1]=1;
+X   }
+X  if(w->msgt)
+X   {
+X   int y=w->h>1?1:0;
+X   msgout(w->t->t,w->y+y,w->msgt);
+X   w->msgt=0;
+X   w->t->t->updtab[w->y+y]=1;
+X   }
+X  }
+X w=(W *)(w->link.next);
+X }
+X while(w!=maint->curwin);
+cpos(maint->t,
+X     maint->curwin->x+maint->curwin->curx,
+X     maint->curwin->y+maint->curwin->cury);
+}
+X
+int edgetc()
+{
+edupd();
+return engetc();
+}
+X
+int dedgetc()
+{
+edupd();
+return dengetc();
+}
+X
+int main(argc,argv)
+int argc;
+char *argv[];
+{
+char *s;
+SCRN *n;
+W *w;
+int c;
+P *p;
+typen=findcmd(&cmdtab,"type");
+if(prokbd(".joerc",cntxts))
+X {
+X s=getenv("HOME");
+X if(!s) goto in;
+X s=vsncpy(NULL,0,sz(s));
+X s=vsncpy(s,sLEN(s),sc("/.joerc"));
+X if(prokbd(s,cntxts))
+X  {
+X  in:;
+X  if(prokbd(s=JOERC,cntxts))
+X   {
+X   fprintf(stderr,"Couldn\'t open keymap file \'%s\'\n",s);
+X   return 1;
+X   }
+X  }
+X }
+if(!(n=nopen())) return 1;
+maint=screate(n);
+X
+if(argc<2)
+X {
+X W *w=wmktw(maint,bmk());
+X BW *bw=(BW *)w->object;
+X setoptions(bw,"");
+X }
+else
+X {
+X long lnum;
+X int omid;
+X for(c=1,lnum=0;argv[c];++c)
+X  if(argv[c][0]=='+' && argv[c][1])
+X   {
+X   lnum=0;
+X   sscanf(argv[c]+1,"%ld",&lnum);
+X   if(lnum) --lnum;
+X   }
+X  else
+X   {
+X   B *b=bfind(argv[c]);
+X   BW *bw;
+X   int fl=0;
+X   if(!b)
+X    {
+X    b=bmk();
+X    fl=bload(b,argv[c]);
+X    }
+X   w=wmktw(maint,b);
+X   if(fl) w->msgt=msgs[5+fl];
+X   bw=(BW *)w->object;
+X   setoptions(bw,argv[c]);
+X   pline(bw->cursor,lnum);
+X   lnum=0;
+X   }
+X wshowall(maint);
+X omid=mid; mid=1;
+X dofollows();
+X mid=omid;
+X }
+if(help) helpon(maint);
+msgnw(lastw(maint),"\\i** Joe's Own Editor v1.0.5 ** Copyright (C) 1992 Joseph H. Allen **\\i");
+do
+X {
+X int wid,hei;
+X MACRO *m=dokey(maint->curwin->kbd,dedgetc());
+X ttgtsz(&wid,&hei);
+X if(wid>=2 && wid!=maint->w ||
+X    hei>=1 && hei!=maint->h)
+X  {
+X  nresize(maint->t,wid,hei);
+X  sresize(maint);
+X  }
+X if(m) exemac(m);
+X }
+X while(!leave);
+nclose(n);
+if(exmsg) fprintf(stderr,"\n%s\n",exmsg);
+return 0;
+}
+SHAR_EOF
+chmod 0600 main.c ||
+echo 'restore of main.c failed'
+Wc_c="`wc -c < 'main.c'`"
+test 10617 -eq "$Wc_c" ||
+	echo 'main.c: original size 10617, current size' "$Wc_c"
+fi
+# ============= main.h ==============
+if test -f 'main.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping main.h (File already exists)'
+else
+echo 'x - extracting main.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'main.h' &&
+/* Editor startup and edit loop
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Imain
+#define _Imain 1
+X
+#include "config.h"
+#include "w.h"
+X
+#include "config.h"
+X
+extern char *exmsg;		/* Exit message */
+extern int help;
+extern SCREEN *maint;		/* Primary screen */
+X
+void eungetc();		/* Unget a character into editor kbd input */
+void edupd();
+int edgetc();		/* Get kbd character / refresh screen */
+int engetc();		/* Get kbd character */
+X
+#endif
+SHAR_EOF
+chmod 0600 main.h ||
+echo 'restore of main.h failed'
+Wc_c="`wc -c < 'main.h'`"
+test 1140 -eq "$Wc_c" ||
+	echo 'main.h: original size 1140, current size' "$Wc_c"
+fi
+# ============= makefile ==============
+if test -f 'makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping makefile (File already exists)'
+else
+echo 'x - extracting makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'makefile' &&
+# Makefile for Joe's Own Editor
+X
+CC = cc
+CFLAGS = -O -D_HPUX_SOURCE -DJOERC=\"/usr/local/lib/joerc\"
+OBJS = main.o termcap.o vfile.o pathfunc.o queue.o blocks.o vs.o va.o scrn.o \
+X       b.o bw.o tw.o pw.o help.o heap.o toomany.o queue.o zstr.o edfuncs.o \
+X       kbd.o w.o reg.o tab.o pattern.o random.o regex.o undo.o menu.o macro.o \
+X       poshist.o
+X
+foo:
+X	@echo Type make followed by one of the following
+X	@echo
+X	@echo bsd hpux xenix sv posix termidx install clean
+X
+xenix: $(OBJS) ttyxenix.o olddir.o
+X	$(CC) $(CFLAGS) -o joe $(OBJS) ttyxenix.o olddir.o -lx
+X
+posix: $(OBJS) ttyposix.o
+X	$(CC) $(CFLAGS) -o joe $(OBJS) ttyposix.o
+X
+bsd: $(OBJS) ttybsd.o
+X	$(CC) $(CFLAGS) -o joe $(OBJS) ttybsd.o
+X
+sv: $(OBJS) ttysv.o
+X	$(CC) $(CFLAGS) -o joe $(OBJS) ttysv.o
+X
+hpux: $(OBJS) ttyhpux.o
+X	$(CC) $(CFLAGS) -o joe $(OBJS) ttyhpux.o
+X
+termidx: termidx.o
+X	$(CC) $(CFLAGS) -o termidx termidx.o
+X
+install: joe termidx
+X	strip joe
+X	strip termidx
+X	mv joe /usr/local/bin
+X	cp joerc /usr/local/lib/joerc
+X	mv termidx /usr/local/bin
+X	chmod a+x /usr/local/bin/joe
+X	chmod a+r /usr/local/lib/joerc
+X	chmod a+x /usr/local/bin/termidx
+X
+clean:
+X	rm -f $(OBJS) ttyxenix.o ttyposix.o ttybsd.o ttyhpux.o ttysv.o
+SHAR_EOF
+chmod 0600 makefile ||
+echo 'restore of makefile failed'
+Wc_c="`wc -c < 'makefile'`"
+test 1179 -eq "$Wc_c" ||
+	echo 'makefile: original size 1179, current size' "$Wc_c"
+fi
+# ============= menu.c ==============
+if test -f 'menu.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping menu.c (File already exists)'
+else
+echo 'x - extracting menu.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'menu.c' &&
+/* Menu selection window
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "scrn.h"
+#include "vs.h"
+#include "va.h"
+#include "menu.h"
+X
+void menufllw(m)
+MENU *m;
+{
+m->top=m->cursor-m->cursor%m->perline;
+}
+X
+void menugen(m)
+MENU *m;
+{
+int col;
+int x;
+int *s=m->t->t->scrn+m->x+m->y*m->t->t->co;
+col=0;
+for(x=0;x!=m->perline && m->list[x+m->top];++x)
+X {
+X int atr,z;
+X if(x+m->top==m->cursor) atr=INVERSE;
+X else atr=0;
+X if(col==m->w) break;
+X for(z=0;m->list[x+m->top][z];++z)
+X  {
+X  if(col==m->w) break;
+X  if(s[col]!=(unsigned char)m->list[x+m->top][z]+atr)
+X   {
+X   s[col]=(unsigned char)m->list[x+m->top][z]+atr;
+X   outatr(m->t->t,m->x+col,m->y,s[col]);
+X   }
+X  ++col;
+X  }
+X while(z<m->width)
+X  {
+X  if(col==m->w) break;
+X  if(s[col]!=' ')
+X   s[col]=' ', outatr(m->t->t,m->x+col,m->y,' ');
+X  ++col; ++z;
+X  }
+X if(col!=m->w)
+X  {
+X  if(s[col]!=' ')
+X   s[col]=' ', outatr(m->t->t,m->x+col,m->y,' ');
+X  ++col;
+X  }
+X }
+if(col!=m->w) eraeol(m->t->t,m->x+col,m->y);
+}
+X
+void menumove(m,x,y)
+MENU *m;
+{
+m->x=x;
+m->y=y;
+}
+X
+void menuresz(m,wi,he)
+MENU *m;
+{
+m->w=wi;
+m->h=he;
+}
+X
+void mconfig(m)
+MENU *m;
+{
+/* Configure menu display parameters */
+int x;
+for(x=0,m->width=0;m->list[x];++x)
+X if(zlen(m->list[x])>m->width) m->width=zlen(m->list[x]);
+if(m->width>m->w) m->width=m->w-1;
+m->perline=m->w/(m->width+1);
+}
+X
+MENU *mkmenu(t,s,x,y,wi,h)
+SCREEN *t;
+char **s;
+{
+MENU *m=(MENU *)malloc(sizeof(MENU));
+m->list=s;
+m->top=0;
+m->cursor=0;
+m->t=t;
+m->h=h; m->w=wi; m->x=x; m->y=y;
+m->object=0;
+mconfig(m);
+return m;
+}
+X
+void menurm(m)
+MENU *m;
+{
+free(m);
+}
+X
+void mbol(m)
+MENU *m;
+{
+m->cursor=m->top;
+}
+X
+void mbof(m)
+MENU *m;
+{
+m->cursor=0;
+}
+X
+void meof(m)
+MENU *m;
+{
+if(aLEN(m->list)) m->cursor=aLEN(m->list)-1;
+}
+X
+void meol(m)
+MENU *m;
+{
+if(m->top+m->perline<aLEN(m->list))
+X m->cursor=m->top+m->perline-1;
+else meof(m);
+}
+X
+void mrtarw(m)
+MENU *m;
+{
+if(m->cursor+1<aLEN(m->list)) ++m->cursor;
+}
+X
+void mltarw(m)
+MENU *m;
+{
+if(m->cursor) --m->cursor;
+}
+X
+void muparw(m)
+MENU *m;
+{
+if(m->cursor>=m->perline) m->cursor-=m->perline;
+}
+X
+void mdnarw(m)
+MENU *m;
+{
+if(m->cursor+m->perline<aLEN(m->list)) m->cursor+=m->perline;
+else if(m->top+m->perline<aLEN(m->list)) meof(m);
+}
+SHAR_EOF
+chmod 0600 menu.c ||
+echo 'restore of menu.c failed'
+Wc_c="`wc -c < 'menu.c'`"
+test 2874 -eq "$Wc_c" ||
+	echo 'menu.c: original size 2874, current size' "$Wc_c"
+fi
+# ============= menu.h ==============
+if test -f 'menu.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping menu.h (File already exists)'
+else
+echo 'x - extracting menu.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'menu.h' &&
+/* Menu selection window
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Imenu
+#define _Imenu 1
+X
+#include "config.h"
+#include "w.h"
+X
+typedef struct menu MENU;
+X
+struct menu
+X {
+X char **list;		/* List of items */
+X int top;		/* First item on screen */
+X int cursor;		/* Item cursor is on */
+X int width;		/* Width of widest item, up to 'w' max */
+X int perline;		/* Number of items on each line */
+X SCREEN *t;
+X int h,w,x,y;
+X void *object;
+X };
+X
+MENU *mkmenu();
+void menufllw();
+void menugen();
+void menumove();
+void menuresz();
+void menurm();
+X
+void muparw(), mdnarw(), mltarw(), mrtarw(), mbof(), meof(), mbol(), meol();
+X
+#endif
+SHAR_EOF
+chmod 0600 menu.h ||
+echo 'restore of menu.h failed'
+Wc_c="`wc -c < 'menu.h'`"
+test 1318 -eq "$Wc_c" ||
+	echo 'menu.h: original size 1318, current size' "$Wc_c"
+fi
+# ============= msdir.c ==============
+if test -f 'msdir.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping msdir.c (File already exists)'
+else
+echo 'x - extracting msdir.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'msdir.c' &&
+/* TURBO-C directory interface
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "zstr.h"
+#include "blocks.h"
+#include "dir.h"
+X
+int findfirst();
+int findnext();
+X
+struct ffblk
+X {
+X char ff_reserved[21];
+X char ff_attrib;
+X int ff_ftime;
+X int ff_fdate;
+X long ff_fsize;
+X char ff_name[13];
+X };
+X
+struct duh
+X {
+X struct ffblk ffblk;
+X int first;
+X };
+X
+void *opendir(name)
+char *name;
+{
+struct duh *duh=(struct duh *)malloc(sizeof(struct duh));
+duh->first=findfirst("*.*",&duh->ffblk,0);
+return duh;
+}
+X
+void closedir(f)
+struct duh *f;
+{
+free(f);
+}
+X
+struct direct *readdir(f)
+struct duh *f;
+{
+static struct direct direct;
+while(f->first!= -1)
+X if(!f->first)
+X  {
+X  zcpy(direct.d_name,f->ffblk.ff_name);
+X  f->first=1;
+X  return &direct;
+X  }
+X else f->first=findnext(&f->ffblk);
+return 0;
+}
+SHAR_EOF
+chmod 0600 msdir.c ||
+echo 'restore of msdir.c failed'
+Wc_c="`wc -c < 'msdir.c'`"
+test 1505 -eq "$Wc_c" ||
+	echo 'msdir.c: original size 1505, current size' "$Wc_c"
+fi
+# ============= olddir.c ==============
+if test -f 'olddir.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping olddir.c (File already exists)'
+else
+echo 'x - extracting olddir.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'olddir.c' &&
+/* Directory package for older UNIXs
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/dir.h>	/* If this doesn't exist, use: */
+/* You'll also have to include in each module which uses these directory
+X * functions
+struct direct
+X {
+X short d_ino;
+X char d_name[14];
+X };
+*/
+#include "config.h"
+#include "vs.h"
+X
+void *opendir(name)
+char *name;
+{
+return fopen(name,"r");
+}
+X
+static struct direct direct;
+X
+struct direct *readdir(f)
+void *f;
+{
+while(1==fread(&direct,sizeof(struct direct),1,(FILE *)f))
+X if(direct.d_ino) return &direct;
+return 0;
+}
+X
+void closedir(f)
+FILE *f;
+{
+fclose(f);
+}
+X
+int mkdir(s)
+char *s;
+{
+char *y=0;
+int rtval;
+y=vsncpy(y,0,sc("/bin/mkdir "));
+y=vsncpy(y,sLEN(y),sz(s));
+y=vsncpy(y,sLEN(y),sc(" 2>/dev/null"));
+rtval=system(y);
+vsrm(y);
+return rtval;
+}
+SHAR_EOF
+chmod 0600 olddir.c ||
+echo 'restore of olddir.c failed'
+Wc_c="`wc -c < 'olddir.c'`"
+test 1513 -eq "$Wc_c" ||
+	echo 'olddir.c: original size 1513, current size' "$Wc_c"
+fi
+# ============= pathfunc.c ==============
+if test -f 'pathfunc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pathfunc.c (File already exists)'
+else
+echo 'x - extracting pathfunc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pathfunc.c' &&
+/* Directory and path functions
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include "config.h"
+#include "vs.h"
+#include "tty.h"
+#include "pathfunc.h"
+X
+char *abspth(path)
+char *path;
+{
+char *s=0;
+int x=0;
+int y;
+if(path[0]=='/')
+X {
+X s=vsadd(s,'/');
+X while(path[x]=='/') x++;
+X y=1;
+X }
+else
+X {
+X if(!(s=pwd())) return 0;
+X s=vsncpy(NULL,0,sz(s));
+X if(s[1]) s=vsadd(s,'/');
+X y=sLEN(s);
+X }
+while(path[x])
+X {
+X if(path[x]=='.' && (path[x+1]==0 || path[x+1]=='/'))
+X  {
+X  x++;
+X  while(path[x]=='/') x++;
+X  continue;
+X  }
+X if(path[x]=='.' && path[x+1]=='.' &&
+X    (path[x+2]==0 || path[x+2]=='/'))
+X  {
+X  x+=2;
+X  while(path[x]=='/') x++;
+X  if(y!=1)
+X   {
+X   --y;
+X   while(s[y-1]!='/') --y;
+X   }
+X  continue;
+X  }
+X do
+X  s=vsset(s,y,path[x]), ++y, ++x;
+X  while(path[x] && path[x]!='/');
+X s=vsset(s,y,'/'), ++y;
+X while(path[x]=='/') x++;
+X }
+if(y!=1 && s[y-1]=='/') --y;
+s=vstrunc(s,y);
+return s;
+}
+X
+char *namprt(path)
+char *path;
+{
+char *z=path+slen(path);
+while(z!=path)
+X if(z[-1]=='/') break;
+X else --z;
+return vsncpy(NULL,0,sz(z));
+}
+X
+char *dirprt(path)
+char *path;
+{
+char *z=path+slen(path);
+while(z!=path)
+X if(*(z-1)=='/') break;
+X else --z;
+return vsncpy(NULL,0,path,z-path);
+}
+X
+char *begprt(path)
+char *path;
+{
+char *z=path+slen(path);
+while(z!=path && z[-1]=='/') --z;
+if(z==path) return vsncpy(NULL,0,sz(path));
+else
+X {
+X while(z!=path)
+X  if(z[-1]=='/') break;
+X  else --z;
+X return vsncpy(NULL,0,path,z-path);
+X }
+}
+X
+char *endprt(path)
+char *path;
+{
+char *z=path+slen(path);
+while(z!=path && z[-1]=='/') --z;
+if(z==path) return vsncpy(NULL,0,sc(""));
+else
+X {
+X while(z!=path)
+X  if(z[-1]=='/') break;
+X  else --z;
+X return vsncpy(NULL,0,sz(z));
+X }
+}
+X
+int mkpath(path)
+char *path;
+{
+char *s;
+if(path[0]=='/')
+X {
+X if(chddir("/")) return 1;
+X s=path;
+X goto in;
+X }
+while(path[0])
+X {
+X int c;
+X while(*s && *s!='/') s++;
+X c= *s; *s=0;
+X if(chddir(path))
+X  {
+X  if(mkdir(path,0777)) return 1;
+X  if(chddir(path)) return 1;
+X  }
+X *s=c;
+X in:
+X while(*s=='/') s++;
+X path=s;
+X }
+return 0;
+}
+X
+/* Create a temporary file */
+X
+char *mktmp(where)
+char *where;
+{
+static int seq=0;
+char *name=0;
+int fd;
+loop:
+name=vsfmt(name,"%sJ%d%d.tmp",where,seq++%1000,(int)time(NULL)%1000);
+if((fd=open(name,0))!= -1)
+X {
+X close(fd);
+X goto loop;
+X }
+if((fd=creat(name,0777))== -1) return 0;
+if(close(fd)) return 0;
+return name;
+}
+SHAR_EOF
+chmod 0600 pathfunc.c ||
+echo 'restore of pathfunc.c failed'
+Wc_c="`wc -c < 'pathfunc.c'`"
+test 2984 -eq "$Wc_c" ||
+	echo 'pathfunc.c: original size 2984, current size' "$Wc_c"
+fi
+# ============= pathfunc.h ==============
+if test -f 'pathfunc.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping pathfunc.h (File already exists)'
+else
+echo 'x - extracting pathfunc.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pathfunc.h' &&
+/* Directory and path functions
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ipathfunc
+#define _Ipathfunc
+X
+#include "config.h"
+X
+/* These comments aren't quite right: no drive and no conversion to lower
+X * case for UNIX systems...
+X */
+X
+/* char *abspth(char *path);
+X * Convert given path into an absolute path (a path beginning with a drive
+X * letter and ":\" and with no "."s or ".."s).
+X *
+X * This can be used to check if two paths refer to the same file:  Convert the
+X * two paths into absolute paths and then compare the absolute paths.
+X *
+X * Also, this can be used to get the current drive and directory:
+X * Use abspath("")
+X *
+X * Or, to get the current directory on another drive:  Use abspath("a:")
+X *
+X * Returns an malloc block containing the absolute path string or
+X * 0 if the given path was in error or if couldn't read the current
+X * directory (because the floppy was removed from the drive).
+X */
+char *abspth();
+X
+/* char *namprt(char *path);
+X * Return name part of a path.  There may not be one if the last character
+X * in the path is '/'.
+X */
+char *namprt();
+X
+/* char *dirprt(char *path);
+X * Return directory and drive part of a path.  I.E., everything to the
+X * left of the name part.
+X */
+char *dirprt();
+X
+char *begprt();
+char *endprt();
+X
+/* int mkpath(char *path);
+X * Make sure path exists.  If it doesn't, try to create it
+X *
+X * Returns 1 for error or 0 for success.  The current directory
+X * and drive will be at the given path if successful, otherwise
+X * the drive and path will be elsewhere (not necessarily where they
+X * were before mkpath was called).
+X */
+int mkpath();
+X
+/* char *mktmp(char *);
+X * Create an empty temporary file.  The file name created is the string passed
+X * to this function postfixed with JXXXXXX.tmp, where XXXXXX is some number.
+X */
+char *mktmp();
+X
+/* Change drive:directory
+X */
+#define chddir chdir
+X
+#endif
+SHAR_EOF
+chmod 0600 pathfunc.h ||
+echo 'restore of pathfunc.h failed'
+Wc_c="`wc -c < 'pathfunc.h'`"
+test 2548 -eq "$Wc_c" ||
+	echo 'pathfunc.h: original size 2548, current size' "$Wc_c"
+fi
+# ============= pattern.c ==============
+if test -f 'pattern.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pattern.c (File already exists)'
+else
+echo 'x - extracting pattern.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pattern.c' &&
+/* Pattern matching system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "config.h"
+#include "heap.h"
+#include "termcap.h"
+#include "toomany.h"
+#include "vfile.h"
+#include "scrn.h"
+#include "tty.h"
+#include "queue.h"
+#include "b.h"
+#include "regex.h"
+#include "kbd.h"
+#include "bw.h"
+#include "vs.h"
+#include "w.h"
+#include "pathfunc.h"
+#include "va.h"
+#include "edfuncs.h"
+#include "pattern.h"
+X
+B *findhist=0;
+X
+void pfnext();
+X
+#define SRBACKWARDS 1
+#define SRIGNORE 2
+#define SRREPLACE 4
+X
+static void set_replace(w,s)
+X W *w;
+X char *s;
+X { 
+X if(w->t->replace) vsrm(w->t->replace);
+X w->t->replace=s;
+X pfnext(w);
+X }
+X
+static void set_options(w,s)
+X W *w;
+X char *s;
+X {
+X int x;
+X w->t->options=0;
+X w->t->repeat= -1;
+X for(x=0;s[x];++x)
+X  switch(s[x])
+X   {
+X  case 'r': case 'R': w->t->options|=SRREPLACE; break;
+X  case 'b': case 'B': w->t->options|=SRBACKWARDS; break;
+X  case 'i': case 'I': w->t->options|=SRIGNORE; break;
+X  case '0': case '1': case '2': case '3': case '4':
+X  case '5': case '6': case '7': case '8': case '9':
+X   if(w->t->repeat== -1) w->t->repeat=0;
+X   w->t->repeat=w->t->repeat*10+s[x]-'0';
+X   break;
+X   }
+X vsrm(s);
+X if(w->t->options&SRREPLACE) wmkpw(w,"Replace with (^C to abort): ",&findhist,set_replace,"Search");
+X else pfnext(w);
+X }
+X
+static void set_pattern(w,s)
+X W *w;
+X char *s;
+X {
+X if(w->t->pattern) vsrm(w->t->pattern);
+X w->t->pattern=s;
+X wmkpw(w,"(I)gnore case (R)eplace (B)ackwards NNN (^C to abort): ",NULL,set_options,"Search");
+X }
+X
+void pffirst(w)
+X W *w;
+X {
+X wmkpw(w,"Find (^C to abort): ",&findhist,set_pattern,"Search"); 
+X }
+X
+char *entire=0;
+X
+static int searchf(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *start=pdup(bw->cursor);
+P *end=pdup(bw->cursor);
+int x;
+for(x=0;x!=sLEN(w->t->pattern) && w->t->pattern[x]!='\\';++x);
+if(w->t->options&SRIGNORE)
+X while(pfindfni(start,w->t->pattern,x))
+X  {
+X  pset(end,start);
+X  pfwrd(end,x);
+X  if(pimatch(w->t->pattern+x,sLEN(w->t->pattern)-x,end,0))
+X   {
+X   w->t->foundlen=end->byte-start->byte;
+X   entire=vstrunc(entire,w->t->foundlen);
+X   brmem(start,entire,w->t->foundlen);
+X   pset(bw->cursor,end);
+X   prm(start); prm(end);
+X   pfcol(bw->cursor);
+X   bw->cursor->xcol=bw->cursor->col;
+X   return 1;
+X   }
+X  if(pgetc(start)== MAXINT) break;
+X  }
+else
+X while(pfindfn(start,w->t->pattern,x))
+X  {
+X  pset(end,start);
+X  pfwrd(end,x);
+X  if(pmatch(w->t->pattern+x,sLEN(w->t->pattern)-x,end,0))
+X   {
+X   w->t->foundlen=end->byte-start->byte;
+X   entire=vstrunc(entire,w->t->foundlen);
+X   brmem(start,entire,w->t->foundlen);
+X   pset(bw->cursor,end);
+X   prm(start); prm(end);
+X   pfcol(bw->cursor);
+X   bw->cursor->xcol=bw->cursor->col;
+X   return 1;
+X   }
+X  if(pgetc(start)== MAXINT) break;
+X  }
+prm(start); prm(end);
+return 0;
+}
+X
+static int searchb(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *start=pdup(bw->cursor);
+P *end=pdup(bw->cursor);
+int x;
+for(x=0;x!=sLEN(w->t->pattern) && w->t->pattern[x]!='\\';++x);
+if(w->t->options&SRIGNORE)
+X while(pbkwdf(start,1L) && pfindrni(start,w->t->pattern,x))
+X  {
+X  pset(end,start);
+X  pfwrd(end,x);
+X  if(pimatch(w->t->pattern+x,sLEN(w->t->pattern)-x,end,0))
+X   {
+X   w->t->foundlen=end->byte-start->byte;
+X   entire=vstrunc(entire,w->t->foundlen);
+X   brmem(start,entire,w->t->foundlen);
+X   pset(bw->cursor,start);
+X   prm(start); prm(end);
+X   pfcol(bw->cursor);
+X   bw->cursor->xcol=bw->cursor->col;
+X   return 1;
+X   }
+X  }
+else
+X while(pbkwdf(start,1L) && pfindrn(start,w->t->pattern,x))
+X  {
+X  pset(end,start);
+X  pfwrd(end,x);
+X  if(pmatch(w->t->pattern+x,sLEN(w->t->pattern)-x,end,0))
+X   {
+X   w->t->foundlen=end->byte-start->byte;
+X   entire=vstrunc(entire,w->t->foundlen);
+X   brmem(start,entire,w->t->foundlen);
+X   pset(bw->cursor,start);
+X   prm(start); prm(end);
+X   pfcol(bw->cursor);
+X   bw->cursor->xcol=bw->cursor->col;
+X   return 1;
+X   }
+X  }
+prm(start); prm(end);
+return 0;
+}
+X
+static void insert(bw,s,len)
+BW *bw;
+char *s;
+{
+int x;
+while(len)
+X {
+X for(x=0;x!=len && s[x]!='\\';++x);
+X if(x)
+X  {
+X  binsm(bw->cursor,s,x);
+X  pfwrd(bw->cursor,x);
+X  len-=x;
+X  s+=x;
+X  }
+X else if(len>=2)
+X  {
+X  if(s[1]=='\\') binsc(bw->cursor,'\\'), pgetc(bw->cursor);
+X  else if(s[1]=='n') binsc(bw->cursor,'\n'), pgetc(bw->cursor);
+X  else if((s[1]>='a' && s[1]<='z' ||
+X          s[1]>='A' && s[1]<='Z') && pieces[(s[1]&0x1f)-1])
+X   {
+X   binsm(bw->cursor,sv(pieces[(s[1]&0x1f)-1]));
+X   pfwrd(bw->cursor,sLEN(pieces[(s[1]&0x1f)-1]));
+X   }
+X  else if(s[1]>='0' && s[1]<='9' && pieces[s[1]-'0'])
+X   {
+X   binsm(bw->cursor,sv(pieces[s[1]-'0']));
+X   pfwrd(bw->cursor,sLEN(pieces[s[1]-'0']));
+X   }
+X  else if(s[1]=='&' && entire)
+X   {
+X   binsm(bw->cursor,sv(entire));
+X   pfwrd(bw->cursor,sLEN(entire));
+X   }
+X  s+=2; len-=2;
+X  }
+X else len=0;
+X }
+}
+X
+static void replace(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *q=pdup(bw->cursor);
+if(w->t->options&SRBACKWARDS)
+X {
+X q=pfwrd(q,w->t->foundlen);
+X bdel(bw->cursor,q);
+X prm(q);
+X }
+else
+X {
+X q=pbkwd(q,w->t->foundlen);
+X bdel(q,bw->cursor);
+X prm(q);
+X }
+insert(bw,sv(w->t->replace));
+}
+X
+void pfnext(w)
+X W *w;
+X {
+X BW *bw=(BW *)w->object;
+X int c;
+X int rest=0;
+X int flg=0;
+X int orgmid=mid;
+X mid=1;
+X if(!w->t->pattern) { pffirst(w); goto done; }
+X next:
+X if(w->t->repeat!= -1)
+X  if(!w->t->repeat) goto done;
+X  else --w->t->repeat;
+X if(w->t->options&SRBACKWARDS)
+X  { if(!searchb(w)) { if(!flg || !(w->t->options&SRREPLACE)) msgnw(w,"Not found"); w->t->repeat= -1; goto done; } }
+X else
+X  if(!searchf(w)) { if(!flg || !(w->t->options&SRREPLACE)) msgnw(w,"Not found"); w->t->repeat= -1; goto done; }
+X flg=1;
+X if(w->t->options&SRREPLACE)
+X  if(rest) { replace(w); goto next; }
+X  else
+X   {
+X   do
+X    {
+X    P *mb=w->t->markb, *mk=w->t->markk;
+X    if(w->t->options&SRBACKWARDS)
+X     {
+X     w->t->markb=pdup(bw->cursor);
+X     w->t->markk=pdup(bw->cursor);
+X     pfwrd(w->t->markk,w->t->foundlen);
+X     }
+X    else
+X     {
+X     w->t->markk=pdup(bw->cursor);
+X     w->t->markb=pdup(bw->cursor);
+X     pbkwd(w->t->markb,w->t->foundlen);
+X     }
+X    updall();
+X    c=queryn(w,"Replace (Y)es (N)o (R)est (^C to abort)?");
+X    prm(w->t->markb); prm(w->t->markk);
+X    w->t->markb=mb; w->t->markk=mk;
+X    if(c=='N' || c=='n') { goto next; }
+X    if(c=='Y' || c=='y') { replace(w); goto next; }
+X    if(c=='R' || c=='r') { replace(w); rest=1; goto next; }
+X    }
+X    while(c!=MAXINT && c!='C'-'@');
+X   }
+X else if(w->t->repeat!= -1) goto next;
+X done:
+X updall();
+X bw->cursor->xcol=bw->cursor->col;
+X mid=orgmid;
+X }
+SHAR_EOF
+chmod 0600 pattern.c ||
+echo 'restore of pattern.c failed'
+Wc_c="`wc -c < 'pattern.c'`"
+test 7010 -eq "$Wc_c" ||
+	echo 'pattern.c: original size 7010, current size' "$Wc_c"
+fi
+# ============= pattern.h ==============
+if test -f 'pattern.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping pattern.h (File already exists)'
+else
+echo 'x - extracting pattern.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pattern.h' &&
+/* Pattern matching system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ipattern
+#define _Ipattern 1
+X
+void pffirst();
+void pfnext();
+X
+#endif
+SHAR_EOF
+chmod 0600 pattern.h ||
+echo 'restore of pattern.h failed'
+Wc_c="`wc -c < 'pattern.h'`"
+test 841 -eq "$Wc_c" ||
+	echo 'pattern.h: original size 841, current size' "$Wc_c"
+fi
+# ============= poshist.c ==============
+if test -f 'poshist.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping poshist.c (File already exists)'
+else
+echo 'x - extracting poshist.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'poshist.c' &&
+/* Position history
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "poshist.h"
+#include "queue.h"
+#include "b.h"
+#include "w.h"
+#include "bw.h"
+X
+typedef struct pos POS;
+X
+struct pos
+X {
+X LINK(POS) link;
+X P *p;
+X W *w;
+X };
+X
+POS pos={{&pos,&pos}};
+POS *curpos=&pos;
+int npos=0;
+X
+void markpos(w,p)
+W *w;
+P *p;
+{
+POS *new=(POS *)malloc(sizeof(POS));
+new->p=pdup(p);
+new->w=w;
+enqueb(POS,link,&pos,new);
+if(++npos==20)
+X {
+X new=pos.link.next;
+X if(new->p) prm(new->p);
+X free(deque(POS,link,new));
+X }
+}
+X
+void afterpos()
+{
+if(curpos!=&pos)
+X {
+X demote(POS,link,&pos,curpos);
+X curpos=&pos;
+X }
+}
+X
+void aftermove(w,p)
+W *w;
+P *p;
+{
+if(pos.link.prev!=&pos &&
+X   pos.link.prev->w==w &&
+X   pos.link.prev->p &&
+X   Iabs(pos.link.prev->p->line-p->line)<3
+X  )
+X pset(pos.link.prev->p,p);
+else markpos(w,p);
+}
+X
+void windie(w)
+W *w;
+{
+POS *n;
+for(n=pos.link.prev;n!=&pos;n=n->link.prev) if(n->w==w) n->w=0;
+}
+X
+void unextpos(w)
+W *w;
+{
+lp:
+if(curpos->link.next!=&pos && curpos!=&pos)
+X {
+X BW *bw;
+X curpos=curpos->link.next;
+X if(!curpos->p || !curpos->w) goto lp;
+X if(w->t->curwin==curpos->w &&
+X    curpos->p->byte==((BW *)w->t->curwin->object)->cursor->byte) goto lp;
+X if(w->t->curwin!=curpos->w)
+X  {
+X  w->t->curwin=curpos->w;
+X  if(w->t->curwin->y== -1) wfit(w->t);
+X  }
+X w=w->t->curwin;
+X bw=(BW *)w->object;
+X if(bw->cursor->byte!=curpos->p->byte) pset(bw->cursor,curpos->p);
+X }
+}
+X
+void uprevpos(w)
+W *w;
+{
+lp:
+if(curpos->link.prev!=&pos)
+X {
+X BW *bw;
+X curpos=curpos->link.prev;
+X if(!curpos->p || !curpos->w) goto lp;
+X if(w->t->curwin==curpos->w &&
+X    curpos->p->byte==((BW *)w->t->curwin->object)->cursor->byte) goto lp;
+X if(w->t->curwin!=curpos->w)
+X  {
+X  w->t->curwin=curpos->w;
+X  if(w->t->curwin->y== -1) wfit(w->t);
+X  }
+X w=w->t->curwin;
+X bw=(BW *)w->object;
+X if(bw->cursor->byte!=curpos->p->byte) pset(bw->cursor,curpos->p);
+X }
+}
+SHAR_EOF
+chmod 0600 poshist.c ||
+echo 'restore of poshist.c failed'
+Wc_c="`wc -c < 'poshist.c'`"
+test 2503 -eq "$Wc_c" ||
+	echo 'poshist.c: original size 2503, current size' "$Wc_c"
+fi
+# ============= poshist.h ==============
+if test -f 'poshist.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping poshist.h (File already exists)'
+else
+echo 'x - extracting poshist.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'poshist.h' &&
+/* Position history
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iposhist
+#define _Iposhist 1
+X
+#include "config.h"
+X
+void afterpos();
+void aftermove();
+void windie();
+void uprevpos();
+void unextpos();
+X
+#endif
+SHAR_EOF
+chmod 0600 poshist.h ||
+echo 'restore of poshist.h failed'
+Wc_c="`wc -c < 'poshist.h'`"
+test 908 -eq "$Wc_c" ||
+	echo 'poshist.h: original size 908, current size' "$Wc_c"
+fi
+# ============= pw.c ==============
+if test -f 'pw.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pw.c (File already exists)'
+else
+echo 'x - extracting pw.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pw.c' &&
+/* Prompt windows
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "w.h"
+#include "vfile.h"
+#include "toomany.h"
+#include "termcap.h"
+#include "b.h"
+#include "edfuncs.h"
+#include "kbd.h"
+#include "scrn.h"
+#include "bw.h"
+#include "zstr.h"
+#include "help.h"
+#include "tab.h"
+#include "undo.h"
+#include "pw.h"
+X
+CONTEXT cprmpt={"prompt",0};
+CONTEXT cfprmpt={"fprompt",0};
+X
+/* Move prompt window */
+X
+static void movepw(w,x,y)
+W *w;
+int x,y;
+{
+}
+X
+/* Resize prompt window */
+X
+static void resizepw(w,wi,he)
+W *w;
+int wi,he;
+{
+}
+X
+/* Abort prompt window */
+X
+static void killpw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+PW *pw=(PW *)bw->object;
+bwrm(bw);
+free(pw->prompt);
+free(pw);
+}
+X
+/* Update a prompt window */
+X
+static void followpw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+bwfllw(bw);
+}
+X
+static void disppw(w)
+W *w;
+{
+int x;
+BW *bw=(BW *)w->object;
+PW *pw=(PW *)bw->object;
+X
+/* Scroll buffer and position prompt */
+if(pw->promptlen>w->w/2+w->w/4)
+X {
+X pw->promptofst=pw->promptlen-w->w/2;
+X if(bw->cursor->col<w->w-(pw->promptlen-pw->promptofst))
+X  bw->offset=0;
+X else
+X  bw->offset=bw->cursor->col-(w->w-(pw->promptlen-pw->promptofst)-1);
+X }
+else
+X { 
+X if(bw->cursor->col<w->w-pw->promptlen) pw->promptofst=0, bw->offset=0;
+X else if(bw->cursor->col>=w->w)
+X  pw->promptofst=pw->promptlen, bw->offset=bw->cursor->col-(w->w-1);
+X else
+X  pw->promptofst=pw->promptlen-(w->w-bw->cursor->col-1),
+X  bw->offset=bw->cursor->col-(w->w-(pw->promptlen-pw->promptofst)-1);
+X }
+X
+/* Set cursor position */
+w->curx=bw->cursor->col-bw->offset+pw->promptlen-pw->promptofst;
+w->cury=0;
+X
+/* Generate prompt */
+w->t->t->updtab[w->y]=1;
+genfmt(w->t->t,w->x,w->y,pw->promptofst,pw->prompt,0);
+X
+/* Position and size buffer */
+bwmove(bw,w->x+pw->promptlen-pw->promptofst,w->y);
+bwresz(bw,w->w-(pw->promptlen-pw->promptofst),1);
+X
+/* Generate buffer */
+bwgen(bw);
+}
+X
+/* When user hits return in a prompt window */
+X
+void upromptrtn(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+PW *pw=(PW *)bw->object;
+char *s;
+W *win;
+void (*pfunc)();
+peol(bw->cursor);
+s=brvs(bw->top,bw->cursor->byte-bw->top->byte);
+if(pw->hist)
+X if(bw->b->chnged)
+X  {
+X  P *q=pdup(pw->hist->eof);
+X  binsm(q,s,bw->cursor->byte-bw->top->byte);
+X  peof(q);
+X  binsc(q,'\n');
+X  prm(q);
+X  }
+X else
+X  {
+X  P *q=pdup(pw->hist->bof);
+X  P *r;
+X  P *t;
+X  pline(q,bw->top->line);
+X  r=pdup(q);
+X  pnextl(r);
+X  t=pdup(pw->hist->eof);
+X  binsb(t,q,r);
+X  bdel(q,r);
+X  prm(q); prm(r); prm(t);
+X  }
+win=w->win;
+X
+pfunc=pw->pfunc;
+wabort(w);
+pfunc(win,s);
+}
+X
+/* When user aborts a prompt window ^C */
+X
+void uabortpw(w)
+W *w;
+{
+wabort(w);
+}
+X
+static void inspw(w,b,l,n,flg)
+W *w;
+B *b;
+long l,n;
+int flg;
+{
+BW *bw=(BW *)w->object;
+if(b==bw->b) bwins(bw,l,n,flg);
+}
+X
+static void delpw(w,b,l,n,flg)
+W *w;
+B *b;
+long l,n;
+int flg;
+{
+BW *bw=(BW *)w->object;
+if(b==bw->b) bwdel(bw,l,n,flg);
+}
+X
+static WATOM watompw=
+{
+&cprmpt,
+disppw,
+followpw,
+killpw,
+resizepw,
+movepw,
+inspw,
+delpw,
+TYPEPW
+};
+X
+static WATOM watomfpw=
+{
+&cfprmpt,
+disppw,
+followpw,
+killpw,
+resizepw,
+movepw,
+inspw,
+delpw,
+TYPEPW
+};
+X
+/* Create a prompt window */
+X
+W *wmkpw(w,prompt,history,func,huh)
+W *w;
+char *prompt;
+B **history;
+void (*func)();
+char *huh;
+{
+W *new;
+PW *pw;
+BW *bw;
+new=wcreate(w->t,&watompw,w,w,w->main,1,huh);
+if(!new) return 0;
+new->object=(void *)(bw=bwmk(new->t,bmk(),new->x,new->y,new->w,1));
+bw->object=(void *)(pw=(PW *)malloc(sizeof(PW)));
+pw->prompt=zdup(prompt);
+pw->promptlen=fmtlen(prompt);
+pw->promptofst=0;
+pw->pfunc=func;
+if(history)
+X {
+X if(!*history) *history=bmk();
+X pw->hist= *history;
+X binsb(bw->cursor,pw->hist->bof,pw->hist->eof);
+X bw->b->chnged=0;
+X peof(bw->cursor); peof(bw->top); pbol(bw->top);
+X }
+else pw->hist=0;
+w->t->curwin=new;
+return new;
+}
+X
+W *wmkfpw(w,prompt,history,func,huh)
+W *w;
+char *prompt;
+B **history;
+void (*func)();
+char *huh;
+{
+W *new;
+PW *pw;
+BW *bw;
+new=wcreate(w->t,&watomfpw,w,w,w->main,1,huh);
+if(!new) return 0;
+new->object=(void *)(bw=bwmk(new->t,bmk(),new->x,new->y,new->w,1));
+bw->object=(void *)(pw=(PW *)malloc(sizeof(PW)));
+pw->prompt=zdup(prompt);
+pw->promptlen=fmtlen(prompt);
+pw->promptofst=0;
+pw->pfunc=func;
+if(history)
+X {
+X if(!*history) *history=bmk();
+X pw->hist= *history;
+X binsb(bw->cursor,pw->hist->bof,pw->hist->eof);
+X bw->b->chnged=0;
+X peof(bw->cursor); peof(bw->top); pbol(bw->top);
+X }
+else pw->hist=0;
+w->t->curwin=new;
+return new;
+}
+SHAR_EOF
+chmod 0600 pw.c ||
+echo 'restore of pw.c failed'
+Wc_c="`wc -c < 'pw.c'`"
+test 4996 -eq "$Wc_c" ||
+	echo 'pw.c: original size 4996, current size' "$Wc_c"
+fi
+# ============= pw.h ==============
+if test -f 'pw.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping pw.h (File already exists)'
+else
+echo 'x - extracting pw.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pw.h' &&
+/* Prompt windows
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ipw
+#define _Ipw 1
+X
+#include "config.h"
+#include "kbd.h"
+X
+typedef struct pw PW;
+X
+struct pw
+X {
+X void (*pfunc)();		/* Func which gets called when RTN is hit */
+X char *prompt;			/* Prompt string */
+X int promptlen;			/* Width of prompt string */
+X int promptofst;		/* Prompt scroll offset */
+X B *hist;			/* History buffer */
+X };
+X
+#define TYPEPW 0x200
+X
+extern CONTEXT cprmpt, cfprmpt;
+X
+/* W *wmkpw(W *w,char *prompt,void (*func)());
+X * Create a prompt window for the given window
+X */
+W *wmkpw();
+X
+/* W *wmkfpw(W *w,char *prompt,void (*func)());
+X * Create a prompt window for the given window
+X * Use mappings for file names
+X */
+W *wmkfpw();
+X
+void uabortpw();
+void upromptrtn();
+X
+#endif
+SHAR_EOF
+chmod 0600 pw.h ||
+echo 'restore of pw.h failed'
+Wc_c="`wc -c < 'pw.h'`"
+test 1442 -eq "$Wc_c" ||
+	echo 'pw.h: original size 1442, current size' "$Wc_c"
+fi
+# ============= queue.c ==============
+if test -f 'queue.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping queue.c (File already exists)'
+else
+echo 'x - extracting queue.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'queue.c' &&
+/* Doubly linked list primitives
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "queue.h"
+X
+void *QUEUE;
+void *ITEM;
+void *LAST;
+SHAR_EOF
+chmod 0600 queue.c ||
+echo 'restore of queue.c failed'
+Wc_c="`wc -c < 'queue.c'`"
+test 846 -eq "$Wc_c" ||
+	echo 'queue.c: original size 846, current size' "$Wc_c"
+fi
+# ============= queue.h ==============
+if test -f 'queue.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping queue.h (File already exists)'
+else
+echo 'x - extracting queue.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'queue.h' &&
+/* Doubly linked list primitives
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iqueue
+#define _Iqueue 1
+X
+#include "config.h"
+X
+extern void *ITEM;
+extern void *QUEUE;
+extern void *LAST;
+X
+#define LINK(type) struct { type *next; type *prev; }
+X
+#define izque(type,member,item) \
+X	( \
+X	QUEUE=(void *)(item), \
+X	((type *)QUEUE)->member.prev=(type *)QUEUE, \
+X	((type *)QUEUE)->member.next=(type *)QUEUE, \
+X	(type *)QUEUE \
+X	)
+X
+#define deque(type,member,item) \
+X	( \
+X	ITEM=(void *)(item), \
+X	((type *)ITEM)->member.prev->member.next=((type *)ITEM)->member.next, \
+X	((type *)ITEM)->member.next->member.prev=((type *)ITEM)->member.prev, \
+X	(type *)ITEM \
+X	)
+X
+#define qempty(type,member,item) \
+X	( \
+X	QUEUE=(void *)(item), \
+X	(type *)QUEUE==((type *)QUEUE)->member.next \
+X	)
+X
+#define enquef(type,member,queue,item) \
+X	( \
+X	ITEM=(void *)(item), \
+X	QUEUE=(void *)(queue), \
+X	((type *)ITEM)->member.next=((type *)QUEUE)->member.next, \
+X	((type *)ITEM)->member.prev=(type *)QUEUE, \
+X	((type *)QUEUE)->member.next->member.prev=(type *)ITEM, \
+X	((type *)QUEUE)->member.next=(type *)ITEM, \
+X	(type *)ITEM \
+X	)
+X
+#define enqueb(type,member,queue,item) \
+X	( \
+X	ITEM=(void *)(item), \
+X	QUEUE=(void *)(queue), \
+X	((type *)ITEM)->member.next=(type *)QUEUE, \
+X	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+X	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+X	((type *)QUEUE)->member.prev=(type *)ITEM, \
+X	(type *)ITEM \
+X	)
+X
+#define promote(type,member,queue,item) \
+X	( \
+X	enquef(type,member,(queue),deque(type,member,(item))) \
+X	)
+X
+#define demote(type,member,queue,item) \
+X	( \
+X	enqueb(type,member,(queue),deque(type,member,(item))) \
+X	)
+X
+#define splicef(type,member,queue,chain) \
+X	( \
+X	ITEM=(void *)(chain), \
+X	LAST=(void *)((type *)ITEM)->member.prev, \
+X	QUEUE=(void *)(queue), \
+X	((type *)LAST)->member.next=((type *)QUEUE)->member.next, \
+X	((type *)ITEM)->member.prev=(type *)QUEUE, \
+X	((type *)QUEUE)->member.next->member.prev=(type *)LAST, \
+X	((type *)QUEUE)->member.next=(type *)ITEM, \
+X	(type *)ITEM \
+X	)
+X
+#define spliceb(type,member,queue,chain) \
+X	( \
+X	ITEM=(void *)(chain), \
+X	LAST=(void *)((type *)ITEM)->member.prev, \
+X	QUEUE=(void *)(queue), \
+X	((type *)LAST)->member.next=(type *)QUEUE, \
+X	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+X	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+X	((type *)QUEUE)->member.prev=(type *)LAST, \
+X	(type *)ITEM \
+X	)
+X
+#define snip(type,member,first,last) \
+X	( \
+X	ITEM=(void *)(first), \
+X	LAST=(void *)(last), \
+X	((type *)LAST)->member.next->member.prev=((type *)ITEM)->member.prev, \
+X	((type *)ITEM)->member.prev->member.next=((type *)LAST)->member.next, \
+X	((type *)ITEM)->member.prev=(type *)LAST, \
+X	((type *)LAST)->member.next=(type *)ITEM, \
+X	(type *)ITEM \
+X	)
+X
+#endif
+SHAR_EOF
+chmod 0600 queue.h ||
+echo 'restore of queue.h failed'
+Wc_c="`wc -c < 'queue.h'`"
+test 3442 -eq "$Wc_c" ||
+	echo 'queue.h: original size 3442, current size' "$Wc_c"
+fi
+# ============= random.c ==============
+if test -f 'random.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping random.c (File already exists)'
+else
+echo 'x - extracting random.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'random.c' &&
+/*
+X * Copyright (c) 1983 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that the above copyright notice and this paragraph are
+X * duplicated in all such forms and that any documentation,
+X * advertising materials, and other materials related to such
+X * distribution and use acknowledge that the software was developed
+X * by the University of California, Berkeley.  The name of the
+X * University may not be used to endorse or promote products derived
+X * from this software without specific prior written permission.
+X * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X */
+X
+/*
+X * This is derived from the Berkeley source:
+X *	@(#)random.c	5.5 (Berkeley) 7/6/88
+X * It was reworked for the GNU C Library by Roland McGrath.
+X * Fixed to be portable to MSDOS by jhallen
+X */
+X
+#include "config.h"
+#include "random.h"
+X
+/* An improved random number generation package.  In addition to the standard
+X   rand()/srand() like interface, this package also has a special state info
+X   interface.  The initstate() routine is called with a seed, an array of
+X   bytes, and a count of how many bytes are being passed in; this array is
+X   then initialized to contain information for random number generation with
+X   that much state information.  Good sizes for the amount of state
+X   information are 32, 64, 128, and 256 bytes.  The state can be switched by
+X   calling the setstate() function with the same array as was initiallized
+X   with initstate().  By default, the package runs with 128 bytes of state
+X   information and generates far better random numbers than a linear
+X   congruential generator.  If the amount of state information is less than
+X   32 bytes, a simple linear congruential R.N.G. is used.  Internally, the
+X   state information is treated as an array of longs; the zeroeth element of
+X   the array is the type of R.N.G. being used (small integer); the remainder
+X   of the array is the state information for the R.N.G.  Thus, 32 bytes of
+X   state information will give 7 longs worth of state information, which will
+X   allow a degree seven polynomial.  (Note: The zeroeth word of state
+X   information also has some other information stored in it; see setstate
+X   for details).  The random number generation technique is a linear feedback
+X   shift register approach, employing trinomials (since there are fewer terms
+X   to sum up that way).  In this approach, the least significant bit of all
+X   the numbers in the state table will act as a linear feedback shift register,
+X   and will have period 2^deg - 1 (where deg is the degree of the polynomial
+X   being used, assuming that the polynomial is irreducible and primitive).
+X   The higher order bits will have longer periods, since their values are
+X   also influenced by pseudo-random carries out of the lower bits.  The
+X   total period of the generator is approximately deg*(2**deg - 1); thus
+X   doubling the amount of state information has a vast influence on the
+X   period of the generator.  Note: The deg*(2**deg - 1) is an approximation
+X   only good for large deg, when the period of the shift register is the
+X   dominant factor.  With deg equal to seven, the period is actually much
+X   longer than the 7*(2**7 - 1) predicted by this formula.  */
+X
+/* For each of the currently supported random number generators, we have a
+X   break value on the amount of state information (you need at least thi
+X   bytes of state info to support this random number generator), a degree for
+X   the polynomial (actually a trinomial) that the R.N.G. is based on, and
+X   separation between the two lower order coefficients of the trinomial.  */
+X
+/* Linear congruential.  */
+#define	TYPE_0		0
+#define	BREAK_0		8
+#define	DEG_0		0
+#define	SEP_0		0
+X
+/* x**7 + x**3 + 1.  */
+#define	TYPE_1		1
+#define	BREAK_1		32
+#define	DEG_1		7
+#define	SEP_1		3
+X
+/* x**15 + x + 1.  */
+#define	TYPE_2		2
+#define	BREAK_2		64
+#define	DEG_2		15
+#define	SEP_2		1
+X
+/* x**31 + x**3 + 1.  */
+#define	TYPE_3		3
+#define	BREAK_3		128
+#define	DEG_3		31
+#define	SEP_3		3
+X
+/* x**63 + x + 1.  */
+#define	TYPE_4		4
+#define	BREAK_4		256
+#define	DEG_4		63
+#define	SEP_4		1
+X
+/* Array versions of the above information to make code run faster.
+X   Relies on fact that TYPE_i == i.  */
+X
+#define	MAX_TYPES	5	/* Max number of types above.  */
+X
+static int degrees[MAX_TYPES] = { DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
+static int seps[MAX_TYPES] = { SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
+X
+/* Initially, everything is set up as if from:
+X	initstate(1, randtbl, 128);
+X   Note that this initialization takes advantage of the fact that srandom
+X   advances the front and rear pointers 10*rand_deg times, and hence the
+X   rear pointer which starts at 0 will also end up at zero; thus the zeroeth
+X   element of the state information, which contains info about the current
+X   position of the rear pointer is just
+X	(MAX_TYPES * (rptr - state)) + TYPE_3 == TYPE_3.  */
+X
+static long randtbl[DEG_3 + 1] =
+X  { TYPE_3,
+X      0x9a319039, 0x32d9c024, 0x9b663182, 0x5da1f342,
+X      0xde3b81e0, 0xdf0a6fb5, 0xf103bc02, 0x48f340fb,
+X      0x7449e56b, 0xbeb1dbb0, 0xab5c5918, 0x946554fd,
+X      0x8c2e680f, 0xeb3d799f, 0xb11ee0b7, 0x2d436b86,
+X      0xda672e2a, 0x1588ca88, 0xe369735d, 0x904f35f7,
+X      0xd7158fd6, 0x6fa6f051, 0x616e6b96, 0xac94efdc,
+X      0x36413f93, 0xc622c298, 0xf5a42ab8, 0x8a88d77b,
+X      0xf5ad9d0e, 0x8999220b, 0x27fb47b9
+X    };
+X
+/* FPTR and RPTR are two pointers into the state info, a front and a rear
+X   pointer.  These two pointers are always rand_sep places aparts, as they
+X   cycle through the state information.  (Yes, this does mean we could get
+X   away with just one pointer, but the code for random is more efficient
+X   this way).  The pointers are left positioned as they would be from the call:
+X	initstate(1, randtbl, 128);
+X   (The position of the rear pointer, rptr, is really 0 (as explained above
+X   in the initialization of randtbl) because the state table pointer is set
+X   to point to randtbl[1] (as explained below).)  */
+X
+static long *fptr = &randtbl[SEP_3 + 1];
+static long *rptr = &randtbl[1];
+X
+X
+X
+/* The following things are the pointer to the state information table,
+X   the type of the current generator, the degree of the current polynomial
+X   being used, and the separation between the two pointers.
+X   Note that for efficiency of random, we remember the first location of
+X   the state information, not the zeroeth.  Hence it is valid to access
+X   state[-1], which is used to store the type of the R.N.G.
+X   Also, we remember the last location, since this is more efficient than
+X   indexing every time to find the address of the last element to see if
+X   the front and rear pointers have wrapped.  */
+X
+static long *state = &randtbl[1];
+X
+static int rand_type = TYPE_3;
+static int rand_deg = DEG_3;
+static int rand_sep = SEP_3;
+X
+static long *end_ptr = &randtbl[sizeof(randtbl) / sizeof(randtbl[0])];
+X
+/* Initialize the random number generator based on the given seed.  If the
+X   type is the trivial no-state-information type, just remember the seed.
+X   Otherwise, initializes state[] based on the given "seed" via a linear
+X   congruential generator.  Then, the pointers are set to known locations
+X   that are exactly rand_sep places apart.  Lastly, it cycles the state
+X   information a given number of times to get rid of any initial dependencies
+X   introduced by the L.C.R.N.G.  Note that the initialization of randtbl[]
+X   for default usage relies on values produced by this routine.  */
+X
+void srandom(x)
+unsigned x;
+{
+X  state[0] = x;
+X  if (rand_type != TYPE_0)
+X    {
+X      register long i;
+X      for (i = 1; i < rand_deg; ++i)
+X	state[i] = (1103515145 * state[i - 1]) + 12345;
+X      fptr = &state[rand_sep];
+X      rptr = &state[0];
+X      for (i = 0; i < 10 * rand_deg; ++i) random();
+X    }
+}
+X
+/* Initialize the state information in the given array of N bytes for
+X   future random number generation.  Based on the number of bytes we
+X   are given, and the break values for the different R.N.G.'s, we choose
+X   the best (largest) one we can and set things up for it.  srandom is
+X   then called to initialize the state information.  Note that on return
+X   from srandom, we set state[-1] to be the type multiplexed with the current
+X   value of the rear pointer; this is so successive calls to initstate won't
+X   lose this information and will be able to restart with setstate.
+X   Note: The first thing we do is save the current state, if any, just like
+X   setstate so that it doesn't matter when initstate is called.
+X   Returns a pointer to the old state.  */
+X
+void *initstate(seed, arg_state, n)
+unsigned seed;
+void *arg_state;
+{
+X  void *ostate = (void *) &state[-1];
+X
+X  if (rand_type == TYPE_0)
+X    state[-1] = rand_type;
+X  else
+X    state[-1] = (MAX_TYPES * (rptr - state)) + rand_type;
+X  if (n < BREAK_1)
+X    {
+X      if (n < BREAK_0)
+X	{
+X	  return NULL;
+X	}
+X      rand_type = TYPE_0;
+X      rand_deg = DEG_0;
+X      rand_sep = SEP_0;
+X    }
+X  else if (n < BREAK_2)
+X    {
+X      rand_type = TYPE_1;
+X      rand_deg = DEG_1;
+X      rand_sep = SEP_1;
+X    }
+X  else if (n < BREAK_3)
+X    {
+X      rand_type = TYPE_2;
+X      rand_deg = DEG_2;
+X      rand_sep = SEP_2;
+X    }
+X  else if (n < BREAK_4)
+X    {
+X      rand_type = TYPE_3;
+X      rand_deg = DEG_3;
+X      rand_sep = SEP_3;
+X    }
+X  else
+X    {

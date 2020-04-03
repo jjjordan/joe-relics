@@ -1,0 +1,1727 @@
+Path: funic!fuug!mcsun!unido!estevax!norisc!iain
+From: iain@norisc.UUCP (Iain Lea)
+Newsgroups: alt.sources
+Subject: tin v1.0 Patchlevel 1 Newsreader (part 01/08)
+Message-ID: <599@norisc.UUCP>
+Date: 3 Sep 91 10:56:29 GMT
+Sender: iain@norisc.UUCP (Iain Lea)
+Organization: What organization?
+Lines: 1717
+
+Submitted-by: iain@estevax.uucp
+Archive-name: tin1.0/part01
+
+#!/bin/sh
+# This is tin1.0, a shell archive (shar 3.24)
+# made 09/03/1991 08:02 UTC by iain@estevax.uucp
+# Source directory /piez/iain/.src/tin-1.01
+#
+# existing files WILL be overwritten
+#
+# This is part 1 of a multipart archive                                    
+# do not concatenate these parts, unpack them in order with /bin/sh        
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   6678 -rw------- CHANGES
+#   1090 -rw------- MANIFEST
+#  10717 -rw------- Makefile
+#   4492 -rw------- README
+#   1584 -rw------- TODO
+#    530 -rwx------ UPDATE_INDEX
+#   5457 -rw------- alloca.c
+#  23272 -rw------- art.c
+#   6065 -rw------- curses.c
+#   2276 -rw------- debug.c
+#   9921 -rw------- feed.c
+#  18741 -rw------- group.c
+#   2673 -rw------- hashstr.c
+#   4017 -rw------- help.c
+#   9118 -rw------- kill.c
+#  16989 -rw------- lang.c
+#   9222 -rw------- lang.h
+#   1121 -rw------- mail.c
+#   6370 -rw------- main.c
+#   5489 -rw------- memory.c
+#  14791 -rw------- misc.c
+#  17686 -rw------- newsrc.c
+#   3688 -rw------- nntp.h
+#   6732 -rw------- open.c
+#  23540 -rw------- page.c
+#     21 -rw------- patchlevel.h
+#  14484 -rw------- post.c
+#   3062 -rw------- prompt.c
+#  17093 -rw------- proto.h
+#  16801 -rw------- rcfile.c
+#  19762 -rw------- save.c
+#   2060 -rw------- screen.c
+#   7823 -rw------- search.c
+#  17955 -rw------- select.c
+#   7144 -rw------- signal.c
+#   1611 -rw------- time.c
+#   8685 -rw------- tin.h
+#   4749 -rw------- wildmat.c
+#  23350 -rw------- tin.1
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+if test -r shar3_seq_.tmp; then
+	echo "Must unpack archives in sequence!"
+	next=`cat shar3_seq_.tmp`; echo "Please unpack part $next next"
+	exit 1
+fi
+# ============= CHANGES ==============
+echo "x - extracting CHANGES (Text)"
+sed 's/^X//' << 'SHAR_EOF' > CHANGES &&
+XCHANGES tin v1.00 -> tin 1.0 PL1
+X--------------------------------
+X
+X1)  crs@siesoft.co.uk (Chris Smith)
+X    BUG. uudecoding multi-part archives sometimes does not work.
+X    FIX. Contibuted uuscram routine that was hacked into post_process_uud().
+X
+X2)  unido!mprgate.mpr.ca!lukas (Bob Lukas)
+X    BUG. The docs refer to various defaults as being $HOME/... In
+X         fact, they are relative to the pw_dir field from /etc/passwd,
+X         not the environment variable $HOME. (For obscure reasons, my
+X         $HOME is not pw_dir.)
+X    FIX. misc.c - init_selfinfo()
+X
+X3)  iain@estevax.uucp (Iain Lea)
+X    BUG. info string "Serching..." not cleared from bottom of screen
+X         when string is found.
+X    FIX. search.c - added clear_message() to various search routines.
+X
+X4)  unido!skuld.north.de!heimdall (Volker Beyer)
+X    BUG. Du versuchst den Vi aufzurufen, und zwar ind /usr/bin, bei
+X         Xenix steht er aber in /bin.Ausserdem sollte kein Editor
+X         definiert werden wenn die Shell-Variable EDITOR gesetzt ist
+X         (wird u.a. auch in vnews benutzt (der von bnews zumindestens)).
+X    FIX. tin.h - Added #ifdef M_XENIX #define DEFAULT_EDITOR /bin/vi #endif
+X
+X5)  rsalz@bbn.com (Rich Salz)
+X	Contributed newer version (June 91) of wildmat.c & wildmat.3 routines
+X
+X6)  v.hoang@att.com (Viet Hoang)
+X    BUG. <sys/types.h> defined in tin.h and open.c
+X	FIX. open.c - deleted <sys/types.h>
+X
+X7)  v.hoang@att.com (Viet Hoang)
+X	BUG. The entry for sysv in Makefile uses double backslash when it
+X	     should only be single backslash.
+X    FIX. Makefile - changed \\ to \ in sysv entry.
+X
+X8)  kos@nd.se (Karl-Olov Serrander)
+X    BUG. If tin is suid news, it is not possible to create .tin and
+X	     .tin/.tinrc when you use command M.
+X    FIX. rcfile.c - write_rcfile() now uses setuid() & setgid() routines.
+X
+X9)  iain@estevax.uucp (Iain Lea)
+X    BUG. If tin is suid news, it has problems creating files in users home
+X	     dir.
+X    FIX. kill.c misc.c post.c - added setuid() & setgid() routines.
+X
+X10) unido!asd.tds.philips.se!kko (Karl-Koenig Koenigsson)
+X    BUG. If I do "tin -u" via cron, the job gets aborted due to the
+X         environment variable TERM not being defined.
+X    FIX. main.c - main() put do_update() before curses is initialized.
+X
+X11) iain@estevax.uucp (Iain Lea)
+X    BUG. Inverse video does not work correctly on sysV machines
+X    FIX. page.c group.c select.c screen.c - modified inverse routines.
+X
+X12) unido!gmdzi.gmd.de!brosig (Andreas Brosig)
+X    BUG. Ich hatte in TASS die Moeglichkeit mit !:kommando: shell-
+X         Kommandos abzugeben; gut, das geht mit TIN auch, aber nach
+X         der shell-Kommando Ausgabe wird direkt ein redraw des Screens
+X         gemacht, zu schnell fuer meine Augen. TASS wartete noch auf
+X         einen Tastendruck des Benutzers.
+X    FIX. misc.c - shell_escape() added continue_prompt() to wait for
+X         user input.
+X
+X13) cliff@norisc.uucp (Clifford Luke)
+X    BUG. When ^Z done in Options Menu 'M' incorrect screen is redrawn
+X         when process is restarted. Wrong signal handler set.
+X    FIX. signal.c rcfile.c - added signal handler for change_rcfile().
+X
+X14) cliff@norisc.uucp (Clifford Luke)
+X    BUG. When ^Z done under SysVR4 the screen goes into endless loop
+X         of redrawing itself. Many thanx for patches supplied.
+X    FIX. signal.c - added POSIX? signal handler code to all handlers.
+X
+X15) iain@estevax.uucp (Iain Lea)
+X    Added percentage info to bottom of group & select menus.
+X
+X16) rdb@oasis.icl.co.uk (Roger Binns)
+X    BUG. I would like it to do something about non-existent groups.
+X         It should delete them or something.
+X    FIX. newsrc.c - rewrite_newsrc() writes new newsrc with only
+X         newsgroups that are present in active file.
+X    
+X17) iain@estevax.uucp (Iain Lea)
+X    Rewrote mail,pipe,print & save commands to handle a)rticle, 
+X    t)thread r)egex pattern and T)agged articles.
+X
+X18) unido!tintin.rivm.nl!a3@estevax (Adri Verhoef)
+X    BUG. Failed posts don't get saved (to dead.article).
+X    FIX. post.c - changed post_base() & post_response()
+X
+X19) unido!tintin.rivm.nl!a3@estevax (Adri Verhoef)
+X    BUG. inews not found. (Mine is located in ~news/nntp)
+X         Thanx for the supplied patches.
+X    FIX. added INEWSDIR define. Set to inews dir otherwise
+X         defaults to LIBDIR.
+X
+X20) unido!tintin.rivm.nl!a3@estevax (Adri Verhoef)
+X    BUG. From the options menu it is not clear that you use a <CR> to
+X         leave the option that you are toggling.
+X    FIX. lang.c - rewrote text messages to mention <CR> being needed.
+X
+X21) unido!tintin.rivm.nl!a3@estevax (Adri Verhoef)
+X    BUG. Long newsgroup names cause troubles; when I jumped to the
+X         last newsgroup ($), the following appeared:
+X           191 alt.wpi.negativland.subgenii.for.rent
+X             2 general
+X           ^^
+X    FIX. select.c - changed max length of newsgroup name from 36 to 40.
+X
+X22) iain@estevax.uucp (Iain Lea)
+X    Finished man page.
+X
+X23) iain@estevax.uucp (Iain Lea)
+X    BUG. mail_setup () will not work if MAIL env varaible not set.
+X	FIX. mail.c - mail_setup() now checks mailbox path as well.
+X
+X24) crs@siesoft.co.uk (Chris Smith)
+X    BUG. help screens are hard coded for 25 line terminals so if 
+X         screen is bigger it cannot use the extra space.
+X    FIX. help.c - show_help_screen() rewrote to use maximum lines.
+X
+X25) bernd@norisc.uucp (Bernd Schwerin)
+X	BUG. Save operation doesnt ask for a base filename when saving
+X         tagged articles. After saving the tagged articles the
+X         pathnames are .01, .02 etc.
+X	FIX. feed.c - feed_articles () removed if () to allow tagged files
+X         sequence to ask for filename to save to.
+X
+XCHANGES tass v3.2 -> tin v1.00 
+X------------------------------
+X
+Xo  News can be read locally (ie. /usr/spool/news) or remotely by NNTP (-r option)
+X 
+Xo  User can config tin's options dynamically by 'M' command and have them
+X   saved to ~/.tin/tinrc.
+X
+Xo  Archive-name: mail header is used when saving and post processing 
+X   articles / threads.
+X
+Xo  Adjusts to size of screen for how much of Subject: & From: is displayed.
+X
+Xo  Post processes saved articles/threads. It will handle sh, uudecode,
+X   zoo, lharc, arc and zip (unzip) formats.
+X
+Xo  Articles can be sorted on Subject:, From:, Date: field or nothing. 
+X
+Xo  Killfile support (Not fully debugged). Kill articles at single group
+X   / all groups on Subject:,From: line or on user entered pattern.
+X
+Xo  Saves articles / threads to elm mailbox by pressing '=' when asked
+X   for name of saved file.
+X
+Xo  Displays history of user posted articles/replies & followups.
+X
+Xo  Higlighted bar / -> arrow can be used for selecting articles
+X
+Xo  Tagging of articles to save in a particular order
+X
+XAnd many other small changes.
+X
+SHAR_EOF
+$TOUCH -am 0903094991 CHANGES &&
+chmod 0600 CHANGES ||
+echo "restore of CHANGES failed"
+set `wc -c CHANGES`;Wc_c=$1
+if test "$Wc_c" != "6678"; then
+	echo original size 6678, current size $Wc_c
+fi
+# ============= MANIFEST ==============
+echo "x - extracting MANIFEST (Text)"
+sed 's/^X//' << 'SHAR_EOF' > MANIFEST &&
+XMANIFEST for tin v1.0 PL1
+X-------------------------
+XCHANGES            6678  
+XMANIFEST           1092  
+XMakefile          10717  
+XREADME             4492  
+XTODO               1584  
+XUPDATE_INDEX        530  
+Xalloca.c           5457  
+Xart.c             23272  
+Xcurses.c           6065  
+Xdebug.c            2276  
+Xfeed.c             9921  
+Xgroup.c           18741  
+Xhashstr.c          2673  
+Xhelp.c             4017  
+Xkill.c             9118  
+Xlang.c            16989  
+Xlang.h             9222  
+Xmail.c             1121  
+Xmain.c             6370  
+Xmemory.c           5489  
+Xmisc.c            14791  
+Xnewsrc.c          17686  
+Xnntp.h             3688  
+Xopen.c             6732  
+Xpage.c            23540  
+Xpatchlevel.h         21  
+Xpost.c            14484  
+Xprompt.c           3062  
+Xproto.h           17093  
+Xrcfile.c          16801  
+Xsave.c            19762  
+Xscreen.c           2060  
+Xsearch.c           7823  
+Xselect.c          17955  
+Xsignal.c           7144  
+Xtime.c             1611  
+Xtin.1             23350
+Xtin.h              8685  
+Xwildmat.3          2247  
+Xwildmat.c          4749  
+SHAR_EOF
+$TOUCH -am 0903100191 MANIFEST &&
+chmod 0600 MANIFEST ||
+echo "restore of MANIFEST failed"
+set `wc -c MANIFEST`;Wc_c=$1
+if test "$Wc_c" != "1090"; then
+	echo original size 1090, current size $Wc_c
+fi
+# ============= Makefile ==============
+echo "x - extracting Makefile (Text)"
+sed 's/^X//' << 'SHAR_EOF' > Makefile &&
+X# Makefile
+X
+X# name of executable file
+X#
+XEXE=tin
+X
+X# name of dir where base version is for use by diff program
+X#
+XBASE_DIR=../tin-1.01
+X 
+X# command line compile flags
+X#
+X#  -D LIBDIR=\"\"
+X#    defaults to /usr/lib/news if not defined.
+X#
+X#  -D INEWSDIR=\"\"
+X#    define if inews is not in LIBDIR. defaults to LIBDIR if not defined.
+X#
+X#  -D SPOOLDIR=\"\"
+X#    defaults to /usr/spool/news if not defined.
+X#
+X#  You only need to worry about the following three defines if you have
+X#  defined NNTP to build a version to access news locally & remotely
+X#
+X#  -D USE_NNTP
+X#    include -DUSE_NNTP if you want to allow reading of news locally 
+X#    and also remotely via the -r option over an NNTP server.
+X#
+X#  -D NNTPLIB=
+X#    point NNTPLIB at the nntp clientlib.o support library
+X#
+X#  -D NETLIBS=
+X#    NETLIBS should be the networking libraries you need to link with
+X#    the nntp clientlib.o
+X#
+X#  -D POSIX_JOB_CONTROL
+X#    define if your machine uses sigaction() POSIX signal handling.
+X#    This is defined as default for SysVR4 machines in this makefile.
+X#
+X#  -D USE_MKDIR
+X#    define if your machine does not have the mkdir() system call.
+X#
+X#  -D USE_LONG_FILENAMES
+X#    include -DUSE_LONG_FILENAMES if filesystem supports filenames
+X#    longer than 14 chars. (default for BSD type systems)
+X#
+X#  -D USE_INVERSE_HACK
+X#    define if you want inverse video and highlighted bar disabled.
+X#    (default for SCO Unix & SysVR4) Can be toggled in tin by the
+X#    'I' command & highlight bar by 'M' command.
+X#
+X#  -D USE_CLEARSCREEN
+X#    define if the you wish screen to use ClearScreen() and not MoveCursor()
+X#    and CleartoEOLN(). This is perhaps faster on slow terminals but I have
+X#    not really run any speed tests. Not sure this option works anymore.
+X#
+X#  -D DONT_USE_REGEX
+X#    don't match strings using regular expressions, just use strstr().
+X#
+X#  -D DONT_USE_START_LINE
+X#    stop editor being started with line offset into file
+X#
+X#  -D SLOW_SCREEN_UPDATE
+X#    useful if running over a low speed connection (ie. 2400baud).
+X#    1) stops percentage being shown at bottom of select and group menus.
+X#    2) stops group being written to screen as it is subscribed/unsubscribed.
+X#
+X
+XBINDIR = /piez/iain/bin
+XTROFF=drf
+XPRINT=-Pps0
+X
+XHFILES	=	tin.h lang.h nntp.h proto.h patchlevel.h
+X
+XCFILES	=	art.c curses.c debug.c feed.c group.c hashstr.c help.c kill.c \
+X		lang.c mail.c main.c memory.c misc.c newsrc.c open.c page.c post.c \
+X		prompt.c rcfile.c save.c screen.c search.c select.c signal.c time.c \
+X		wildmat.c
+X
+XOBJECTS	=	art.o curses.o debug.o feed.o group.o hashstr.o help.o kill.o \
+X		lang.o mail.o main.o memory.o misc.o newsrc.o open.o page.o post.o \
+X		prompt.o rcfile.o save.o screen.o search.o select.o signal.o time.o \
+X		wildmat.o
+X
+XLINTFLAGS=-a -c -h -n -x 
+X
+X.c.o:
+X	$(CC) $(CFLAGS) $*.c
+X
+Xall: 
+X	@echo "There is no default. Specify one of the following targets."
+X	@echo "    make bsd       (BSD/Ultrix)"
+X	@echo "    make sysv      (SysV)"
+X	@echo "    make sysvr4    (SysV R4)"
+X	@echo "    make sco       (SCO Unix)"
+X	@echo "    make xenix     (Xenix 386)"
+X	@echo "    make norisc    (Site specific)"
+X	@echo "    make estevax   (Site specific)"
+X	@echo "    make kommu     (Site specific)"
+X	@echo "    make sorix960  (Site specific)"
+X
+X# For Berkeley systems:
+Xbsd:
+X	@echo "Compiling for BSD/Ultrix..."
+X	@$(MAKE) CFLAGS='-c -O -DBSD -DLIBDIR=\"/usr/lib/news\" -DSPOOLDIR=\"/usr/spool/news\"' \
+X			 LIBS="-lcurses -ltermcap" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# For System V:
+Xsysv:
+X	@echo "Compiling for System V..."
+X	@$(MAKE) CFLAGS='-c -O -DUSE_NNTP -DLIBDIR=\"/usr/lib/news\" -DSPOOLDIR=\"/usr/spool/news\"' \
+X			 NNTPLIB="clientlib.o" \
+X			 NETLIBS="-lnet -lnsl_s" \
+X			 LIBS="-lcurses -ltermcap" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# For System V Release 4:
+Xsysvr4:
+X	@echo "Compiling for System V Release 4..."
+X	@$(MAKE) CFLAGS='-c -O -DUSE_NNTP -DPOSIX_JOB_CONTROL -DUSE_INVERSE_HACK -DLIBDIR=\"/usr/lib/news\" -DSPOOLDIR=\"/usr/spool/news\"' \
+X			 NNTPLIB="./nntp/clientlib.o" \
+X			 NETLIBS="-lnsl -lsocket" \
+X			 LIBS="-lcurses -ltermcap -L/usr/ucblib -lucb" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# For SCO Unix:
+Xsco:
+X	@echo "Compiling for SCO Unix..."
+X	@$(MAKE) CFLAGS='-c -O -UM_XENIX -DUSE_INVERSE_HACK -DLIBDIR="\\"/usr/lib/news\\"" -DSPOOLDIR="\\"/usr/spool/news\\""' \
+X			 LIBS="-lcurses -lgen -lc_s" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# For Xenix 386:
+X#			 NNTPLIB=clientlib.o
+X#			 NETLIBS="-lsocket"
+Xxenix:
+X	@echo "Compiling for Xenix 386..."
+X	@$(MAKE) CFLAGS='-c -Zi -DSYSV -DLIBDIR="\\"/usr/lib/news\\"" -DSPOOLDIR="\\"/usr/spool/news\\""' \
+X			 LIBS="-lcurses -ltinfo -lx" \
+X			 STRIP=echo EXE=tin linkit
+X
+X# SITE SPECIFIC - IGNORE
+Xnorisc:
+X	@echo "Compiling for NORISC with NNTP..."
+X	@$(MAKE) CFLAGS='-c -g -DBSD -DUSE_NNTP -DLIBDIR=\"/news/lib\" -DSPOOLDIR=\"/news/spool\"' \
+X			 NNTPLIB=/news/nntp/clientlib.o \
+X			 LIBS="-lcurses -ltermcap" \
+X			 STRIP=echo EXE=tin linkit
+X
+X# SITE SPECIFIC - IGNORE
+Xestevax:
+X	@echo "Compiling for ESTEVAX with NNTP..."
+X	@$(MAKE) CFLAGS='-c -O -DBSD -DUSE_NNTP -DLIBDIR=\"/usr/lib/news\" -DSPOOLDIR=\"/usr/spool/news\"' \
+X			 NNTPLIB=/others/mtz/bnews2/NNTP/common/clientlib.o \
+X			 LIBS="-lcurses -ltermcap" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# SITE SPECIFIC - IGNORE
+Xkommu:
+X	@echo "Compiling for KOMMU with NNTP..."
+X	@$(MAKE) CFLAGS='-c -O -UM_XENIX -DUSE_INVERSE_HACK -DUSE_NNTP -DLIBDIR="\\"/usr/lib/news\\"" -DSPOOLDIR="\\"/usr/spool/news\\""' \
+X			 NNTPLIB=/usr/spool/user/TONI/bnews2/NNTP/common/clientlib.o \
+X			 NETLIBS="-lnsl_s -lsocket" \
+X			 LIBS="-lcurses -lgen -lc_s" \
+X			 STRIP=strip EXE=tin linkit
+X
+X# SITE SPECIFIC - IGNORE
+Xsorix960:
+X	@echo "Compiling for sorix960 with NNTP..."
+X	@$(MAKE) CC=ccp7 CFLAGS='-c -g -Dsorix960 -DSYSV -DUSE_NNTP -DLIBDIR="\"/usr/lib/news\"" -DSPOOLDIR="\"/usr/spool/news\""' \
+X			 NNTPLIB=clientlib.o \
+X			 NETLIBS="-lnsl_s -lsocket" \
+X			 LIBS="-lcurses -lc_s" \
+X			 STRIP=echo EXE=tin linkit
+X
+X
+Xlinkit: $(OBJECTS)
+X	@echo "Linking $(EXE)..."
+X#	$(CC) -o $(EXE) $(OBJECTS) alloca.o $(NNTPLIB) $(NETLIBS) $(LIBS) 
+X#	$(CC) -o -Zi $(EXE) $(OBJECTS) $(NNTPLIB) $(NETLIBS) $(LIBS) 
+X	$(CC) -o $(EXE) $(OBJECTS) $(NNTPLIB) $(NETLIBS) $(LIBS) 
+X	@$(STRIP) $(EXE)
+X	@ls -l $(EXE)
+X
+Xproto:
+X	@echo "generating function prototypes for proto.h..."
+X	@echo "#ifdef __STDC__" > PROTO.H
+X	@echo " " >> PROTO.H
+X	@cproto $(CFILES) >> PROTO.H
+X	@echo " " >> PROTO.H
+X	@echo "#else" >> PROTO.H
+X	@echo " " >> PROTO.H
+X	@cproto -f1 $(CFILES) >> PROTO.H
+X	@echo " " >> PROTO.H
+X	@echo "#endif" >> PROTO.H
+X	@-mv PROTO.H proto.h
+X
+Xinstall: all
+X	@echo "installing $(EXE)..."
+X	@-mv $(EXE) $(BINDIR)
+X	@chmod 755 $(BINDIR)/$(EXE)
+X
+Xshar:
+X	@echo "generating shell archive..."
+X	@shar -a -n $(EXE)1.0 -s iain@estevax.uucp -L50 -o ../$(EXE).shar [A-Z]* [A-Za-z0-9]*.[ch] $(EXE).1
+X
+Xdiff:
+X	@echo "generating diffs against $(BASE_DIR) (results in $(EXE).diff)..."
+X	@-mv -f $(EXE).diff $(EXE).diff-
+X	@diff $(BASE_DIR) . > $(EXE).diff
+X
+Xtar:
+X	@echo "archiving files to $(EXE).tar..."
+X	@-rm $(EXE).tar $(EXE).tar.Z > /dev/null 2>&1
+X	@tar cvf $(EXE).tar $(HFILES) $(CFILES) Makefile README TODO UPDATE_INDEX $(EXE).1 wildmat.3
+X	@echo "compressing $(EXE).tar..."
+X	@compress $(EXE).tar 
+X	@ls -l $(EXE).tar.Z
+X
+Xzoo:
+X	@echo "archiving files to $(EXE).zoo..."
+X	@-rm $(EXE).zoo > /dev/null 2>&1
+X	@zoo ah $(EXE).zoo $(HFILES) $(CFILES) Makefile README TODO UPDATE_INDEX $(EXE).1
+X	@ls -l $(EXE).zoo
+X
+Xtags:
+X	@echo "generating tags (results in ./tags)..."
+X	@-rm tags
+X	@ctags $(HFILES) $(CFILES) 
+X
+Xlint:
+X	@echo "linting source (results in ./LINT)..."
+X	@lint $(LINTFLAGS) $(CFILES) > LINT
+X
+Xclean:
+X	@echo "cleaning..."
+X	@-'rm' -rf *.o #* $(EXE).diff*
+X
+Xclobber:
+X	@echo "clobbering..."
+X	@-'rm' -rf *.o #* tags $(EXE) $(EXE).diff*
+X
+Xcflow:
+X	@echo "creating cflow for $(EXE)..."
+X	@cflow $(CFILES) > cflow.$(EXE) &
+X
+Xgrind:
+X	@echo "grinding tags index..."
+X	@ctags -v *.[ch] | sort -f > $(EXE).index
+X
+Xman:
+X	@echo "printing $(EXE) manual to $(PRINT)..."
+X	@+ $(TROFF) -F Helvetica -man3 $(PRINT) $(EXE).1
+X
+Xprint:
+X	@echo "printing to $(PRINT)..."
+X	@expand -4 tin.h     | enscript -2r -h -G $(PRINT) -b tin.h
+X	@expand -4 lang.h    | enscript -2r -h -G $(PRINT) -b lang.h
+X	@expand -4 proto.h   | enscript -2r -h -G $(PRINT) -b proto.h
+X	@expand -4 art.c     | enscript -2r -h -G $(PRINT) -b art.c
+X	@expand -4 curses.c  | enscript -2r -h -G $(PRINT) -b curses.c
+X	@expand -4 debug.c   | enscript -2r -h -G $(PRINT) -b debug.c
+X	@expand -4 group.c   | enscript -2r -h -G $(PRINT) -b group.c
+X	@expand -4 hashstr.c | enscript -2r -h -G $(PRINT) -b hashstr.c
+X	@expand -4 help.c    | enscript -2r -h -G $(PRINT) -b help.c
+X	@expand -4 kill.c    | enscript -2r -h -G $(PRINT) -b kill.c
+X	@expand -4 lang.c    | enscript -2r -h -G $(PRINT) -b lang.c
+X	@expand -4 mail.c    | enscript -2r -h -G $(PRINT) -b mail.c
+X	@expand -4 main.c    | enscript -2r -h -G $(PRINT) -b main.c 
+X	@expand -4 memory.c  | enscript -2r -h -G $(PRINT) -b memory.c
+X	@expand -4 misc.c    | enscript -2r -h -G $(PRINT) -b misc.c
+X	@expand -4 newsrc.c  | enscript -2r -h -G $(PRINT) -b newsrc.c
+X	@expand -4 nntp.h    | enscript -2r -h -G $(PRINT) -b nntp.h
+X	@expand -4 open.c    | enscript -2r -h -G $(PRINT) -b open.c
+X	@expand -4 page.c    | enscript -2r -h -G $(PRINT) -b page.c
+X	@expand -4 post.c    | enscript -2r -h -G $(PRINT) -b post.c
+X	@expand -4 prompt.c  | enscript -2r -h -G $(PRINT) -b prompt.c
+X	@expand -4 rcfile.c  | enscript -2r -h -G $(PRINT) -b rcfile.c
+X	@expand -4 save.c    | enscript -2r -h -G $(PRINT) -b save.c
+X	@expand -4 screen.c  | enscript -2r -h -G $(PRINT) -b screen.c
+X	@expand -4 search.c  | enscript -2r -h -G $(PRINT) -b search.c
+X	@expand -4 select.c  | enscript -2r -h -G $(PRINT) -b select.c
+X	@expand -4 signal.c  | enscript -2r -h -G $(PRINT) -b signal.c
+X	@expand -4 time.c    | enscript -2r -h -G $(PRINT) -b time.c
+X
+Xdist:
+X	@echo "copying to estevax..."
+X	@rcp $(CFILES) $(HFILES) Makefile estevax:.src/tin &
+X	@echo "copying to kommu..."
+X	@rcp $(CFILES) $(HFILES) Makefile kommu:.src/tin &
+X	@echo "copying to beperl..."
+X	@rcp $(CFILES) $(HFILES) Makefile beperl:tass &
+X	@echo "copying to tric..."
+X	@rcp $(CFILES) $(HFILES) Makefile beperl:/usr/tmp &
+X
+Xart.o:		art.c $(HFILES)
+Xcurses.o:	curses.c
+Xdebug.o:	debug.c $(HFILES)
+Xfeed.o:		feed.c $(HFILES)
+Xgroup.o:	group.c $(HFILES)
+Xhashstr.o:	hashstr.c $(HFILES)
+Xhelp.o:		help.c $(HFILES)
+Xkill.o:		kill.c $(HFILES)
+Xlang.o:		lang.c $(HFILES)
+Xmail.o:		mail.c
+Xmain.o:		main.c $(HFILES)
+Xmemory.o:	memory.c $(HFILES)
+Xmisc.o:		misc.c $(HFILES)
+Xnewsrc.o:	newsrc.c $(HFILES)
+Xopen.o:		open.c $(HFILES)
+Xpage.o:		page.c $(HFILES)
+Xpost.o:		post.c $(HFILES)
+Xprompt.o:	prompt.c $(HFILES)
+Xrcfile.o:	rcfile.c $(HFILES)
+Xsave.o:		save.c $(HFILES)
+Xscreen.o:	screen.c $(HFILES)
+Xsearch.o:	search.c $(HFILES)
+Xselect.o:	select.c $(HFILES)
+Xsignal.o:	signal.c $(HFILES)
+Xtime.o:		time.c
+Xwildmat.o:	wildmat.c $(HFILES)
+SHAR_EOF
+$TOUCH -am 0903100191 Makefile &&
+chmod 0600 Makefile ||
+echo "restore of Makefile failed"
+set `wc -c Makefile`;Wc_c=$1
+if test "$Wc_c" != "10717"; then
+	echo original size 10717, current size $Wc_c
+fi
+# ============= README ==============
+echo "x - extracting README (Text)"
+sed 's/^X//' << 'SHAR_EOF' > README &&
+XThis is an updated repost of the tin visual threaded NNTP newsreader v1.00.
+XThe new version is v1.0 PL1 (pathlevel 1). I am reposting instead of posting
+Xa patch file because the size difference was so small and I have recieved mail
+Xthat a few sites did not get all the original parts.
+X
+XIn the orignal posting I said it was a late beta release which shows how
+Xlittle I knew about how good the net is at finding bugs and giving suggestions.
+XI hope this version is a late beta release (Optimistic ?).
+X
+XI am still looking for people to test this and send me ideas/comments & bugs so
+Xthat I can correct any and then send it off to comp.sources.misc at the end of
+XSep/Oct 91.
+X
+XFrom this release onwards I will issue patches for use by the patch program.
+X
+XFor bugs, fixes, changes & additions read the CHANGES & TODO files.
+X
+XAnd now for a bit of blurb from the original version...
+X
+XTin is a full screen threaded newsreader that uses the tass newsreader as 
+Xits base. Tass was developed by Rich Skrenta (skrenta@blekko.commodore.com).
+XTin can read news locally and also via an NNTP server (-r option). Tin 
+Xcontains more features than tass but they are still accessable to the
+Xbeginner and expert alike. I tried to follow the tass UI conventions as 
+Xmuch as possible.
+X
+XThis is the only newsreader that I know of that threads on the Archive-name:
+Xfield as used in comp.sources.* groups as well as on the more normal Subject:
+Xfield. Before anyone comments on Subject: threading not being right and I 
+Xshould look at trn, I have and its threads are neat but I get more done with
+Xtin than trn. It is especially good at saving and processing saved articles
+X& threads.
+X
+Xo Organizes articles by threads.  Displays a really nice article selection
+X  page.
+X
+Xo Group selection page makes it easy to scan newsgroups, subscribe,
+X  unsubscribe, reorder your .newsrc.
+X
+Xo If you've ever used tass/notes, this is the program for you.
+X  Tin looks a lot like tass, but has many improvements.
+X
+XNewsreading style under tin tends to be different than with rn.  Instead of
+Xplowing through each group reading everything unread, you may find yourself
+Xreading fewer articles in more groups.  It's easier to skip about and only
+Xread interesting threads with tin.
+X
+XTin keeps an index file for each group.  The first time you enter a group,
+Xit will be a bit slow creating this file.  After that it will incrementally
+Xupdate the index file and there should be little delay.
+X
+XYou can run tin in "update mode" out of cron to update the indexes.
+X
+XI may be off the net for a couple of months at the end of September, but
+Xwill be contactable at the following address:
+X    Iain J. Lea
+X    BrueckenStr. 12
+X    8500 Nuernberg 90
+X    Germany.
+X    Phone. +49-911-331963   (home)
+X    Phone. +49-911-895-3853 (work until Sep 30)
+X    Phone. +49-911-3089-407 (work from Oct 1)
+X    Email. iain@estevax.uucp
+X
+XBuilt & used on the following machines
+X--------------------------------------
+X	1) Vax 8850 & Ultrix 4.1 (Developed & most tested platform)
+X	2) Vax 11/785 & BSD 4.3
+X	3) 386 PC & Xenix 386
+X	4) 386 PC & ATT SysVR4.0 (strange behaviour with inverse video)
+X	5) 386 PC & SCO SysVR3.2 (strange behaviour with inverse video)
+X	6) 386 PC & ISC SysVR3.2 with WINTCP (shakey ??)
+X	7) ICL DRS6000 (sparc) & SysVR4.0 
+X	7) Sparcstation & SunOS 4.1 
+X
+XBuilding Tin
+X------------
+X	1)  type make and a few system types will be displayed
+X	2)  edit Makefile if you want to add/change -D DEFINES
+X	3)  type 'make <system type>' for your system
+X    4)  NOTE. the mmakefile needs rewriting (Any takers?) 
+X
+X	Note: the supplied Makefile will not run directly on BSD. It 
+X	requires a little work (Any takers to write a good Makefile?)
+X
+XInstalling Tin
+X--------------
+X	1)  make install
+X
+XCredits
+X-------
+XI wish to give credit to the following people for the routines
+Xthat they have written and I have used in tin:
+X
+XRich Skrenta  - tass v3.2 that tin is based upon.
+XSyd Weinstein - curses.c is taken from the elm mailreader
+XRich Salz     - wildmat regex pattern matching routine
+XChris Smith   - multi-part uudecode routine 
+X
+XI wish to thank the following people for comments & bug reports:
+X
+XKlaus Arzig, Reiner Balling, Volker Beyer, Roger Binns, Georg Biehler,
+XAndreas Brosig, Peter Dressler, Gerhard Ermer, Joachim Feld,
+XBernhard Gmelch, Viet Hoang, Joe Johnson, Cyrill Jung,
+XKarl-Koenig Koenigsson, Bob Lukas, Clifford Luke, Toni Metz, 
+XKlaus Neuberger, Otto Niesser, Wolf Paul, Rich Salz, Fredy Schwatz,
+XBernd Schwerin, Karl-Olav Serrander, Chris Smith, Adri Verhoef
+SHAR_EOF
+$TOUCH -am 0903094991 README &&
+chmod 0600 README ||
+echo "restore of README failed"
+set `wc -c README`;Wc_c=$1
+if test "$Wc_c" != "4492"; then
+	echo original size 4492, current size $Wc_c
+fi
+# ============= TODO ==============
+echo "x - extracting TODO (Text)"
+sed 's/^X//' << 'SHAR_EOF' > TODO &&
+XFIX FEATURES
+X------------
+Xo  Fix SIGWINCH resize screen when ruuning on xterm. Its OK the
+X   first time but locks up the 2nd try. Perhaps same problem as
+X   ^Z suspend problem had on Sys5R4 so use sigaction() calls.
+X
+Xo  Fix uuscram code in uudecode.
+X
+Xo  Fix Makefile file to work on BSD & rewrite README.
+X
+Xo  Fix code to sort arts. At page level funny things happen.
+X
+Xo  Fix code to KILL articles. At page level funny things happen.
+X
+Xo  Fix code to KILL articles with 't' command.
+X
+Xo  Fix 'z' so that it stays unread even if a KILL is performed before
+X   leaving the group.
+X
+Xo  Fix -u -v -c that get malloc error sometimes on SysV+WINTCP machines
+X
+XADD FEATURES
+X------------
+Xo  Add 'C' command at group & page level to catchup present group and
+X   enter next group with unread news in it.
+X
+Xo  Sort .newsrc according to preference. (sort active file as it is read)
+X
+Xo  Add 'H' context senstive level help screens
+X
+Xo  Add code to do unpack patches
+X
+Xo  Add '+' for saving in MH mail format
+X
+Xo  Add time period kill article
+X
+Xo  Add -s <dir> option to save new news to specifed spool dir for when
+X   one goes on holiday so that it can be read later by giving -S <dir>.
+X
+Xo  Add code to allow user to specify routine for post processing
+X   articles
+X
+XPIPEDREAMS
+X----------
+Xo  Add rebindable keymaps and provide different terminal keymaps
+X   (ie. keymap.ansi, keymap.wy50 etc.)
+X
+Xo  Add support for german text messages.
+X
+Xo  Add Virtual newsgroups (combination of newsgroups ie. virtual.ibm
+X   consists of comp.sys.ibm.* groups).
+X
+Xo  Add threading on References like trn with mthreads database.
+SHAR_EOF
+$TOUCH -am 0903094991 TODO &&
+chmod 0600 TODO ||
+echo "restore of TODO failed"
+set `wc -c TODO`;Wc_c=$1
+if test "$Wc_c" != "1584"; then
+	echo original size 1584, current size $Wc_c
+fi
+# ============= UPDATE_INDEX ==============
+echo "x - extracting UPDATE_INDEX (Text)"
+sed 's/^X//' << 'SHAR_EOF' > UPDATE_INDEX &&
+X#! /bin/csh -f
+X#  Iain Lea, 21-08-91
+X#  Script to update tin indexes from the at queue 
+X
+X# required for at
+Xsetenv HOME  /piez/iain
+Xsetenv NAME  'Iain J. Lea'
+Xsetenv GROUP 'piez'
+Xsetenv PATH  :/usr/ucb:/bin:/usr/bin:/usr/local
+X
+X# specific for this script
+Xsetenv SCRIPT /piez/iain/bin/UPDATE_INDEX
+Xsetenv TIME 0700
+Xsetenv TINDIR /piez/iain/bin
+X
+X# hangs update indexes onto system batch queue
+X$TINDIR/tin -u > $HOME/UPDATE_LOG
+X
+X# sleeps and then submits this script again for tommorow
+X/usr/bin/sleep 1200
+X/usr/local/at $TIME $SCRIPT
+SHAR_EOF
+$TOUCH -am 0903094991 UPDATE_INDEX &&
+chmod 0700 UPDATE_INDEX ||
+echo "restore of UPDATE_INDEX failed"
+set `wc -c UPDATE_INDEX`;Wc_c=$1
+if test "$Wc_c" != "530"; then
+	echo original size 530, current size $Wc_c
+fi
+# ============= alloca.c ==============
+echo "x - extracting alloca.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > alloca.c &&
+X/*
+X	alloca -- (mostly) portable public-domain implementation -- D A Gwyn
+X
+X	last edit:	86/05/30	rms
+X	   include config.h, since on VMS it renames some symbols.
+X	   Use xmalloc instead of malloc.
+X
+X	This implementation of the PWB library alloca() function,
+X	which is used to allocate space off the run-time stack so
+X	that it is automatically reclaimed upon procedure exit, 
+X	was inspired by discussions with J. Q. Johnson of Cornell.
+X
+X	It should work under any C implementation that uses an
+X	actual procedure stack (as opposed to a linked list of
+X	frames).  There are some preprocessor constants that can
+X	be defined when compiling for your specific system, for
+X	improved efficiency; however, the defaults should be okay.
+X
+X	The general concept of this implementation is to keep
+X	track of all alloca()-allocated blocks, and reclaim any
+X	that are found to be deeper in the stack than the current
+X	invocation.  This heuristic does not reclaim storage as
+X	soon as it becomes invalid, but it will do so eventually.
+X
+X	As a special case, alloca(0) reclaims storage without
+X	allocating any.  It is a good idea to use alloca(0) in
+X	your main control loop, etc. to force garbage collection.
+X*/
+X
+X#ifndef lint
+Xstatic char	SCCSid[] = "@(#)alloca.c	1.1";	/* for the "what" utility */
+X#endif
+X
+X#ifdef emacs
+X#include "config.h"
+X#ifdef static
+X/* actually, only want this if static is defined as ""
+X   -- this is for usg, in which emacs must undefine static
+X   in order to make unexec workable
+X   */
+X#ifndef STACK_DIRECTION
+Xyou
+Xlose
+X-- must know STACK_DIRECTION at compile-time
+X#endif /* STACK_DIRECTION undefined */
+X#endif /* static */
+X#endif /* emacs */
+X
+X#ifdef X3J11
+Xtypedef void	*pointer;		/* generic pointer type */
+X#else
+Xtypedef char	*pointer;		/* generic pointer type */
+X#endif
+X
+X#define	NULL	0			/* null pointer constant */
+X
+Xextern void	free();
+Xextern pointer	xmalloc();
+X
+X/*
+X	Define STACK_DIRECTION if you know the direction of stack
+X	growth for your system; otherwise it will be automatically
+X	deduced at run-time.
+X
+X	STACK_DIRECTION > 0 => grows toward higher addresses
+X	STACK_DIRECTION < 0 => grows toward lower addresses
+X	STACK_DIRECTION = 0 => direction of growth unknown
+X*/
+X
+X#ifndef STACK_DIRECTION
+X#define	STACK_DIRECTION	0		/* direction unknown */
+X#endif
+X
+X#if STACK_DIRECTION != 0
+X
+X#define	STACK_DIR	STACK_DIRECTION	/* known at compile-time */
+X
+X#else	/* STACK_DIRECTION == 0; need run-time code */
+X
+Xstatic int	stack_dir;		/* 1 or -1 once known */
+X#define	STACK_DIR	stack_dir
+X
+Xstatic void
+Xfind_stack_direction (/* void */)
+X{
+X  static char	*addr = NULL;	/* address of first
+X				   `dummy', once known */
+X  auto char	dummy;		/* to get stack address */
+X
+X  if (addr == NULL)
+X    {				/* initial entry */
+X      addr = &dummy;
+X
+X      find_stack_direction ();	/* recurse once */
+X    }
+X  else				/* second entry */
+X    if (&dummy > addr)
+X      stack_dir = 1;		/* stack grew upward */
+X    else
+X      stack_dir = -1;		/* stack grew downward */
+X}
+X
+X#endif	/* STACK_DIRECTION == 0 */
+X
+X/*
+X	An "alloca header" is used to:
+X	(a) chain together all alloca()ed blocks;
+X	(b) keep track of stack depth.
+X
+X	It is very important that sizeof(header) agree with malloc()
+X	alignment chunk size.  The following default should work okay.
+X*/
+X
+X#ifndef	ALIGN_SIZE
+X#define	ALIGN_SIZE	sizeof(double)
+X#endif
+X
+Xtypedef union hdr
+X{
+X  char	align[ALIGN_SIZE];	/* to force sizeof(header) */
+X  struct
+X    {
+X      union hdr *next;		/* for chaining headers */
+X      char *deep;		/* for stack depth measure */
+X    } h;
+X} header;
+X
+X/*
+X	alloca( size ) returns a pointer to at least `size' bytes of
+X	storage which will be automatically reclaimed upon exit from
+X	the procedure that called alloca().  Originally, this space
+X	was supposed to be taken from the current stack frame of the
+X	caller, but that method cannot be made to work for some
+X	implementations of C, for example under Gould's UTX/32.
+X*/
+X
+Xstatic header *last_alloca_header = NULL; /* -> last alloca header */
+X
+Xpointer
+Xalloca (size)			/* returns pointer to storage */
+X     unsigned	size;		/* # bytes to allocate */
+X{
+X  auto char	probe;		/* probes stack depth: */
+X  register char	*depth = &probe;
+X
+X#if STACK_DIRECTION == 0
+X  if (STACK_DIR == 0)		/* unknown growth direction */
+X    find_stack_direction ();
+X#endif
+X
+X				/* Reclaim garbage, defined as all alloca()ed storage that
+X				   was allocated from deeper in the stack than currently. */
+X
+X  {
+X    register header	*hp;	/* traverses linked list */
+X
+X    for (hp = last_alloca_header; hp != NULL;)
+X      if (STACK_DIR > 0 && hp->h.deep > depth
+X	  || STACK_DIR < 0 && hp->h.deep < depth)
+X	{
+X	  register header	*np = hp->h.next;
+X
+X	  free ((pointer) hp);	/* collect garbage */
+X
+X	  hp = np;		/* -> next header */
+X	}
+X      else
+X	break;			/* rest are not deeper */
+X
+X    last_alloca_header = hp;	/* -> last valid storage */
+X  }
+X
+X  if (size == 0)
+X    return NULL;		/* no allocation required */
+X
+X  /* Allocate combined header + user data storage. */
+X
+X  {
+X    register pointer	new = xmalloc (sizeof (header) + size);
+X    /* address of header */
+X
+X    ((header *)new)->h.next = last_alloca_header;
+X    ((header *)new)->h.deep = depth;
+X
+X    last_alloca_header = (header *)new;
+X
+X    /* User storage begins just after header. */
+X
+X    return (pointer)((char *)new + sizeof(header));
+X  }
+X}
+X
+Xpointer xmalloc(n)
+Xunsigned int n;
+X{
+X  extern pointer malloc();
+X  pointer cp;
+X  static char mesg[] = "xmalloc: no memory!\n";
+X
+X  cp = malloc(n);
+X  if (! cp) {
+X    write (2, mesg, sizeof(mesg) - 1);
+X    exit(1);
+X  }
+X  return cp;
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 alloca.c &&
+chmod 0600 alloca.c ||
+echo "restore of alloca.c failed"
+set `wc -c alloca.c`;Wc_c=$1
+if test "$Wc_c" != "5457"; then
+	echo original size 5457, current size $Wc_c
+fi
+# ============= art.c ==============
+echo "x - extracting art.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > art.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : art.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 28-08-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X#define HEADER_LEN	1024
+X
+Xextern int errno;
+X
+Xchar index_file[LEN+1];
+Xchar *glob_art_group;
+Xint index_file_killed = FALSE;
+Xlong last_read_article;
+X
+X
+X/*
+X *  Convert a string to a long, only look at first n characters
+X */
+X
+Xlong my_atol (s, n)
+X	char *s;
+X	int n;
+X{
+X	long ret = 0;
+X
+X	while (*s && n--) {
+X		if (*s >= '0' && *s <= '9')
+X			ret = ret * 10 + (*s - '0');
+X		else
+X			return -1;
+X		s++;
+X	}
+X
+X	return ret;
+X}
+X
+X
+X/*
+X *  Construct the pointers to the basenotes of each thread
+X *  arts[] contains every article in the group.  inthread is
+X *  set on each article that is after the first article in the
+X *  thread.  Articles which have been expired have their thread
+X *  set to -2 (ART_EXPIRED).
+X */
+X
+Xvoid find_base ()
+X{
+X	int i;
+X
+X	top_base = 0;
+X
+X	for (i = 0; i < top; i++)
+X		if (! arts[i].inthread && arts[i].thread != ART_EXPIRED) {
+X			if (top_base >= max_art)
+X				expand_art ();
+X			base[top_base++] = i;
+X		}
+X}
+X
+X/* 
+X *  Count the number of non-expired and non-killed articles in arts[]
+X */
+X
+Xint num_of_arts ()
+X{
+X	int sum = 0;
+X	register int i;
+X
+X	for (i = 0; i < top; i++) {
+X		if (arts[i].thread != ART_EXPIRED && ! arts[i].tagged) {
+X			sum++;
+X		}
+X	}
+X
+X	return sum;
+X}
+X
+X/*
+X *  Do we have an entry for article art?
+X */
+X
+Xint valid_artnum (art)
+X	long art;
+X{
+X	register int i;
+X
+X	for (i = 0; i < top; i++)
+X		if (arts[i].artnum == art)
+X			return i;
+X
+X	return -1;
+X}
+X
+X
+X/*
+X *  Return TRUE if arts[] contains any expired articles
+X *  (articles we have an entry for which don't have a corresponding
+X *   article file in the spool directory)
+X */
+X
+Xint purge_needed ()
+X{
+X	register int i;
+X
+X	for (i = 0; i < top; i++)
+X		if (arts[i].thread == ART_EXPIRED)
+X			return TRUE;
+X
+X	return FALSE;
+X}
+X
+X
+X/*
+X *  Main group indexing routine.  Group should be the name of the
+X *  newsgroup, i.e. "comp.unix.amiga".  group_path should be the
+X *  same but with the .'s turned into /'s: "comp/unix/amiga"
+X *
+X *  Will read any existing index, create or incrementally update
+X *  the index by looking at the articles in the spool directory,
+X *  and attempt to write a new index if necessary.
+X */
+X
+Xvoid index_group (group, group_path)
+X	char *group;
+X	char *group_path;
+X{
+X	int killed = FALSE;
+X	int modified = FALSE;
+X	glob_art_group = group;
+X
+X#ifdef SIGTSTP
+X	if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X		sigemptyset (&art_act.sa_mask);
+X		art_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X		art_act.sa_handler = art_suspend;
+X		sigaction (SIGTSTP, &art_act, 0L);
+X#else
+X		signal (SIGTSTP, art_suspend);
+X#endif
+X	}
+X#endif
+X
+X#ifdef SIGWINCH
+X	signal (SIGWINCH, art_resize);
+X#endif
+X
+X	if (! update) {
+X		sprintf (msg, txt_group, group);
+X		wait_message (msg);
+X	}
+X
+X	hash_reclaim ();
+X	free_art_array ();
+X
+X	if (local_index)
+X		find_local_index (group);
+X	else
+X		sprintf (index_file, "%s/%s/%s", spooldir, group_path, INDEXDIR);
+X
+X	/*
+X	 *  load articles from index file if it exists
+X	 */
+X	load_index ();
+X
+X	/*
+X	 *  load killed articles into arts[] because kill arts is OFF
+X	 */
+X	if (! kill_articles && index_file_killed) {
+X		index_file_killed = FALSE;
+X		last_read_article = 0L;
+X	}
+X
+X	/*
+X	 *  add any articles to arts[] that are new or were killed
+X	 */
+X	modified = read_group (group, group_path);
+X
+X	/*
+X	 *  compare kill descriptions to arts[] and kill mark any that match
+X	 */
+X	killed = kill_any_articles (group);
+X	
+X	if (modified || killed || purge_needed()) {
+X		if (local_index) {		/* writing index in home directory */
+X			set_real_uid_gid ();	/* so become them */
+X		}
+X
+X		if (killed) {
+X			reload_index_file (group, killed);
+X		} else {
+X			dump_index (group, FALSE);
+X			make_threads (FALSE);
+X			find_base ();
+X		}
+X
+X		if (local_index) {
+X			set_tin_uid_gid ();
+X		}
+X	} else {
+X		make_threads (FALSE);
+X		find_base ();
+X	}
+X	
+X	if ((modified || killed) && ! update) {
+X		clear_message();
+X	}
+X}
+X
+X/*
+X *  Index a group.  Assumes any existing index has already been
+X *  loaded.
+X */
+X
+Xint read_group (group, group_path)
+X	char *group;
+X	char *group_path;
+X{
+X	int fd;
+X	long art;
+X	int count;
+X	int display_groupname = TRUE; 
+X	int modified = FALSE;
+X	int respnum;
+X	register int i;
+X	
+X	setup_base (group, group_path);	/* load article numbers into base[] */
+X	count = 0;
+X
+X	for (i = 0; i < top_base; i++) {	/* for each article # */
+X		art = base[i];
+X
+X/*
+X *  Do we already have this article in our index?  Change thread from
+X *  -2 (ART_EXPIRED) to -1 (ART_NORMAL) if so and skip the header eating.
+X */
+X
+X		if ((respnum = valid_artnum (art)) >= 0 || art <= last_read_article) {
+X			arts[respnum].thread = ART_NORMAL;
+X			arts[respnum].unread = ART_UNREAD;
+X			continue;
+X		}
+X
+X		if (! modified) {
+X			modified = TRUE;   /* we've modified the index */
+X							   /* it will need to be re-written */
+X		}
+X
+X		if ((fd = open_header_fd (group_path, art)) < 0) {
+X			continue;
+X		}
+X		
+X		/*
+X		 *  Add article to arts[]
+X		 */
+X		if (top >= max_art)
+X			expand_art();
+X
+X		arts[top].artnum = art;
+X		arts[top].thread = ART_NORMAL;
+X
+X		set_article (&arts[top]);
+X
+X		if (! parse_headers (fd, &arts[top])) {
+X			continue;
+X		}
+X		close (fd);
+X		last_read_article = arts[top].artnum;	/* used if arts are killed */
+X		top++;
+X
+X		if (++count % 10 == 0 && ! update) {
+X			if (display_groupname) {
+X				MoveCursor (1, 0);
+X				CleartoEOLN ();
+X				center_line (1, TRUE, group);
+X				display_groupname = FALSE;
+X			}
+X			sprintf (msg, txt_indexing, count);
+X			wait_message (msg);
+X		}
+X	}
+X
+X	return modified;
+X}
+X
+X
+X/*
+X *  Go through the articles in arts[] and use .thread to snake threads
+X *  through them.  Use the subject line to construct threads.  The
+X *  first article in a thread should have .inthread set to FALSE, the
+X *  rest TRUE.  Only do unexprired articles we haven't visited yet
+X *  (arts[].thread == -1 ART_NORMAL).
+X */
+X
+Xvoid make_threads (rethread)
+X	int rethread;
+X{
+X	register int i;
+X	register int j;
+X
+X	/*
+X	 *  .thread & .inthread need to be reset if re-threading arts[]
+X	 */
+X	if (rethread) {
+X		for (i=0 ; i < top ; i++) {
+X			arts[i].thread = ART_NORMAL;
+X			arts[i].inthread = FALSE;
+X		}
+X	}
+X
+X	switch (sort_art_type) {
+X		case SORT_BY_NONE:		/* don't sort at all */
+X			qsort (arts, top, sizeof (struct header), artnum_comp);
+X			break;
+X		case SORT_BY_SUBJ:
+X			qsort (arts, top, sizeof (struct header), subj_comp);
+X			break;
+X		case SORT_BY_FROM:
+X			qsort (arts, top, sizeof (struct header), from_comp);
+X			break;
+X		case SORT_BY_DATE:
+X			qsort (arts, top, sizeof (struct header), date_comp);
+X			break;
+X		default:
+X			break;
+X	}
+X
+X	for (i = 0; i < top; i++) {
+X		if (arts[i].thread == ART_NORMAL) {
+X		    for (j = i+1; j < top; j++) {
+X				if (arts[j].thread != ART_EXPIRED &&
+X					((arts[i].subject == arts[j].subject) ||
+X					((arts[i].part || arts[i].patch) &&
+X					arts[i].archive == arts[j].archive))) {
+X						arts[i].thread = j;
+X						arts[j].inthread = TRUE;
+X						break;
+X				}
+X			}
+X		}
+X	}
+X}
+X
+X/*
+X *  Return a pointer into s eliminating any leading Re:'s.  Example:
+X *
+X *	  Re: Reorganization of misc.jobs
+X *	  ^   ^
+X */
+X
+Xchar *eat_re (s)
+X	char *s;
+X{
+X
+X	while (*s == 'r' || *s == 'R') {
+X		if ((*(s+1) == 'e' || *(s+1) == 'E')) {
+X			if (*(s+2) == ':')
+X				s += 3;
+X			else if (*(s+2) == '^' && isdigit(*(s+3)) && *(s+4) == ':')
+X				s += 5;			/* hurray nn */
+X			else
+X				break;
+X		} else
+X			break;
+X		while (*s == ' ')
+X			s++;
+X	}
+X
+X	return s;
+X}
+X
+X/*
+X *  Hash the subjects (after eating the Re's off) for a quicker
+X *  thread search later.  We store the hashes for subjects in the
+X *  index file for speed.
+X */
+X
+Xlong hash_s(s)
+X	char *s;
+X{
+X	char *t;
+X	long h = 0;
+X
+X	t = s;
+X
+X	while (*t)
+X		h = h * 64 + *t++;
+X
+X	return h;
+X}
+X
+X
+Xint parse_headers (fd, h)
+X	int fd;
+X	struct header *h;
+X{
+X	char buf[HEADER_LEN];
+X	char buf2[HEADER_LEN];
+X	char *ptr, *ptrline, *s;
+X	int n = 0, len = 0, lineno = 0;
+X	int flag;
+X	int got_subject = FALSE;
+X	int got_from = FALSE;
+X	int got_date = FALSE;
+X	int got_archive = FALSE;
+X	
+X	if ((n = read(fd, buf, HEADER_LEN)) <= 0)
+X		return FALSE;
+X
+X	buf[n-1] = '\0';
+X
+X	ptr = buf;
+X
+X	while (1) {
+X		for (ptrline = ptr; *ptr && *ptr != '\n'; ptr++) {
+X			if (((*ptr) & 0x7F) < 32) {
+X				*ptr = ' ';
+X			}
+X		}
+X		flag = *ptr;
+X		*ptr++ = '\0';
+X		lineno++;
+X
+X		if (! got_from && strncmp(ptrline, "From: ", 6) == 0) {
+X			my_strncpy(buf2, ptrline+6, max_from+1);
+X			buf2[max_from] = '\0';
+X			h->from = hash_str (buf2);
+X			got_from = TRUE;
+X		} else if (! got_subject && strncmp(ptrline, "Subject: ", 9) == 0) {
+X			my_strncpy (buf2, ptrline+9, max_subj+max_from+1);
+X			s = eat_re (buf2);
+X			s[max_subj+max_from] = '\0';
+X			h->subject = hash_str (eat_re (s));
+X			got_subject = TRUE;
+X		} else if (! got_date && strncmp(ptrline, "Date: ", 6) == 0) {
+X			my_strncpy (buf2, ptrline+6, 32);
+X			parse_date (buf2 ,h->date);
+X			got_date = TRUE;
+X		} else if (strncmp(ptrline, "Archive-name: ", 14) == 0) {
+X			if ((s = (char *) strchr (ptrline+14, '/')) != NULL) {
+X				my_strncpy(buf2, ptrline+14, MAX_ARCH);
+X				if (strncmp (s+1,"part",4) == 0 ||
+X				    strncmp (s+1,"Part",4) == 0) {
+X					h->part = str_dup (s+5);
+X					len = (int) strlen (h->part);
+X					if (h->part[len-1] == '\n') {
+X						h->part[len-1] = '\0';
+X					}
+X				} else {
+X					if (strncmp (s+1,"patch",5) == 0 ||
+X					    strncmp (s+1,"Patch",5) == 0) {
+X						h->patch = str_dup (s+6);
+X						len = (int) strlen (h->patch);
+X						if (h->patch[len-1] == '\n') {
+X							h->patch[len-1] = '\0';
+X						}
+X					}
+X				}
+X				if (h->part || h->patch) {
+X					s = buf2;
+X					while (*s && *s != '/')
+X						s++;
+X					*s = '\0';	
+X					s = buf2;
+X					h->archive = hash_str (s);
+X					got_archive = TRUE;
+X				}
+X			}
+X		}
+X
+X		if (! flag || lineno > 25 || got_archive) {
+X			debug_print_header (h);
+X			return TRUE;
+X		}
+X	}
+X}
+X
+X/* 
+X *  Write out an index file.  Write the group name first so if
+X *  local indexing is done we can disambiguate between group name
+X *  hash collisions by looking at the index file.
+X *
+X *  NOTE: check out the add_string routine in hashstr.c to
+X *  understand what *iptr is doing in this routine.
+X */
+X
+Xvoid dump_index (group, killed)
+X	char *group;
+X	int killed;
+X{
+X	char nam[LEN+1];
+X	FILE *fp;
+X	int *iptr;
+X	int realnum;
+X	register int i;
+X
+X	sprintf (nam, "%s.%d", index_file, getpid());
+X	if ((fp = fopen (nam, "w")) == NULL) {
+X		error_message (txt_cannot_open, nam);
+X		return;
+X	}
+X
+X	/*
+X	 *  dump group header info.
+X	 */
+X	if (sort_art_type != SORT_BY_NONE) {
+X		qsort (arts, top, sizeof (struct header), artnum_comp);
+X	}
+X	fprintf(fp, "%s\n", group);
+X	fprintf(fp, "%d\n", num_of_arts ());
+X	if (last_read_article > arts[top-1].artnum) {
+X		fprintf(fp, "%ld\n", last_read_article);
+X	} else {
+X		fprintf(fp, "%ld\n", arts[top-1].artnum);
+X	}
+X	if (index_file_killed && killed) {
+X		fprintf (fp, "KILLED\n");
+X	} else {
+X		fprintf (fp, "COMPLETE\n");
+X	}
+X
+X	/*
+X	 *  dump articles
+X	 */
+X	realnum = 0; 
+X	for (i = 0; i < top; i++) {
+X	    if (arts[i].thread != ART_EXPIRED && ! arts[i].tagged) { 
+X			debug_print_header (&arts[i]);
+X
+X			fprintf(fp, "%ld\n", arts[i].artnum);
+X
+X			iptr = (int *) arts[i].subject;
+X			iptr--;
+X
+X			if (! arts[i].subject) {
+X				fprintf(fp, " \n");
+X			} else if (*iptr < 0 || *iptr > top) {
+X				fprintf(fp, " %s\n", arts[i].subject);
+X				*iptr = realnum;
+X/*
+X			} else if (arts[*iptr].tagged) {
+X				fprintf(fp, " %s\n", arts[i].subject);
+X				*iptr = realnum;
+X			} else if (killed && *iptr == i) {
+X*/
+X			} else if (killed || *iptr == i) {
+X				fprintf(fp, " %s\n", arts[i].subject);
+X			} else {
+X				fprintf(fp, "%%%d\n", *iptr);
+X			}
+X	
+X			iptr = (int *) arts[i].from;
+X			iptr--;
+X
+X			if (! arts[i].from) {
+X				fprintf (fp, " \n");
+X			} else if (*iptr < 0 || *iptr > top) {
+X				fprintf (fp, " %s\n", arts[i].from);
+X				*iptr = realnum;
+X/*
+X			} else if (arts[*iptr].tagged) {
+X				fprintf(fp, " %s\n", arts[i].from);
+X				*iptr = realnum;
+X			} else if (killed && *iptr == i) {
+X*/			
+X			} else if (killed || *iptr == i) {
+X				fprintf(fp, " %s\n", arts[i].from);
+X			} else {
+X				fprintf(fp, "%%%d\n", *iptr);
+X			}
+X
+X			fprintf (fp, "%s\n", arts[i].date);
+X			
+X			iptr = (int *) arts[i].archive;
+X			iptr--;
+X
+X			if (! arts[i].archive) {
+X				fprintf (fp, "\n");
+X			} else if (*iptr < 0 || *iptr > top) {
+X				fprintf (fp, " %s\n", arts[i].archive);
+X				*iptr = realnum;
+X/*
+X			} else if (arts[*iptr].tagged) {
+X				fprintf (fp, " %s\n", arts[i].archive);
+X				*iptr = realnum;
+X*/				
+X			} else if (arts[i].part || arts[i].patch) {
+X/*
+X				if (killed && *iptr == i) {
+X*/				
+X				if (killed || *iptr == i) {
+X					fprintf(fp, " %s\n", arts[i].archive);
+X				} else {
+X					fprintf (fp, "%%%d\n", *iptr);
+X				}
+X			} else {
+X				fprintf (fp, "\n");
+X			}
+X			
+X			if (! arts[i].part) {
+X				fprintf (fp, " \n");
+X			} else {
+X				fprintf (fp, "%s\n", arts[i].part);
+X			}
+X
+X			if (! arts[i].patch) {
+X				fprintf (fp, " \n");
+X			} else {
+X				fprintf (fp, "%s\n", arts[i].patch);
+X			}
+X
+X			realnum++;
+X		}
+X	}
+X	fclose (fp);
+X	chmod (index_file, 0644);
+X	rename_file (nam, index_file);
+X	if (debug) {
+X		sprintf (msg, "/bin/cp %s INDEX", index_file);
+X		system (msg);
+X	}
+X}
+X
+X/*
+X *  strncpy that stops at a newline and null terminates
+X */
+X
+Xvoid my_strncpy(p, q, n)
+X	char *p;
+X	char *q;
+X	int n;
+X{
+X	while (n--) {
+X		if (!*q || *q == '\n')
+SHAR_EOF
+echo "End of tin1.0 part 1"
+echo "File art.c is continued in part 2"
+echo "2" > shar3_seq_.tmp
+exit 0
+
+
+--
+NAME   Iain Lea
+EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+PHONE  +49-911-895-3853, +49-911-895-3877, +49-911-331963

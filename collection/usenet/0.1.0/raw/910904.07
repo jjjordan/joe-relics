@@ -1,0 +1,1498 @@
+Path: funic!fuug!mcsun!unido!estevax!norisc!iain
+From: iain@norisc.UUCP (Iain Lea)
+Newsgroups: alt.sources
+Subject: tin v1.0 Patchlevel 1 Newsreader (part 08/08)
+Message-ID: <606@norisc.UUCP>
+Date: 3 Sep 91 11:03:18 GMT
+Sender: iain@norisc.UUCP (Iain Lea)
+Organization: What organization?
+Lines: 1488
+
+Submitted-by: iain@estevax.uucp
+Archive-name: tin1.0/part08
+
+#!/bin/sh
+# this is tin.shar.08 (part 8 of tin1.0)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file time.c continued
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+if test ! -r shar3_seq_.tmp; then
+	echo "Please unpack part 1 first!"
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 8; then
+	echo "Please unpack part $Scheck next!"
+	exit 1
+ else
+	exit 0
+ fi
+) < shar3_seq_.tmp || exit 1
+echo "x - Continuing file time.c"
+sed 's/^X//' << 'SHAR_EOF' >> time.c &&
+X{
+X	int hours;
+X	char dayornite[3];
+X
+X	if (timestr[11] == ' ')
+X		hours = timestr[12] - '0';
+X	else
+X		hours = (timestr[11]-'0')*10 + (timestr[12]-'0');
+X	if (hours < 12)
+X		strcpy(dayornite, "am");
+X	else
+X		strcpy(dayornite, "pm");
+X	if (hours >= 13)
+X		hours -= 12;
+X	if (!hours)
+X		hours = 12;
+X	sprintf(newstr, "%d:%c%c%s", hours, timestr[14],
+X					timestr[15], dayornite);
+X}
+X
+Xchar *nice_time() {
+X	char *timestr;
+X	char the_date[17];
+X	char the_time[8];
+X	extern char *ctime();
+X	long time_now;
+X	static char buf[25];
+X
+X	time(&time_now);
+X	timestr = ctime(&time_now);
+X	nicedate(timestr, the_date);
+X	nicetime(timestr, the_time);
+X	sprintf(buf,"%s  %s", the_date, the_time);
+X	return(buf);
+X}
+X
+SHAR_EOF
+echo "File time.c is complete" &&
+$TOUCH -am 0903095091 time.c &&
+chmod 0600 time.c ||
+echo "restore of time.c failed"
+set `wc -c time.c`;Wc_c=$1
+if test "$Wc_c" != "1611"; then
+	echo original size 1611, current size $Wc_c
+fi
+# ============= tin.h ==============
+echo "x - extracting tin.h (Text)"
+sed 's/^X//' << 'SHAR_EOF' > tin.h &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : tin.h
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 03-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	<stdio.h>
+X#include	<signal.h>
+X#include	<pwd.h>
+X#include	<sys/types.h>
+X#include	<memory.h>
+X#include	<ctype.h>
+X#include	<time.h>
+X#include	<sys/stat.h>
+X
+X#ifdef BSD
+X#include	<strings.h>
+X#else
+X#include	<string.h>
+X#include	<malloc.h>
+X#endif
+X
+X#ifdef SCO_UNIX
+X#include	<sys/streams.h>
+X#include	<sys/ptem.h>
+X#endif
+X
+X#ifdef SIGWINCH
+X#include	<sys/ioctl.h>
+X#endif
+X
+X#include	"patchlevel.h"
+X
+X
+X#define BUG_REPORT_ADDRESS	"iain@estevax.uucp"
+X
+X#ifndef SPOOLDIR
+X#define		SPOOLDIR		"/usr/spool/news"
+X#endif
+X#ifndef LIBDIR
+X#define		LIBDIR			"/usr/lib/news"
+X#endif
+X#ifndef INEWSDIR
+X#define		INEWSDIR		LIBDIR
+X#endif
+X
+X#define		RCDIR			".tin"
+X#define		RCFILE			"tinrc"
+X#define		INDEXDIR		"index"
+X#define		KILLFILE		"kill"
+X#define		POSTFILE		"posted"
+X
+X#define		DEFAULT_SHELL	"/bin/sh"
+X#define		DEFAULT_MAILDIR	"Mail"
+X
+X#ifdef BSD
+X#define     DEFAULT_EDITOR	"/usr/ucb/vi"
+X#define		DEFAULT_MAILER	"/bin/rmail"
+X#define		DEFAULT_MAILBOX	"/usr/spool/mail"
+X#define		DEFAULT_PRINTER	"/usr/ucb/lpr"
+X#define		DEFAULT_SUM		"sum"
+X#ifndef USE_LONG_FILENAMES
+X#define USE_LONG_FILENAMES
+X#endif
+X#else
+X#ifdef M_XENIX
+X#define     DEFAULT_EDITOR	"/bin/vi"
+X#define		DEFAULT_MAILBOX	"/usr/spool/mail"
+X#else
+X#define     DEFAULT_EDITOR	"/usr/bin/vi"
+X#endif
+X#define		DEFAULT_MAILER	"/usr/bin/rmail"
+X#define		DEFAULT_MAILBOX	"/usr/mail"
+X#define		DEFAULT_PRINTER	"/usr/bin/lp"
+X#define		DEFAULT_SUM		"sum -r"
+X#endif
+X
+X#define		DEFAULT_ACTIVE_NUM	100		/* initial size of active array */
+X#define		DEFAULT_ARTICLE_NUM	400		/* initial size of art array */ 
+X#define		DEFAULT_KILL_NUM	10		/* initial size of kill array */ 
+X#define		DEFAULT_SAVE_NUM	10		/* initial size of save array */ 
+X
+X#define		TRUE		1
+X#define		FALSE		0
+X
+X#define		LEN		200
+X
+X#ifdef USE_LONG_FILENAMES
+X#define		LONG_PATH_PART	"part"
+X#define		LONG_PATH_PATCH	"patch"
+X#else
+X#define		LONG_PATH_PART	""
+X#define		LONG_PATH_PATCH	"p"
+X#endif
+X
+X/*
+X *  used by feed.c - feed_articles()
+X */
+X 
+X#define		SELECT_LEVEL			1
+X#define		GROUP_LEVEL				2
+X#define		PAGE_LEVEL				3
+X
+X#define		FEED_MAIL				1
+X#define		FEED_PIPE				2
+X#define		FEED_PRINT				3
+X#define		FEED_SAVE				4
+X
+X
+X#ifdef USE_INVERSE_HACK
+X#define		BLANK_SELECT_COLS		59
+X#define		BLANK_GROUP_COLS		2
+X#define		BLANK_PAGE_COLS			2
+X#else
+X#define		BLANK_SELECT_COLS		57
+X#define		BLANK_GROUP_COLS		0
+X#define		BLANK_PAGE_COLS			0
+X#endif
+X
+X#define		DEFAULT_COLS	132		/* used when updating indexes */
+X#define		INDEX_TOP		3
+X
+X#define		SORT_BY_NONE	0		/* sort types on arts[] array */
+X#define		SORT_BY_SUBJ	1
+X#define		SORT_BY_FROM	2
+X#define		SORT_BY_DATE	3
+X
+Xextern int sort_art_type;
+X
+Xextern int NOTESLINES;
+Xextern int RIGHT_POS;
+Xextern int MORE_POS;
+X
+Xextern int max_subj;
+Xextern int max_from;
+X
+X#define		MAX_ARCH		38
+X#define		TABLE_SIZE		1409
+X
+X#define		MAX_PAGES		1000
+X
+X#ifdef BSD
+X#define CR	'\r'
+X#else
+X#define CR	10
+X#endif
+X
+X/*
+X * return codes for change_rcfile ()
+X */
+X
+X#define		NO_KILLING		0
+X#define		KILLING			1
+X
+X/*
+X *  art.thread
+X */
+X
+X#define		ART_NORMAL		-1
+X#define		ART_EXPIRED		-2
+X
+X/*
+X *  art.unread
+X */
+X
+X#define		ART_READ		0
+X#define		ART_UNREAD		1
+X#define		ART_WILL_RETURN	2
+X
+Xstruct header {
+X	long artnum;
+X	char *subject;	/* Subject: line from mail header */
+X	char *from;		/* From: line from mail header */
+X	int thread;
+X	int inthread;
+X	int unread;		/* 0 = read, 1 = unread, 2 = will return */
+X	char date[16];	/* Date: line from mail header */
+X	char *archive;	/* Archive-name: line from mail header */
+X	char *part;		/* part no. of archive */
+X	char *patch;	/* patch no. of archive */
+X	int tagged;		/* 0 = not killed/tagged, 1 = killed/tagged */
+X};
+X
+X/*
+X *  header.artnum:
+X *	article number in spool directory for group
+X *
+X *  header.thread:
+X *	initially -1
+X *	points to another arts[] (struct header): zero and up
+X *	-2 means article has expired (wasn't found in file search
+X *	of spool directory for the group)
+X *
+X *  header.inthread:
+X *	FALSE for the first article in a thread, TRUE for all
+X *	following articles in thread
+X *
+X *  header.read:
+X *	boolean, has this article been read or not
+X *
+X *  header.date
+X *  date: line used for sorting articles by date order
+X *
+X *  header.archive:
+X *	archive name used in *source* groups
+X *
+X *  header.part:
+X *	part no. of archive
+X *
+X *  header.patch:
+X *	patch no. of archive
+X *
+X *  header.tagged:
+X *	boolean, has this article been killed/tagged for saving or not
+X */
+X
+Xstruct group_ent {
+X	char *name;
+X	long max;
+X	long min;
+X	int next;		/* next active entry in hash chain */
+X	int flag;
+X};
+X
+X#define		NOTGOT			0x01	/* haven't put in my_group yet */
+X#define		SUBS			0x02	/* subscribed to */
+X
+X#define KILL_SUBJ	1
+X#define KILL_FROM	2
+X#define KILL_BOTH	3
+X
+Xstruct kill_t {
+X	int kill_type;
+X	long kill_group;
+X	char *kill_subj;
+X	char *kill_from;
+X};
+X
+Xextern struct kill_t *killf;
+Xextern int kill_num;
+Xextern int max_kill;
+X
+X#define POST_PROC_SH		1
+X#define POST_PROC_UUD		2
+X#define POST_PROC_UUD_ZOO	3
+X#define POST_PROC_UUD_LZH	4
+X#define POST_PROC_UUD_ARC	5
+X#define POST_PROC_UUD_ZIP	6
+X#define POST_PROC_PATCH		7
+X
+Xstruct save_t {
+X	char *subject;
+X	char *dir;
+X	char *file;
+X	char *archive;
+X	char *part;
+X	char *patch;
+X	int index;	
+X	int saved;	
+X	int is_mailbox;	
+X};
+X
+Xextern struct save_t *save;
+Xextern int save_num;
+Xextern int max_save;
+X
+Xstruct screen_t {
+X	char *col;
+X};
+X
+Xextern struct screen_t *screen;
+X
+X#ifdef POSIX_JOB_CONTROL
+Xextern struct sigaction art_act;
+Xextern struct sigaction group_act;
+Xextern struct sigaction main_act;
+Xextern struct sigaction page_act;
+Xextern struct sigaction select_act;
+Xextern struct sigaction rcfile_act;
+Xextern struct sigaction old_act;
+X#endif
+X
+Xextern int debug;
+Xextern int active_num;
+Xextern int article_num;
+Xextern int start_line_offset;
+X
+Xextern int read_news_via_nntp;
+Xextern char nntp_server[LEN+1];
+Xextern int top;
+Xextern struct header *arts;
+Xextern long *base;
+Xextern int max_art;
+X
+Xextern int index_file_killed;
+Xextern int save_separate;
+Xextern int save_archive_name;
+Xextern int show_author;
+Xextern int draw_arrow_mark;
+Xextern int kill_articles;
+Xextern int post_process;
+Xextern int mark_saved_read;
+Xextern int post_proc_type;
+Xextern int default_printer;
+Xextern int print_header;
+Xextern int num_of_tagged_files;
+Xextern int compiled_with_nntp;
+X
+Xextern char rcdir[LEN+1];
+Xextern char rcfile[LEN+1];
+Xextern char indexdir[LEN+1];
+Xextern char killfile[LEN+1];
+Xextern char postfile[LEN+1];
+X
+Xextern char msg[LEN+1];
+Xextern char userid[LEN+1];
+Xextern char homedir[LEN+1];
+Xextern char add_addr[LEN+1];
+Xextern char bug_addr[LEN+1];
+Xextern char txt_help_bug_report[LEN+1];
+Xextern char reply_to[LEN+1];
+Xextern char my_org[LEN+1];
+Xextern char active_file[LEN+1];
+Xextern char newsrc[LEN+1];
+Xextern char newnewsrc[LEN+1];
+Xextern char delgroups[LEN+1];
+X
+Xextern char *version;
+Xextern char cvers[LEN+1];
+Xextern char progname[LEN+1];
+Xextern char dead_article[LEN+1];
+Xextern char mailer[LEN+1];
+Xextern char printer[LEN+1];
+Xextern char spooldir[LEN+1];
+Xextern char savedir[LEN+1];
+Xextern char maildir[LEN+1];
+Xextern char mailbox[LEN+1];
+Xextern char page_header[LEN+1];
+Xextern char signature[LEN+1];
+Xextern char sig[LEN+1];
+Xextern char killsubj[LEN+1];
+Xextern char killfrom[LEN+1];
+Xextern char author_search_string[LEN+1];
+Xextern char group_search_string[LEN+1];
+Xextern char subject_search_string[LEN+1];
+Xextern char art_search_string[LEN+1];
+Xextern char default_regex_pattern[LEN+1];
+X
+Xextern char *help_select[];
+Xextern char *help_group[];
+Xextern char *help_page[];
+X
+Xextern int top_base;
+Xextern int LINES, COLS;
+Xextern int group_hash[TABLE_SIZE];
+Xextern int num_active;
+Xextern struct group_ent *active;
+Xextern int *my_group;
+Xextern int *unread;
+Xextern int max_active;
+X
+Xextern int local_top;
+Xextern int catchup;
+Xextern int update;
+Xextern int verbose;
+Xextern int inverse_okay;
+X
+Xextern int tin_uid;
+Xextern int tin_gid;
+Xextern int real_uid;
+Xextern int real_gid;
+Xextern int local_index;
+X
+Xextern char *strcpy();
+Xextern char *strncat();
+Xextern char *strncpy();
+Xextern long atol();
+X
+X#ifdef SIGTSTP
+Xextern int do_sigtstp;
+X#endif
+X
+X#define		ctrl(c)			((c) & 0x1F)
+X
+X/*
+X *  Assertion verifier
+X */
+X
+X#ifdef __STDC__
+X#define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, #p); else
+X#else
+X#define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, "p"); else
+X#endif
+X
+X/*
+X *  function prototypes	& language definitions	
+X */ 
+X
+X#include	"proto.h"
+X#include	"lang.h"
+X
+SHAR_EOF
+$TOUCH -am 0903095091 tin.h &&
+chmod 0600 tin.h ||
+echo "restore of tin.h failed"
+set `wc -c tin.h`;Wc_c=$1
+if test "$Wc_c" != "8685"; then
+	echo original size 8685, current size $Wc_c
+fi
+# ============= wildmat.c ==============
+echo "x - extracting wildmat.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > wildmat.c &&
+X/*  $Revision: 1.5 $
+X**
+X**  Do shell-style pattern matching for ?, \, [], and * characters.
+X**  Might not be robust in face of malformed patterns; e.g., "foo[a-"
+X**  could cause a segmentation violation.  It is 8bit clean.
+X**
+X**  Written by Rich $alz, mirror!rs, Wed Nov 26 19:03:17 EST 1986.
+X**  Rich $alz is now <rsalz@bbn.com>.
+X**  April, 1991:  Replaced mutually-recursive calls with in-line code
+X**  for the star character.
+X**
+X**  Special thanks to Lars Mathiesen <thorinn@diku.dk> for the ABORT code.
+X**  This can greatly speed up failing wildcard patterns.  For example:
+X**	pattern: -*-*-*-*-*-*-12-*-*-*-m-*-*-*
+X**	text 1:	 -adobe-courier-bold-o-normal--12-120-75-75-m-70-iso8859-1
+X**	text 2:	 -adobe-courier-bold-o-normal--12-120-75-75-X-70-iso8859-1
+X**  Text 1 matches with 51 calls, while text 2 fails with 54 calls.  Without
+X**  the ABORT, then it takes 22310 calls to fail.  Ugh.  The following
+X**  explanation is from Lars:
+X**  The precondition that must be fulfilled is that DoMatch will consume
+X**  at least one character in text.  This is true if *p is neither '*' nor
+X**  '\0'.)  The last return has ABORT instead of FALSE to avoid quadratic
+X**  behaviour in cases like pattern "*a*b*c*d" with text "abcxxxxx".  With
+X**  FALSE, each star-loop has to run to the end of the text; with ABORT
+X**  only the last one does.
+X**
+X**  Once the control of one instance of DoMatch enters the star-loop, that
+X**  instance will return either TRUE or ABORT, and any calling instance
+X**  will therefore return immediately after (without calling recursively
+X**  again).  In effect, only one star-loop is ever active.  It would be
+X**  possible to modify the code to maintain this context explicitly,
+X**  eliminating all recursive calls at the cost of some complication and
+X**  loss of clarity (and the ABORT stuff seems to be unclear enough by
+X**  itself).  I think it would be unwise to try to get this into a
+X**  released version unless you have a good test data base to try it out
+X**  on.
+X*/
+X
+X#define TRUE			1
+X#define FALSE			0
+X#define ABORT			-1
+X
+X
+X    /* What character marks an inverted character class? */
+X#define NEGATE_CLASS		'^'
+X    /* Is "*" a common pattern? */
+X#define OPTIMIZE_JUST_STAR
+X    /* Do tar(1) matching rules, which ignore a trailing slash? */
+X#undef MATCH_TAR_PATTERN
+X
+X
+X/*
+X**  Match text and p, return TRUE, FALSE, or ABORT.
+X*/
+Xstatic int
+XDoMatch(text, p)
+X    register char	*text;
+X    register char	*p;
+X{
+X    register int	last;
+X    register int	matched;
+X    register int	reverse;
+X
+X    for ( ; *p; text++, p++) {
+X	if (*text == '\0' && *p != '*')
+X	    return ABORT;
+X	switch (*p) {
+X	case '\\':
+X	    /* Literal match with following character. */
+X	    p++;
+X	    /* FALLTHROUGH */
+X	default:
+X	    if (*text != *p)
+X		return FALSE;
+X	    continue;
+X	case '?':
+X	    /* Match anything. */
+X	    continue;
+X	case '*':
+X	    while (*++p == '*')
+X		/* Consecutive stars act just like one. */
+X		continue;
+X	    if (*p == '\0')
+X		/* Trailing star matches everything. */
+X		return TRUE;
+X	    while (*text)
+X		if ((matched = DoMatch(text++, p)) != FALSE)
+X		    return matched;
+X	    return ABORT;
+X	case '[':
+X	    reverse = p[1] == NEGATE_CLASS ? TRUE : FALSE;
+X	    if (reverse)
+X		/* Inverted character class. */
+X		p++;
+X	    matched = FALSE;
+X	    if (p[1] == ']' || p[1] == '-')
+X		if (*++p == *text)
+X		    matched = TRUE;
+X	    for (last = *p; *++p && *p != ']'; last = *p)
+X		/* This next line requires a good C compiler. */
+X		if (*p == '-' && p[1] != ']'
+X		    ? *text <= *++p && *text >= last : *text == *p)
+X		    matched = TRUE;
+X	    if (matched == reverse)
+X		return FALSE;
+X	    continue;
+X	}
+X    }
+X
+X#ifdef	MATCH_TAR_PATTERN
+X    if (*text == '/')
+X	return TRUE;
+X#endif	/* MATCH_TAR_ATTERN */
+X    return *text == '\0';
+X}
+X
+X
+X/*
+X**  User-level routine.  Returns TRUE or FALSE.
+X*/
+Xint
+Xwildmat(text, p)
+X    char	*text;
+X    char	*p;
+X{
+X#ifdef	OPTIMIZE_JUST_STAR
+X    if (p[0] == '*' && p[1] == '\0')
+X	return TRUE;
+X#endif	/* OPTIMIZE_JUST_STAR */
+X    return DoMatch(text, p) == TRUE;
+X}
+X
+X
+X
+X#ifdef	TEST
+X#include <stdio.h>
+X
+X/* Yes, we use gets not fgets.  Sue me. */
+Xextern char	*gets();
+X
+X
+Xmain()
+X{
+X    char	 p[80];
+X    char	 text[80];
+X
+X    printf("Wildmat tester.  Enter pattern, then strings to test.\n");
+X    printf("A blank line gets prompts for a new pattern; a blank pattern\n");
+X    printf("exits the program.\n");
+X
+X    for ( ; ; ) {
+X	printf("\nEnter pattern:  ");
+X	(void)fflush(stdout);
+X	if (gets(p) == NULL || p[0] == '\0')
+X	    break;
+X	for ( ; ; ) {
+X	    printf("Enter text:  ");
+X	    (void)fflush(stdout);
+X	    if (gets(text) == NULL)
+X		exit(0);
+X	    if (text[0] == '\0')
+X		/* Blank line; go back and get a new pattern. */
+X		break;
+X	    printf("      %s\n", wildmat(text, p) ? "YES" : "NO");
+X	}
+X    }
+X
+X    exit(0);
+X    /* NOTREACHED */
+X}
+X#endif	/* TEST */
+SHAR_EOF
+$TOUCH -am 0903095091 wildmat.c &&
+chmod 0600 wildmat.c ||
+echo "restore of wildmat.c failed"
+set `wc -c wildmat.c`;Wc_c=$1
+if test "$Wc_c" != "4749"; then
+	echo original size 4749, current size $Wc_c
+fi
+# ============= tin.1 ==============
+echo "x - extracting tin.1 (Text)"
+sed 's/^X//' << 'SHAR_EOF' > tin.1 &&
+X.TH TIN 1 "Version 1.0 PL1"
+X.SH NAME
+Xtin \- Visual threaded Usenet news reader
+X.SH SYNOPSIS
+X.nf
+Xtin [options] [newsgroups]
+X.fi
+X.SH DESCRIPTION
+XTin is a full screen threaded Usenet newsreader. It can read news
+Xlocally (ie. \fI/usr/spool/news\fP) or remotely (-r option) via
+Xa NNTP (Network News Transport Protocol) server. 
+X.PP
+XTin has three newsreading levels:
+Xthe newsgroup selection page, the group index page and the article viewer.
+XUse the 'h' (help) command to view a list of the commands available at a
+Xparticular level, or the 'H' command to view context sensitive help.
+X.PP
+XOn startup Tin will show a list of the newsgroups found in \fI$HOME/.newsrc\fP.
+XAn arrow '->' or highlighted bar will point to the first newsgroup.
+XMove to a group by using the terminal arrow keys (ansi/at386/vt100 only) or
+X'j' and 'k'. Use PgUp/PgDn (ansi/at386/vt100 only) or Ctrl-U and Ctrl-D to 
+Xpage up/down. Enter a newsgroup by pressing RETURN.
+X.PP
+XThe TAB key may be used to advance to the next newsgroup with unread articles
+Xand enter it.
+X.SH OPTIONS
+X.TP 10
+X\fB-c\fP
+Xcreate/update index files for every group in \fI$HOME/.newsrc\fP or 
+Xfile specified by -f option and mark all articles as read.
+X.TP
+X\fB-d dir\fP
+Xsave articles to directory. Default is \fI$HOME/News\fP.
+X.TP
+X\fB-f file\fP
+XUse the indicated file in place of \fI$HOME/.newsrc\fP.
+X.TP
+X\fB-h\fP
+Xhelp.
+X.TP
+X\fB-m file\fP
+Xmail program to use for sending mail. Default is \fI/usr/ucb/mail\fP.
+X.TP
+X\fB-M dir\fP
+Xmailbox directory to use. Default is \fI$HOME/Mail\fP.
+X.TP
+X\fB-p file\fP
+Xprint program with options. Default is \fI/usr/ucb/lpr\fP.
+X.TP
+X\fB-r\fP
+Xread news remotely from the default NNTP server specified in the
+Xenvironment variable NNTPSERVER or contained in the file
+X\fI/etc/nntpserver\fP.
+X.TP
+X\fB-S dir\fP
+Xspool directory where news is stored. Default is \fI/usr/spool/news\fP.
+X.TP
+X\fB-u\fP
+Xcreate/update index files for every group in \fI$HOME/.newsrc\fP or 
+Xfile specified by -f option.
+X.TP
+X\fB-v\fP
+Xcreate/update index files for every group in \fI$HOME/.newsrc\fP or 
+Xfile specified by -f option. Each group name is printed to stdout as
+Xit is updated.
+X.PP
+XTin can also dynamically change its options by the 'M' menu command. 
+XAny changes are written to \fI$HOME/.tin/tinrc\fP.
+X.SH INDEX FILES
+XIn order to keep track of threads, Tin maintains an index for each group.
+XIf Tin is made setuid to news, the indexes will be stored in the news spool
+Xdirectory (typically \fI/usr/spool/news\fP). If Tin is not setuid, it
+Xwill store index files in the subdirectory \fI$HOME/.tin/index\fP.
+XDo not make Tin setuid news if news will be obtained via NNTP and not
+Xfrom \fI/usr/spool/news\fP.
+X.PP
+XEntering a group the first time tends to be slow because the index file must
+Xbe built from scratch.  Subsequent readings of a group will cause
+XTin to incrementally update the index file, adding or removing entries as new
+Xarticles come in or as news expires. If reading news remotely indexing
+Xwill be somewhat slower because the articles must be retrieved via the
+XNNTP.
+X.PP
+XA good way to keep Tin index files current is to run tin -u from cron:
+X
+X.nf
+X20 6 * * *	/usr/local/bin/tin -u -f /usr/lib/news/tin_groups
+X.fi
+X
+XThis would update the index files for those groups appearing in
+X\fI/usr/lib/news/tin_groups\fP.  To index all of the groups on the
+Xsystem, run tin -u with -f indicating the active file:
+X
+X.nf
+X20 6 * * *	/usr/local/bin/tin -u -f /usr/lib/news/active
+X.fi
+X.SH SCREEN FORMAT
+XTin has three separate levels of operation: Selection Group level, Group level
+Xand Article level.
+X.PP
+XAt the Selection Group level the newsgroups are displayed on the left
+Xof the screen with the number of unread articles displayed on the same 
+Xline in the middle of the screen.
+X
+X	<Selection Num>	<Newsgroup>	<Num of unread articles>
+X.br
+Xie.
+X.br
+X	1	alt.sources			10
+X.br
+X	2	comp.sources.misc		3
+X.br
+X	3	news.software.readers		12
+X
+X.PP
+XAt the Group level the following formats are possible:
+X
+X	<Selection Num>	<Unread>	<Subject>	<Responses>	<Author>
+X.br
+Xor
+X.br
+X	<Selection Num>	<Unread>	<Subject (longer)>	<Responses>
+X.br
+Xie.
+X.br
+X	1	+	Bnews sources?	3	iain@estevax
+X.br
+X	2		This question has	1	ether@net
+X.br
+Xor
+X.br
+X	1	+	Bnews sources?			3
+X.br
+X	2		This question has a long subject line	1
+X.PP  
+XAt the Article level the page header has the following format:
+X
+X	<Date posted>		<Newsgroup>		<Thread 1 of n>
+X.br
+X	<Article Num>		<Subject>		<Num of responses in thread>
+X.br
+X	<Author>					<Organization>
+X.br
+X
+X	<Article body>
+X.br
+Xie.
+X.br
+X	24 Jul 15:20:03 GMT	alt.sources		Note 1 of 2
+X.br
+X	Article 452		Bnews sources?	3 responses
+X.br
+X	iain@estevax					Siemens AG, Germany
+X.br
+X
+X	<Article boby>
+X.SH COMMON MOVING KEYS
+XThis table shows the common keys/commands for moving at all three levels 
+Xwithin Tin.
+X 
+X				ansi/at386/vt100	Other Terminals
+X.br
+XBeginning of list/article		\fBHome\fP			\fB1\fP (\fB^R\fP at article level)
+X.br
+XEnd of list/article		\fBEnd\fP			\fB$\fP
+X.br
+XPage Up			\fBPgUp\fP			\fB^U\fP or \fBb\fP
+X.br
+XPage Down			\fBPgDn\fP			\fB^D\fP or \fB<SPACE>\fP
+X.br
+XLine Up				\fBUp arrow\fP		\fBk\fP (not at article level)
+X.br
+XLine Down			\fBDown arrow\fP		\fBj\fP (not at article level)
+X.SH NEWSGROUP SELECTION COMMANDS
+X.TP 10
+X\fB4\fP
+XSelect group 4.
+X.TP
+X\fB^K\fP
+XDelete current group from \fI$HOME/.newsrc\fP file.
+X.TP
+X\fB^L\fP
+XRedraw page.
+X.TP
+X\fB^R\fP
+XReset \fI$HOME/.newsrc\fP file.
+X.TP
+X\fB<CR>\fP
+XRead current group.
+X.TP
+X\fB<TAB>\fP
+XView next unread group.
+X.TP
+X\fBB\fP
+XMail a bug/gripe/comment to the author of tin. This is the best way
+Xof getting bugs fixed and features add/changed.
+X.TP
+X\fBc\fP
+XMark current group as all read and goto next group in group selection list.
+X.TP
+X\fBC\fP
+XMark current group as all read and goto next unread group in group selection
+Xlist.
+X.TP
+X\fBg\fP
+XChoose a new group by name. The position of the group within the group
+Xlist will also be asked for. By entering '1' the new group will be the
+Xfirst group in the displayed list, by entering '8' the group will be
+Xthe eighth group in the list etc. By entering '$' the group will be the
+Xlast group displayed.
+X.TP
+X\fBh\fP
+Xhelp screen of newsgroup selection commands.
+X.TP
+X\fBH\fP
+Xhelp screen of context sensitive help about newsgroup selection level.
+X.TP
+X\fBI\fP
+XToggle inverse video.
+X.TP
+X\fBj\fP
+XDown a line.
+X.TP
+X\fBk\fP
+XUp a line.
+X.TP
+X\fBm\fP
+XMove the current group within the group selection list.
+XBy entering '1' the group will become the first displayed group in
+Xthe list, by entering '8' the eighth group in the list etc. By
+Xentering '$' the group will be the last group displayed.
+X.TP
+X\fBM\fP
+XUser configurable options menu (for more information see section Options Menu). 
+X.TP
+X\fBq\fP
+XQuit tin.
+X.TP
+X\fBs\fP
+XSubscribe to current group.
+X.TP
+X\fBS\fP
+XSubscribe to groups matching user specified pattern.
+X.TP
+X\fBu\fP
+XUnsubscribe to current group.
+X.TP
+X\fBU\fP
+XUnsubscribe to groups matching user specified pattern.
+X.TP
+X\fBW\fP
+XList articles posted by user. The date posted, the newsgroup and the
+Xsubject are listed.
+X.TP
+X\fBy\fP
+XThe first time this command is called it will yank in all groups from
+X\fI/usr/local/news/active\fP that are not in \fI$HOME/.newsrc\fP.
+XAfter any groups have been subscribed/unsubscribed to, this command
+Xif pressed again will reread \fI$HOME/.newsrc\fP and display only
+Xsubscribed groups.
+X.TP
+X\fBY\fP
+XReread group list from \fI$HOME/.newsrc\fP file.
+X.TP
+X\fBz\fP
+XUndelete previously delete group from \fI$HOME/.newsrc\fP file.
+X.TP
+X\fB/\fP
+XGroup forward search.
+X.TP
+X\fB?\fP
+XGroup backward search.
+X.SH GROUP INDEX COMMANDS
+X.TP 10
+X\fB4\fP
+XSelect article 4.
+X.TP
+X\fB^K\fP
+XKill current article (for more information read section Kill Article Menu).
+X.TP
+X\fB^L\fP
+XRedraw page.
+X.TP
+X\fB<CR>\fP
+XRead current article.
+X.TP
+X\fB<TAB>\fP
+XView next unread article or group.
+X.TP
+X\fBa\fP
+XAuthor forward search.
+X.TP
+X\fBA\fP
+XAuthor backward search.
+X.TP
+X\fBB\fP
+XMail a bug/gripe/comment to the author of tin. This is the best way
+Xof getting bugs fixed and features add/changed.
+X.TP
+X\fBc\fP
+XMark all articles as read.
+X.TP
+X\fBg\fP
+XChoose a new group by name.
+X.TP
+X\fBh\fP
+Xhelp screen of group index commands.
+X.TP
+X\fBH\fP
+Xhelp screen of context sensitive help about group index level.
+X.TP
+X\fBI\fP
+XToggle inverse video.
+X.TP
+X\fBj\fP
+XDown a line.
+X.TP
+X\fBk\fP
+XUp a line.
+X.TP
+X\fBK\fP
+XMark article/thread as read and advance to next unread article/thread. 
+X.TP
+X\fBm\fP
+XMail current article / thread / articles matching pattern / tagged articles
+Xto someone.
+X.TP
+X\fBM\fP
+XUser configurable options menu (for more information see section Options Menu). 
+X.TP
+X\fBn\fP
+XGo to next group.
+X.TP
+X\fBN\fP
+XGo to next unread group.
+X.TP
+X\fBo\fP
+XOutput current article / thread / articles matching pattern / tagged articles
+Xto printer.
+X.TP
+X\fBp\fP
+XGo to previous group.
+X.TP
+X\fBP\fP
+XGo to previous unread group.
+X.TP
+X\fBq\fP
+XQuit tin.
+X.TP
+X\fBs\fP
+XSave current article / thread / articles matching pattern / tagged articles
+Xto file / files / mailbox. To save to a mailbox enter '=' or '=mailbox' when
+Xasked for filename to save to. 
+X.TP
+X\fBT\fP
+XTag current article for mailing ('m') / piping ('|') / printing ('o') / saving ('s').
+X.TP
+X\fBt\fP
+XReturn to group selection index.
+X.TP
+X\fBU\fP
+XUntag all articles that were tagged for saving.
+X.TP
+X\fBw\fP
+XPost an article.
+X.TP
+X\fBW\fP
+XList articles posted by user. The date posted, the newsgroup and the
+Xsubject are listed.
+X.TP
+X\fBz\fP
+XMark current article as unread.
+X.TP
+X\fBZ\fP
+XMark current thread as unread.
+X.TP
+X\fB/\fP
+XSearch forward for specified subject.
+X.TP
+X\fB?\fP
+XSearch backward for specified subject.
+X.TP
+X\fB-\fP
+XShow last message.
+X.TP
+X\fB|\fP
+XPipe current article / thread / articles matching pattern / tagged articles
+Xinto command.
+X.SH ARTICLE COMMANDS
+X.TP 10
+X\fB0\fP
+XRead the base article in this thread. 
+X.TP
+X\fB4\fP
+XRead response 4 in this thread.
+X.TP
+X\fB^H\fP
+XShow all of the articles mail header.
+X.TP
+X\fB^K\fP
+XKill current article (for more information read section Kill Article Menu).
+X.TP
+X\fB^L\fP
+XRedraw page.
+X.TP
+X\fB<CR>\fP
+XSkip to next base article.
+X.TP
+X\fB<TAB>\fP
+XAdvance to next page or unread article.
+X.TP
+X\fBa\fP
+XAuthor forward search.
+X.TP
+X\fBA\fP
+XAuthor backward search.
+X.TP
+X\fBB\fP
+XMail a bug/gripe/comment to the author of tin. This is the best way
+Xof getting bugs fixed and features add/changed.
+X.TP
+X\fBc\fP
+XMark all articles as read.
+X.TP
+X\fBd\fP
+XToggle rot-13 decoding for this article.
+X.TP
+X\fBf\fP
+XPost a followup.
+X.TP
+X\fBF\fP
+XPost a followup with a copy of the article included.
+X.TP
+X\fBh\fP
+Xhelp screen of article page commands.
+X.TP
+X\fBH\fP
+Xhelp screen of context sensitive help about article page level.
+X.TP
+X\fBi\fP
+XReturn to index page.
+X.TP
+X\fBI\fP
+XToggle inverse video.
+X.TP
+X\fBk\fP
+XMark article as read and advance to next unread article.
+X.TP
+X\fBK\fP
+XMark thread as read and advance to next unread thread.
+X.TP
+X\fBm\fP
+XMail current article / thread / articles matching pattern / tagged articles
+Xto someone.
+X.TP
+X\fBM\fP
+XUser configurable options menu (for more information see section Options Menu). 
+X.TP
+X\fBn\fP
+XGo to to the next article.
+X.TP
+X\fBN\fP
+XGo to to the next unread article.
+X.TP
+X\fBo\fP
+XOutput current article / thread / articles matching pattern / tagged articles
+Xto printer.
+X.TP
+X\fBo\fP
+XOutput article/thread/tagged articles to printer.
+X.TP
+X\fBp\fP
+XGo to the previous article.
+X.TP
+X\fBP\fP
+XGo to the previous unread article.
+X.TP
+X\fBq\fP
+XQuit tin.
+X.TP
+X\fBr\fP
+XReply through mail to author.
+X.TP
+X\fBR\fP
+XReply through mail to author with a copy of the article included.
+X.TP
+X\fBs\fP
+XSave current article / thread / articles matching pattern / tagged articles
+Xto file / files / mailbox. To save to a mailbox enter '=' or '=mailbox' when
+Xasked for filename to save to. 
+X.TP
+X\fBt\fP
+XReturn to group selection index.
+X.TP
+X\fBw\fP
+XPost an article.
+X.TP
+X\fBW\fP
+XList articles posted by user. The date posted, the newsgroup and the
+Xsubject are listed.
+X.TP
+X\fBz\fP
+XMark article as unread.
+X.TP
+X\fB|\fP
+XPipe article/thread/tagged articles into command.
+X.TP
+X\fB/\fP
+XArticle forward search.
+X.TP
+X\fB?\fP
+XArticle backward search
+X.TP
+X\fB|\fP
+XPipe current article / thread / articles matching pattern / tagged articles
+Xinto command.
+X.SH OPTIONS MENU
+XThis menu is accessed by pressing 'M' at all levels. It allows the user
+Xto customize the behaviour of tin. The options are saved to the file
+X\fI$HOME/.tin/tinrc\fP. The following options are settable:
+X.TP 4
+X\fBAuto save\fP
+XAutomatically save articles/threads by Archive-name: line in article
+Xheader. This is useful to set ON in conjunction with 'Save separate'
+Xand 'Save to subdir'. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBSave separate\fP
+XSave articles/threads to separate files. Set ON if saving source code.
+XSet OFF if saving a coversational thread. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBMark saved read\fP
+XThis allows saved articles/threads to be automatically marked as
+Xhaving been read. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBKill articles\fP
+XThis allows the user to kill articles that match entries in the kill
+Xfile \fI$HOME/.tin/kill\fP. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBShow Author\fP
+XIf set ON the Subject: & From: (author) lines from the articles header
+Xare displayed. If set OFF only the Subject: line is displayed which 
+Xallows more of it to be displayed. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBDraw arrow\fP
+XAllows groups/articles to be selected by an arrow '->' if set ON or
+Xby an highlighted bar if set OFF. Use <SPACE> to set ON/OFF.
+X.TP
+X\fBPost process\fP
+XThis allows post processing (ie. unsharing of a shell archive, uudecoding
+Xof multi-part source files) of a saved article/thread. Use <SPACE> to
+Xset ON/OFF.
+X.TP
+X\fBPrint header\fP
+XThis allows the complete mail header or only the Siubject: and From:
+Xfields to be output when printing an article 'o'/thread 'O'. Use
+X<SPACE> to set ON/OFF.
+X.TP
+X\fBProcess type\fP
+XThis specifies the type of post processing to perform on a saved
+Xarticle/thread. The following types of processing are allowed:
+X.(S
+X.**
+Xunpacking of multi-part shell archives. 
+X.**
+Xunpacking of multi-part uuencoded files.
+X.**
+Xunpacking of multi-part uuencoded files that produce a *.zoo archive.
+XThe contents of the *.zoo archive can be listed or extracted.
+X.**
+Xunpacking of multi-part uuencoded files that produce a *.lzh archive.
+XThe contents of the *.lzh archive can be listed or extracted.
+X.**
+Xunpacking of multi-part uuencoded files that produce a *.arc archive.
+XThe contents of the *.arc archive can be listed or extracted.
+X.**
+Xunpacking of multi-part uuencoded files that produce a *.zip archive.
+XThe contents of the *.zip archive can be listed or extracted.
+X.**
+Xunpacking of multi-part patches for use by \fIpatch\fP and applying 
+Xthem to specified source files.
+X.)S
+XUse <SPACE> to set the required type.
+X.TP
+X\fBSort articles by\fP
+XThis specifies how articles should be sorted. The following sort
+Xtypes are allowed:
+X.(S
+X.**
+Xdon't sort articles (default).
+X.**
+Xsort articles by Subject: field.
+X.**
+Xsort articles by From: field.
+X.**
+Xsort articles by Date: field.
+X.)S
+XUse <SPACE> to set the required type.
+X.TP
+X\fBSave directory\fP
+XThe directory where articles/threads are to be saved. Default is
+X\fI$HOME/News\fP.
+X.TP
+X\fBMail directory\fP
+XThe directory where articles/threads are to be saved in mailbox format.
+XThis feature is mainly for use with the Elm mail program. It allows
+Xthe user to save articles/threads/groups simply by giving '=' as
+Xthe filename to save to.
+X.TP
+X\fBPrinter\fP
+XThe printer program with options that is to be used to print
+Xarticles/threads. Default is lpr for BSD machines and lp for SysV 
+Xmachines.  
+X.SH KILL ARTICLE MENU
+XThis menu is accessed by pressing '^K' at the group and page levels. It
+Xallows the user to kill an article that matches the current Subject:
+Xline, From: line or a string entered by the user. The user entered string
+Xcan be applied to the Subject: or From: lines of an article. The kill
+Xdescription can be limited to the current newsgroup or it can apply to all newsgroups.
+XOnce entered the user can abort the command and not save the kill
+Xdescription, edit the kill file or save the kill description.
+X.PP
+XOn starting tin the users killfile \fI$HOME/.tin/kill\fP is read and
+Xon entering a newsgroup any kill descriptions are applied. Articles
+Xthat match a kill description are marked killed and are not displayed. 
+X.PP
+XThe 'Kill articles' option needs to be set ON in the Options Menu
+X(selected by 'M' at any level) to activate this command.
+X.SH POSTING ARTICLES
+XTin allows posting of articles, follow-up to already posted articles 
+Xand replying direct through mail to the author of an article.
+X.br
+XUse the 'w' command to post an article to a newsgroup. After entering
+Xthe post subject the default editor (ie. vi) or the editor specified
+Xby the EDITOR enviroment variable will be started and the article can
+Xbe entered. To crosspost articles simply add a comma and the name of
+Xthe newsgroup(s) to the end of the Newsgroups: line at the beginning of
+Xthe article. After saving and exiting the editor you are asked if you
+Xwish to a)bort posting the article, e)dit the article again or p)ost
+Xthe article to the specified newsgroup(s).
+X.br
+XUse the 'W' command to display a history of the articles you have posted.
+XThe date the article was posted, which newsgroups the article was
+Xposted to and the articles subject line are displayed.
+X.br
+XUse the 'f' / 'F' command to post a follow-up article to an already
+Xposted article. The 'F' command will copy the text of the original
+Xarticle into the editor. The editing procedure is the same as when
+Xposting an article with the 'w' command.
+X.br
+XUse the 'r' / 'R' command to reply direct through mail to the author
+Xof an already posted article. The 'R' command will copy the text of
+Xthe original article into the editor. The editing procedure is the
+Xsame as when posting an article with the 'w' command. After saving
+Xand exiting the editor you are asked if you wish to a)bort sending
+Xthe article, e)dit the article again or s)end the article to the
+Xauthor.
+X.SH MAILING PIPING PRINTING AND SAVING ARTICLES
+XThe command interface to mail ('m'), pipe ('|'), print ('o') and save
+X('s') articles is the same for ease of use.
+X.br
+XThe initial command will ask you to select which a)rticle, t)hread,
+Xr)egex pattern, t)agged articles you wish to mail, pipe etc.
+X.br
+XTagged articles must have already been tagged with the 'T' command.
+XAll tagged articles can be untagged by the 'U' untag command.
+X.br
+XIf regex pattern matching is selected you are asked to enter a regular
+Xexpression (ie. to match all articles subject lines containing 'net News'
+Xyou must enter '*net News*'). Any articles that match the 
+Xentered expression will be mailed, piped etc.
+X.br
+XTo save articles to a mailbox enter '=' or '=mailbox name' when asked
+Xfor the save filename.
+X.br
+XWhen saving articles you can specify whether the saved files should be
+Xpost processed (ie. unshar shell archive, uudecode multiple parts etc).
+XThis option is enabled/disabled by the 'M' options menu. The options
+Xthat need setting are 'Post process:' and 'Process type:'. 
+X.SH SIGNATURES
+XTin will recognize a signature in either \fI$HOME/.signature\fP or
+X\fI$HOME/.Sig\fP. If \fI$HOME/.signature\fP exists, then the signature
+Xwill be pulled into the editor for Tin mail commands.  A signature in
+X\fI$HOME/.signature\fP will not be pulled into the editor for posting
+Xcommands since the inews program will append the signature itself.
+X.PP
+XA signature in \fI$HOME/.Sig\fP will be pulled into the editor for both
+Xposting and mailing commands.
+X.PP
+XThe following is an example of a \fI$HOME/.Sig\fP file:
+X.PP
+X.br
+X	EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+X.br
+X	SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+X.br
+X	PHONE  +49-911-895-3853
+X.SH ENVIROMENT VARIABLES
+X.TP 18
+X\fBNNTPSERVER\fP
+XThe default NNTP server to remotely read news from. This variable only
+Xneeds to be set if the -r command line option is specified and the file
+X\fI/etc/nntpserver\fP does not exist.
+X.TP
+X\fBORGANIZATION\fP
+XSet the mail header field Organization: to the contents of the
+Xvariable instead of the system default. This variable has precedence
+Xover the file \fI$HOME/.tin/organization\fP that may also contain an
+Xorganization string.
+X.TP
+X\fBREPLY_TO\fP
+XSet the mail header field Reply-To: to the return address specified 
+Xby the variable.
+XThis is useful if the machine is not registered in the UUCP mail maps
+Xor if you wish to recieve replies at a different machine.
+XThis variable has precedence over the file \fI$HOME/.tin/reply_to\fP
+Xthat may also contain a return address.
+X.TP
+X\fBADD_ADDRESS\fP
+XThis can contain an address to append to the return address when replying
+Xdirectly through mail to somebody whose mail address is not directly 
+Xrecognized by the local host. For example say the return address is
+X\fIuser@bigvax\fP, but \fIbigvax\fP is not recognized by your host, so
+Xtherfore the mail will not reach \fIuser\fP. But the host \fIlittevax\fP
+Xis known to recognize your host and \fIbigvax\fP, so if ADD_ADDRESS is set
+X(ie. 'setenv ADD_ADDRESS @littevax' for csh or 'set ADD_ADDRESS @littevax' 
+Xand 'export ADD_ADDRESS' for sh) the address \fIuser@bigvax@littlevax\fP will
+Xbe used and the mail will reach \fIuser@bigvax\fP.
+XThis variable has precedence over the file \fI$HOME/.tin/add_address\fP
+Xthat may also contain an address.
+X.TP
+X\fBBUG_ADDRESS\fP
+XIf the 'B' command bug report address is not correct this variable should be
+Xset to the correct mail address. This variable has precedence over the file
+X\fI$HOME/.tin/bug_address\fP that may also contain an address.
+X.SH FILES
+X\fI$HOME/.newsrc\fP		newgroups subscribed to by user.
+X.br
+X\fI$HOME/.tin/tinrc\fP		options set by user.
+X.br
+X\fI$HOME/.tin/index\fP		newsgroup index files directory.
+X.br
+X\fI$HOME/.tin/kill\fP			kill file.
+X.br
+X\fI$HOME/.tin/posted\fP		history of articles posted by user.   
+X.br
+X\fI$HOME/.tin/organization\fP	user specified string to replace 
+Xdefault organization.
+X.br
+X\fI$HOME/.tin/reply_to\fP		user specified host address to use in
+XReply-To: mail header.
+X.br
+X\fI$HOME/.tin/add_address\fP	user specified address to add to when
+Xreplying through mail.
+X.br
+X\fI$HOME/.tin/bug_address\fP	user specified address to send bug reports
+Xif different than default bug report address compiled into tin.
+X.br
+X\fI$HOME/.signature\fP		signature file.
+X.br
+X\fI$HOME/.Sig\fP			signature file.
+X.SH BUGS
+XThere somewhere among the creeping featurism. Any bugs found should be
+Xreported by the 'B' (bug report) command.
+X.br
+XThere is a bug when article killing is switched ON/OFF at article
+Xpage level and the 't' command is used to return to group selection
+Xindex.
+X.br
+XWhen articles have been unkilled, all articles will be marked
+Xunread even if they have already been read.
+X.br
+XKilling articles when tin is setuid causes strange behaviour.
+X.br
+XVery very occasional malloc error when indexing group from NNTP server.
+X.br
+XWill not uudecode some of the images in alt.binaries.pictures because
+Xmore than one image is in the multi-part file to uudecode. Only the
+Xfirst image will be uudecoded.
+X.SH HISTORY
+XBased on the tass newsreader that was developed by Rich Skrenta and posted
+Xto alt.sources in March 1991. Tass was itself heavily infleuenced by NOTES
+Xwhich was developed at the University of Illinois in the 1970's.
+X.SH CREDITS
+XRich Skrenta	author of tass v3.2 which this newsreader used as its base.
+X.br
+XSyd Weinstein	curses.c is taken from the elm mailreader
+X.br
+XRich Salz	author of wildmat.c pattern matching routines.
+X.br
+XChris Smith	author of multi-part uudecode routine.
+X.br
+X.SH AUTHOR
+XIain Lea		(iain@estevax.uucp or ...!unido!estevax!iain)
+SHAR_EOF
+$TOUCH -am 0903095691 tin.1 &&
+chmod 0600 tin.1 ||
+echo "restore of tin.1 failed"
+set `wc -c tin.1`;Wc_c=$1
+if test "$Wc_c" != "23350"; then
+	echo original size 23350, current size $Wc_c
+fi
+rm -f shar3_seq_.tmp
+echo "You have unpacked the last part"
+exit 0
+
+
+--
+NAME   Iain Lea
+EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+PHONE  +49-911-895-3853, +49-911-895-3877, +49-911-331963

@@ -1,0 +1,2127 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 03/10)
+Message-ID: <1992Nov15.155032.20113@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:50:32 GMT
+Lines: 2114
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part03
+
+#!/bin/sh
+# this is tin.shar.03 (part 3 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 3; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X!  *  Group we want?  If no, try #.2.  Repeat until no such file or
+X   *  we find an existing file that matches our group.
+X   */
+X  
+X! void find_index_file (group)
+X  	char *group;
+X  {
+X! 	char *p;
+X  	FILE *fp;
+X! 	int i = 1;
+X! 	static char buf[LEN];
+X! 	char dir[PATH_LEN];
+X  	unsigned long h;
+X  
+X  	h = hash_groupname (group);
+X  
+X! 	if (read_news_via_nntp && xindex_supported) {
+X  		sprintf (index_file, "%sxindex.%d", TMPDIR, process_id);
+X! 		return;
+X  	}
+X  	
+X  	if (local_index) {
+X! 		my_strncpy (dir, indexdir, sizeof (dir));
+X  	} else {
+X! 		joinpath (dir, spooldir, INDEXDIR);
+X  	}
+X  	
+X  	while (TRUE) {
+X  		sprintf (index_file, "%s/%lu.%d", dir, h, i);
+X  		
+X  		if ((fp = fopen (index_file, "r")) == (FILE *) 0) {
+X! 			return;
+X  		}
+X  
+X  		if (fgets (buf, sizeof (buf), fp) == (char *) 0) {
+X  			fclose (fp);
+X! 			return;
+X  		}
+X  		fclose (fp);
+X  
+X--- 1006,1069 ----
+X  	if (fp) {
+X  		fclose(fp);
+X  	}	
+X! 	set_tin_uid_gid ();
+X  	unlink (index_file);
+X! 	set_real_uid_gid ();
+X  	top = 0;
+X  }
+X  
+X  
+X  /*
+X!  *  Look in the local $HOME/RCDIR/[ INDEX_NEWSDIR | INDEX_MAILDIR ] etc.
+X!  *  directory for the index file for the given group.  Hashing the group 
+X!  *  name gets a number.  See if that #.1 file exists; if so, read first 
+X!  *  line. Group we want?  If no, try #.2.  Repeat until no such file or
+X   *  we find an existing file that matches our group.
+X+  *  Return group type of the index file (mail / news / -1 on error).
+X   */
+X  
+X! int find_index_file (group)
+X  	char *group;
+X  {
+X! 	char *p, dir[PATH_LEN];
+X  	FILE *fp;
+X! 	int i = 1, j, type;
+X! 	static char buf[PATH_LEN];
+X  	unsigned long h;
+X  
+X+ 	j = find_group_index (group);
+X+ 	if (j == -1) {
+X+ 		return j;
+X+ 	}
+X+ 	type = active[j].type;
+X  	h = hash_groupname (group);
+X  
+X! 	if (read_news_via_nntp && xindex_supported && type == GROUP_TYPE_NEWS) {
+X  		sprintf (index_file, "%sxindex.%d", TMPDIR, process_id);
+X! 		return (type);
+X  	}
+X  	
+X  	if (local_index) {
+X! 		if (type == GROUP_TYPE_NEWS) {
+X! 			my_strncpy (dir, index_newsdir, sizeof (dir));
+X! 		} else {
+X! 			my_strncpy (dir, index_maildir, sizeof (dir));
+X! 		}
+X  	} else {
+X! 		joinpath (dir, get_val ("TIN_INDEX", active[j].spooldir), INDEX_NEWSDIR);
+X  	}
+X  	
+X+ 	i = 1;
+X  	while (TRUE) {
+X  		sprintf (index_file, "%s/%lu.%d", dir, h, i);
+X  		
+X  		if ((fp = fopen (index_file, "r")) == (FILE *) 0) {
+X! 			return (type);
+X  		}
+X  
+X  		if (fgets (buf, sizeof (buf), fp) == (char *) 0) {
+X  			fclose (fp);
+X! 			return (type);
+X  		}
+X  		fclose (fp);
+X  
+X***************
+X*** 918,924 ****
+X  		*p = '\0';
+X  
+X  		if (strcmp (buf, group) == 0) {
+X! 			return;
+X  		}	
+X  		i++;
+X  	}	
+X--- 1073,1079 ----
+X  		*p = '\0';
+X  
+X  		if (strcmp (buf, group) == 0) {
+X! 			return (type);
+X  		}	
+X  		i++;
+X  	}	
+X***************
+X*** 930,941 ****
+X  
+X  void do_update ()
+X  {
+X! 	char *p, group_path[PATH_LEN];
+X! 	char buf[PATH_LEN];
+X  	register int i, j;
+X  	long beg_epoch, end_epoch;
+X  	long group_time, index_time;
+X  	struct stat stinfo;
+X  	
+X  	if (verbose) {
+X  		time (&beg_epoch);
+X--- 1085,1098 ----
+X  
+X  void do_update ()
+X  {
+X! 	char group_path[PATH_LEN];
+X  	register int i, j;
+X  	long beg_epoch, end_epoch;
+X+ #ifdef INDEX_DAEMON
+X+ 	char buf[PATH_LEN];
+X  	long group_time, index_time;
+X  	struct stat stinfo;
+X+ #endif
+X  	
+X  	if (verbose) {
+X  		time (&beg_epoch);
+X***************
+X*** 950,963 ****
+X  	 * loop through groups and update any required index files
+X  	 */
+X  	for (i = 0; i < group_top; i++) {
+X! 		my_strncpy (group_path, active[my_group[i]].name, sizeof (group_path));
+X! 		for (p = group_path ; *p ; p++) {
+X! 			if (*p == '.') {
+X! 				*p = '/';
+X! 			}
+X! 		}
+X  #ifdef INDEX_DAEMON
+X! 		sprintf (buf, "%s/%s", spooldir, group_path);
+X  		if (stat (buf, &stinfo) == -1) {
+X  			if (verbose) {
+X  				error_message ("Can't stat group %s\n", buf);
+X--- 1107,1115 ----
+X  	 * loop through groups and update any required index files
+X  	 */
+X  	for (i = 0; i < group_top; i++) {
+X! 		make_group_path (active[my_group[i]].name, group_path);
+X  #ifdef INDEX_DAEMON
+X! 		joinpath (buf, active[my_group[i]].spooldir, group_path);
+X  		if (stat (buf, &stinfo) == -1) {
+X  			if (verbose) {
+X  				error_message ("Can't stat group %s\n", buf);
+X***************
+X*** 968,974 ****
+X  		group_time = stinfo.st_mtime;
+X  
+X  		index_time = 0L;
+X! 		find_index_file (active[my_group[i]].name);
+X  		if (stat (index_file, &stinfo) == -1) {
+X  			if (verbose) {
+X  				printf ("Can't stat %s index %s\n", active[my_group[i]].name, index_file);
+X--- 1120,1129 ----
+X  		group_time = stinfo.st_mtime;
+X  
+X  		index_time = 0L;
+X! 		if (find_index_file (active[my_group[i]].name) == -1) {
+X! 			continue;
+X! 		}
+X! 
+X  		if (stat (index_file, &stinfo) == -1) {
+X  			if (verbose) {
+X  				printf ("Can't stat %s index %s\n", active[my_group[i]].name, index_file);
+X***************
+X*** 984,990 ****
+X  		}
+X  		
+X  		if (index_time == 0L || active[my_group[i]].last_updated_time == 0L || 
+X! 		    group_time > active[my_group[i]].last_updated_time) {
+X  			active[my_group[i]].last_updated_time = group_time;
+X  		} else {
+X  			continue;
+X--- 1139,1145 ----
+X  		}
+X  		
+X  		if (index_time == 0L || active[my_group[i]].last_updated_time == 0L || 
+X! 		    group_time > active[my_group[i]].last_updated_time || purge_index_files) {
+X  			active[my_group[i]].last_updated_time = group_time;
+X  		} else {
+X  			continue;
+X***************
+X*** 996,1002 ****
+X  				active[my_group[i]].name);
+X  			fflush (stdout);
+X  		}
+X! 		index_group (active[my_group[i]].name, group_path);
+X  		if (catchup) {
+X  			for (j = 0; j < top; j++) {
+X  				arts[j].unread = ART_READ;
+X--- 1151,1159 ----
+X  				active[my_group[i]].name);
+X  			fflush (stdout);
+X  		}
+X! 		if (! index_group (active[my_group[i]].name, group_path)) {
+X! 			continue;
+X! 		}
+X  		if (catchup) {
+X  			for (j = 0; j < top; j++) {
+X  				arts[j].unread = ART_READ;
+X***************
+X*** 1133,1135 ****
+X--- 1290,1315 ----
+X  	art->hot = FALSE;
+X  	art->zombie = FALSE;
+X  }
+X+ 
+X+ int input_pending ()
+X+ {
+X+ #ifndef DONT_HAVE_SELECT
+X+ 	int fd = STDIN_FILENO;
+X+ 	fd_set fdread;
+X+ 	struct timeval tvptr;
+X+ 
+X+ 	FD_ZERO(&fdread);
+X+ 
+X+ 	tvptr.tv_sec = 0;
+X+ 	tvptr.tv_usec = 0;
+X+ 
+X+ 	FD_SET(fd, &fdread);
+X+ 	if (select (1, &fdread, NULL, NULL, &tvptr)) {
+X+ 		if (FD_ISSET(fd, &fdread)) {
+X+ 			return TRUE;
+X+ 		}
+X+ 	}
+X+ #endif
+X+ 	return FALSE;
+X+ }
+X+ 
+Xdiff -rcs ../1.16/common.patch ./common.patch
+X*** ../1.16/common.patch	Sun Nov 15 18:41:36 1992
+X--- ./common.patch	Thu Nov  5 13:17:59 1992
+X***************
+X*** 1,45 ****
+X! Files common.old/Makefile and common/Makefile are identical
+X! Files common.old/README and common/README are identical
+X! Files common.old/README.HPUX and common/README.HPUX are identical
+X! Files common.old/README.IRIX and common/README.IRIX are identical
+X! Files common.old/README.LIB and common/README.LIB are identical
+X! Files common.old/README.MTXNIU and common/README.MTXNIU are identical
+X! Files common.old/README.SYSV and common/README.SYSV are identical
+X! Files common.old/README.XENIX and common/README.XENIX are identical
+X! Files common.old/clientlib.c and common/clientlib.c are identical
+X! Files common.old/clientlib.h and common/clientlib.h are identical
+X! Only in common: conf.h
+X! diff -rcs common.old/conf.h.dist common/conf.h.dist
+X! *** common.old/conf.h.dist	Wed May  6 09:01:11 1992
+X! --- common/conf.h.dist	Mon May  4 07:31:14 1992
+X  ***************
+X! *** 7,12 ****
+X! --- 7,20 ----
+X     * Compile time options.
+X     */
+X      
+X! + /*
+X! +  * Extensions to NNTP RFC977 (I.Lea 07-03-92)
+X  +  */
+X  + 
+X- + #define XUSER			/* log clients username to nntp logfile */
+X  + #define XINDEX			/* retieve tin index files from server */
+X  + #define SUBSCRIPTIONS_FILE	"/usr/lib/news/subscriptions"
+X  + 
+X!   
+X    #undef	ALONE		/* True if we're running without inetd */
+X    
+X! Only in common: conf.h.dst.old
+X! Only in common: conf.h.norisc
+X! diff -rcs common.old/nntp.h common/nntp.h
+X! *** common.old/nntp.h	Wed May  6 09:01:11 1992
+X! --- common/nntp.h	Tue Mar 10 08:52:12 1992
+X  ***************
+X  *** 38,43 ****
+X! --- 38,46 ----
+X    #define	OK_GOODBYE	205	/* Closing connection */
+X    #define	OK_GROUP	211	/* Group selected */
+X    #define	OK_GROUPS	215	/* Newsgroups follow */
+X  + #ifdef XINDEX
+X  + #define	OK_XINDEX	218	/* Group index file follows */
+X  + #endif
+X--- 1,80 ----
+X! diff -rcs nntp/common/conf.h nntp-1.5.11/common/conf.h
+X! *** common/conf.h	Wed Sep 30 14:34:38 1992
+X! --- common/conf.h	Thu Nov  5 08:33:37 1992
+X  ***************
+X! *** 4,9 ****
+X! --- 4,25 ----
+X!    */
+X!   
+X!   /*
+X! +  * Extensions to NNTP RFC977 (I.Lea 05-11-92)
+X! +  */
+X! + 
+X! + #define XOVERVIEW 		/* specifies that .overview index type files */
+X! + 				/* should be searched for before tin index   */
+X! + 				/* files and that they should be returned by */
+X! + 				/* the NNTP XINDEX command extension         */
+X! + #define XINDEX			/* retieve tin index files from server       */
+X! + #define XMOTD			/* retieve message of the day from server    */
+X! + #define XUSER			/* log clients username to nntp logfile      */
+X! + 
+X! + #define XINDEX_DIR		"/usr/spool/news/.index"
+X! + #define XMOTD_FILE		"/usr/lib/news/motd"
+X! + #define SUBSCRIPTIONS_FILE	"/usr/lib/news/subscriptions"
+X! + 
+X! + /*
+X     * Compile time options.
+X     */
+X+   
+X+ diff -rcs nntp/common/conf.h.dist nntp-1.5.11/common/conf.h.dist
+X+ *** common/conf.h.dist		Wed Sep 30 14:34:35 1992
+X+ --- common/conf.h.dist		Sun Oct 18 13:51:22 1992
+X+ ***************
+X+ *** 4,13 ****
+X+    */
+X+   
+X+   /*
+X+    * Compile time options.
+X+    */
+X      
+X! - 
+X!   #undef	ALONE		/* True if we're running without inetd */
+X!   
+X!   #ifdef ALONE
+X! --- 4,24 ----
+X!    */
+X!   
+X!   /*
+X! +  * Extensions to NNTP RFC977 (I.Lea 27-09-92)
+X  +  */
+X  + 
+X  + #define XINDEX			/* retieve tin index files from server */
+X+ + #define XMOTD			/* retieve message of the day from server */
+X+ + #define XUSER			/* log clients username to nntp logfile */
+X+ + 
+X+ + #define XINDEX_DIR		"/usr/spool/news/.index"
+X+ + #define XMOTD_FILE		"/usr/lib/news/motd"
+X  + #define SUBSCRIPTIONS_FILE	"/usr/lib/news/subscriptions"
+X  + 
+X! + /*
+X!    * Compile time options.
+X!    */
+X!     
+X    #undef	ALONE		/* True if we're running without inetd */
+X    
+X!   #ifdef ALONE
+X! diff -rcs nntp/common/nntp.h nntp-1.5.11/common/nntp.h
+X! *** common/nntp.h	Wed Sep 30 14:34:38 1992
+X! --- common/nntp.h	Sun Sep 27 12:31:30 1992
+X  ***************
+X  *** 38,43 ****
+X! --- 38,49 ----
+X    #define	OK_GOODBYE	205	/* Closing connection */
+X    #define	OK_GROUP	211	/* Group selected */
+X    #define	OK_GROUPS	215	/* Newsgroups follow */
+X+ + #ifdef XMOTD
+X+ + #define	OK_XMOTD	217	/* Motd (message of the day) file follows */
+X+ + #endif
+X  + #ifdef XINDEX
+X  + #define	OK_XINDEX	218	/* Group index file follows */
+X  + #endif
+X***************
+X*** 48,57 ****
+X    #define	OK_BODY		222	/* Body follows */
+X  ***************
+X  *** 57,62 ****
+X! --- 60,68 ----
+X    #define	ERR_GOODBYE	400	/* Have to hang up for some reason */
+X    #define	ERR_NOGROUP	411	/* No such newsgroup */
+X    #define	ERR_NCING	412	/* Not currently in newsgroup */
+X  + #ifdef XINDEX
+X  + #define	ERR_XINDEX	418	/* No index file for newsgroup */
+X  + #endif
+X--- 83,95 ----
+X    #define	OK_BODY		222	/* Body follows */
+X  ***************
+X  *** 57,62 ****
+X! --- 63,74 ----
+X    #define	ERR_GOODBYE	400	/* Have to hang up for some reason */
+X    #define	ERR_NOGROUP	411	/* No such newsgroup */
+X    #define	ERR_NCING	412	/* Not currently in newsgroup */
+X+ + #ifdef XMOTD
+X+ + #define	ERR_XMOTD	417	/* No motd (message of the day) file */
+X+ + #endif
+X  + #ifdef XINDEX
+X  + #define	ERR_XINDEX	418	/* No index file for newsgroup */
+X  + #endif
+X***************
+X*** 58,61 ****
+X    #define	ERR_NOCRNT	420	/* No current article selected */
+X    #define	ERR_NONEXT	421	/* No next article in this group */
+X    #define	ERR_NOPREV	422	/* No previous article in this group */
+X- Files common.old/version.c and common/version.c are identical
+X--- 96,98 ----
+Xdiff -rcs ../1.16/config.h ./config.h
+X*** ../1.16/config.h	Sun Nov 15 18:41:38 1992
+X--- ./config.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : config.h
+X   *  Author    : I.Lea
+X   *  Created   : 03-09-92
+X!  *  Updated   : 06-09-92
+X   *  Notes     : #defines to determine different OS capabilites
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : config.h
+X   *  Author    : I.Lea
+X   *  Created   : 03-09-92
+X!  *  Updated   : 15-11-92
+X   *  Notes     : #defines to determine different OS capabilites
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 12,23 ****
+X   *              right notice, and it must be included in any copy made
+X   */
+X  
+X- #ifdef MCH_AMIGA
+X- #	define	AMIGA
+X- #endif
+X- 
+X- #define	HAVE_SYS_STREAM_H
+X- 
+X  #ifdef M_XENIX
+X  #	define	HAVE_PROTOTYPES_H
+X  #endif
+X--- 12,17 ----
+X***************
+X*** 26,35 ****
+X  #	define	HAVE_TERMIO_H
+X  #endif
+X  
+X  #ifdef SVR4
+X  #	define	HAVE_LOCALE_H
+X- #	define	HAVE_TERMIOS_H
+X- #	define	POSIX_JOB_CONTROL
+X  #	undef	sinix		/* SNI Sinix (nsc32000) */
+X  #endif
+X  
+X--- 20,35 ----
+X  #	define	HAVE_TERMIO_H
+X  #endif
+X  
+X+ #if defined(SVR4) || defined(UMAXV)
+X+ #	define	HAVE_TERMIOS_H
+X+ #endif
+X+ 
+X+ #if defined(_POSIX_SOURCE) || defined(DGUX) || defined(SVR4) || defined(UMAXV)
+X+ #	define	HAVE_POSIX_JC
+X+ #endif
+X+ 
+X  #ifdef SVR4
+X  #	define	HAVE_LOCALE_H
+X  #	undef	sinix		/* SNI Sinix (nsc32000) */
+X  #endif
+X  
+X***************
+X*** 49,66 ****
+X  #	define	HAVE_SYS_UTSNAME_H
+X  #endif
+X  
+X! #if !defined(apollo) && !defined(sysV68) && !defined(UTS)
+X  #	define	HAVE_STDLIB_H
+X  #endif
+X  
+X  #ifdef BSD
+X  #	define	HAVE_STRINGS_H
+X- #	define	HAVE_FCNTL_H
+X  #else
+X  #	define	HAVE_STRING_H
+X  #endif
+X  
+X! #if !defined(apollo) && !defined(sinix)
+X  #	define	HAVE_SYS_PTEM_H
+X  #endif
+X  
+X--- 49,73 ----
+X  #	define	HAVE_SYS_UTSNAME_H
+X  #endif
+X  
+X! #if !defined(apollo) && !defined(sequent) && !defined(sysV68) && !defined(UTS)
+X  #	define	HAVE_STDLIB_H
+X  #endif
+X  
+X  #ifdef BSD
+X  #	define	HAVE_STRINGS_H
+X  #else
+X  #	define	HAVE_STRING_H
+X  #endif
+X  
+X! #if defined(BSD) || defined(UMAXV)
+X! #	define	HAVE_FCNTL_H
+X! #endif
+X! 
+X! #ifndef __hpux
+X! #	define	HAVE_SYS_STREAM_H
+X! #endif
+X! 
+X! #if !defined(apollo) && !defined(__hpux) && !defined(sinix) && !defined(UMAXV)
+X  #	define	HAVE_SYS_PTEM_H
+X  #endif
+X  
+X***************
+X*** 68,87 ****
+X  #	define	HAVE_SYS_PTY_H
+X  #endif
+X  
+X! #if defined(BSD) || defined(RS6000) || defined(sinix)
+X  #	define	HAVE_NETDB_H
+X  #endif
+X  
+X! #if defined(__GNUC__) || defined(POSIX_JOB_CONTROL)
+X  #	define	HAVE_SIGTYPE_VOID
+X  #else	
+X  #	if defined(sony)
+X  #		define	HAVE_SIGTYPE_INT
+X  #	else
+X! #		if __STDC__ || defined(atthcx) || defined(PTX) || \
+X! 		   defined(RS6000) || defined(sgi) || defined(sinix) || \
+X! 		   defined(sysV68) || defined(sun) || defined(SVR4) || \
+X! 		   defined(ultrix)
+X  #			define	HAVE_SIGTYPE_VOID
+X  #		else
+X  #			define	HAVE_SIGTYPE_INT
+X--- 75,99 ----
+X  #	define	HAVE_SYS_PTY_H
+X  #endif
+X  
+X! #if defined(BSD) || defined(__hpux) || defined(RS6000) || defined(sinix) || \
+X!     defined(UMAXV)
+X  #	define	HAVE_NETDB_H
+X  #endif
+X  
+X! #if !defined(apollo)
+X! #	define	HAVE_SYS_TIME_H
+X! #endif
+X! 
+X! #if defined(__GNUC__) || defined(HAVE_POSIX_JC)
+X  #	define	HAVE_SIGTYPE_VOID
+X  #else	
+X  #	if defined(sony)
+X  #		define	HAVE_SIGTYPE_INT
+X  #	else
+X! #		if __STDC__ || defined(atthcx) || defined(__hpux) || \
+X! 		   defined(PTX) || defined(RS6000) || defined(sgi) || \
+X! 		   defined(sinix) || defined(sysV68) || defined(sun) || \
+X! 		   defined(SVR4) || defined(ultrix)
+X  #			define	HAVE_SIGTYPE_VOID
+X  #		else
+X  #			define	HAVE_SIGTYPE_INT
+X***************
+X*** 89,102 ****
+X  #	endif
+X  #endif
+X  
+X! #if defined(AUX) || defined(BSD) || defined(PTX) || defined(RS6000) || \
+X!     defined(sinix) || defined(SVR4)
+X! #	ifndef HAVE_LONG_FILENAMES
+X! #		define	HAVE_LONG_FILENAMES
+X! #	endif
+X  #endif
+X  
+X! #if defined(BSD) || defined(__hpux) || defined(RS6000) || defined(sinix) 
+X  #	define	HAVE_GETHOSTBYNAME
+X  #endif
+X  
+X--- 101,114 ----
+X  #	endif
+X  #endif
+X  
+X! #if defined(apollo) || defined(AUX) || defined(BSD) || defined(__hpux) || \
+X!     defined(PTX) || defined(RS6000) || defined(sinix) || defined(SVR4) || \
+X!     defined(UMAXV)
+X! #	define	HAVE_LONG_FILENAMES
+X  #endif
+X  
+X! #if defined(BSD) || defined(__hpux) || defined(RS6000) || defined(sinix) || \
+X!     defined(UMAXV) 
+X  #	define	HAVE_GETHOSTBYNAME
+X  #endif
+X  
+X***************
+X*** 116,126 ****
+X   * Used in parsedate.y
+X   */
+X  
+X! #if !defined(BSD) || defined(DGUX)
+X  #	define	DONT_HAVE_TM_GMTOFF
+X  #endif
+X  
+X  #ifdef sinix
+X  #	undef	HAVE_SYS_STREAM_H
+X  #	define	DONT_HAVE_MKDIR
+X  #endif
+X--- 128,164 ----
+X   * Used in parsedate.y
+X   */
+X  
+X! #if defined(__arm) || defined(DGUX) || defined(sequent) || !defined(BSD)
+X  #	define	DONT_HAVE_TM_GMTOFF
+X  #endif
+X  
+X+ #if defined(apollo)
+X+ #	define	DONT_HAVE_SELECT
+X+ #endif
+X+ 
+X+ #if defined(__hpux)
+X+ #	define	DONT_PROTOTYPE_PTR_TO_FUNC
+X+ #	define	DONT_HAVE_SYS_BSDTYPES_H
+X+ #	define	HAVE_KEYPAD
+X+ #endif
+X+ 
+X  #ifdef sinix
+X  #	undef	HAVE_SYS_STREAM_H
+X  #	define	DONT_HAVE_MKDIR
+X+ #endif
+X+ 
+X+ /*
+X+  * Hack used to try and get a compile on Sun i386 & old SunOS 4.0.2
+X+  */
+X+  
+X+ #if defined(sun) && defined(i386)
+X+ #	undef	HAVE_STDLIB_H
+X+ #endif
+X+ 
+X+ #ifndef STDIN_FILENO
+X+ #	define	STDIN_FILENO	0
+X+ #endif
+X+ 
+X+ #if defined(BSD) || defined(_POSIX_SOURCE)
+X+ #	define	HAVE_REWINDDIR
+X  #endif
+Xdiff -rcs ../1.16/curses.c ./curses.c
+X*** ../1.16/curses.c	Sun Nov 15 18:41:46 1992
+X--- ./curses.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : curses.c
+X   *  Author    : D.Taylor & I.Lea
+X   *  Created   : 01-01-86
+X!  *  Updated   : 23-08-92
+X   *  Notes     : This is a screen management library borrowed with permission
+X   *              from the Elm mail system (a great mailer--I highly recommend
+X   *              it!).This library was hacked to provide what tin needs.
+X--- 3,9 ----
+X   *  Module    : curses.c
+X   *  Author    : D.Taylor & I.Lea
+X   *  Created   : 01-01-86
+X!  *  Updated   : 11-10-92
+X   *  Notes     : This is a screen management library borrowed with permission
+X   *              from the Elm mail system (a great mailer--I highly recommend
+X   *              it!).This library was hacked to provide what tin needs.
+X***************
+X*** 385,392 ****
+X  void set_keypad_on ()
+X  {
+X  #ifndef INDEX_DAEMON
+X! #    ifdef __hpux
+X!  	if (_keypadxmit) {
+X  		tputs (_keypadxmit, 1, outchar);
+X  		fflush (stdout);
+X  	}
+X--- 385,392 ----
+X  void set_keypad_on ()
+X  {
+X  #ifndef INDEX_DAEMON
+X! #    ifdef HAVE_KEYPAD
+X!  	if (use_keypad && _keypadxmit) {
+X  		tputs (_keypadxmit, 1, outchar);
+X  		fflush (stdout);
+X  	}
+X***************
+X*** 397,404 ****
+X  void set_keypad_off ()
+X  {
+X  #ifndef INDEX_DAEMON
+X! #    ifdef __hpux
+X! 	if (_keypadlocal) {
+X  		tputs (_keypadlocal, 1, outchar);
+X  		fflush (stdout);
+X  	}
+X--- 397,404 ----
+X  void set_keypad_off ()
+X  {
+X  #ifndef INDEX_DAEMON
+X! #    ifdef HAVE_KEYPAD
+X! 	if (use_keypad && _keypadlocal) {
+X  		tputs (_keypadlocal, 1, outchar);
+X  		fflush (stdout);
+X  	}
+X***************
+X*** 634,641 ****
+X   *  output a character. From tputs... (Note: this CANNOT be a macro!)
+X   */
+X  
+X! int outchar(c)
+X! 	char c;
+X  {
+X  	fputc (c, stdout);
+X  }
+X--- 634,641 ----
+X   *  output a character. From tputs... (Note: this CANNOT be a macro!)
+X   */
+X  
+X! int outchar (c)
+X! 	int c;
+X  {
+X  	fputc (c, stdout);
+X  }
+Xdiff -rcs ../1.16/debug.c ./debug.c
+X*** ../1.16/debug.c	Sun Nov 15 18:41:47 1992
+X--- ./debug.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : debug.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     : debug routines
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : debug.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 02-10-92
+X   *  Notes     : debug routines
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 221,228 ****
+X  
+X  	if ((fp = fopen (file, "w")) != NULL) {
+X  		for (i = 0; i < num_active; i++) {	/* for each group */
+X! 			fprintf (fp, "[%4d]=[%-28s] max=[%4ld] min=[%4ld] mod=[%c] nxt=[%4d] my_group=[%d]\n",
+X! 				i, active[i].name, active[i].max, active[i].min,
+X  				active[i].moderated, active[i].next, active[i].my_group);
+X  			fprintf (fp, "hash=[%ld]  description=[%s]\n", hash_groupname (active[i].name), 
+X  				(active[i].description ? active[i].description : ""));
+X--- 221,230 ----
+X  
+X  	if ((fp = fopen (file, "w")) != NULL) {
+X  		for (i = 0; i < num_active; i++) {	/* for each group */
+X! 			fprintf (fp, "[%4d]=[%-28s] type=[%d] spooldir=[%s]\n", 
+X! 				i, active[i].name, active[i].type, active[i].spooldir);
+X! 			fprintf (fp, "max=[%4ld] min=[%4ld] mod=[%c] nxt=[%4d] my_group=[%d]\n",
+X! 				active[i].max, active[i].min,
+X  				active[i].moderated, active[i].next, active[i].my_group);
+X  			fprintf (fp, "hash=[%ld]  description=[%s]\n", hash_groupname (active[i].name), 
+X  				(active[i].description ? active[i].description : ""));
+X***************
+X*** 234,243 ****
+X  				active[i].attribute.show_author,  
+X  				active[i].attribute.auto_save,
+X  				active[i].attribute.post_proc_type);
+X! 			fprintf (fp, "maildir=[%s] ",(active[i].attribute.maildir == (char *) 0 ? "" : active[i].attribute.maildir));			
+X! 			fprintf (fp, "savedir=[%s] ",(active[i].attribute.savedir == (char *) 0 ? "" : active[i].attribute.savedir));
+X! 			fprintf (fp, "sigfile=[%s] ",(active[i].attribute.sigfile == (char *) 0 ? "" : active[i].attribute.sigfile));
+X! 			fprintf (fp, "followup_to=[%s]\n\n", (active[i].attribute.followup_to  == (char *) 0 ? "" : active[i].attribute.followup_to));
+X  		}
+X  		fflush (fp);
+X  		fclose (fp);
+X--- 236,247 ----
+X  				active[i].attribute.show_author,  
+X  				active[i].attribute.auto_save,
+X  				active[i].attribute.post_proc_type);
+X! 			fprintf (fp, "maildir=[%s] savedir=[%s]\n",
+X! 				(active[i].attribute.maildir == (char *) 0 ? "" : active[i].attribute.maildir),
+X! 				(active[i].attribute.savedir == (char *) 0 ? "" : active[i].attribute.savedir));
+X! 			fprintf (fp, "sigfile=[%s] followup_to=[%s]\n\n",
+X! 				(active[i].attribute.sigfile == (char *) 0 ? "" : active[i].attribute.sigfile),
+X! 				(active[i].attribute.followup_to  == (char *) 0 ? "" : active[i].attribute.followup_to));
+X  		}
+X  		fflush (fp);
+X  		fclose (fp);
+X***************
+X*** 295,298 ****
+X  	printf ("\n");
+X  #endif
+X  }
+X! 	
+X--- 299,302 ----
+X  	printf ("\n");
+X  #endif
+X  }
+X! 	
+X\ No newline at end of file
+Xdiff -rcs ../1.16/envarg.c ./envarg.c
+X*** ../1.16/envarg.c	Sun Nov 15 18:41:47 1992
+X--- ./envarg.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : envarg.c
+X   *  Author    : B.Davidson
+X   *  Created   : 10-13-91
+X!  *  Updated   : 23-10-91
+X   *  Notes     : Adds default options from environment to command line
+X   *  Copyright : (c) Copyright 1991-92 by Bill Davidsen
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : envarg.c
+X   *  Author    : B.Davidson
+X   *  Created   : 10-13-91
+X!  *  Updated   : 01-10-92
+X   *  Notes     : Adds default options from environment to command line
+X   *  Copyright : (c) Copyright 1991-92 by Bill Davidsen
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 61,78 ****
+X  	 * count the args so we can allocate room for them 
+X  	 */
+X  	argc = count_args (envptr);
+X! 	bufptr = malloc(1+strlen(envptr));
+X! 	if (bufptr == (char *) 0)
+X! 		fprintf (stderr, "Can't get memory for arguments");
+X! 
+X  	strcpy (bufptr, envptr);
+X  
+X  	/* 
+X  	 * allocate a vector large enough for all args 
+X  	 */
+X! 	argv = (char **) malloc((argc+*Pargc+1)*sizeof(char *));
+X! 	if (argv == (char **) 0)
+X! 		fprintf (stderr, "Can't get memory for arguments");
+X  	argvect = argv;
+X  
+X  	/* 
+X--- 61,73 ----
+X  	 * count the args so we can allocate room for them 
+X  	 */
+X  	argc = count_args (envptr);
+X! 	bufptr = (char *) my_malloc (1+strlen (envptr));
+X  	strcpy (bufptr, envptr);
+X  
+X  	/* 
+X  	 * allocate a vector large enough for all args 
+X  	 */
+X! 	argv = (char **) my_malloc ((argc+*Pargc+1)*sizeof(char *));
+X  	argvect = argv;
+X  
+X  	/* 
+Xdiff -rcs ../1.16/extern.h ./extern.h
+X*** ../1.16/extern.h	Sun Nov 15 18:41:40 1992
+X--- ./extern.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : extern.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 11-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : extern.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 14-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 67,73 ****
+X  extern char *help_select[];
+X  extern char *help_spooldir[];
+X  extern char *help_thread[];
+X- extern char active_file[PATH_LEN];
+X  extern char active_times_file[PATH_LEN];
+X  extern char add_addr[LEN];
+X  extern char article[PATH_LEN];
+X--- 67,72 ----
+X***************
+X*** 80,85 ****
+X--- 79,85 ----
+X  extern char default_author_search[LEN];
+X  extern char default_crosspost_group[LEN];
+X  extern char default_mail_address[LEN];
+X+ extern char default_organization[PATH_LEN];
+X  extern char default_pipe_command[LEN];
+X  extern char default_post_newsgroups[PATH_LEN];
+X  extern char default_post_subject[PATH_LEN];
+X***************
+X*** 96,115 ****
+X  extern char default_signature[PATH_LEN];
+X  extern char default_subject_search[LEN];
+X  extern char homedir[PATH_LEN];
+X! extern char indexdir[PATH_LEN];
+X  extern char killfile[PATH_LEN];
+X  extern char killfrom[LEN];
+X  extern char killsubj[LEN];
+X  extern char lock_file[PATH_LEN];
+X  extern char local_newsgroups_file[PATH_LEN];
+X  extern char mail_news_user[LEN];
+X  extern char mailbox[PATH_LEN];
+X  extern char mailer[PATH_LEN];
+X  extern char msg[LEN];
+X  extern char my_distribution[LEN];
+X- extern char my_org[LEN];
+X  extern char new_active_file_attribute[32];
+X  extern char new_active_file_server[PATH_LEN];
+X  extern char newsgroups_file[PATH_LEN];
+X  extern char newnewsrc[PATH_LEN];
+X  extern char newsrc[PATH_LEN];
+X--- 96,122 ----
+X  extern char default_signature[PATH_LEN];
+X  extern char default_subject_search[LEN];
+X  extern char homedir[PATH_LEN];
+X! extern char index_maildir[PATH_LEN];
+X! extern char index_newsdir[PATH_LEN];
+X  extern char killfile[PATH_LEN];
+X  extern char killfrom[LEN];
+X  extern char killsubj[LEN];
+X  extern char lock_file[PATH_LEN];
+X  extern char local_newsgroups_file[PATH_LEN];
+X+ extern char mail_active_file[PATH_LEN];
+X+ extern char mail_quote_format[PATH_LEN];
+X+ extern char news_active_file[PATH_LEN];
+X+ extern char news_quote_format[PATH_LEN];
+X  extern char mail_news_user[LEN];
+X  extern char mailbox[PATH_LEN];
+X  extern char mailer[PATH_LEN];
+X+ extern char motd_file[PATH_LEN];
+X+ extern char motd_file_info[PATH_LEN];
+X  extern char msg[LEN];
+X  extern char my_distribution[LEN];
+X  extern char new_active_file_attribute[32];
+X  extern char new_active_file_server[PATH_LEN];
+X+ extern char mailgroups_file[PATH_LEN];
+X  extern char newsgroups_file[PATH_LEN];
+X  extern char newnewsrc[PATH_LEN];
+X  extern char newsrc[PATH_LEN];
+X***************
+X*** 116,122 ****
+X  extern char *nntp_server;
+X  extern char page_header[LEN];
+X  extern char postfile[PATH_LEN];
+X! extern char printer[LEN];
+X  extern char proc_ch_default;				/* set in change_rcfile () */
+X  extern char progname[PATH_LEN];
+X  extern char quote_chars[PATH_LEN];
+X--- 123,129 ----
+X  extern char *nntp_server;
+X  extern char page_header[LEN];
+X  extern char postfile[PATH_LEN];
+X! extern char default_printer[LEN];
+X  extern char proc_ch_default;				/* set in change_rcfile () */
+X  extern char progname[PATH_LEN];
+X  extern char quote_chars[PATH_LEN];
+X***************
+X*** 124,129 ****
+X--- 131,137 ----
+X  extern char rcfile[PATH_LEN];
+X  extern char redirect_output[LEN];
+X  extern char reply_to[LEN];
+X+ extern char save_active_file[PATH_LEN];
+X  extern char spooldir[PATH_LEN];
+X  extern char spooldir_alias[PATH_LEN];
+X  extern char subscriptions_file[PATH_LEN];
+X***************
+X*** 130,141 ****
+X  extern char userid[PATH_LEN];
+X  
+X  extern char txt_1_resp[];
+X  extern char txt_active_file_is_empty[];
+X  extern char txt_added_groups[];
+X  extern char txt_append_to_file[];
+X  extern char txt_art[];
+X! extern char txt_art_cancelled[];
+X! extern char txt_art_cannot_cancel[];
+X  extern char txt_art_marked_as_unread[];
+X  extern char txt_art_not_saved[];
+X  extern char txt_art_pager_com[];
+X--- 138,150 ----
+X  extern char userid[PATH_LEN];
+X  
+X  extern char txt_1_resp[];
+X+ extern char txt_abort_indexing[];
+X  extern char txt_active_file_is_empty[];
+X  extern char txt_added_groups[];
+X  extern char txt_append_to_file[];
+X  extern char txt_art[];
+X! extern char txt_art_deleted[];
+X! extern char txt_art_cannot_delete[];
+X  extern char txt_art_marked_as_unread[];
+X  extern char txt_art_not_saved[];
+X  extern char txt_art_pager_com[];
+X***************
+X*** 149,155 ****
+X  extern char txt_bad_active_file[];
+X  extern char txt_bad_command[];
+X  extern char txt_begin_of_art[];
+X! extern char txt_cancelling[];
+X  extern char txt_cannot_find_base_art[];
+X  extern char txt_cannot_get_nntp_server_name[];
+X  extern char txt_cannot_open[];
+X--- 158,164 ----
+X  extern char txt_bad_active_file[];
+X  extern char txt_bad_command[];
+X  extern char txt_begin_of_art[];
+X! extern char txt_deleting[];
+X  extern char txt_cannot_find_base_art[];
+X  extern char txt_cannot_get_nntp_server_name[];
+X  extern char txt_cannot_open[];
+X***************
+X*** 166,171 ****
+X--- 175,181 ----
+X  extern char txt_command_failed[];
+X  extern char txt_command_failed_s[];
+X  extern char txt_connecting[];
+X+ extern char txt_reconnecting[];
+X  extern char txt_connection_to_server_broken[];
+X  extern char txt_continue[];
+X  extern char txt_copyright_notice[];
+X***************
+X*** 176,182 ****
+X  extern char txt_crosspost_group[];
+X  extern char txt_del_group_in_newsrc[];
+X  extern char txt_delete_bogus_group[];
+X! extern char txt_deleting[];
+X  extern char txt_deleting_from_newsrc[];
+X  extern char txt_delete_processed_files[];
+X  extern char txt_end_of_arts[];
+X--- 186,192 ----
+X  extern char txt_crosspost_group[];
+X  extern char txt_del_group_in_newsrc[];
+X  extern char txt_delete_bogus_group[];
+X! extern char txt_deleting_art[];
+X  extern char txt_deleting_from_newsrc[];
+X  extern char txt_delete_processed_files[];
+X  extern char txt_end_of_arts[];
+X***************
+X*** 195,201 ****
+X  extern char txt_group_undeleted[];
+X  extern char txt_help_bug_report[LEN];
+X  extern char txt_help_4[];
+X! extern char txt_help_C[];
+X  extern char txt_help_I[];
+X  extern char txt_help_K[];
+X  extern char txt_help_M[];
+X--- 205,211 ----
+X  extern char txt_group_undeleted[];
+X  extern char txt_help_bug_report[LEN];
+X  extern char txt_help_4[];
+X! extern char txt_help_D[];
+X  extern char txt_help_I[];
+X  extern char txt_help_K[];
+X  extern char txt_help_M[];
+X***************
+X*** 318,327 ****
+X  extern char txt_help_x[];
+X  extern char txt_help_y[];
+X  extern char txt_hit_any_key[];
+X  extern char txt_hit_space_for_more[];
+X- extern char txt_in_art_you_write[];
+X  extern char txt_index_page_com[];
+X- extern char txt_indexing[];
+X  extern char txt_indexing_num[];
+X  extern char txt_ispell_define_not_compiled[];
+X  extern char txt_inverse_off[];
+X--- 328,336 ----
+X  extern char txt_help_x[];
+X  extern char txt_help_y[];
+X  extern char txt_hit_any_key[];
+X+ extern char txt_cmdline_hit_any_key[];
+X  extern char txt_hit_space_for_more[];
+X  extern char txt_index_page_com[];
+X  extern char txt_indexing_num[];
+X  extern char txt_ispell_define_not_compiled[];
+X  extern char txt_inverse_off[];
+X***************
+X*** 339,344 ****
+X--- 348,354 ----
+X  extern char txt_mail_art_to[];
+X  extern char txt_mail_bug_report[];
+X  extern char txt_mail_bug_report_confirm[];
+X+ extern char txt_mail_quote[];
+X  extern char txt_mailed[];
+X  extern char txt_mailing_to[];
+X  extern char txt_mark_all_read[];
+X***************
+X*** 347,355 ****
+X--- 357,367 ----
+X  extern char txt_more[];
+X  extern char txt_more_percent[];
+X  extern char txt_moving[];
+X+ extern char txt_news_quote[];
+X  extern char txt_newsgroup[];
+X  extern char txt_newsgroup_position[];
+X  extern char txt_next_resp[];
+X+ extern char txt_nntp_authorization_failed[];
+X  extern char txt_nntp_to_fd_cannot_reopen[];
+X  extern char txt_nntp_to_fp_cannot_reopen[];
+X  extern char txt_no[];
+X***************
+X*** 374,379 ****
+X--- 386,392 ----
+X  extern char txt_no_quick_newsgroups[];
+X  extern char txt_no_quick_subject[];
+X  extern char txt_no_resp[];
+X+ extern char txt_no_responses[];
+X  extern char txt_no_resps_in_thread[];
+X  extern char txt_no_search_string[];
+X  extern char txt_no_spooldirs[];
+X***************
+X*** 416,421 ****
+X--- 429,436 ----
+X  extern char txt_post_process_type[];
+X  extern char txt_post_process_uud_ext_zoo[];
+X  extern char txt_post_process_uud_lst_zoo[];
+X+ extern char txt_post_process_uud_ext_zip[];
+X+ extern char txt_post_process_uud_lst_zip[];
+X  extern char txt_post_process_uudecode[];
+X  extern char txt_post_processing[];
+X  extern char txt_post_processing_failed[];
+X***************
+X*** 422,431 ****
+X  extern char txt_post_processing_finished[];
+X  extern char txt_post_subject[];
+X  extern char txt_posting[];
+X  extern char txt_printed[];
+X  extern char txt_printing[];
+X  extern char txt_quit[];
+X! extern char txt_quit_edit_cancel[];
+X  extern char txt_quit_edit_post[];
+X  extern char txt_quit_edit_xpost[];
+X  extern char txt_quit_edit_save_killfile[];
+X--- 437,447 ----
+X  extern char txt_post_processing_finished[];
+X  extern char txt_post_subject[];
+X  extern char txt_posting[];
+X+ extern char txt_purge[];
+X  extern char txt_printed[];
+X  extern char txt_printing[];
+X  extern char txt_quit[];
+X! extern char txt_quit_edit_delete[];
+X  extern char txt_quit_edit_post[];
+X  extern char txt_quit_edit_xpost[];
+X  extern char txt_quit_edit_save_killfile[];
+X***************
+X*** 435,444 ****
+X  extern char txt_read_resp[];
+X  extern char txt_reading_all_arts[];
+X  extern char txt_reading_new_arts[];
+X  extern char txt_reading_article[];
+X! extern char txt_reading_active_file[];
+X  extern char txt_reading_attributes_file[];
+X  extern char txt_reading_newsgroups_file[];
+X  extern char txt_rejected_by_nntpserver[];
+X  extern char txt_rename_error[];
+X  extern char txt_reply_to_author[];
+X--- 451,465 ----
+X  extern char txt_read_resp[];
+X  extern char txt_reading_all_arts[];
+X  extern char txt_reading_new_arts[];
+X+ extern char txt_reading_all_groups[];
+X+ extern char txt_reading_new_groups[];
+X  extern char txt_reading_article[];
+X! extern char txt_reading_news_active_file[];
+X! extern char txt_reading_mail_active_file[];
+X  extern char txt_reading_attributes_file[];
+X+ extern char txt_reading_mailgroups_file[];
+X  extern char txt_reading_newsgroups_file[];
+X+ extern char txt_reconnecting[];
+X  extern char txt_rejected_by_nntpserver[];
+X  extern char txt_rename_error[];
+X  extern char txt_reply_to_author[];
+X***************
+X*** 488,493 ****
+X--- 509,515 ----
+X  extern char txt_suspended_message[];
+X  extern char txt_tagged_art[];
+X  extern char txt_tagged_thread[];
+X+ extern char txt_testing_archive[];
+X  extern char txt_there_is_no_news[];
+X  extern char txt_threading_arts[];
+X  extern char txt_thread_com[];
+X***************
+X*** 510,517 ****
+X  extern char txt_untagged_thread[];
+X  extern char txt_unthreading_arts[];
+X  extern char txt_uudecoding[];
+X- extern char txt_writes[];
+X- extern char txt_writes_name[];
+X  extern char txt_writing_attributes_file[];
+X  extern char txt_x_resp[];
+X  extern char txt_yanking_all_groups[];
+X--- 532,537 ----
+X***************
+X*** 519,524 ****
+X--- 539,545 ----
+X  extern char txt_yes[];
+X  extern char txt_you_have_mail[];
+X  
+X+ extern int _hp_glitch;
+X  extern int unread_art_mark;
+X  extern int hot_art_mark;
+X  extern int return_art_mark;
+X***************
+X*** 554,559 ****
+X--- 575,581 ----
+X  extern int draw_arrow_mark;
+X  extern int force_screen_redraw;
+X  extern int full_page_scroll;
+X+ extern int groupname_max_length;
+X  extern int group_hash[TABLE_SIZE];
+X  extern int group_top;
+X  extern int groupname_len;
+X***************
+X*** 560,565 ****
+X--- 582,588 ----
+X  extern int index_file_killed;
+X  extern int inn_nntp_server;
+X  extern int inverse_okay;
+X+ extern int use_keypad;
+X  extern int killed_articles;
+X  extern int kill_level;
+X  extern int local_index;
+X***************
+X*** 585,590 ****
+X--- 608,614 ----
+X  extern int post_article_and_exit;
+X  extern int pos_first_unread;
+X  extern int print_header;
+X+ extern int purge_index_files;
+X  extern int process_id;
+X  extern int read_local_newsgroups_file;
+X  extern int read_news_via_nntp;
+X***************
+X*** 599,604 ****
+X--- 623,629 ----
+X  extern int show_description;
+X  extern int show_last_line_prev_page;
+X  extern int show_only_unread_groups;
+X+ extern int slow_speed_terminal;
+X  extern int space_mode;
+X  extern int spooldir_is_active;
+X  extern int start_editor_offset;
+X***************
+X*** 611,616 ****
+X--- 636,642 ----
+X  extern int top_base;
+X  extern int unlink_article;
+X  extern int update;
+X+ extern int use_builtin_inews;
+X  extern int verbose;
+X  extern int update_fork;
+X  extern int check_any_unread;
+X***************
+X*** 631,637 ****
+X  extern struct spooldir_t *spooldirs;
+X  extern struct screen_t *screen;
+X  
+X! #ifdef POSIX_JOB_CONTROL
+X  extern struct sigaction art_act;
+X  extern struct sigaction group_act;
+X  extern struct sigaction kill_act;
+X--- 657,663 ----
+X  extern struct spooldir_t *spooldirs;
+X  extern struct screen_t *screen;
+X  
+X! #ifdef HAVE_POSIX_JC
+X  extern struct sigaction art_act;
+X  extern struct sigaction group_act;
+X  extern struct sigaction kill_act;
+Xdiff -rcs ../1.16/feed.c ./feed.c
+X*** ../1.16/feed.c	Sun Nov 15 18:41:48 1992
+X--- ./feed.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : feed.c
+X   *  Author    : I.Lea
+X   *  Created   : 31-08-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     : provides same interface to mail,pipe,print and save commands
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : feed.c
+X   *  Author    : I.Lea
+X   *  Created   : 31-08-91
+X!  *  Updated   : 01-11-92
+X   *  Notes     : provides same interface to mail,pipe,print and save commands
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 15,21 ****
+X  #include	"tin.h"
+X  
+X  extern char *glob_group;		/* Group name */
+X! extern char note_h_date[LEN];		/* Date:	*/
+X  extern char note_h_newsgroups[LEN];	/* Newsgroups:	*/
+X  extern char note_h_subj[LEN];		/* Subject:	*/
+X  extern FILE *note_fp;			/* the body of the current article */
+X--- 15,21 ----
+X  #include	"tin.h"
+X  
+X  extern char *glob_group;		/* Group name */
+X! extern char note_h_date[PATH_LEN];	/* Date:	*/
+X  extern char note_h_newsgroups[LEN];	/* Newsgroups:	*/
+X  extern char note_h_subj[LEN];		/* Subject:	*/
+X  extern FILE *note_fp;			/* the body of the current article */
+X***************
+X*** 46,51 ****
+X--- 46,52 ----
+X  	char group[LEN];
+X  	char mailbox[LEN];
+X  	char pattern[LEN];
+X+ 	char path[PATH_LEN];
+X  	char proc_ch = proc_ch_default;
+X  	FILE *fp = (FILE *) 0;
+X  	int ch = 'a', ch_default = 'a';
+X***************
+X*** 89,94 ****
+X--- 90,97 ----
+X  		ch_default = 'a';
+X  	}
+X  
+X+ 	i = my_group[cur_groupnum];
+X+ 
+X  	if ((default_auto_save == FALSE || arts[respnum].archive == (char *) 0) ||
+X  		(default_auto_save == TRUE && function != FEED_SAVE) ||
+X  		ch_default == 'T') {
+X***************
+X*** 103,112 ****
+X  		filename[0] = '\0';
+X  		ch = ch_default;
+X  		if (proc_ch != 'n') {
+X  			if (str_str (glob_group, "sources", 7)) {
+X! 				proc_ch = 's';		/* *source* group */ 
+X  			} else if (str_str (glob_group, "binaries", 8)) {
+X! 				proc_ch = 'u';		/* *binaries* group */
+X  			} else {
+X  				proc_ch = 's';
+X  			}
+X--- 106,121 ----
+X  		filename[0] = '\0';
+X  		ch = ch_default;
+X  		if (proc_ch != 'n') {
+X+ 			/* 
+X+ 			 *  Set up default for *source* / *binaries* group
+X+ 			 */
+X  			if (str_str (glob_group, "sources", 7)) {
+X! 				proc_ch = 's';		
+X  			} else if (str_str (glob_group, "binaries", 8)) {
+X! 				proc_ch = get_post_proc_type (active[i].attribute.post_proc_type);
+X! 				if (proc_ch < POST_PROC_UUDECODE) {
+X! 					proc_ch = 'u';
+X! 				}
+X  			} else {
+X  				proc_ch = 's';
+X  			}
+X***************
+X*** 188,194 ****
+X  					cmd_line_printer, REDIRECT_OUTPUT);
+X  			} else {
+X  				sprintf (command, "%s %s",
+X! 					printer, REDIRECT_OUTPUT);
+X  			}
+X  			break;
+X  		case FEED_SAVE:		/* ask user for filename */
+X--- 197,203 ----
+X  					cmd_line_printer, REDIRECT_OUTPUT);
+X  			} else {
+X  				sprintf (command, "%s %s",
+X! 					active[i].attribute.printer, REDIRECT_OUTPUT);
+X  			}
+X  			break;
+X  		case FEED_SAVE:		/* ask user for filename */
+X***************
+X*** 244,250 ****
+X  						MoveCursor (LINES, (int) strlen (msg)-1);
+X  						if ((proc_ch = ReadCh ()) == CR)
+X  							proc_ch = proc_ch_default;
+X! 					} while (! strchr ("nqsuU\033", proc_ch));
+X  					if (proc_ch == 'q' || proc_ch == ESC) {	/* exit */
+X  						clear_message ();
+X  						return;
+X--- 253,259 ----
+X  						MoveCursor (LINES, (int) strlen (msg)-1);
+X  						if ((proc_ch = ReadCh ()) == CR)
+X  							proc_ch = proc_ch_default;
+X! 					} while (! strchr ("eElLnqsu\033", proc_ch));
+X  					if (proc_ch == 'q' || proc_ch == ESC) {	/* exit */
+X  						clear_message ();
+X  						return;
+X***************
+X*** 279,292 ****
+X  	switch (ch) {
+X  		case 'a':		/* article */
+X  			if (level == GROUP_LEVEL) {
+X! 				note_page = art_open (arts[respnum].artnum, group_path);	
+X! 				if (note_page == ART_UNAVAILABLE) {
+X  					break;
+X  				}
+X  			}
+X  			switch (function) {
+X  				case FEED_MAIL:
+X! 					redraw_screen = mail_to_someone (address, FALSE, TRUE, &processed_ok);
+X  					break;
+X  				case FEED_PIPE:
+X  					fseek (note_fp, 0L, 0);
+X--- 288,300 ----
+X  	switch (ch) {
+X  		case 'a':		/* article */
+X  			if (level == GROUP_LEVEL) {
+X! 				if (! does_article_exist (function, arts[respnum].artnum, group_path)) {
+X  					break;
+X  				}
+X  			}
+X  			switch (function) {
+X  				case FEED_MAIL:
+X! 					redraw_screen = mail_to_someone (respnum, address, FALSE, TRUE, &processed_ok);
+X  					break;
+X  				case FEED_PIPE:
+X  					fseek (note_fp, 0L, 0);
+X***************
+X*** 296,303 ****
+X  					processed_ok = print_file (command, respnum, 1);
+X  					break;
+X  				case FEED_SAVE:
+X! 					add_to_save_list (0, &arts[respnum], is_mailbox, filename);
+X! 					processed_ok = save_art_to_file (respnum, 0, FALSE, "");
+X  					break;
+X  				case FEED_XPOST:
+X  					redraw_screen = crosspost_article (group, respnum);
+X--- 304,314 ----
+X  					processed_ok = print_file (command, respnum, 1);
+X  					break;
+X  				case FEED_SAVE:
+X! 					note_page = art_open (arts[respnum].artnum, group_path);
+X! 					if (note_page != ART_UNAVAILABLE) {
+X! 						add_to_save_list (0, &arts[respnum], is_mailbox, TRUE, filename);
+X! 						processed_ok = save_art_to_file (respnum, 0, FALSE, "");
+X! 					}
+X  					break;
+X  				case FEED_XPOST:
+X  					redraw_screen = crosspost_article (group, respnum);
+X***************
+X*** 322,335 ****
+X  				if (level == PAGE_LEVEL) {
+X  					art_close ();
+X  				}
+X! 				note_page = art_open (arts[i].artnum, group_path);	
+X! 				if (note_page == ART_UNAVAILABLE) {
+X  					continue;
+X! 				}	
+X  				switch (function) {
+X  					case FEED_MAIL:
+X  						processed_ok = TRUE;	
+X! 						mail_to_someone (address, FALSE, confirm, &processed_ok);
+X  						confirm = FALSE;
+X  						break;
+X  					case FEED_PIPE:
+X--- 333,345 ----
+X  				if (level == PAGE_LEVEL) {
+X  					art_close ();
+X  				}
+X! 				if (! does_article_exist (function, arts[i].artnum, group_path)) {
+X  					continue;
+X! 				}
+X  				switch (function) {
+X  					case FEED_MAIL:
+X  						processed_ok = TRUE;	
+X! 						mail_to_someone (respnum, address, FALSE, confirm, &processed_ok);
+X  						confirm = FALSE;
+X  						break;
+X  					case FEED_PIPE:
+X***************
+X*** 340,346 ****
+X  						processed_ok = print_file (command, i, processed+1);
+X  						break;
+X  					case FEED_SAVE:
+X! 						add_to_save_list (i, &arts[i], is_mailbox, filename);
+X  						break;
+X  					case FEED_XPOST:
+X  						redraw_screen = crosspost_article (group, i);
+X--- 350,356 ----
+X  						processed_ok = print_file (command, i, processed+1);
+X  						break;
+X  					case FEED_SAVE:
+X! 						add_to_save_list (i, &arts[i], is_mailbox, TRUE, filename);
+X  						break;
+X  					case FEED_XPOST:
+X  						redraw_screen = crosspost_article (group, i);
+X***************
+X*** 370,383 ****
+X  						if (level == PAGE_LEVEL) {
+X  							art_close ();
+X  						}
+X! 						note_page = art_open (arts[j].artnum, group_path);	
+X! 						if (note_page == ART_UNAVAILABLE) {
+X  							continue;
+X  						}	
+X  						switch (function) {
+X  							case FEED_MAIL:
+X  								processed_ok = TRUE;
+X! 								mail_to_someone (address, FALSE, confirm, &processed_ok);
+X  								confirm = FALSE;
+X  								break;
+X  							case FEED_PIPE:
+X--- 380,392 ----
+X  						if (level == PAGE_LEVEL) {
+X  							art_close ();
+X  						}
+X! 						if (! does_article_exist (function, arts[j].artnum, group_path)) {
+X  							continue;
+X  						}	
+X  						switch (function) {
+X  							case FEED_MAIL:
+X  								processed_ok = TRUE;
+X! 								mail_to_someone (respnum, address, FALSE, confirm, &processed_ok);
+X  								confirm = FALSE;
+X  								break;
+X  							case FEED_PIPE:
+X***************
+X*** 388,394 ****
+X  								processed_ok = print_file (command, j, processed+1);
+X  								break;
+X  							case FEED_SAVE:
+X! 								add_to_save_list (j, &arts[j], is_mailbox, filename);
+X  								break;
+X  							case FEED_XPOST:
+X  								redraw_screen = crosspost_article (group, j);
+X--- 397,403 ----
+X  								processed_ok = print_file (command, j, processed+1);
+X  								break;
+X  							case FEED_SAVE:
+X! 								add_to_save_list (j, &arts[j], is_mailbox, TRUE, filename);
+X  								break;
+X  							case FEED_XPOST:
+X  								redraw_screen = crosspost_article (group, j);
+X***************
+X*** 417,422 ****
+X--- 426,432 ----
+X  			confirm = TRUE;
+X  			for (i = 0 ; i < top_base ; i++) {
+X  				for (j = (int) base[i]; j >= 0; j = arts[j].thread) {
+X+ 					proceed = FALSE;
+X  					if (ch == 'p') {
+X  						if (STR_MATCH(arts[j].subject, pattern)) {
+X  							proceed = TRUE;
+X***************
+X*** 425,442 ****
+X  						proceed = TRUE;
+X  					}				
+X  					if (proceed) {
+X- 						proceed = FALSE;
+X  						if (level == PAGE_LEVEL) {
+X  							art_close ();
+X  						}
+X! 						note_page = art_open (arts[j].artnum, group_path);	
+X! 						if (note_page == ART_UNAVAILABLE) {
+X  							continue;
+X  						}	
+X  						switch (function) {
+X  							case FEED_MAIL:
+X  								processed_ok = TRUE;
+X! 								mail_to_someone (address, FALSE, confirm, &processed_ok);
+X  								/* confirm = FALSE; */
+X  								break;
+X  							case FEED_PIPE:
+X--- 435,450 ----
+X  						proceed = TRUE;
+X  					}				
+X  					if (proceed) {
+X  						if (level == PAGE_LEVEL) {
+X  							art_close ();
+X  						}
+X! 						if (! does_article_exist (function, arts[j].artnum, group_path)) {
+X  							continue;
+X  						}	
+X  						switch (function) {
+X  							case FEED_MAIL:
+X  								processed_ok = TRUE;
+X! 								mail_to_someone (respnum, address, FALSE, confirm, &processed_ok);
+X  								/* confirm = FALSE; */
+X  								break;
+X  							case FEED_PIPE:
+X***************
+X*** 447,454 ****
+X  								processed_ok = print_file (command, j, processed+1);
+X  								break;
+X  							case FEED_SAVE:
+X! 								sprintf (filename, "%s.%02d", filename, processed+1);
+X! 								add_to_save_list (0, &arts[j], is_mailbox, filename);
+X  								processed_ok = save_art_to_file (respnum, 0, FALSE, "");
+X  								break;
+X  							case FEED_XPOST:
+X--- 455,466 ----
+X  								processed_ok = print_file (command, j, processed+1);
+X  								break;
+X  							case FEED_SAVE:
+X! 								if (! is_mailbox) {
+X! 									sprintf (path, "%s.%02d", filename, processed+1);
+X! 								}
+X! sprintf (msg, "subj=[%s] is_mailbox=[%d] path=[%s]", arts[j].subject, is_mailbox, path);
+X! error_message (msg, "");
+X! 								add_to_save_list (0, &arts[j], is_mailbox, FALSE, path);
+X  								processed_ok = save_art_to_file (respnum, 0, FALSE, "");
+X  								break;
+X  							case FEED_XPOST:
+X***************
+X*** 531,537 ****
+X  		}
+X  	} else {
+X  		if (redraw_screen) {
+X! 			show_group_page (glob_group);
+X  		}
+X  	}
+X  	if (function == FEED_MAIL) {	
+X--- 543,549 ----
+X  		}
+X  	} else {
+X  		if (redraw_screen) {
+X! 			show_group_page ();
+X  		}
+X  	}
+X  	if (function == FEED_MAIL) {	
+X***************
+X*** 586,588 ****
+X--- 598,665 ----
+X  	
+X  	return (TRUE);	/* a hack that will check if file was really checked later */
+X  }						
+X+ 
+X+ 
+X+ int get_post_proc_type (proc_type)
+X+ 	int proc_type;
+X+ {
+X+ 	int type;
+X+ 		
+X+  	switch (proc_type) {
+X+  		case POST_PROC_SHAR:
+X+  			type = 's';
+X+  			break;
+X+  		case POST_PROC_UUDECODE:
+X+  			type = 'u';
+X+  			break;
+X+  		case POST_PROC_UUD_LST_ZOO:
+X+  			type = 'l';
+X+  			break;
+X+  		case POST_PROC_UUD_EXT_ZOO:
+X+  			type = 'e';
+X+  			break;
+X+  		case POST_PROC_UUD_LST_ZIP:
+X+  			type = 'L';
+X+  			break;
+X+  		case POST_PROC_UUD_EXT_ZIP:
+X+  			type = 'E';
+X+  			break;
+X+  		case POST_PROC_NONE:
+X+  		default:
+X+  			type = 'n';
+X+  			break;
+X+  	}
+X+  	
+X+ 	return type; 
+X+ }
+X+ 
+X+ /*
+X+  * Opening an article here & also later in the save
+X+  * routine is a real performance (bandwidth) killer
+X+  * as both times the art will be transfered (Ouch!)
+X+  *
+X+  * So if function is to save an article only stat 
+X+  * it the first time which saves a lot and almost
+X+  * gets us the elusive free lunch!
+X+  */
+X+ 
+X+ int does_article_exist (function, artnum, path)
+X+ 	int function;
+X+ 	long artnum;
+X+ 	char *path;
+X+ {
+X+ 	int retcode = FALSE;
+X+ 
+X+ 	if (function == FEED_SAVE) {
+X+ 		if (stat_article (artnum, path)) {
+X+ 			retcode = TRUE;
+X+ 		}
+X+ 	} else { 
+X+ 		note_page = art_open (artnum, path);	
+X+ 		if (note_page != ART_UNAVAILABLE) {
+X+ 			retcode = TRUE;
+X+ 		}	
+X+ 	}
+X+ 	
+X+ 	return retcode;
+X+ }
+XFiles ../1.16/getline.c and ./getline.c are identical
+Xdiff -rcs ../1.16/group.c ./group.c
+X*** ../1.16/group.c	Sun Nov 15 18:41:50 1992
+X--- ./group.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : group.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 06-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : group.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 17,27 ****
+X  #define MARK_OFFSET	8
+X  
+X  extern char cvers[LEN];
+X  extern int last_resp;		/* page.c */
+X  extern int this_resp;		/* page.c */
+X  extern int note_page;		/* page.c */
+X- extern char proc_ch_type;	/* feed.c */
+X- extern char _hp_glitch;		/* curses.c */
+X  
+X  char *glob_group;
+X  int index_point;
+X--- 17,26 ----
+X  #define MARK_OFFSET	8
+X  
+X  extern char cvers[LEN];
+X+ extern char proc_ch_type;	/* feed.c */
+X  extern int last_resp;		/* page.c */
+X  extern int this_resp;		/* page.c */
+X  extern int note_page;		/* page.c */
+X  
+X  char *glob_group;
+X  int index_point;
+X***************
+X*** 65,71 ****
+X  	char group_path[LEN];
+X   	char buf[128];
+X   	char pat[128];
+X- 	char *p;
+X  	int ch;
+X  	int dummy = 0;
+X  	int flag, i;
+X--- 64,69 ----
+X***************
+X*** 86,122 ****
+X  	active[my_group[cur_groupnum]].attribute.read_during_session = TRUE;
+X  	show_author = active[my_group[cur_groupnum]].attribute.show_author;
+X  
+X!  	switch (active[my_group[cur_groupnum]].attribute.post_proc_type) {
+X!  		case POST_PROC_SHAR:
+X!  			proc_ch_default = 's';
+X!  			break;
+X!  		case POST_PROC_UUDECODE:
+X!  			proc_ch_default = 'u';
+X!  			break;
+X!  		case POST_PROC_UUD_LST_ZOO:
+X!  			proc_ch_default = 'U';
+X!  			break;
+X!  		case POST_PROC_UUD_EXT_ZOO:
+X!  			proc_ch_default = 'U';
+X!  			break;
+X!  		case POST_PROC_NONE:
+X!  		default:
+X!  			proc_ch_default = 'n';
+X!  			break;
+X!  	}
+X  
+X  	glob_group = group;
+X  	sav_groupnum = cur_groupnum;
+X  	num_of_tagged_arts = 0;
+X  	
+X! 	strcpy (group_path, group);		/* turn comp.unix.amiga into */
+X! 	for (p = group_path; *p; p++)		/* comp/unix/amiga */
+X! 		if (*p == '.')
+X! 			*p = '/';
+X  
+X  	last_resp = -1;
+X  	this_resp = -1;
+X! 	index_group (group, group_path);	/* update index file */
+X  	
+X  	if (space_mode) {
+X  		for (i = 0; i < top_base; i++) {
+X--- 84,106 ----
+X  	active[my_group[cur_groupnum]].attribute.read_during_session = TRUE;
+X  	show_author = active[my_group[cur_groupnum]].attribute.show_author;
+X  
+X!  	proc_ch_default = get_post_proc_type (active[my_group[cur_groupnum]].attribute.post_proc_type);
+X  
+X  	glob_group = group;
+X  	sav_groupnum = cur_groupnum;
+X  	num_of_tagged_arts = 0;
+X  	
+X! 	make_group_path (group, group_path);
+X  
+X  	last_resp = -1;
+X  	this_resp = -1;
+X! 	
+X! 	/* 
+X! 	 * update index file. quit group level if user aborts indexing
+X! 	 */
+X! 	if (! index_group (group, group_path)) {
+X! 		return;
+X! 	}	
+X  	
+X  	if (space_mode) {
+X  		for (i = 0; i < top_base; i++) {
+X***************
+X*** 138,144 ****
+X  	
+X  	set_subj_from_size (COLS);
+X  	clear_note_area ();
+X! 	show_group_page (group);
+X  
+X  	while (TRUE) {
+X  		ch = ReadCh ();
+X--- 122,128 ----
+X  	
+X  	set_subj_from_size (COLS);
+X  	clear_note_area ();
+X! 	show_group_page ();
+X  
+X  	while (TRUE) {
+X  		ch = ReadCh ();
+X***************
+X*** 175,181 ****
+X  							erase_subject_arrow ();
+X  #endif					
+X  							index_point = 0;
+X! 							show_group_page (group);
+X  						} else {
+X  							erase_subject_arrow ();
+X  							index_point = 0;
+X--- 159,165 ----
+X  							erase_subject_arrow ();
+X  #endif					
+X  							index_point = 0;
+X! 							show_group_page ();
+X  						} else {
+X  							erase_subject_arrow ();
+X  							index_point = 0;
+X***************
+X*** 192,198 ****
+X  #ifndef NO_SHELL_ESCAPE
+X  			case '!':
+X  				shell_escape ();
+X! 				show_group_page (group);
+X  				break;
+X  #endif
+X  
+X--- 176,182 ----
+X  #ifndef NO_SHELL_ESCAPE
+X  			case '!':
+X  				shell_escape ();
+X! 				show_group_page ();
+X  				break;
+X  #endif
+X  
+X***************
+X*** 207,213 ****
+X  						erase_subject_arrow ();
+X  #endif					
+X  						index_point = top_base - 1;
+X! 						show_group_page (group);
+X  					} else {
+X  						erase_subject_arrow ();
+X  						index_point = top_base - 1;
+X--- 191,197 ----
+X  						erase_subject_arrow ();
+X  #endif					
+X  						index_point = top_base - 1;
+X! 						show_group_page ();
+X  					} else {
+X  						erase_subject_arrow ();
+X  						index_point = top_base - 1;
+X***************
+X*** 222,233 ****
+X  					break;
+X  				}
+X  				index_point = show_page (this_resp, &dummy, group, group_path);
+X! 				if (index_point < 0) {
+X! 					space_mode = FALSE;
+X! 					goto group_done;
+X  				}
+X- 				clear_note_area ();
+X- 				show_group_page (group);
+X  				break;
+X  
+X  			case '|':	/* pipe article/thread/tagged arts to command */
+X--- 206,222 ----
+X  					break;
+X  				}
+X  				index_point = show_page (this_resp, &dummy, group, group_path);
+X! 				if (index_point == -5) {
+X! 					index_point = which_thread (this_resp);
+X! 					clear_message ();
+X! 				} else {
+X! 					if (index_point < 0) {
+X! 						space_mode = (index_point == -4);
+X! 						goto group_done;
+X! 					}
+X! 					clear_note_area ();
+X! 					show_group_page ();
+X  				}
+X  				break;
+X  
+X  			case '|':	/* pipe article/thread/tagged arts to command */
+X***************
+X*** 251,266 ****
+X  				}
+X  				i = (int) base[index_point];
+X  				index_point = show_page (i, &dummy, group, group_path);
+X! 				if (index_point < 0) {
+X! 					space_mode = FALSE;
+X! 					goto group_done;
+X  				}
+X- 				clear_note_area ();
+X- 				show_group_page (group);
+X  				break;
+X  
+X  			case '\t':	/* goto next unread article/group */
+X! tab_pressed:			
+X   				space_mode = TRUE;
+X  				if (index_point < 0) {
+X  					n =  -1;
+X--- 240,260 ----
+X  				}
+X  				i = (int) base[index_point];
+X  				index_point = show_page (i, &dummy, group, group_path);
+X! 				if (index_point == -5) {
+X! 					index_point = which_thread (i);
+X! 					clear_message ();
+X! 				} else {
+X! 					if (index_point < 0) {
+X! 						space_mode = (index_point == -4);
+X! 						goto group_done;
+X! 					}
+X! 					clear_note_area ();
+X! 					show_group_page ();
+X  				}
+X  				break;
+X  
+X  			case '\t':	/* goto next unread article/group */
+X! group_tab_pressed:			
+X   				space_mode = TRUE;
+X  				if (index_point < 0) {
+X  					n =  -1;
+X***************
+X*** 281,291 ****
+X  					goto group_done;
+X  				}
+X  				index_point = show_page (n, &dummy, group, group_path);
+X! 				if (index_point < 0) {
+X! 					goto group_done;
+X! 				}	
+X! 				clear_note_area ();
+X! 				show_group_page (group);
+X  				break;
+X  	
+X  			case ' ':		/* page down */
+X--- 275,290 ----
+X  					goto group_done;
+X  				}
+X  				index_point = show_page (n, &dummy, group, group_path);
+X! 				if (index_point == -5) {
+X! 					index_point = which_thread (n);
+X! 					goto group_tab_pressed;	/* repeat TAB */
+X! 				} else {
+X! 					if (index_point < 0) {
+X! 						goto group_done;
+X! 					}	
+X! 					clear_note_area ();
+X! 					show_group_page ();
+X! 				}
+X  				break;
+X  	
+X  			case ' ':		/* page down */
+X***************
+X*** 296,310 ****
+X  					break;
+X  				}
+X  				if (index_point == top_base - 1) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_subj_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_subject_arrow ();
+X  #	endif					
+X  						index_point = 0;
+X! 						show_group_page (group);
+X  					} else {
+X  						erase_subject_arrow ();
+X  						index_point = 0;
+X--- 295,306 ----
+X  					break;
+X  				}
+X  				if (index_point == top_base - 1) {
+X  					if (0 < first_subj_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_subject_arrow ();
+X  #	endif					
+X  						index_point = 0;
+X! 						show_group_page ();
+X  					} else {
+X  						erase_subject_arrow ();
+X  						index_point = 0;
+X***************
+X*** 311,317 ****
+X  						draw_subject_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_subject_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 307,312 ----
+X***************
+X*** 324,330 ****
+X  				}
+X  				if (index_point < first_subj_on_screen
+X  				|| index_point >= last_subj_on_screen)
+X! 					show_group_page (group);
+X  				else
+X  					draw_subject_arrow ();
+X  				break;
+X--- 319,325 ----
+X  				}
+X  				if (index_point < first_subj_on_screen
+X  				|| index_point >= last_subj_on_screen)
+X! 					show_group_page ();
+X  				else
+X  					draw_subject_arrow ();
+X  				break;
+X***************
+X*** 343,349 ****
+X  					find_base (my_group[cur_groupnum]);
+X  					index_point = find_new_pos (old_top, old_artnum, index_point);
+X  				}
+X! 				show_group_page (group);
+X  				break;
+X  
+X  			case ctrl('L'):		/* redraw screen */
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 3'
+echo 'File tin-1.17.patch is continued in part 4'
+echo 4 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

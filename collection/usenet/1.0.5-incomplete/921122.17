@@ -1,0 +1,2232 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 02 of 17
+Message-ID: <1992Nov19.052155.25516@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:21:55 GMT
+Lines: 2222
+
+
+
+#!/bin/sh
+# this is part.02 (part 2 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/xmfm.man continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 2; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/xmfm.man'
+else
+echo 'x - continuing file xmfm/xmfm.man'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/xmfm.man' &&
+X
+.ta 8,12,16,20,24,28,32,36,40
+.na
+.nf
+X	TopLevelShell xmfm
+X		MainWindow main
+X			Form form
+X				Label directory_label
+X				RowColumn files_toolbar
+X					PushButton file_button
+X				RowColumn dirs_toolbar
+X					PushButton dir_button
+X				PanedWindow pane
+X					PanedWindow rc1
+X						Label executable_filter_label
+X						ScrolledWindow sw1
+X							RowColumn executables_pane
+X								DrawnButton ?
+X					PanedWindow rc2
+X						Label file_filter_label
+X						ScrolledWindow sw2
+X							RowColumn files_pane
+X								DrawnButton ?
+X					PanedWindow rc3
+X						Label dir_filter_label
+X						ScrolledWindow sw3
+X							RowColumn dirs_pane
+X								DrawnButton ?
+.fi
+.ad
+.SH BUGS
+.PP
+If 
+.I xmfm
+uses a display other than that in the environment variable
+$DISPLAY, 
+.IR xterm 's
+invoked from within
+.I xmfm
+will appear on the wrong display, the one in $DISPLAY.
+Some parts of 
+.I xmfm
+do not perform ~ substitution or environment variable
+expansion.
+.SH "SEE ALSO"
+.PP
+XX(1),
+.I "Motif Style Guide.
+Any good Motif book, such as J.D Newmarch,
+.I "The X Window System and Motif - A Fast Track Approach
+.SH AUTHOR
+.PP
+Jan Newmarch, University of Canberra
+.br
+(jan@ise.canberra.edu.au)
+SHAR_EOF
+echo 'File xmfm/xmfm.man is complete' &&
+chmod 0644 xmfm/xmfm.man ||
+echo 'restore of xmfm/xmfm.man failed'
+Wc_c="`wc -c < 'xmfm/xmfm.man'`"
+test 4181 -eq "$Wc_c" ||
+	echo 'xmfm/xmfm.man: original size 4181, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/xmfmrc ==============
+if test -f 'xmfm/xmfmrc' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/xmfmrc (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/xmfmrc (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/xmfmrc' &&
+{	type	f
+X  	pattern	[mM]akefile
+X	pixmap	makefile.xbm
+X        description Makefile
+X	{
+X		label	make
+X		run_in_xterm
+X		pause_after_exec
+X		action	"make -f $0"
+X	}
+X	{
+X		label	make...
+X		run_in_xterm
+X		pause_after_exec
+X		prompt "Make what file?"
+X		action	"make -f $0 $*"
+X	}
+X	{
+X		label	edit
+X		action	"vi $0"
+X	}
+X        {       label    print
+X                action   "lpr $0"
+X        }
+}
+X
+{	type	f
+X	pattern	*.c
+X	pixmap	ccode.xbm
+X        description "C source code"
+X	{
+X		label	edit
+X		action	"vi $0"
+X	}
+X	{
+X		label	more
+X		run_in_xterm
+X		pause_after_exec
+X		action	"more $0"
+X	}
+X	{
+X		label	"to
+object"
+X		run_in_xterm
+X		pause_after_exec
+X		action	"gcc -c $0"
+X	}
+X	{
+X		label	"to
+executable"
+X		run_in_xterm
+X		pause_after_exec
+X		action	"gcc -o ${0%.c} $0"
+X	}
+X        {       label    print
+X                action   "lpr $0"
+X        }
+}
+X
+{	type	f
+X	pattern	*.tar
+X	pixmap	file.xbm
+X        description "tar archive"
+X	{
+X		label	"tar x"
+X		action	"tar xf $0"
+X	}
+X	{
+X		label	"tar t"
+X		run_in_xterm
+X		pause_after_exec
+X		action	"tar tf $0"
+X	}
+X	{
+X		label	"tar xv"
+X		run_in_xterm
+X		pause_after_exec
+X		action	"tar xvf $0"
+X	}
+}
+X
+{	type	f
+X	pattern	*.o
+X	pixmap	ocode.xbm
+X        description "object module"
+X	{
+X		label	"to
+executable"
+X		run_in_xterm
+X		pause_after_exec
+X		action	"gcc -o ${0%.o} $0"
+X	}
+}
+X
+{	type	f
+X	pattern	*.Z
+X	pixmap	z.xbm
+X        description "compressed file"
+X	{
+X		label	uncompress
+X		action	"uncompress $0"
+X	}
+X	{
+X		label	more
+X		run_in_xterm
+X		pause_after_exec
+X		action	"zcat $0 | more"
+X	}
+}
+X
+{	type	f
+X	pattern	core
+X	pixmap	core.xbm
+X        description "core dump"
+X	{
+X		label	remove
+X		action	"rm $0"
+X	}
+X	{
+X		label	debug
+X		prompt	"file to debug"
+X		action	"x11ups $1 $0"
+X	}
+}
+X
+{	type	f
+X	pattern	*.xbm
+X	pixmap	bitmap.xbm
+X        description "X bitmap"
+X	{
+X		label	edit
+X		action	"bitmap $0"
+X	}
+}
+X
+{	type	f
+X	pattern	*.gif
+X	pixmap	bitmap.xbm
+X        description "GIFF image"
+X	{
+X		label	edit
+X		action	"xli $0"
+X	}
+}
+X
+{	type	f
+X	pattern	*.jpg
+X	pixmap	bitmap.xbm
+X        description "JPEG image"
+X	{
+X		label	"view (xv)"
+X		action	"xv $0"
+X	}
+X        {
+X                label "view (xli)"
+X                action "xli $0"
+X        }
+}
+X
+{	type	f
+X	pattern	*
+X	pixmap	file.xbm
+X	{
+X		label	edit
+X		action	"vi $0"
+X	}
+X	{
+X		label	more
+X		run_in_xterm
+X		pause_after_exec
+X		action	"more $0"
+X	}
+X        {       label    print
+X                action   "lpr $0"
+X        }
+}
+X
+{	type	x
+X	pattern	x*
+X	pixmap	xlogo32
+X        description "X program"
+X	{
+X		label	execute
+X		action	"$0"
+X	}
+X	{
+X		label	execute...
+X		prompt	"Enter the command line arguments:"
+X		action	"$0 $*"
+X	}
+X	{
+X		label	debug
+X		action	"x11ups $0"
+X	}
+}
+X
+{	type	x
+X	pattern	*
+X	pixmap	prog.xbm
+X        description program
+X	{
+X		label	execute
+X		run_in_xterm
+X		pause_after_exec
+X		action	"$0"
+X	}
+X	{
+X		label	execute...
+X		run_in_xterm
+X		pause_after_exec
+X		prompt	"Enter the command line arguments:"
+X		action	"$0 $*"
+X	}
+X	{
+X		label	debug
+X		action	"x11ups $0"
+X	}
+}
+X
+{	type	d
+X	pattern	.
+X	pixmap	herefolder.xbm
+X        description "current directory"
+X	{
+X		label	refresh
+X		action	"$cd $0"
+X	}
+X	{
+X		label	open
+X		action	"$opendir $0"
+X	}
+}
+X
+{	type	d
+X	pattern	..
+X	pixmap	dotdot.xbm
+X        description "parent directory"
+X	{
+X		label	chdir
+X		action	"$cd $0"
+X	}
+X	{
+X		label	open
+X		action	"$opendir $0"
+X	}
+}
+X
+{	type	d
+X	pattern	*
+X	pixmap	folder.xbm
+X	{
+X		label	chdir
+X		action	"$cd $0"
+X	}
+X	{
+X		label	open
+X		action	"$opendir $0"
+X	}
+}
+X
+{	type	p
+X	pattern	*
+X	pixmap	""
+X	{
+X		label	make
+X		run_in_xterm
+X		pause_after_exec
+X		action	make
+X	}
+X	{
+X		label	information
+X		run_in_xterm
+X		pause_after_exec
+X		action	"$information $0"
+X	}
+X	{
+X		label	remove
+X		action	"rm -ir $0"
+X		run_in_xterm
+X	}
+X	{
+X		label	"refresh
+dir"
+X		action	"$cd ."
+X	}
+}
+SHAR_EOF
+chmod 0644 xmfm/xmfmrc ||
+echo 'restore of xmfm/xmfmrc failed'
+Wc_c="`wc -c < 'xmfm/xmfmrc'`"
+test 3594 -eq "$Wc_c" ||
+	echo 'xmfm/xmfmrc: original size 3594, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/DirMgr.h ==============
+if test -f 'xmfm/DirMgr.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/DirMgr.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/DirMgr.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/DirMgr.h' &&
+/****************************************************************************
+X
+X	DirMgr.h
+X
+X	This file contains the C declarations and definitions for the
+X	DirectoryMgr system.
+X
+X	This system is intended to managed filtered and sorted directory
+X	lists.
+X
+X ****************************************************************************/
+X
+#ifndef _DIRECTORY_MGR_H_
+#define	_DIRECTORY_MGR_H_
+X
+#include "Directory.h"
+X
+/*---------------------------------------------------------------------------*
+X
+X        Simple DirectoryMgr Interface
+X
+X		DirectoryMgrSimpleOpen();
+X		DirectoryMgrSimpleRefilter();
+X		DirectoryMgrSimpleResort();
+X
+X	Standard DirectoryMgr Interface
+X
+X		DirectoryMgrOpen();
+X		DirectoryMgrClose();
+X		DirectoryMgrRefilter();
+X		DirectoryMgrRefresh();
+X		DirectoryMgrResort();
+X
+X	Moving Around Items
+X
+X		DirectoryMgrGotoItem();
+X		DirectoryMgrGotoNamedItem();
+X		DirectoryMgrRestart();
+X		DirectoryMgrGetIndex();
+X		DirectoryMgrCurrentEntry();
+X		DirectoryMgrNextEntry();
+X		DirectoryMgrPrevEntry();
+X
+X	Utility Functions
+X
+X		DirectoryMgrSimpleFilterFunc();
+X		DirectoryMgrSimpleSortingFunc();
+X
+X	Comparison Functions
+X
+X		DirectoryMgrCompareName();
+X		DirectoryMgrCompareSizeAscending();
+X		DirectoryMgrCompareSizeDescending();
+X
+X	Macros
+X
+X		DirectoryMgrDir();
+X		DirectoryMgrData();
+X		DirectoryMgrSortedPtrs();
+X		DirectoryMgrFilterFunc();
+X		DirectoryMgrCompFunc();
+X		DirectoryMgrFilterData();
+X		DirectoryMgrFreeFilterData();
+X		DirectoryMgrTotalCount();
+X		DirectoryMgrFilteredCount();
+X		DirectoryMgrCurrentIndex();
+X
+X
+X *---------------------------------------------------------------------------*/
+X
+#ifndef PFI
+typedef int (*PFI)();
+#endif
+X
+typedef struct entry_cons
+{
+X	DIR_ENTRY dir_entry;
+X	struct entry_cons *next;
+} DIR_ENTRY_CONS;
+X
+typedef	DIR_ENTRY_CONS DirEntryCons;
+X
+typedef struct
+{
+X	DIRECTORY dir;
+X	DIR_ENTRY *data;
+X	DIR_ENTRY **sorted_ptrs;
+X	int total_count;
+X	int filtered_count;
+X	PFI filter_func;
+X	char *filter_data;
+X	int free_filter_data;
+X	PFI comp_func;
+X	int current_index;
+} DIRECTORY_MGR;
+X
+typedef	DIRECTORY_MGR DirectoryMgr;
+X
+#define	DIR_MGR_SORT_NONE			0
+#define	DIR_MGR_SORT_NAME			1
+#define	DIR_MGR_SORT_NAME_DIRS_FIRST		2
+#define DIR_MGR_SORT_SIZE_ASCENDING		3
+#define DIR_MGR_SORT_SIZE_DESCENDING		4
+#define	DIR_MGR_SORT_ACCESS_ASCENDING		5
+#define	DIR_MGR_SORT_ACCESS_DESCENDING		6
+X
+#define	DirectoryMgrDir(dm)		(&((dm)->dir))
+#define	DirectoryMgrData(dm)		((dm)->data)
+#define	DirectoryMgrSortedPtrs(dm)	((dm)->sorted_ptrs)
+#define	DirectoryMgrFilterFunc(dm)	((dm)->filter_func)
+#define	DirectoryMgrCompFunc(dm)	((dm)->comp_func)
+#define	DirectoryMgrFilterData(dm)	((dm)->filter_data)
+#define	DirectoryMgrFreeFilterData(dm)	((dm)->free_filter_data)
+#define	DirectoryMgrTotalCount(dm)	((dm)->total_count)
+#define	DirectoryMgrFilteredCount(dm)	((dm)->filtered_count)
+#define	DirectoryMgrCurrentIndex(dm)	((dm)->current_index)
+X
+#ifndef __cplusplus
+X
+DirectoryMgr		*DirectoryMgrSimpleOpen();
+int			DirectoryMgrSimpleRefilter();
+int			DirectoryMgrSimpleResort();
+X
+DirectoryMgr		*DirectoryMgrOpen();
+void			DirectoryMgrClose();
+int			DirectoryMgrRefilter();
+int			DirectoryMgrRefresh();
+void			DirectoryMgrResort();
+X
+int			DirectoryMgrGotoItem();
+int			DirectoryMgrGotoNamedItem();
+void			DirectoryMgrRestart();
+int			DirectoryMgrGetIndex();
+DirEntry		*DirectoryMgrCurrentEntry();
+DirEntry		*DirectoryMgrNextEntry();
+DirEntry		*DirectoryMgrPrevEntry();
+X
+int			DirectoryMgrSimpleFilterFunc();
+int			DirectoryMgrSimpleSortingFunc();
+X
+int			DirectoryMgrCompareName();
+int			DirectoryMgrCompareNameDirsFirst();
+int			DirectoryMgrCompareSizeAscending();
+int			DirectoryMgrCompareSizeDescending();
+int			DirectoryMgrCompareLastAccessAscending();
+int			DirectoryMgrCompareLastAccessDescending();
+X
+int			DirectoryMgrFilterName();
+X
+#endif
+X
+#endif
+SHAR_EOF
+chmod 0644 xmfm/DirMgr.h ||
+echo 'restore of xmfm/DirMgr.h failed'
+Wc_c="`wc -c < 'xmfm/DirMgr.h'`"
+test 3729 -eq "$Wc_c" ||
+	echo 'xmfm/DirMgr.h: original size 3729, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/Directory.h ==============
+if test -f 'xmfm/Directory.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/Directory.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/Directory.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/Directory.h' &&
+/****************************************************************************
+X
+X	Directory.h
+X
+X	This file contains the C definitions and declarations for the
+X	Directory.c directory iteration code.
+X
+X	This code is intended to be used as a convenient, machine
+X	independent interface to iterate through the contents of a
+X	directory.
+X
+X ****************************************************************************/
+X
+#ifndef _DIRECTORY_H_
+#define _DIRECTORY_H_
+X
+#include <stdio.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+X
+#ifndef	NO_DIRENT
+#include <dirent.h>
+#else
+#include <sys/dir.h>
+#define	dirent direct
+#endif
+X
+#ifndef _SYS_NAME_MAX
+#ifndef MAXNAMLEN
+ERROR, ONE OF THESE MUST BE DEFINED
+#else
+#define	MAX_NAME_LENGTH	MAXNAMLEN
+#endif
+#else
+#define	MAX_NAME_LENGTH	_SYS_NAME_MAX
+#endif
+X
+#ifndef TRUE
+#define TRUE				1
+#endif
+X
+#ifndef FALSE
+#define	FALSE				0
+#endif
+X
+#define	PERM_READ			4
+#define	PERM_WRITE			2	
+#define	PERM_EXECUTE			1
+X
+#define	F_TYPE_DIR			1
+#define	F_TYPE_FILE			2
+#define	F_TYPE_CHAR_SPECIAL		3
+#define	F_TYPE_BLOCK_SPECIAL		4
+#define	F_TYPE_SYM_LINK			5
+#define	F_TYPE_SOCKET			6
+#define	F_TYPE_FIFO			7
+X
+/*--------------------------------------------------------------------------*
+X
+X            D A T A    T Y P E    A C C E S S    M A C R O S
+X
+X *--------------------------------------------------------------------------*/
+X
+X	/* Directory: Directory Iterator */
+X
+#define	DirectoryDir(dp)		((dp)->filep)
+#define	DirectoryPath(dp)		((dp)->path)
+X
+X	/* FileInfo: Information About A File Or Link */
+X
+#define	FileInfoProt(fi)		((fi)->protections)
+#define FileInfoOrigMode(fi)		((fi)->orig_mode)
+#define	FileInfoUserID(fi)		((fi)->user_id)
+#define	FileInfoGroupID(fi)		((fi)->group_id)
+#define	FileInfoFileSize(fi)		((fi)->size)
+#define	FileInfoLastAccess(fi)		((fi)->last_access)
+#define	FileInfoLastModify(fi)		((fi)->last_modify)
+#define	FileInfoLastStatusChange(fi)	((fi)->last_status_change)
+X
+#define	FIProt(fi)			FileInfoProt(fi)
+#define FIOrigMode(fi)			FileInfoOrigMode(fi)
+#define	FIUserID(fi)			FileInfoUserID(fi)
+#define	FIGroupID(fi)			FileInfoGroupID(fi)
+#define	FIFileSize(fi)			FileInfoFileSize(fi)
+#define	FILastAccess(fi)		FileInfoLastAccess(fi)
+#define	FILastModify(fi)		FileInfoLastModify(fi)
+#define	FILastStatusChange(fi)		FileInfoLastStatusChange(fi)
+X
+X	/* FType: File Type Macros */
+X
+#define	FTypeIsDir(ft)			((ft) == F_TYPE_DIR)
+#define	FTypeIsFile(ft)			((ft) == F_TYPE_FILE)
+#define	FTypeIsCharSpecial(ft)		((ft) == F_TYPE_CHAR_SPECIAL)
+#define	FTypeIsBlockSpecial(ft)		((ft) == F_TYPE_BLOCK_SPECIAL)
+#define	FTypeIsSymLink(ft)		((ft) == F_TYPE_SYM_LINK)
+#define	FTypeIsSocket(ft)		((ft) == F_TYPE_SOCKET)
+#define	FTypeIsFifo(ft)			((ft) == F_TYPE_FIFO)
+X
+X	/* DirEntry: Information About A Item In A Directory */
+X
+#define	DirEntryFileName(fi)		((fi)->filename)
+#define	DirEntryType(fi)		((fi)->file_type)
+#define	DirEntrySelfInfo(fi)		(&((fi)->self_info))
+#define	DirEntryActualInfo(fi)		(&((fi)->actual_info))
+X
+#define	DirEntryIsBrokenLink(fi)	((fi)->broken_link)
+#define	DirEntryIsDirectoryLink(fi)	((fi)->directory_link)
+#define	DirEntryIsDir(fi)		(FTypeIsDir(DirEntryType(fi)))
+#define	DirEntryIsFile(fi)		(FTypeIsFile(DirEntryType(fi)))
+#define	DirEntryIsCharSpecial(fi)	(FTypeIsCharSpecial(DirEntryType(fi)))
+#define	DirEntryIsBlockSpecial(fi)	(FTypeIsBlockSpecial(DirEntryType(fi)))
+#define	DirEntryIsSymLink(fi)		(FTypeIsSymLink(DirEntryType(fi)))
+#define	DirEntryIsSocket(fi)		(FTypeIsSocket(DirEntryType(fi)))
+#define	DirEntryIsFifo(fi)		(FTypeIsFifo(DirEntryType(fi)))
+#define	DirEntryLeadsToDir(fi)		(DirEntryIsDir(fi) ||		\
+X					 DirEntryIsDirectoryLink(fi))
+X
+#define	DirEntryProt(d)			FIProt(DirEntrySelfInfo(d))
+#define DirEntryOrigMode(d)		FIOrigMode(DirEntrySelfInfo(d))
+#define	DirEntryUserID(d)		FIUserID(DirEntrySelfInfo(d))
+#define	DirEntryGroupID(d)		FIGroupID(DirEntrySelfInfo(d))
+#define	DirEntryFileSize(d)		FIFileSize(DirEntrySelfInfo(d))
+#define	DirEntryLastAccess(d)		FILastAccess(DirEntrySelfInfo(d))
+#define	DirEntryLastModify(d)		FILastModify(DirEntrySelfInfo(d))
+#define	DirEntryLastStatusChange(d)	FILastStatusChange(DirEntrySelfInfo(d))
+X
+/*--------------------------------------------------------------------------*
+X
+X             D A T A    T Y P E    D E F I N I T I O N S
+X
+X *--------------------------------------------------------------------------*/
+X
+X	/* Directory: Directory Iterator */
+X
+typedef struct
+{
+X	DIR *filep;
+X	char path[MAXPATHLEN + 2];
+} DIRECTORY;
+X
+typedef DIRECTORY Directory;
+X
+X	/* FileInfo: Information About A File Or Link */
+X
+typedef struct
+{
+X	short protections;
+X	short orig_mode;
+X	short user_id;
+X	short group_id;
+X	long size;
+X	time_t last_access;
+X	time_t last_modify;
+X	time_t last_status_change;
+} FILE_INFO;
+X
+typedef	FILE_INFO FileInfo;
+X
+X	/* DirEntry: Information About A Item In A Directory */
+X
+typedef struct
+{
+X	char filename[MAX_NAME_LENGTH + 1];
+X	short file_type;
+X	short broken_link;
+X	short directory_link;
+X	FileInfo self_info;
+X	FileInfo actual_info;
+} DIR_ENTRY;
+X
+typedef DIR_ENTRY DirEntry;
+X
+/*--------------------------------------------------------------------------*
+X
+X        L O W    L E V E L    D I R E C T O R Y    I N T E R F A C E
+X
+X *--------------------------------------------------------------------------*/
+X
+int		DirectoryOpen();
+void		DirectoryRestart();
+void		DirectoryClose();
+long		DirectoryTellPosition();
+void		DirectorySetPosition();
+int		DirectoryReadNextEntry();
+char		*DirectoryPathExpand();
+void		DirEntryDump();
+X
+#endif
+X
+X
+SHAR_EOF
+chmod 0644 xmfm/Directory.h ||
+echo 'restore of xmfm/Directory.h failed'
+Wc_c="`wc -c < 'xmfm/Directory.h'`"
+test 5473 -eq "$Wc_c" ||
+	echo 'xmfm/Directory.h: original size 5473, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/RegExp.h ==============
+if test -f 'xmfm/RegExp.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/RegExp.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/RegExp.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/RegExp.h' &&
+/****************************************************************************
+X
+X	RegExp.h
+X
+X	This file contains the C definitions and declarations for
+X	the regular expression matching code.
+X
+X	The routines supported act as a more friendly, user level
+X	interface to the regexp regular expression matching system.
+X
+X ****************************************************************************/
+X
+#ifndef _REGEXP_H_
+#define	_REGEXP_H_
+X
+#include <stdio.h>
+X
+void		RegExpCompile();
+int		RegExpMatch();
+void		_RegExpError();
+void		RegExpPatternToRegExp();
+X
+#ifndef TRUE
+#define TRUE				1
+#endif
+X
+#ifndef FALSE
+#define	FALSE				0
+#endif
+X
+#define	INIT		register char *sp = instring;
+#define	GETC()		(*sp++)
+#define	PEEKC()		(*sp)
+#define	UNGETC(c)	-- sp
+#define	RETURN(ptr)	return;
+#define	ERROR(val)	_RegExpError(val)
+X
+#endif
+SHAR_EOF
+chmod 0644 xmfm/RegExp.h ||
+echo 'restore of xmfm/RegExp.h failed'
+Wc_c="`wc -c < 'xmfm/RegExp.h'`"
+test 814 -eq "$Wc_c" ||
+	echo 'xmfm/RegExp.h: original size 814, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/const.h ==============
+if test -f 'xmfm/const.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/const.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/const.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/const.h' &&
+X
+#include "copyright.h"
+X
+#ifndef _XMFM_CONST_H
+#define _XMFM_CONST_H
+X
+/* let editres work on this application under R5 */
+/* #define ALLOW_EDITRES */
+X
+/* max number of args to a widget set/get */
+#define MAX_ARGS	20
+X
+/* returns from modal dialogs */
+#define OK_ANSWER 0
+#define CANCEL_ANSWER 1
+X
+/* client data in file menu callbacks to tell where
+** it came from
+*/
+#define EXIT_DIALOG 0
+#define LOAD_DIALOG 1 
+#define SAVE_DIALOG 2 
+#define NEW_DIALOG 3 
+#define PRINT_DIALOG 4 
+X
+#define DIRS_TOOLBAR_SIZE 6
+#define FILES_TOOLBAR_SIZE 6
+X
+#define FILE_TYPE 'f'
+#define DIR_TYPE  'd'
+#define EXECUTABLE_TYPE 'x'
+#define PANE_TYPE 'p'
+X
+#define CHDIR_COMMAND "cd"
+#define LEN_CHDIR_COMMAND 2
+X
+#define OPENDIR_COMMAND "opendir"
+#define LEN_OPENDIR_COMMAND 7
+X
+#define INFO_COMMAND "information"
+#define LEN_INFO_COMMAND 11
+X
+#include <sys/stat.h>
+#ifndef S_IXUSR
+/* Apollo eg has none of this stuff */
+#define S_IRUSR 0400
+#define S_IWUSR 0200
+#define S_IXUSR 0100
+#define S_IRGRP 0040
+#define S_IWGRP 0020
+#define S_IXGRP 0010
+#define S_IROTH 0004
+#define S_IWOTH 0002
+#define S_IXOTH 0001
+#endif
+X
+#endif /* _XMFM_CONST_H */
+SHAR_EOF
+chmod 0644 xmfm/const.h ||
+echo 'restore of xmfm/const.h failed'
+Wc_c="`wc -c < 'xmfm/const.h'`"
+test 1120 -eq "$Wc_c" ||
+	echo 'xmfm/const.h: original size 1120, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/copyright.h ==============
+if test -f 'xmfm/copyright.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/copyright.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/copyright.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/copyright.h' &&
+#ifndef _XMFM_COPYRIGHT
+#define _XMFM_COPYRIGHT
+X
+/*********************************************************************
+Copyright (C) 1992 Jan Newmarch
+X
+Faculty of Information Sciences and Engineering
+University of Canberra
+PO Box 1, Belconnen 2614
+ACT, Australia
+X
+email: jan@ise.canberra.edu.au
+X
+X    This program is free software; you can redistribute it and/or modify
+X    it under the terms of the GNU General Public License as published by
+X    the Free Software Foundation; either version 2 of the License, or
+X    (at your option) any later version.
+X
+X    This program is distributed in the hope that it will be useful,
+X    but WITHOUT ANY WARRANTY; without even the implied warranty of
+X    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X    GNU General Public License for more details.
+X
+X    You should have received a copy of the GNU General Public License
+X    along with this program; if not, write to the Free Software
+X    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+*********************************************************************/
+X
+#endif /* _XMFM_COPYRIGHT */
+SHAR_EOF
+chmod 0644 xmfm/copyright.h ||
+echo 'restore of xmfm/copyright.h failed'
+Wc_c="`wc -c < 'xmfm/copyright.h'`"
+test 1103 -eq "$Wc_c" ||
+	echo 'xmfm/copyright.h: original size 1103, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/filecb.h ==============
+if test -f 'xmfm/filecb.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/filecb.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/filecb.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/filecb.h' &&
+X
+#include "copyright.h"
+X
+#ifndef _XMFM_FILECB_H
+#define _XMFM_FILECB_H
+X
+/* client data in file menu callbacks to tell where
+** it came from
+*/
+#define EXIT_DIALOG 0
+#define LOAD_DIALOG 1 
+#define SAVE_DIALOG 2 
+#define NEW_DIALOG 3 
+#define PRINT_DIALOG 4 
+X
+#endif /* _XMFM_FILECB_H */
+SHAR_EOF
+chmod 0644 xmfm/filecb.h ||
+echo 'restore of xmfm/filecb.h failed'
+Wc_c="`wc -c < 'xmfm/filecb.h'`"
+test 286 -eq "$Wc_c" ||
+	echo 'xmfm/filecb.h: original size 286, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/macros.h ==============
+if test -f 'xmfm/macros.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/macros.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/macros.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/macros.h' &&
+X
+#include "copyright.h"
+X
+/* return an index 'a' -> 0, 'z' -> 25, 'A' -> 26, 'Z' -> 51
+*/
+#define ALPHINDEX(ch) 	((ch) >= 'a' && (ch) <= 'z' ? ((ch) - 'a') : \
+X			 (ch) >= 'A' && (ch) <= 'Z' ? ((ch) - 'A' + 26) : \
+X			 	fatal("alpha out of range"))
+X
+/* return an index into the list of words, based on the
+** length of a word. Asumes the following pattern:
+**	all words less than a min length are stored in one list
+**	all words greater than a max length are stored in max list
+**	all other words are stored in list of same length as word
+*/
+#define LISTINDEX(i)	((i) <= ListLowerIndex ? ListLowerIndex : \
+X			 (i) >= ListUpperIndex ? ListUpperIndex : \
+X					       (i))
+X
+extern int ListLowerIndex;
+extern int ListUpperIndex;
+X
+/* fix a clash between Motif traversal and Xt by faking our
+** own routine, to change on Motif 1.1
+*/
+#define XmSetKeyboardFocus(x, y) _XmGrabTheFocus(y)
+X
+#define max(x,y)	((x) > (y) ? (x) : (y))
+SHAR_EOF
+chmod 0644 xmfm/macros.h ||
+echo 'restore of xmfm/macros.h failed'
+Wc_c="`wc -c < 'xmfm/macros.h'`"
+test 922 -eq "$Wc_c" ||
+	echo 'xmfm/macros.h: original size 922, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/rdd.h ==============
+if test -f 'xmfm/rdd.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/rdd.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/rdd.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/rdd.h' &&
+/*                               -*- Mode: C -*- 
+X * rdd.h
+X * 
+X * Description     : Header file for rdd, plus a few other things
+X * 					 that rdd needs declared.
+X * 
+X * Author          : Roger Reynolds
+X * Created On      : Wed Jun 17 12:05:55 1992
+X * 
+X * Configuration Management
+X * 
+X * @(#)rdd.h	1.7	10/5/92
+X * 
+X * VERSION   SPR   MODIFIER   DATE AND TIME
+X * 1.7       0     rogerr     Mon Oct  5 14:34:36 1992
+X *           more gcc stuff. 
+X * 1.6       0     rogerr     Tue Sep 29 11:41:27 1992
+X *           GCC2.2.2 clean up. Can now be cleanly compiled without 
+X *           -traditional. 
+X * 1.5       0     rogerr     Thu Aug 27 15:20:08 1992
+X *           clean up for C++ part 1 
+X * 1.4       0     rogerr     Wed Jul 15 14:49:27 1992
+X *           send keymask in RddCallbackStruct so dropee knows what was 
+X *           going on 
+X * 1.3       0     rogerr     Tue Jun 23 17:08:58 1992
+X *           now dragging pixmaps around 
+X * 
+X */
+X
+#ifndef RDD_LIB_H
+#define RDD_LIB_H
+X
+#include <stdio.h>
+#include <errno.h>
+X
+/*
+X * The only thing that needs Xm is rddDragCallback, you can lose or modify
+X * it if you are not using Motif.
+X */
+#include <Xm/Xm.h>
+X
+#undef _PROTO_ARGS_
+#undef const
+#if ((defined(__STDC__) || defined(SABER)) && !defined(NO_PROTOTYPE)) || defined(__cplusplus)
+#   define _PROTO_ARGS_(x)	x
+#   define CONST const
+#   ifdef __cplusplus
+#       define VARARGS (...)
+#   else
+#       define VARARGS ()
+#   endif
+#else
+#   define _PROTO_ARGS_(x)	()
+#   define CONST
+#endif
+X
+#ifdef __cplusplus
+#   define EXTERN extern "C"
+#else
+#   define EXTERN extern
+#endif
+X
+X
+/*
+X *  Execute the code in the DEBUGRDD macro if defined 
+X */
+X
+#ifdef DEBUGRDD_ON
+#define DEBUGRDD(x) {x}
+#else
+#define DEBUGRDD(x)
+#endif
+X
+/*
+X *  Print the (string) message given, along with file and line number 
+X */
+#ifdef TRACE_ON
+#define TRACE(x) fprintf(stderr, "TRACE %s %s,%d\n", (x), __FILE__, __LINE__)
+#else
+#define TRACE(x)
+#endif
+X
+/*
+X * This will make free go alot slower, but should trap cases where 
+X * the pointer being deallocated is not within the allocated memory area,
+X * like if it was the address of a variable on the stack.
+X */
+#ifdef DEBUGRDD_FREE_ON
+#define XtFree(x) \
+X	(((unsigned long)x == 0) ? fprintf(stderr, "Attempt to free NULL at %s %d\n", __FILE__, __LINE__) : \
+X	 (((unsigned long)x > sbrk(0)) ? fprintf(stderr, "Attempt to free non allocated address at %s %d\n", __FILE__, __LINE__) : free(x)))
+X
+#endif
+X
+/* A few predefined data types */
+#define RDD_NO_DATA_TYPE	0		/* unspecified drop data type		*/
+#define RDD_FILENAME_TYPE	1		/* filename in drop data			*/
+X
+typedef struct _rddCallbackStruct
+{
+X	caddr_t data;						/* pointer to dropped data	*/
+X	int  len;							/* length of data			*/
+X	int  type;							/* type of data dropped		*/
+X	Window from;						/* Window message is from	*/
+X	u_int keymask;						/* keybord modifier mask	*/
+X	XClientMessageEvent *event;			/* the ClientMessage event	*/
+} RddCallbackStruct;	
+X
+EXTERN	void	rddInit 	
+X	_PROTO_ARGS_((Widget shell, XtAppContext appContext));
+X
+EXTERN	void	rddAppMainLoop 
+X	_PROTO_ARGS_((XtAppContext appContext));
+X
+EXTERN	void	rddAddDropHandler
+X	_PROTO_ARGS_((Widget w, XtCallbackProc proc, caddr_t call));
+X
+EXTERN	void	rddSendDropEvent
+X	_PROTO_ARGS_((Widget w, XEvent *event));
+X
+EXTERN	void	 rddSetDropData
+X	_PROTO_ARGS_((caddr_t data, int size));
+X
+EXTERN	void	 rddStartAction
+X	_PROTO_ARGS_((Widget w, XButtonEvent *event, String *args, int *nargs));
+X
+EXTERN	void	 rddDragAction
+X	_PROTO_ARGS_((Widget w, XButtonEvent *event, String *args, int *nargs));
+X
+EXTERN	void	 rddDropAction
+X	_PROTO_ARGS_((Widget w, XButtonEvent *event, String *args, int *nargs));
+X
+EXTERN	void	 rddDragCallback
+X	_PROTO_ARGS_((Widget w, XtPointer call, XmAnyCallbackStruct *cbs));
+X
+#endif /*RDD_LIB_H*/
+X
+X
+SHAR_EOF
+chmod 0644 xmfm/rdd.h ||
+echo 'restore of xmfm/rdd.h failed'
+Wc_c="`wc -c < 'xmfm/rdd.h'`"
+test 3744 -eq "$Wc_c" ||
+	echo 'xmfm/rdd.h: original size 3744, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/types.h ==============
+if test -f 'xmfm/types.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/types.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/types.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/types.h' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/types.h,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:57 $
+X * Version: $Revision: 1.6 $
+X * Purpose:
+X *
+X * Revision history:
+X *	11 Aug 92	added description field to file_action
+X *      22 Ayg 92       added run_dialog and info_dialog as per pane stuff
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+#ifndef _XMFM_TYPES_H
+#define _XMFM_TYPES_H
+X
+#include <Xm/Xm.h>
+X
+#include "DirMgr.h"
+X
+#define FSM_LENGTH 1024
+X
+/*****************************************************************
+X * Data type:
+X * Used by:
+X * Purpose:
+X * Description:
+X *****************************************************************/
+X
+/*****************************************************************
+X * Data type: action_pair
+X * Used by: do_command(), FileToolbarButtonPressed()
+X * Purpose: define a possible action that can be taken on a file
+X * Description: It contains a label to be displayed in an action button,
+X *		the action itself,
+X *		Booleans to control the exection environment of the command,
+X *		and a pointer to another action_pair record
+X *****************************************************************/
+typedef struct action_pair
+{
+X	char			*action_label;
+X	char			*action;
+X	char			*prompt;
+X	Bool			run_in_xterm;
+X	Bool			pause_after_exec;
+X	Bool			has_prompt;
+X	struct action_pair	*next;
+}	action_pair;
+X
+X
+typedef struct file_action
+{
+X	char			file_type;
+X	char			*name_pattern;
+X	char			fsm_ptr[FSM_LENGTH];
+X	char			*pixmap;
+X	char			*description;
+X	action_pair		*actions;
+X	struct file_action	*next;
+}	file_action;
+X
+typedef struct aWidgetList
+{
+X	Widget			widget;
+X	struct aWidgetList	*next;
+}	aWidgetList;
+X
+typedef struct info_dialog_widgets
+{  Widget	form,
+X                filename_label,
+X		filename,
+X                separator,
+X		size_label,
+X		size,
+X		owner_label,
+X		owner,
+X		description_label,
+X		description,
+X		perms_label,
+X		perms_rowcol,
+X		empty_label,
+X		read_label,
+X		write_label,
+X                exec_label,
+X		user_label,
+X		group_label,
+X		other_label,
+X		ur_toggle,
+X		uw_toggle,
+X		ux_toggle,
+X		gr_toggle,
+X		gw_toggle,
+X		gx_toggle,
+X		or_toggle,
+X		ow_toggle,
+X		ox_toggle;
+}      info_dialog_widgets;
+X
+X
+/*****************************************************************
+X * Data type: dir_pane-info
+X * Used by: almost everything.
+X * Purpose: it carries around "global" data to all callbacks that need
+X *	it.  It is placed in the user data of most widgets (except file
+X *	buttons, which use pane_button_info, and toolbar buttons which
+X *	use tool_button_info). Most callbacks get this structure from
+X *	their userData first off. There is one of these per directory
+X *	showing.
+X * Description:
+X *****************************************************************/
+typedef struct dir_pane_info
+{	
+X	/* label at top showing current dir */
+X	Widget		directory_label;
+X
+X	/* two sets of toolbar buttons */
+X	Widget		*files_toolbar;
+X	Widget		*dirs_toolbar;
+X
+X	/* three lists of file/dir/exec buttons in the panes */
+X	aWidgetList	*files_buttons;
+X	aWidgetList	*executables_buttons;
+X	aWidgetList	*dirs_buttons;
+X
+X	/* and the panes they are in */
+X	Widget		files_pane;
+X	Widget		dirs_pane;
+X	Widget		executables_pane;
+X
+X	/* list of all files in current dir matching selection pattern */
+X	DirectoryMgr	*directory_manager;
+X
+X	/* currently selected file/dir/exec button */
+X	char		*file_selected;		/* name */
+X	Widget		file_button_selected;	/* widget button */
+X	char		*description;		/* what sort of file */
+X
+X	char		*executable_selected;	/* unused */
+X	char		*dir_selected;		/* unused */
+X
+X	/* top of this widget tree */
+X	Widget		toplevel;
+X
+X	/* filters used in file matching */
+X	char		*file_filter;
+X	char		file_filter_regexp[FSM_LENGTH];
+X	char		*dir_filter;
+X	char		dir_filter_regexp[FSM_LENGTH];
+X	char		*executable_filter;
+X	char		executable_filter_regexp[FSM_LENGTH];
+X	char		all_filter;
+X
+X	/* widgets showing the filter info */
+X	Widget		file_filter_label;
+X	Widget		dir_filter_label;
+X	Widget		executable_filter_label;
+X
+X        /* dialogs that are non-transient, must be kept on a per pane basis */
+X        Widget          run_dialog;
+X        Widget          info_dialog;
+X        info_dialog_widgets *idw;
+}	dir_pane_info;
+X
+typedef struct pane_button_info
+{	char		*name;
+X	char		file_type;
+X	dir_pane_info	*dpi;
+X	Pixmap		pixmap;
+X	Pixmap		pixmap_reversed;
+X	GC		gc;
+X	GC		gc_reversed;
+}	pane_button_info;
+X
+typedef struct tool_button_info
+{	char		*action;
+X	dir_pane_info	*dpi;
+X	Bool		run_in_xterm;
+X	Bool		pause_after_exec;
+X        Bool            has_prompt;
+X        char            *prompt;
+}	tool_button_info;
+X
+#ifndef S_ISDIR
+#define S_ISDIR(m)	((m) & S_IFDIR)
+#endif
+X
+#endif /* _XMFM_TYPES_H */
+SHAR_EOF
+chmod 0644 xmfm/types.h ||
+echo 'restore of xmfm/types.h failed'
+Wc_c="`wc -c < 'xmfm/types.h'`"
+test 4730 -eq "$Wc_c" ||
+	echo 'xmfm/types.h: original size 4730, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/xmvararg.h ==============
+if test -f 'xmfm/xmvararg.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/xmvararg.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/xmvararg.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/xmvararg.h' &&
+X
+#include "copyright.h"
+X
+/*	xmvarargs.h
+**	External definitions of varargs funcs
+*/
+X
+/* 
+**	need Xm.h to find the current version number
+*/
+#ifndef _XMVARARGS_H
+#define _XMVARARGS_H
+X
+#include <Xm/Xm.h>
+X
+/*
+**	varargs interface for Xt not defined for Motif 1.0
+**	because it is based on X11 R3. In this case, define
+**	equivalents to the Xt functions
+*/
+#if XmVersion == 1000
+extern Widget 	XtVaCreateManagedWidget();
+extern void	XtVaSetValues();
+extern void	XtVaGetValues();
+#endif
+X
+/* 
+** widgets
+*/
+extern Widget	XmVaCreateArrowButton(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateBulletinBoard(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateCascadeButton(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateCommand(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateDialogShell(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateDrawingArea(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateDrawnButton(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateFileSelectionBox(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateForm(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateFrame(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateLabel(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateList(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateMainWindow(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateMessageBox(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreatePanedWindow(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreatePushButton(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateRowColumn(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateScale(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateScrollBar(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateSelectionBox(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateSeparator(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateText(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateToggleButton(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+X
+/*
+** dialogs
+*/
+extern Widget	XmVaCreateErrorDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateFileSelectionDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateFormDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateInformationDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateMessageDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreatePromptDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateQuestionDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateSelectionDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateWarningDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateWorkingDialog(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+X
+/*
+** rowcolumn convenience routines
+*/
+extern Widget	XmVaCreateMenuBar(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateOptionMenu(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreatePopupMenu(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreatePulldownMenu(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateRadioBox(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+X
+/*
+** scrollbar convenience routines
+*/
+extern Widget	XmVaCreateScrolledList(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateScrolledText(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+extern Widget	XmVaCreateScrolledWindow(
+#ifdef UseFunctionPrototypes
+X	...
+#endif
+);
+X
+X
+#endif /* _XMVARARGS_H */
+SHAR_EOF
+chmod 0644 xmfm/xmvararg.h ||
+echo 'restore of xmfm/xmvararg.h failed'
+Wc_c="`wc -c < 'xmfm/xmvararg.h'`"
+test 3932 -eq "$Wc_c" ||
+	echo 'xmfm/xmvararg.h: original size 3932, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/DirMgr.c ==============
+if test -f 'xmfm/DirMgr.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/DirMgr.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/DirMgr.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/DirMgr.c' &&
+/****************************************************************************
+X
+X	DirMgr.c
+X
+X	This file contains the C code to implement the DirectoryMgr system.
+X
+X	This system is intended to manage filtered and sorted directory
+X	lists.
+X
+X ****************************************************************************/
+X
+#include "DirMgr.h"
+X
+#define	DIR_MGR_FSM_SIZE 1024
+X
+/*---------------------------------------------------------------------------*
+X
+X                   S I M P L E    I N T E R F A C E
+X
+X *---------------------------------------------------------------------------*/
+X
+DirectoryMgr *DirectoryMgrSimpleOpen
+#ifdef UseFunctionPrototypes
+X	(char *path, int sort_type, char *pattern)
+#else
+X	(path,sort_type,pattern)
+char *path;
+int sort_type;
+char *pattern;
+X
+#endif
+{
+X	DirectoryMgr *dm;
+X	PFI f_func,s_func;
+X	char *f_data;
+X
+X	if (pattern == NULL) pattern = "*";
+X	if (!DirectoryMgrSimpleFilterFunc(pattern,&f_func,&f_data))
+X	{
+X		return(NULL);
+X	}
+X	if (!DirectoryMgrSimpleSortingFunc(sort_type,&s_func))
+X	{
+X		free(f_data);
+X		return(NULL);
+X	}
+X	dm = DirectoryMgrOpen(path,s_func,f_func,f_data,TRUE);
+X	return(dm);
+} /* End DirectoryMgrSimpleOpen */
+X
+X
+int DirectoryMgrSimpleRefilter
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, char *pattern)
+#else
+X	(dm,pattern)
+DirectoryMgr *dm;
+char *pattern;
+X
+#endif
+{
+X	PFI f_func;
+X	char *f_data;
+X
+X	if (!DirectoryMgrSimpleFilterFunc(pattern,&f_func,&f_data))
+X	{
+X		return(FALSE);
+X	}
+X	DirectoryMgrRefilter(dm,f_func,f_data,TRUE);
+X	return(TRUE);
+} /* End DirectoryMgrSimpleRefilter */
+X
+X
+int DirectoryMgrSimpleResort
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, int sort_type)
+#else
+X	(dm,sort_type)
+DirectoryMgr *dm;
+int sort_type;
+X
+#endif
+{
+X	PFI c_func;
+X
+X	if (!DirectoryMgrSimpleSortingFunc(sort_type,&c_func))
+X	{
+X		return(FALSE);
+X	}
+X	DirectoryMgrResort(dm,c_func);
+X	return(TRUE);
+} /* End DirectoryMgrSimpleResort */
+X
+X
+/*---------------------------------------------------------------------------*
+X
+X                    N O R M A L    I N T E R F A C E
+X
+X *---------------------------------------------------------------------------*/
+X
+DirectoryMgr *DirectoryMgrOpen
+#ifdef UseFunctionPrototypes
+X	(char *path, PFI c_func, PFI f_func, char *f_data, int free_data)
+#else
+X	(path,c_func,f_func,f_data,free_data)
+char *path;
+PFI c_func,f_func;
+char *f_data;
+int free_data;
+X
+#endif
+{
+X	DirectoryMgr *dm;
+X
+X	dm = (DirectoryMgr *)calloc(1,sizeof(DirectoryMgr));
+X	if (dm == NULL)
+X	{
+X		if (free_data && f_data) free(f_data);
+X		return(NULL);
+X	}
+X	if (DirectoryOpen(path,DirectoryMgrDir(dm)) == FALSE)
+X	{
+X		free(dm);
+X		if (free_data && f_data) free(f_data);
+X		return(NULL);
+X	}
+X	DirectoryMgrCompFunc(dm) = c_func;
+X	DirectoryMgrRefilter(dm,f_func,f_data,free_data);
+X	return(dm);
+} /* End DirectoryMgrOpen */
+X
+X
+void DirectoryMgrClose
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	free(DirectoryMgrData(dm));
+X	free(DirectoryMgrSortedPtrs(dm));
+X	if (DirectoryMgrFilterData(dm) && DirectoryMgrFreeFilterData(dm))
+X	{
+X		free(DirectoryMgrFilterData(dm));
+X	}
+X	DirectoryClose(DirectoryMgrDir(dm));
+X	free(dm);
+} /* End DirectoryMgrClose */
+X
+X
+int DirectoryMgrRefilter
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, PFI f_func, char *f_data, int f_free)
+#else
+X	(dm,f_func,f_data,f_free)
+DirectoryMgr *dm;
+PFI f_func;
+char *f_data;
+int f_free;
+X
+#endif
+{
+X	if (DirectoryMgrFilterData(dm) && DirectoryMgrFreeFilterData(dm))
+X	{
+X		free(DirectoryMgrFilterData(dm));
+X	}
+X	DirectoryMgrFilterFunc(dm) = f_func;
+X	DirectoryMgrFilterData(dm) = f_data;
+X	DirectoryMgrFreeFilterData(dm) = f_free;
+X	DirectoryMgrRefresh(dm);
+} /* End DirectoryMgrRefilter */
+X
+X
+int DirectoryMgrRefresh
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	int err,data_size,ptrs_size,i;
+X	DirEntryCons *head,*tail,*cons;
+X	DirEntry *dm_data,**dm_ptrs;
+X	PFI f_func;
+X	char *f_data;
+X
+X	DirectoryMgrTotalCount(dm) = 0;
+X	DirectoryMgrFilteredCount(dm) = 0;
+X	DirectoryRestart(DirectoryMgrDir(dm));
+X	if (DirectoryMgrData(dm)) free(DirectoryMgrData(dm));
+X	if (DirectoryMgrSortedPtrs(dm)) free(DirectoryMgrSortedPtrs(dm));
+X	head = NULL;
+X	f_func = DirectoryMgrFilterFunc(dm);
+X	f_data = DirectoryMgrFilterData(dm);
+X	while (1)
+X	{
+X		cons = (DirEntryCons *)malloc(sizeof(DirEntryCons));
+X		if (cons == NULL)
+X		{
+X			fprintf(stderr,
+X				"DirectoryMgrRefresh: Can't Alloc Cons\n");
+X			exit(-1);
+X		}
+X		err = DirectoryReadNextEntry(DirectoryMgrDir(dm),
+X					     &(cons->dir_entry));
+X		if (err == FALSE)
+X		{
+X			free(cons);
+X			break;
+X		}
+X		++ DirectoryMgrTotalCount(dm);
+X		if ((f_func == NULL) ||
+X		    (f_func && f_func(&(cons->dir_entry),f_data)))
+X		{
+X			cons->next = NULL;
+X			if (head == NULL)
+X				head = cons;
+X			    else
+X				tail->next = cons;
+X			tail = cons;
+X			++ DirectoryMgrFilteredCount(dm);
+X		}
+X		    else			/* Filter Failed */
+X		{
+X			free(cons);
+X		}
+X	}
+X
+X	data_size = sizeof(DirEntry) * DirectoryMgrFilteredCount(dm);
+X	ptrs_size = sizeof(DirEntry *) * DirectoryMgrFilteredCount(dm);
+X	dm_data = (DirEntry *)malloc(data_size);
+X	dm_ptrs = (DirEntry **)malloc(ptrs_size);
+X	if ((dm_data == NULL) || (dm_ptrs == NULL))
+X	{
+X		fprintf(stderr,"DirectoryMgrRefresh: Out of memory\n");
+X		exit(1);
+X	}
+X	DirectoryMgrData(dm) = dm_data;
+X	DirectoryMgrSortedPtrs(dm) = dm_ptrs;
+X
+X	for (i = 0; i < DirectoryMgrFilteredCount(dm); i++)
+X	{
+X		DirectoryMgrData(dm)[i] = head->dir_entry;
+X		DirectoryMgrSortedPtrs(dm)[i] = &(DirectoryMgrData(dm)[i]);
+X		cons = head->next;
+X		free(head);
+X		head = cons;
+X	}
+X
+X	DirectoryMgrResort(dm,DirectoryMgrCompFunc(dm));
+X	DirectoryMgrRestart(dm);
+X	return(TRUE);
+} /* End DirectoryMgrRefresh */
+X
+X
+void DirectoryMgrResort
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, PFI c_func)
+#else
+X	(dm,c_func)
+DirectoryMgr *dm;
+PFI c_func;
+X
+#endif
+{
+X	DirectoryMgrCompFunc(dm) = c_func;
+X	if (c_func != NULL)
+X	{
+X		qsort(DirectoryMgrSortedPtrs(dm),DirectoryMgrFilteredCount(dm),
+X		      sizeof(DirEntry *),DirectoryMgrCompFunc(dm));
+X	}
+X	DirectoryMgrRestart(dm);
+} /* End DirectoryMgrResort */
+X
+/*---------------------------------------------------------------------------*
+X
+X                  I T E R A T I O N    C O M M A N D S
+X
+X *---------------------------------------------------------------------------*/
+X
+int DirectoryMgrGotoItem
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, int i)
+#else
+X	(dm,i)
+DirectoryMgr *dm;
+int i;
+X
+#endif
+{
+X	if (i < 0 || i >= DirectoryMgrFilteredCount(dm)) return(FALSE);
+X	DirectoryMgrCurrentIndex(dm) = i;
+X	return(TRUE);
+} /* End DirectoryMgrGotoItem */
+X
+X
+int DirectoryMgrGotoNamedItem
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm, char *name)
+#else
+X	(dm,name)
+DirectoryMgr *dm;
+char *name;
+X
+#endif
+{
+X	int i;
+X	DirEntry *entry;
+X
+X	for (i = 0; i < DirectoryMgrFilteredCount(dm); i++)
+X	{
+X		entry = DirectoryMgrSortedPtrs(dm)[i];
+X		if (strcmp(DirEntryFileName(entry),name) == 0)
+X		{
+X			DirectoryMgrCurrentIndex(dm) = i;
+X			return(TRUE);
+X		}
+X	}
+X	return(FALSE);
+} /* End DirectoryMgrGotoNamedItem */
+X
+X
+void DirectoryMgrRestart
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	DirectoryMgrCurrentIndex(dm) = 0;
+} /* End DirectoryMgrRestart */
+X
+X
+DirEntry *DirectoryMgrCurrentEntry
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	int index;
+X
+X	index = DirectoryMgrCurrentIndex(dm);
+X	if (index < 0 || index >= DirectoryMgrFilteredCount(dm)) return(NULL);
+X	return(DirectoryMgrSortedPtrs(dm)[index]);
+} /* End DirectoryMgrCurrentEntry */
+X
+X
+DirEntry *DirectoryMgrNextEntry
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	int index;
+X
+X	index = DirectoryMgrCurrentIndex(dm);
+X	if (index >= DirectoryMgrFilteredCount(dm)) return(NULL);
+X	++ DirectoryMgrCurrentIndex(dm);
+X	return(DirectoryMgrSortedPtrs(dm)[index]);
+} /* End DirectoryMgrNextEntry */
+X
+X
+DirEntry *DirectoryMgrPrevEntry
+#ifdef UseFunctionPrototypes
+X	(DirectoryMgr *dm)
+#else
+X	(dm)
+DirectoryMgr *dm;
+X
+#endif
+{
+X	int index;
+X
+X	index = DirectoryMgrCurrentIndex(dm) - 1;
+X	if (index < 0) return(NULL);
+X	-- DirectoryMgrCurrentIndex(dm);
+X	return(DirectoryMgrSortedPtrs(dm)[index]);
+} /* End DirectoryMgrPrevEntry */
+X
+/*---------------------------------------------------------------------------*
+X
+X                   U T I L I T Y    F U N C T I O N S
+X
+X *---------------------------------------------------------------------------*/
+X
+int DirectoryMgrSimpleFilterFunc
+#ifdef UseFunctionPrototypes
+X	(char *pattern, PFI *ff_ptr, char **fd_ptr)
+#else
+X	(pattern,ff_ptr,fd_ptr)
+char *pattern;
+PFI *ff_ptr;
+char **fd_ptr;
+X
+#endif
+{
+#ifndef	NO_REGEXP
+X	char regexp[2048];
+X
+X	*ff_ptr = DirectoryMgrFilterName;
+X	*fd_ptr = (char *)malloc(sizeof(char) * DIR_MGR_FSM_SIZE);
+X	if (*fd_ptr == NULL) return(FALSE);
+X	RegExpPatternToRegExp(pattern,regexp);
+X	RegExpCompile(regexp,*fd_ptr,DIR_MGR_FSM_SIZE);
+#endif
+X	return(TRUE);
+} /* End DirectoryMgrSimpleFilterFunc */
+X
+X
+int DirectoryMgrSimpleSortingFunc
+#ifdef UseFunctionPrototypes
+X	(int sort_type, PFI *sf_ptr)
+#else
+X	(sort_type,sf_ptr)
+int sort_type;
+PFI *sf_ptr;
+X
+#endif
+{
+X	*sf_ptr = NULL;
+X	switch (sort_type)
+X	{
+X	    case DIR_MGR_SORT_NONE:
+X		break;
+X	    case DIR_MGR_SORT_NAME:
+X		*sf_ptr = DirectoryMgrCompareName;
+X		break;
+X	    case DIR_MGR_SORT_SIZE_ASCENDING:
+X		*sf_ptr = DirectoryMgrCompareSizeAscending;
+X		break;
+X	    case DIR_MGR_SORT_SIZE_DESCENDING:
+X		*sf_ptr = DirectoryMgrCompareSizeDescending;
+X		break;
+X	    case DIR_MGR_SORT_NAME_DIRS_FIRST:
+X		*sf_ptr = DirectoryMgrCompareNameDirsFirst;
+X		break;
+X	    case DIR_MGR_SORT_ACCESS_ASCENDING:
+X		*sf_ptr = DirectoryMgrCompareLastAccessAscending;
+X		break;
+X	    case DIR_MGR_SORT_ACCESS_DESCENDING:
+X		*sf_ptr = DirectoryMgrCompareLastAccessDescending;
+X		break;
+X	    default:
+X		fprintf(stderr,"Bad sort type %d\n",sort_type);
+X		return(FALSE);
+X	}
+X	return(TRUE);
+} /* End DirectoryMgrSimpleSortingFunc */
+X
+/*---------------------------------------------------------------------------*
+X
+X                    S O R T I N G    R O U T I N E S
+X
+X *---------------------------------------------------------------------------*/
+X
+int DirectoryMgrCompareName
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	return(strcmp(DirEntryFileName(*e1p),DirEntryFileName(*e2p)));
+} /* End DirectoryMgrCompareName */
+X
+X
+int DirectoryMgrCompareNameDirsFirst
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	if (DirEntryLeadsToDir(*e1p))
+X	{
+X		if (!DirEntryLeadsToDir(*e2p)) return(-1);
+X	}
+X	    else if (DirEntryLeadsToDir(*e2p))
+X	{
+X		return(1);
+X	}
+X	return(strcmp(DirEntryFileName(*e1p),DirEntryFileName(*e2p)));
+} /* End DirectoryMgrCompareNameDirsFirst */
+X
+X
+int DirectoryMgrCompareSizeAscending
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	if (DirEntryFileSize(*e1p) < DirEntryFileSize(*e2p))
+X		return (-1);
+X	    else if (DirEntryFileSize(*e1p) == DirEntryFileSize(*e2p))
+X		return (0);
+X	    else
+X		return (1);
+} /* End DirectoryMgrCompareSizeAscending */
+X
+X
+int DirectoryMgrCompareSizeDescending
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	if (DirEntryFileSize(*e1p) > DirEntryFileSize(*e2p))
+X		return (-1);
+X	    else if (DirEntryFileSize(*e1p) == DirEntryFileSize(*e2p))
+X		return (0);
+X	    else
+X		return (1);
+} /* End DirectoryMgrCompareSizeDescending */
+X
+X
+int DirectoryMgrCompareLastAccessAscending
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	return((long)DirEntryLastAccess(*e1p) >
+X	       (long)DirEntryLastAccess(*e2p));
+} /* End DirectoryMgrCompareLastAccessAscending */
+X
+X
+int DirectoryMgrCompareLastAccessDescending
+#ifdef UseFunctionPrototypes
+X	(DirEntry **e1p, DirEntry **e2p)
+#else
+X	(e1p,e2p)
+DirEntry **e1p,**e2p;
+X
+#endif
+{
+X	return((long)DirEntryLastAccess(*e1p) <
+X	       (long)DirEntryLastAccess(*e2p));
+} /* End DirectoryMgrCompareLastAccessDescending */
+X
+/*---------------------------------------------------------------------------*
+SHAR_EOF
+true || echo 'restore of xmfm/DirMgr.c failed'
+fi
+echo 'End of  part 2'
+echo 'File xmfm/DirMgr.c is continued in part 3'
+echo 3 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

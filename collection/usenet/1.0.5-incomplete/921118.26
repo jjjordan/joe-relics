@@ -1,0 +1,2307 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 06/10)
+Message-ID: <1992Nov15.155230.20284@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:52:30 GMT
+Lines: 2294
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part06
+
+#!/bin/sh
+# this is tin.shar.06 (part 6 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 6; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X  		
+X--- 423,435 ----
+X  }
+X  
+X  
+X! FILE *open_header_fp (art)
+X  	long art;
+X  {
+X  	char buf[NNTP_STRLEN];
+X! 
+X! 	if (read_news_via_nntp &&
+X! 	    active[my_group[cur_groupnum]].type == GROUP_TYPE_NEWS) {
+X  #ifdef NNTP_ABLE	
+X  		sprintf(buf, "head %ld", art);
+X  		
+X***************
+X*** 356,363 ****
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		joinpath (buf, spooldir, group_path);
+X! 		sprintf (&buf[strlen(buf)], "/%ld", art);
+X  		return fopen (buf, "r");
+X  	}
+X  }
+X--- 448,454 ----
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		sprintf (buf, "%ld", art);
+X  		return fopen (buf, "r");
+X  	}
+X  }
+X***************
+X*** 396,407 ****
+X  #endif
+X  	DIR *d;
+X  	DIR_BUF *e;
+X  	long art, start, last, dummy, count;
+X  
+X  	top_base = 0;
+X! 
+X! 	if (read_news_via_nntp) {
+X  
+X  #ifdef NNTP_ABLE
+X  		sprintf (buf, "group %s", group);
+X  
+X--- 487,500 ----
+X  #endif
+X  	DIR *d;
+X  	DIR_BUF *e;
+X+ 	int i;
+X  	long art, start, last, dummy, count;
+X  
+X  	top_base = 0;
+X! 		
+X! 	i = my_group[cur_groupnum];
+X  
+X+ 	if (read_news_via_nntp && active[i].type == GROUP_TYPE_NEWS) {
+X  #ifdef NNTP_ABLE
+X  		sprintf (buf, "group %s", group);
+X  
+X***************
+X*** 436,442 ****
+X  		return; 
+X  #endif
+X  	} else {
+X! 		joinpath (buf, spooldir, group_path);
+X  
+X  		if (access (buf, 4) != 0) {
+X  			return;
+X--- 529,535 ----
+X  		return; 
+X  #endif
+X  	} else {
+X! 		joinpath (buf, active[i].spooldir, group_path);
+X  
+X  		if (access (buf, 4) != 0) {
+X  			return;
+X***************
+X*** 558,566 ****
+X  
+X  void log_user ()
+X  {
+X  	char buf[32], *ptr;
+X  	char line[NNTP_STRLEN];
+X! #ifdef LOG_USER
+X  	FILE *fp;
+X  	long epoch;
+X  #endif
+X--- 651,660 ----
+X  
+X  void log_user ()
+X  {
+X+ 	char log_file[PATH_LEN];
+X  	char buf[32], *ptr;
+X  	char line[NNTP_STRLEN];
+X! #ifndef DONT_LOG_USER
+X  	FILE *fp;
+X  	long epoch;
+X  #endif
+X***************
+X*** 580,587 ****
+X  	} else
+X  #endif	/* AMIGA */
+X  	{
+X! #ifdef LOG_USER
+X! 		if ((fp = fopen (LOG_USER_FILE, "a+")) != (FILE *) 0) {
+X  			time (&epoch);
+X  			fprintf (fp, "%s%d: %-32s (%-8s) %s", 
+X  				VERSION, PATCHLEVEL, buf, 
+X--- 674,683 ----
+X  	} else
+X  #endif	/* AMIGA */
+X  	{
+X! #ifndef DONT_LOG_USER
+X! 		joinpath (log_file, TMPDIR, LOG_USER_FILE);
+X! 		
+X! 		if ((fp = fopen (log_file, "a+")) != (FILE *) 0) {
+X  			time (&epoch);
+X  			fprintf (fp, "%s%d: %-32s (%-8s) %s", 
+X  				VERSION, PATCHLEVEL, buf, 
+X***************
+X*** 592,604 ****
+X  #endif
+X  				ctime (&epoch));
+X  			fclose (fp);
+X! 			chmod (LOG_USER_FILE, 0666);
+X  		}	
+X! #endif
+X  	}
+X  }
+X  
+X  /*
+X   * NNTP strings for get_respcode()
+X   */
+X  
+X--- 688,784 ----
+X  #endif
+X  				ctime (&epoch));
+X  			fclose (fp);
+X! 			chmod (log_file, 0666);
+X  		}	
+X! #endif	/* DONT_LOG_USER */
+X  	}
+X  }
+X  
+X  /*
+X+  * NNTP user authorization. Password read from ~/.newsauth
+X+  * The ~/.newsauth authorization file has the format:  
+X+  *   nntpserver1 password
+X+  *   nntpserver2 password
+X+  *   etc.
+X+  */
+X+  
+X+ void authorization (server, authuser)
+X+ 	char *server;
+X+ 	char *authuser;
+X+ {
+X+ 	char authfile[PATH_LEN];
+X+ 	char authpass[PATH_LEN];
+X+ 	char line[NNTP_STRLEN];
+X+ 	char buf[PATH_LEN], *ptr;
+X+ 	int found = FALSE;
+X+ 	FILE *fp;
+X+ 
+X+ 	/*
+X+ 	 * Check if running via NNTP
+X+ 	 */
+X+ 	if (! read_news_via_nntp) {
+X+ 		return;
+X+ 	}
+X+ 
+X+ 	/*
+X+ 	 * Lets check if the NNTP supports authorization
+X+ 	 */
+X+ 	debug_nntp ("authorization", "authinfo");
+X+ 	put_server ("authinfo");
+X+ 	if (get_respcode () == ERR_COMMAND) {
+X+ 		return;
+X+ 	}
+X+ 
+X+ 	joinpath (authfile, homedir, ".newsauth");
+X+ 
+X+ 	if ((fp = fopen (authfile,"r")) != (FILE *) 0) {
+X+ 		/*
+X+ 		 * Search through authorization file for correct NNTP server
+X+ 		 * File has format:  'nntp-server' 'password'
+X+ 		 */
+X+ 		while (fgets (buf, sizeof (buf), fp) != (char *) 0) {
+X+ 			/*
+X+ 			 * Get server from 1st part of the line
+X+ 			 */
+X+ 			strcpy (line, buf); 
+X+ 			ptr = (char *) strchr (line, ' ');
+X+ 			if (*ptr) {
+X+ 				*ptr = '\0';
+X+ 			}
+X+ 
+X+ 			if (strncmp (line, server, sizeof (server)) == 0) {
+X+ 				/*
+X+ 				 * Get passwdord from 2nd part of the line
+X+ 				 */
+X+ 				ptr = (char *) strrchr (buf, ' ');
+X+ 				if (*ptr && ++ptr != (char *) 0) {
+X+ 					strcpy (authpass, ptr); 
+X+ 					ptr = (char *) strchr (authpass, '\n');
+X+ 					if (*ptr) {
+X+ 						*ptr = '\0';
+X+ 					}
+X+ 					found = TRUE;
+X+ 				}
+X+ 				break;
+X+ 			}
+X+ 		}
+X+ 		fclose (fp); 
+X+ 
+X+ 		if (! found) {
+X+ 			error_message (txt_nntp_authorization_failed, authuser);
+X+ 		} else {
+X+ 			sprintf (line, "authinfo user %s", authuser);
+X+ 			put_server (line);
+X+ 			get_respcode ();
+X+ 
+X+ 			sprintf (line, "authinfo pass %s", authpass);
+X+ 			put_server (line);
+X+ 			get_respcode ();
+X+ 		}
+X+ 	}
+X+ }
+X+ 
+X+ /*
+X   * NNTP strings for get_respcode()
+X   */
+X  
+X***************
+X*** 640,645 ****
+X--- 820,828 ----
+X  		case OK_GROUPS:
+X  			text = "215  Newsgroups follow";
+X  			break;
+X+ 		case OK_XMOTD:
+X+ 			text = "217  News motd file follows";
+X+ 			break;
+X  		case OK_XINDEX:
+X  			text = "218  Group index file follows";
+X  			break;
+X***************
+X*** 715,720 ****
+X--- 898,906 ----
+X  		case ERR_NCING:
+X  			text = "412  Not currently in newsgroup";
+X  			break;
+X+ 		case ERR_XMOTD:
+X+ 			text = "417  No news motd file";
+X+ 			break;
+X  		case ERR_XINDEX:
+X  			text = "418  No index file for this group";
+X  			break;
+X***************
+X*** 787,789 ****
+X--- 973,976 ----
+X  	return ("");
+X  #endif
+X  }
+X+ 
+Xdiff -rcs ../1.16/page.c ./page.c
+X*** ../1.16/page.c	Sun Nov 15 18:42:00 1992
+X--- ./page.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : page.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 31-08-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : page.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 08-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 15,26 ****
+X  #include	"tin.h"
+X  
+X  char note_h_path[LEN];			/* Path:	*/
+X! char note_h_date[LEN];			/* Date:	*/
+X  char note_h_subj[LEN];			/* Subject:	*/
+X! char note_h_org[LEN];			/* Organization: */
+X  char note_h_newsgroups[LEN];		/* Newsgroups:	*/
+X! char note_h_messageid[LEN];		/* Message-ID:	*/
+X! char note_h_distrib[LEN];		/* Distribution: */
+X  char note_h_followup[LEN];		/* Followup-To: */
+X  
+X  char *glob_page_group;
+X--- 15,26 ----
+X  #include	"tin.h"
+X  
+X  char note_h_path[LEN];			/* Path:	*/
+X! char note_h_date[PATH_LEN];		/* Date:	*/
+X  char note_h_subj[LEN];			/* Subject:	*/
+X! char note_h_org[PATH_LEN];		/* Organization: */
+X  char note_h_newsgroups[LEN];		/* Newsgroups:	*/
+X! char note_h_messageid[PATH_LEN];	/* Message-ID:	*/
+X! char note_h_distrib[PATH_LEN];		/* Distribution: */
+X  char note_h_followup[LEN];		/* Followup-To: */
+X  
+X  char *glob_page_group;
+X***************
+X*** 84,92 ****
+X  	arts[respnum].unread = ART_READ;	/* mark article as read */
+X  	
+X  	if ((note_page = art_open (art, group_path)) == ART_UNAVAILABLE) {
+X  		sprintf (msg, txt_art_unavailable, art);
+X  		error_message (msg, "");
+X! 		return (which_thread (respnum));
+X  	} else {
+X  		show_note_page (respnum, group);
+X  	}
+X--- 84,93 ----
+X  	arts[respnum].unread = ART_READ;	/* mark article as read */
+X  	
+X  	if ((note_page = art_open (art, group_path)) == ART_UNAVAILABLE) {
+X+ 		arts[respnum].thread = ART_EXPIRED;
+X  		sprintf (msg, txt_art_unavailable, art);
+X  		error_message (msg, "");
+X! 		return (-5);	/* special retcode to stop redrawing screen */
+X  	} else {
+X  		show_note_page (respnum, group);
+X  	}
+X***************
+X*** 95,104 ****
+X  		ch = ReadCh ();
+X  
+X  		if (ch >= '0' && ch <= '9') {
+X! 			n = prompt_response (ch, respnum);
+X! 			if (n != -1) {
+X! 				respnum = n;
+X! 				goto restart;
+X  			}
+X  			continue;
+X  		}
+X--- 96,110 ----
+X  		ch = ReadCh ();
+X  
+X  		if (ch >= '0' && ch <= '9') {
+X! 			n = which_thread (respnum);
+X! 			if (! num_of_responses (n)) {
+X! 				info_message (txt_no_responses);
+X! 			} else {
+X! 				n = prompt_response (ch, respnum);
+X! 				if (n != -1) {
+X! 					respnum = n;
+X! 					goto restart;
+X! 				}
+X  			}
+X  			continue;
+X  		}
+X***************
+X*** 349,370 ****
+X  				redraw_page (respnum, group);
+X  				break;
+X  				
+X! 			case 'c':	/* catchup--mark all articles as read */
+X  				if (!confirm_action || prompt_yn (LINES, txt_mark_all_read, 'y')) {
+X  					for (n = 0; n < top; n++) {
+X  						arts[n].unread = ART_READ;
+X  					}
+X  					fix_new_highest (cur_groupnum);
+X  					if (cur_groupnum + 1 < group_top) {
+X  						cur_groupnum++;
+X  					}
+X  					art_close ();
+X! 					return -1;
+X  				}
+X  				break;
+X  
+X! 			case 'C':	/* cancel an article */
+X! 				if (cancel_article (group, respnum)) {
+X  					redraw_page (respnum, group);
+X  				}
+X  				break;
+X--- 355,381 ----
+X  				redraw_page (respnum, group);
+X  				break;
+X  				
+X! 			case 'c':	/* catchup - mark all articles as read */
+X! 			case 'C':	/* and goto next group */
+X  				if (!confirm_action || prompt_yn (LINES, txt_mark_all_read, 'y')) {
+X  					for (n = 0; n < top; n++) {
+X  						arts[n].unread = ART_READ;
+X  					}
+X+ 					ret_code = (ch == 'C' ? -4 : -1);
+X  					fix_new_highest (cur_groupnum);
+X  					if (cur_groupnum + 1 < group_top) {
+X  						cur_groupnum++;
+X+ 					} else {
+X+ 						ret_code = -1;
+X  					}
+X  					art_close ();
+X! 					space_mode = TRUE;
+X! 					return ret_code;
+X  				}
+X  				break;
+X  
+X! 			case 'D':	/* delete an article */
+X! 				if (delete_article (group, respnum)) {
+X  					redraw_page (respnum, group);
+X  				}
+X  				break;
+X***************
+X*** 375,381 ****
+X  					info_message (txt_cannot_post);
+X  					break;
+X  				}
+X! 				copy_text = (ch == 'f' ? FALSE : TRUE);
+X  				ret_code = post_response (group, respnum, copy_text);
+X  				redraw_page (respnum, group);
+X  				break;
+X--- 386,392 ----
+X  					info_message (txt_cannot_post);
+X  					break;
+X  				}
+X! 				copy_text = (ch == 'f' ? TRUE : FALSE);
+X  				ret_code = post_response (group, respnum, copy_text);
+X  				redraw_page (respnum, group);
+X  				break;
+X***************
+X*** 502,508 ****
+X  	
+X  			case 'r':	/* reply to author through mail */
+X  			case 'R':
+X! 				copy_text = (ch == 'r' ? FALSE : TRUE);
+X  				mail_to_author (group, respnum, copy_text);
+X  				redraw_page (respnum, group);
+X  				break;
+X--- 513,519 ----
+X  	
+X  			case 'r':	/* reply to author through mail */
+X  			case 'R':
+X! 				copy_text = (ch == 'r' ? TRUE : FALSE);
+X  				mail_to_author (group, respnum, copy_text);
+X  				redraw_page (respnum, group);
+X  				break;
+X***************
+X*** 686,691 ****
+X--- 697,703 ----
+X  		if (first) {
+X  			StartInverse ();
+X  		}	
+X+ 		strip_line (buf2, strlen (buf2));
+X  		printf("%s\r\n", buf2);
+X  		if (first) {
+X  			EndInverse ();
+X***************
+X*** 743,754 ****
+X  	int respnum;
+X  	char *group;
+X  {
+X- 	int whichresp;
+X- 	int x_resp;
+X  	char buf[LEN];
+X  	char tmp[LEN];
+X! 	int pos, i;
+X! 	int n;
+X  
+X  	whichresp = which_response (respnum);
+X  	x_resp = num_of_responses (which_thread (respnum));
+X--- 755,766 ----
+X  	int respnum;
+X  	char *group;
+X  {
+X  	char buf[LEN];
+X  	char tmp[LEN];
+X! 	int whichresp;
+X! 	int x_resp;
+X! 	int pos, i, n;
+X! 	struct tm *tm;
+X  
+X  	whichresp = which_response (respnum);
+X  	x_resp = num_of_responses (which_thread (respnum));
+X***************
+X*** 755,779 ****
+X  
+X  	ClearScreen ();
+X  
+X! 	strcpy (buf, note_h_date);
+X  	pos = (COLS - (int) strlen (group)) / 2;
+X! 	for (i = strlen(buf); i < pos; i++)
+X  		buf[i] = ' ';
+X  	buf[i] = '\0';
+X  
+X  	strcat (buf, group);
+X  
+X! 	for (i = strlen(buf); i < RIGHT_POS ; i++)
+X  		buf[i] = ' ';
+X  	buf[i] = '\0';
+X  
+X! 	printf (txt_thread_x_of_n, buf, which_thread (respnum) + 1, top_base);
+X  
+X  	sprintf (buf, txt_art, arts[respnum].artnum);
+X  	n = strlen (buf);
+X  	fputs (buf, stdout);
+X  
+X! 	strcpy (buf, note_h_subj);
+X  	buf[RIGHT_POS - 5 - n] = '\0';
+X  
+X  	pos = ((COLS - (int) strlen (buf)) / 2) - 2;
+X--- 767,802 ----
+X  
+X  	ClearScreen ();
+X  
+X! 	tm = localtime (&arts[respnum].date);
+X! 	if (! my_strftime (buf, sizeof (buf), "%a, %d %b %Y %H:%M:%S", tm)) {
+X! 		strcpy (buf, note_h_date);
+X! 	}
+X! 
+X  	pos = (COLS - (int) strlen (group)) / 2;
+X! 	for (i = strlen(buf); i < pos; i++) {
+X  		buf[i] = ' ';
+X+ 	}
+X  	buf[i] = '\0';
+X  
+X  	strcat (buf, group);
+X  
+X! 	for (i = strlen(buf); i < RIGHT_POS ; i++) {
+X  		buf[i] = ' ';
+X+ 	}
+X  	buf[i] = '\0';
+X  
+X! 	sprintf (tmp, txt_thread_x_of_n, buf, which_thread (respnum) + 1, top_base);
+X! 	fputs (tmp, stdout);
+X  
+X  	sprintf (buf, txt_art, arts[respnum].artnum);
+X  	n = strlen (buf);
+X  	fputs (buf, stdout);
+X  
+X! 	if (note_h_subj[0]) {
+X! 		strcpy (buf, note_h_subj);
+X! 	} else {
+X! 		strcpy (buf, arts[respnum].subject);
+X! 	}
+X  	buf[RIGHT_POS - 5 - n] = '\0';
+X  
+X  	pos = ((COLS - (int) strlen (buf)) / 2) - 2;
+X***************
+X*** 801,813 ****
+X  	}
+X  
+X  	if (*note_h_org) {
+X! 		if (strcmp (arts[respnum].from, arts[respnum].name) == 0) {
+X! 			strcpy (tmp, note_h_org);
+X! 		} else {
+X  			sprintf (tmp, txt_s_at_s, arts[respnum].name, note_h_org);
+X  		}
+X! 	} else {
+X  		strcpy (tmp, arts[respnum].name);
+X  	}
+X  
+X  	tmp[LEN-1] = '\0';
+X--- 824,838 ----
+X  	}
+X  
+X  	if (*note_h_org) {
+X! 		if (arts[respnum].name) {
+X  			sprintf (tmp, txt_s_at_s, arts[respnum].name, note_h_org);
+X+ 		} else {
+X+ 			strcpy (tmp, note_h_org);
+X  		}
+X! 	} else if (arts[respnum].name) {
+X  		strcpy (tmp, arts[respnum].name);
+X+ 	} else {
+X+ 		strcpy (tmp, " ");
+X  	}
+X  
+X  	tmp[LEN-1] = '\0';
+X***************
+X*** 824,829 ****
+X--- 849,855 ----
+X  		buf[i] = '\0';
+X  		strcat (buf, tmp);
+X  	}
+X+ 	strip_line (buf, strlen (buf));
+X  	printf ("%s\r\n\r\n", buf);
+X  
+X  	note_line += 4;
+X***************
+X*** 836,842 ****
+X  	int maxresp;
+X  	int whichresp;
+X  	int whichbase;
+X! 	char buf[PATH_LEN];
+X  
+X  	whichresp = which_response (respnum);
+X  	whichbase = which_thread (respnum);
+X--- 862,868 ----
+X  	int maxresp;
+X  	int whichresp;
+X  	int whichbase;
+X! 	char buf[LEN];
+X  
+X  	whichresp = which_response (respnum);
+X  	whichbase = which_thread (respnum);
+X***************
+X*** 844,850 ****
+X  
+X  	assert (whichbase < top_base);
+X  
+X! 	if (whichresp)
+X  		sprintf(buf, txt_thread_resp_page,
+X  			whichbase + 1,
+X  			top_base,
+X--- 870,876 ----
+X  
+X  	assert (whichbase < top_base);
+X  
+X! 	if (whichresp) {
+X  		sprintf(buf, txt_thread_resp_page,
+X  			whichbase + 1,
+X  			top_base,
+X***************
+X*** 852,865 ****
+X  			maxresp,
+X  			note_page + 1,
+X  			note_h_subj);
+X! 	else
+X  		sprintf(buf, txt_thread_page,
+X  			whichbase + 1,
+X  			top_base,
+X  			note_page + 1,
+X  			note_h_subj);
+X! 
+X! 	buf[COLS-1] = '\0';
+X  	printf("%s\r\n\r\n", buf);
+X  
+X  	note_line += 2;
+X--- 878,892 ----
+X  			maxresp,
+X  			note_page + 1,
+X  			note_h_subj);
+X! 	} else {
+X  		sprintf(buf, txt_thread_page,
+X  			whichbase + 1,
+X  			top_base,
+X  			note_page + 1,
+X  			note_h_subj);
+X! 	}
+X! 	strip_line (buf, strlen (buf));
+X! 	/* buf[COLS-1] = '\0'; */
+X  	printf("%s\r\n\r\n", buf);
+X  
+X  	note_line += 2;
+X***************
+X*** 870,883 ****
+X  	long art;
+X  	char *group_path;
+X  {
+X! 	char buf[1025];
+X! 	char *p;
+X  
+X  	note_page = 0;
+X  
+X  	art_close ();	/* just in case */
+X  
+X! 	if ((note_fp = open_art_fp (group_path, art)) == NULL) {
+X  		return (ART_UNAVAILABLE);
+X  	}
+X  
+X--- 897,910 ----
+X  	long art;
+X  	char *group_path;
+X  {
+X! 	char buf[8192];
+X! 	char *ptr;
+X  
+X  	note_page = 0;
+X  
+X  	art_close ();	/* just in case */
+X  
+X! 	if ((note_fp = open_art_fp (group_path, art)) == (FILE *) 0) {
+X  		return (ART_UNAVAILABLE);
+X  	}
+X  
+X***************
+X*** 891,903 ****
+X  	note_h_followup[0] = '\0';
+X  
+X  	while (fgets(buf, sizeof buf, note_fp) != NULL) {
+X! 		buf[1024] = '\0';
+X  
+X! 		for (p=buf ; *p && *p != '\n' ; p++) {
+X! 			if (((*p) & 0xFF) < ' ')
+X! 				*p = ' ';
+X  		}
+X! 		*p = '\0';
+X  		
+X  		if (*buf == '\0')
+X  			break;
+X--- 918,930 ----
+X  	note_h_followup[0] = '\0';
+X  
+X  	while (fgets(buf, sizeof buf, note_fp) != NULL) {
+X! 		buf[8191] = '\0';
+X  
+X! 		for (ptr = buf ; *ptr && *ptr != '\n' ; ptr++) {
+X! 			if (((*ptr) & 0xFF) < ' ')
+X! 				*ptr = ' ';
+X  		}
+X! 		*ptr = '\0';
+X  		
+X  		if (*buf == '\0')
+X  			break;
+X***************
+X*** 906,922 ****
+X    			continue;
+X    		if (match_header (buf, "Subject", note_h_subj, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Organization", note_h_org, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Date", note_h_date, LEN))
+X    			continue;
+X    		if (match_header (buf, "Newsgroups", note_h_newsgroups, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Message-ID", note_h_messageid, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Message-Id", note_h_messageid, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Distribution", note_h_distrib, LEN))
+X    			continue;
+X    		if (match_header (buf, "Followup-To", note_h_followup, LEN))
+X    			continue;
+X--- 933,949 ----
+X    			continue;
+X    		if (match_header (buf, "Subject", note_h_subj, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Organization", note_h_org, PATH_LEN))
+X    			continue;
+X!   		if (match_header (buf, "Date", note_h_date, PATH_LEN))
+X    			continue;
+X    		if (match_header (buf, "Newsgroups", note_h_newsgroups, LEN))
+X    			continue;
+X!   		if (match_header (buf, "Message-ID", note_h_messageid, PATH_LEN))
+X    			continue;
+X!   		if (match_header (buf, "Message-Id", note_h_messageid, PATH_LEN))
+X    			continue;
+X!   		if (match_header (buf, "Distribution", note_h_distrib, PATH_LEN))
+X    			continue;
+X    		if (match_header (buf, "Followup-To", note_h_followup, LEN))
+X    			continue;
+X***************
+X*** 925,930 ****
+X--- 952,967 ----
+X  	note_mark[0] = ftell (note_fp);
+X  	note_end = FALSE;
+X  
+X+ 	/*
+X+ 	 * If Newsgroups is empty its a good bet the article is a mail article
+X+ 	 */
+X+ 	if (! note_h_newsgroups[0]) {
+X+ 		strcpy (note_h_newsgroups, group_path);
+X+ 		while (ptr = (char *) strchr (note_h_newsgroups, '/')) {
+X+ 			*ptr = '.';
+X+ 		}
+X+ 	}
+X+ 	
+X  	return (0);
+X  }
+X  
+Xdiff -rcs ../1.16/parsedate.y ./parsedate.y
+X*** ../1.16/parsedate.y	Sun Nov 15 18:42:01 1992
+X--- ./parsedate.y	Fri Sep 18 13:31:03 1992
+X***************
+X*** 2,10 ****
+X  /*
+X   *  Project   : tin - a threaded Netnews reader
+X   *  Module    : parsedate.y
+X!  *  Author    : S.Bellovin & R.$alz & J.Berets 
+X   *  Created   : 01-08-90
+X!  *  Updated   : 04-09-92
+X   *  Notes     : This grammar has 6 shift/reduce conflicts.
+X   *              Originally written by Steven M. Bellovin <smb@research.att.com> 
+X   *              while at the University of North Carolina at Chapel Hill.  
+X--- 2,10 ----
+X  /*
+X   *  Project   : tin - a threaded Netnews reader
+X   *  Module    : parsedate.y
+X!  *  Author    : S.Bellovin & R.$alz & J.Berets & P.Eggert
+X   *  Created   : 01-08-90
+X!  *  Updated   : 18-09-92
+X   *  Notes     : This grammar has 6 shift/reduce conflicts.
+X   *              Originally written by Steven M. Bellovin <smb@research.att.com> 
+X   *              while at the University of North Carolina at Chapel Hill.  
+X***************
+X*** 13,19 ****
+X   *              <jberets@bbn.com> in August, 1990. 
+X   *              Further revised (removed obsolete constructs and cleaned up 
+X   *              timezone names) in August, 1991, by Rich.
+X!  *  Revision  : 1.11
+X   *  Copyright : This code is in the public domain and has no copyright.
+X   */
+X  
+X--- 13,20 ----
+X   *              <jberets@bbn.com> in August, 1990. 
+X   *              Further revised (removed obsolete constructs and cleaned up 
+X   *              timezone names) in August, 1991, by Rich.
+X!  *              Paul Eggert <eggert@twinsun.com> helped in September 1992.
+X!  *  Revision  : 1.12
+X   *  Copyright : This code is in the public domain and has no copyright.
+X   */
+X  
+X***************
+X*** 35,41 ****
+X  
+X  typedef char	*STRING;
+X  
+X- 
+X  #define yyparse		date_parse
+X  #define yylex		date_lex
+X  #define yyerror		date_error
+X--- 36,41 ----
+X***************
+X*** 42,57 ****
+X  
+X  
+X      /* See the LeapYears table in Convert. */
+X! #define EPOCH		1970
+X! #define END_OF_TIME	2038
+X      /* Constants for general time calculations. */
+X  #define DST_OFFSET	1
+X  #define SECSPERDAY	(24L * 60L * 60L)
+X!     /* Readability ends for TABLE stuff. */
+X  #define HOUR(x)		(x * 60)
+X  #define LPAREN		'('
+X  #define RPAREN		')'
+X  
+X  /*
+X  **  An entry in the lexical lookup table.
+X  */
+X--- 42,65 ----
+X  
+X  
+X      /* See the LeapYears table in Convert. */
+X! #ifdef AMIGA
+X! #	define EPOCH		1978
+X! #	define END_OF_TIME	2046
+X! #else
+X! #	define EPOCH		1970
+X! #	define END_OF_TIME	2038
+X! #endif
+X      /* Constants for general time calculations. */
+X  #define DST_OFFSET	1
+X  #define SECSPERDAY	(24L * 60L * 60L)
+X!     /* Readability for TABLE stuff. */
+X  #define HOUR(x)		(x * 60)
+X+ 
+X  #define LPAREN		'('
+X  #define RPAREN		')'
+X+ #define IS7BIT(x)	((unsigned int)(x) < 0200)
+X  
+X+ 
+X  /*
+X  **  An entry in the lexical lookup table.
+X  */
+X***************
+X*** 206,219 ****
+X  	;
+X  
+X  numzone	: tSNUMBER {
+X  	    /* Unix and GMT and numeric timezones -- a little confusing. */
+X  	    if ($1 < 0) {
+X  		/* Don't work with negative modulus. */
+X  		$1 = -$1;
+X! 		$$ = ($1 / 100) * 60 + $1 % 100;
+X  	    }
+X- 	    else
+X- 		$$ = -(($1 / 100) * 60 + $1 % 100);
+X  	}
+X  	;
+X  
+X--- 214,236 ----
+X  	;
+X  
+X  numzone	: tSNUMBER {
+X+ 	    int	i;
+X+ 	                
+X  	    /* Unix and GMT and numeric timezones -- a little confusing. */
+X  	    if ($1 < 0) {
+X  		/* Don't work with negative modulus. */
+X  		$1 = -$1;
+X! 	 	if ($1 > 9999 || (i = $1 % 100) >= 60) {
+X! 	 		YYABORT;
+X! 	 	}
+X! 		$$ = ($1 / 100) * 60 + i;
+X! 	    }
+X! 	    else {
+X! 	 	if ($1 > 9999 || (i = $1 % 100) >= 60) {
+X! 	 		YYABORT;
+X! 	 	}
+X! 		$$ = -(($1 / 100) * 60 + i);
+X  	    }
+X  	}
+X  	;
+X  
+X***************
+X*** 483,492 ****
+X--- 500,516 ----
+X      static int	DaysLeap[13] = {
+X  	0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+X      };
+X+ #ifdef AMIGA
+X+     static int	LeapYears[] = {
+X+ 	1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012, 2016, 
+X+ 	2020, 2024, 2028, 2032, 2036, 2040, 2044
+X+     };
+X+ #else
+X      static int	LeapYears[] = {
+X  	1972, 1976, 1980, 1984, 1988, 1992, 1996,
+X  	2000, 2004, 2008, 2012, 2016, 2020, 2024, 2028, 2032, 2036
+X      };
+X+ #endif
+X      register int	*yp;
+X      register int	*mp;
+X      register time_t	Julian;
+X***************
+X*** 570,583 ****
+X      register char	*p;
+X      register STRING	q;
+X      register TABLE	*tp;
+X  
+X      p = buff;
+X! 
+X      /* See if we have an abbreviation for a month. */
+X      if (length == 3 || (length == 4 && p[3] == '.'))
+X  	for (tp = MonthDayTable; tp < ENDOF(MonthDayTable); tp++) {
+X  	    q = tp->name;
+X! 	    if (p[0] == q[0] && p[1] == q[1] && p[2] == q[2]) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X--- 594,609 ----
+X      register char	*p;
+X      register STRING	q;
+X      register TABLE	*tp;
+X+     register int	c;
+X  
+X      p = buff;
+X!     c = p[0];
+X!     
+X      /* See if we have an abbreviation for a month. */
+X      if (length == 3 || (length == 4 && p[3] == '.'))
+X  	for (tp = MonthDayTable; tp < ENDOF(MonthDayTable); tp++) {
+X  	    q = tp->name;
+X! 	    if (c == q[0] && p[1] == q[1] && p[2] == q[2]) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X***************
+X*** 584,590 ****
+X  	}
+X      else
+X  	for (tp = MonthDayTable; tp < ENDOF(MonthDayTable); tp++)
+X! 	    if (p[0] == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X--- 610,616 ----
+X  	}
+X      else
+X  	for (tp = MonthDayTable; tp < ENDOF(MonthDayTable); tp++)
+X! 	    if (c == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X***************
+X*** 591,597 ****
+X  
+X      /* Try for a timezone. */
+X      for (tp = TimezoneTable; tp < ENDOF(TimezoneTable); tp++)
+X! 	if (p[0] == tp->name[0] && p[1] == tp->name[1]
+X  	 && strcmp(p, tp->name) == 0) {
+X  	    yylval.Number = tp->value;
+X  	    return tp->type;
+X--- 617,623 ----
+X  
+X      /* Try for a timezone. */
+X      for (tp = TimezoneTable; tp < ENDOF(TimezoneTable); tp++)
+X! 	if (c == tp->name[0] && p[1] == tp->name[1]
+X  	 && strcmp(p, tp->name) == 0) {
+X  	    yylval.Number = tp->value;
+X  	    return tp->type;
+X***************
+X*** 599,605 ****
+X  
+X      /* Try the units table. */
+X      for (tp = UnitsTable; tp < ENDOF(UnitsTable); tp++)
+X! 	if (p[0] == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  	    yylval.Number = tp->value;
+X  	    return tp->type;
+X  	}
+X--- 625,631 ----
+X  
+X      /* Try the units table. */
+X      for (tp = UnitsTable; tp < ENDOF(UnitsTable); tp++)
+X! 	if (c == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  	    yylval.Number = tp->value;
+X  	    return tp->type;
+X  	}
+X***************
+X*** 608,614 ****
+X      if (--length > 0 && p[length] == 's') {
+X  	p[length] = '\0';
+X  	for (tp = UnitsTable; tp < ENDOF(UnitsTable); tp++)
+X! 	    if (p[0] == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  		p[length] = 's';
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X--- 634,640 ----
+X      if (--length > 0 && p[length] == 's') {
+X  	p[length] = '\0';
+X  	for (tp = UnitsTable; tp < ENDOF(UnitsTable); tp++)
+X! 	    if (c == tp->name[0] && strcmp(p, tp->name) == 0) {
+X  		p[length] = 's';
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X***************
+X*** 636,649 ****
+X      }
+X  
+X      /* If we saw any periods, try the timezones again. */
+X!     if (p - buff != length)
+X  	for (p = buff, tp = TimezoneTable; tp < ENDOF(TimezoneTable); tp++)
+X! 	    if (p[0] == tp->name[0] && p[1] == tp->name[1]
+X  	    && strcmp(p, tp->name) == 0) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X! 
+X      /* Unknown word -- assume GMT timezone. */
+X      yylval.Number = 0;
+X      return tZONE;
+X--- 662,677 ----
+X      }
+X  
+X      /* If we saw any periods, try the timezones again. */
+X!     if (p - buff != length) {
+X! 	c = buff[0];    
+X  	for (p = buff, tp = TimezoneTable; tp < ENDOF(TimezoneTable); tp++)
+X! 	    if (c == tp->name[0] && p[1] == tp->name[1]
+X  	    && strcmp(p, tp->name) == 0) {
+X  		yylval.Number = tp->value;
+X  		return tp->type;
+X  	    }
+X!     }
+X!     
+X      /* Unknown word -- assume GMT timezone. */
+X      yylval.Number = 0;
+X      return tZONE;
+X***************
+X*** 658,677 ****
+X      char		buff[20];
+X      register int	sign;
+X      register int	i;
+X  
+X      for ( ; ; ) {
+X  	/* Get first character after the whitespace. */
+X! 	while (CTYPE(isspace, *yyInput))
+X! 	    yyInput++;
+X! 	c = *yyInput;
+X! 	/* Ignore timezone comments. */
+X! 	if (c == LPAREN) {
+X! 	    while ((c == *++yyInput) != '\0' && c != RPAREN)
+X! 		continue;
+X! 	    if (c == RPAREN) {
+X  		yyInput++;
+X! 		continue;
+X! 	    }
+X  	}
+X  
+X  	/* A number? */
+X--- 686,711 ----
+X      char		buff[20];
+X      register int	sign;
+X      register int	i;
+X+     register int	nesting;
+X  
+X      for ( ; ; ) {
+X  	/* Get first character after the whitespace. */
+X! 	for ( ; ; ) {
+X! 	    while (CTYPE(isspace, *yyInput))
+X  		yyInput++;
+X! 	    c = *yyInput;
+X! 
+X! 	    /* Ignore RFC 822 comments, typically time zone names. */
+X! 	    if (c != LPAREN)
+X! 		break;
+X! 	    for (nesting = 1; (c = *++yyInput) != RPAREN || --nesting; )
+X! 		if (c == LPAREN)
+X! 		    nesting++;
+X! 		else if (!IS7BIT(c) || c == '\0' || c == '\r'
+X! 		     || (c == '\\' && ((c = *++yyInput) == '\0' || !IS7BIT(c))))
+X! 		    /* Lexical error: bad comment. */
+X! 		    return '?';
+X! 	    yyInput++;
+X  	}
+X  
+X  	/* A number? */
+Xdiff -rcs ../1.16/patchlev.h ./patchlev.h
+X*** ../1.16/patchlev.h	Sun Nov 15 18:41:43 1992
+X--- ./patchlev.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : patchlev.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 12-08-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : patchlev.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 14-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 13,16 ****
+X   */
+X  
+X  #define VERSION		"1.1"		/* Beta versions are "1.n Beta" */
+X! #define PATCHLEVEL	6
+X--- 13,16 ----
+X   */
+X  
+X  #define VERSION		"1.1"		/* Beta versions are "1.n Beta" */
+X! #define PATCHLEVEL	7
+Xdiff -rcs ../1.16/post.c ./post.c
+X*** ../1.16/post.c	Sun Nov 15 18:42:02 1992
+X--- ./post.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : post.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 11-09-92
+X   *  Notes     : mail/post/replyto/followup/crosspost & cancel articles
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : post.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     : mail/post/replyto/followup/crosspost & cancel articles
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 16,27 ****
+X  
+X  #define	PRINT_LF()	Raw (FALSE); fputc ('\n', stdout); fflush (stdout); Raw (TRUE);
+X  
+X! extern char note_h_distrib[LEN];		/* Distribution: */
+X  extern char note_h_followup[LEN];		/* Followup-To: */
+X! extern char note_h_messageid[LEN];		/* Message-ID:	*/
+X  extern char note_h_newsgroups[LEN];		/* Newsgroups:	*/
+X  extern char note_h_subj[LEN];			/* Subject:	*/
+X! extern char note_h_date[LEN];			/* Date:	*/
+X  extern FILE *note_fp;				/* the body of the current article */
+X  extern long note_mark[MAX_PAGES];		/* ftells on beginnings of pages */
+X  
+X--- 16,27 ----
+X  
+X  #define	PRINT_LF()	Raw (FALSE); fputc ('\n', stdout); fflush (stdout); Raw (TRUE);
+X  
+X! extern char note_h_distrib[PATH_LEN];		/* Distribution: */
+X  extern char note_h_followup[LEN];		/* Followup-To: */
+X! extern char note_h_messageid[PATH_LEN];		/* Message-ID:	*/
+X  extern char note_h_newsgroups[LEN];		/* Newsgroups:	*/
+X  extern char note_h_subj[LEN];			/* Subject:	*/
+X! extern char note_h_date[PATH_LEN];		/* Date:	*/
+X  extern FILE *note_fp;				/* the body of the current article */
+X  extern long note_mark[MAX_PAGES];		/* ftells on beginnings of pages */
+X  
+X***************
+X*** 227,234 ****
+X  	sprintf (buf, txt_post_newsgroups, default_post_newsgroups);
+X  	
+X  	if (! prompt_string (buf, group)) {
+X- /*		Raw(FALSE);
+X- */
+X  		fprintf (stderr, "%s\n", txt_no_quick_newsgroups);
+X  		return;
+X  	}
+X--- 227,232 ----
+X***************
+X*** 240,247 ****
+X  		if (default_post_newsgroups[0]) {
+X  			my_strncpy (group, default_post_newsgroups, sizeof (group));
+X  		} else {
+X- /*			Raw(FALSE);
+X- */
+X  			fprintf (stderr, "%s\n", txt_no_quick_newsgroups);
+X  			return;
+X  		}
+X--- 238,243 ----
+X***************
+X*** 305,311 ****
+X  	}
+X  	
+X  	PRINT_LF();
+X! 	start_line_offset = 7;
+X  
+X  	if ((fp = fopen (article, "w")) == NULL) {
+X  		Raw (FALSE);
+X--- 301,307 ----
+X  	}
+X  	
+X  	PRINT_LF();
+X! 	start_line_offset = 6;
+X  
+X  	if ((fp = fopen (article, "w")) == NULL) {
+X  		Raw (FALSE);
+X***************
+X*** 314,323 ****
+X  	}
+X  	chmod (article, 0600);
+X  
+X  	fprintf (fp, "Subject: %s\n", subj);
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 310,322 ----
+X  	}
+X  	chmod (article, 0600);
+X  
+X+ /* FIXME so that group only conatains 1 group when finding an index number */
+X+ i = find_group_index (group);
+X+ 
+X  	fprintf (fp, "Subject: %s\n", subj);
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X! 	if (i >= 0 && active[i].attribute.organization != (char *) 0) {
+X! 		fprintf (fp, "Organization: %s\n", active[i].attribute.organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 324,336 ****
+X  		fprintf (fp, "Reply-To: %s\n", reply_to);
+X  		start_line_offset++;
+X  	}
+X! i = find_group_index (group);
+X! if (i >= 0 && active[i].attribute.followup_to != (char *) 0) {
+X! fprintf (fp, "Followup-To: %s\n", active[i].attribute.followup_to);
+X! start_line_offset++;
+X! }
+X  	if (*my_distribution) {
+X  		fprintf (fp, "Distribution: %s\n", my_distribution);
+X  	}
+X  	fprintf (fp, "Summary: \n");
+X  	fprintf (fp, "Keywords: \n\n\n");
+X--- 323,335 ----
+X  		fprintf (fp, "Reply-To: %s\n", reply_to);
+X  		start_line_offset++;
+X  	}
+X! 	if (i >= 0 && active[i].attribute.followup_to != (char *) 0) {
+X! 		fprintf (fp, "Followup-To: %s\n", active[i].attribute.followup_to);
+X! 		start_line_offset++;
+X! 	}
+X  	if (*my_distribution) {
+X  		fprintf (fp, "Distribution: %s\n", my_distribution);
+X+ 		start_line_offset++;
+X  	}
+X  	fprintf (fp, "Summary: \n");
+X  	fprintf (fp, "Keywords: \n\n\n");
+X***************
+X*** 439,445 ****
+X  	}
+X  	
+X  	*posted = FALSE;
+X! 	start_line_offset = 7;
+X  
+X  	if (active[my_group[cur_groupnum]].moderated == 'm') {
+X  		sprintf (msg, "Group %s is moderated. Continue? (y/n): ", group);
+X--- 438,444 ----
+X  	}
+X  	
+X  	*posted = FALSE;
+X! 	start_line_offset = 6;
+X  
+X  	if (active[my_group[cur_groupnum]].moderated == 'm') {
+X  		sprintf (msg, "Group %s is moderated. Continue? (y/n): ", group);
+X***************
+X*** 476,485 ****
+X  	}
+X  	chmod (article, 0600);
+X  
+X  	fprintf (fp, "Subject: %s\n", subj);
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 475,486 ----
+X  	}
+X  	chmod (article, 0600);
+X  
+X+ 	i = find_group_index (group);
+X+ 
+X  	fprintf (fp, "Subject: %s\n", subj);
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X! 	if (i >= 0 && active[i].attribute.organization != (char *) 0) {
+X! 		fprintf (fp, "Organization: %s\n", active[i].attribute.organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 486,492 ****
+X  		fprintf (fp, "Reply-To: %s\n", reply_to);
+X  		start_line_offset++;
+X  	}
+X- 	i = find_group_index (group);
+X  	if (i >= 0 && active[i].attribute.followup_to != (char *) 0) {
+X  		fprintf (fp, "Followup-To: %s\n", active[i].attribute.followup_to);
+X  		start_line_offset++;
+X--- 487,492 ----
+X***************
+X*** 493,498 ****
+X--- 493,499 ----
+X  	}
+X  	if (*my_distribution) {
+X  		fprintf (fp, "Distribution: %s\n", my_distribution);
+X+ 		start_line_offset++;
+X  	}
+X  	fprintf (fp, "Summary: \n");
+X  	fprintf (fp, "Keywords: \n\n\n");
+X***************
+X*** 505,511 ****
+X  		switch (ch) {
+X  		case 'e':
+X  			invoke_editor (article);
+X! 			while (! post_header_ok(article)) {
+X  				do {
+X  					sprintf (msg, "%s%c", txt_no_blank_line, 'e');
+X  					wait_message (msg);
+X--- 506,512 ----
+X  		switch (ch) {
+X  		case 'e':
+X  			invoke_editor (article);
+X! 			while (! post_header_ok (article)) {
+X  				do {
+X  					sprintf (msg, "%s%c", txt_no_blank_line, 'e');
+X  					wait_message (msg);
+X***************
+X*** 602,608 ****
+X  		}
+X  		*note_h_followup = '\0';
+X  		find_reply_to_addr (respnum, buf);
+X! 		mail_to_someone (buf, TRUE, FALSE, &ret_code);
+X  		return (ret_code);
+X  	} else if (*note_h_followup && strcmp (note_h_followup, group) != 0) {
+X  		MoveCursor (LINES/2, 0);
+X--- 603,609 ----
+X  		}
+X  		*note_h_followup = '\0';
+X  		find_reply_to_addr (respnum, buf);
+X! 		mail_to_someone (respnum, buf, TRUE, FALSE, &ret_code);
+X  		return (ret_code);
+X  	} else if (*note_h_followup && strcmp (note_h_followup, group) != 0) {
+X  		MoveCursor (LINES/2, 0);
+X***************
+X*** 633,638 ****
+X--- 634,641 ----
+X  	}
+X  	chmod (article, 0600);
+X  
+X+ 	i = find_group_index (group);
+X+ 
+X  	fprintf (fp, "Subject: Re: %s\n", eat_re (note_h_subj));
+X  
+X  	if (*note_h_followup && strcmp (note_h_followup, "poster") != 0) {
+X***************
+X*** 639,655 ****
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_followup);
+X  	} else {
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X  	}
+X  
+X- 	i = find_group_index (group);
+X- 	if (i >= 0 && active[i].attribute.followup_to != (char *) 0) {
+X- 		fprintf (fp, "Followup-To: %s\n", active[i].attribute.followup_to);
+X- 	}
+X- 	
+X  	fprintf (fp, "References: %s\n", note_h_messageid);
+X  
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 642,665 ----
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_followup);
+X  	} else {
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X+ 		if (i >= 0 && active[i].attribute.followup_to != (char *) 0) {
+X+ 			fprintf (fp, "Followup-To: %s\n", 
+X+ 				active[i].attribute.followup_to);
+X+ 			start_line_offset++;
+X+ 		} else {
+X+ 			ptr = (char *) strchr (note_h_newsgroups, ',');
+X+ 			if (ptr) {
+X+ 				fprintf (fp, "Followup-To: %s\n", 
+X+ 					note_h_newsgroups);
+X+ 				start_line_offset++;
+X+ 			}
+X+ 		}
+X  	}
+X  
+X  	fprintf (fp, "References: %s\n", note_h_messageid);
+X  
+X! 	if (i >= 0 && active[i].attribute.organization != (char *) 0) {
+X! 		fprintf (fp, "Organization: %s\n", active[i].attribute.organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 662,674 ****
+X  	}
+X  	fprintf (fp, "\n");
+X  
+X! 	if (copy_text) {	/* if "copy_text" */
+X! 		if (arts[respnum].from != (char *) 0) { 	
+X! 			if (arts[respnum].name == arts[respnum].from) { 	
+X! 				fprintf (fp, txt_writes, arts[respnum].from);
+X! 			} else {
+X! 				fprintf (fp, txt_writes_name, arts[respnum].name, arts[respnum].from);
+X! 			}
+X  		}
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X--- 672,680 ----
+X  	}
+X  	fprintf (fp, "\n");
+X  
+X! 	if (copy_text) {
+X! 		if (strfquote (group, respnum, buf, sizeof (buf), news_quote_format)) {
+X! 			fprintf (fp, "%s\n", buf);
+X  		}
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X***************
+X*** 758,764 ****
+X  }
+X  
+X  
+X! int mail_to_someone (address, mail_to_poster, confirm_to_mail, mailed_ok)
+X  	char *address;
+X  	int mail_to_poster;
+X  	int confirm_to_mail;
+X--- 764,771 ----
+X  }
+X  
+X  
+X! int mail_to_someone (respnum, address, mail_to_poster, confirm_to_mail, mailed_ok)
+X! 	int respnum;
+X  	char *address;
+X  	int mail_to_poster;
+X  	int confirm_to_mail;
+X***************
+X*** 797,804 ****
+X  	} else {
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X  	}
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 804,811 ----
+X  	} else {
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X  	}
+X! 	if (*default_organization) {
+X! 		fprintf (fp, "Organization: %s\n", default_organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 809,815 ****
+X  	
+X  	if (mail_to_poster) {
+X  		ch = 'e';
+X! 		fprintf (fp, "In article %s you wrote:\n", note_h_messageid);
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X  	} else {
+X--- 816,825 ----
+X  	
+X  	if (mail_to_poster) {
+X  		ch = 'e';
+X! 		if (strfquote (active[my_group[cur_groupnum]].name, 
+X! 		    respnum, buf, sizeof (buf), mail_quote_format)) {
+X! 			fprintf (fp, "%s\n", buf);
+X! 		}
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X  	} else {
+X***************
+X*** 824,830 ****
+X  		if (confirm_to_mail) {
+X  			do {
+X  				sprintf (msg, "%s [%.*s]: %c", txt_quit_edit_send, 
+X! 					COLS-30, note_h_subj, ch_default);
+X  				wait_message (msg);
+X  				MoveCursor (LINES, (int) (strlen (msg)-1));
+X  				if ((ch = (char) ReadCh ()) == CR)
+X--- 834,840 ----
+X  		if (confirm_to_mail) {
+X  			do {
+X  				sprintf (msg, "%s [%.*s]: %c", txt_quit_edit_send, 
+X! 					COLS-36, note_h_subj, ch_default);
+X  				wait_message (msg);
+X  				MoveCursor (LINES, (int) (strlen (msg)-1));
+X  				if ((ch = (char) ReadCh ()) == CR)
+X***************
+X*** 846,853 ****
+X  
+X  			case 's':
+X  				/*
+X! 				 *  Open letter and get the To: line in case they changed
+X! 				 *  it with the editor
+X  				 */
+X  				find_mail_header (HEADER_TO, nam, mail_to);
+X  				sprintf (msg, txt_mailing_to, mail_to);
+X--- 856,863 ----
+X  
+X  			case 's':
+X  				/*
+X! 				 *  Open letter and get the To: line in case 
+X! 				 *  they changed it with the editor
+X  				 */
+X  				find_mail_header (HEADER_TO, nam, mail_to);
+X  				sprintf (msg, txt_mailing_to, mail_to);
+X***************
+X*** 868,874 ****
+X  		if (mail_to_poster) {
+X  			do {
+X  				sprintf (msg, "%s [Re: %.*s]: %c", txt_quit_edit_send, 
+X! 					COLS-34, eat_re (note_h_subj), ch_default);
+X  				wait_message (msg);
+X  				MoveCursor (LINES, (int) (strlen (msg)-1));
+X  				if ((ch = (char) ReadCh ()) == CR)
+X--- 878,884 ----
+X  		if (mail_to_poster) {
+X  			do {
+X  				sprintf (msg, "%s [Re: %.*s]: %c", txt_quit_edit_send, 
+X! 					COLS-36, eat_re (note_h_subj), ch_default);
+X  				wait_message (msg);
+X  				MoveCursor (LINES, (int) (strlen (msg)-1));
+X  				if ((ch = (char) ReadCh ()) == CR)
+X***************
+X*** 886,901 ****
+X  
+X  int mail_bug_report ()
+X  {
+X! 	char nam[100];
+X! 	char ch;
+X! 	char ch_default = 's';
+X! 	char buf[LEN];
+X  	char mail_to[PATH_LEN];
+X  	FILE *fp;
+X  	FILE *fp_uname;
+X  	int is_nntp = FALSE;
+X! 	int is_nntp_only   = FALSE;
+X! 	int is_longfiles   = FALSE;
+X  	int uname_ok = FALSE;
+X  
+X  	start_line_offset = 5;
+X--- 896,912 ----
+X  
+X  int mail_bug_report ()
+X  {
+X! 	char buf[LEN], nam[100];
+X! 	char *gateway = (char *) 0;
+X! 	char *domain = (char *) 0;
+X! 	char ch, ch_default = 's';
+X  	char mail_to[PATH_LEN];
+X  	FILE *fp;
+X  	FILE *fp_uname;
+X+ 	int is_debug = FALSE;
+X+ 	int is_longfiles = FALSE;
+X  	int is_nntp = FALSE;
+X! 	int is_nntp_only = FALSE;
+X  	int uname_ok = FALSE;
+X  
+X  	start_line_offset = 5;
+X***************
+X*** 910,919 ****
+X  	chmod(nam, 0600);
+X  
+X  	fprintf (fp, "To: %s%s\n", bug_addr, add_addr);
+X! 	fprintf (fp, "Subject: BUG REPORT %s %s PL%d\n",
+X! 		progname, VERSION, PATCHLEVEL);
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 921,929 ----
+X  	chmod(nam, 0600);
+X  
+X  	fprintf (fp, "To: %s%s\n", bug_addr, add_addr);
+X! 	fprintf (fp, "Subject: BUG REPORT tin %s PL%d\n", VERSION, PATCHLEVEL);
+X! 	if (*default_organization) {
+X! 		fprintf (fp, "Organization: %s\n", default_organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 945,957 ****
+X  #ifdef NNTP_ONLY
+X  	is_nntp_only = TRUE;
+X  #endif
+X! 	fprintf (fp, "\nCFG1: active=%d  arts=%d  reread=%d  longfilenames=%d  setuid=%d\n\
+X! CFG2: nntp=%d  nntp_only=%d  nntp_xuser=%d  nntp_xindex=%d  nntp_xspooldir=%d\n",
+X! 		DEFAULT_ACTIVE_NUM,DEFAULT_ARTICLE_NUM,reread_active_file_secs,
+X! 		is_longfiles, (tin_uid == real_uid ? 0 : 1), is_nntp, 
+X! 		is_nntp_only,  xuser_supported, xindex_supported, 
+X  		xspooldir_supported);
+X! 	start_line_offset += 2;
+X  	
+X  	fprintf (fp, "\nPlease enter bug report/gripe/comment:\n");
+X  
+X--- 955,987 ----
+X  #ifdef NNTP_ONLY
+X  	is_nntp_only = TRUE;
+X  #endif
+X! #ifdef DEBUG
+X! 	is_debug = TRUE;
+X! #endif
+X! #ifdef NNTP_INEWS_GATEWAY
+X! 	gateway = NNTP_INEWS_GATEWAY;
+X! #endif
+X! #ifdef NNTP_INEWS_DOMAIN
+X! 	domain = NNTP_INEWS_DOMAIN;
+X! #endif
+X! 	fprintf (fp, "\nCFG1: active=%d  arts=%d  reread=%d  longfilenames=%d  setuid=%d\n",
+X! 		DEFAULT_ACTIVE_NUM, 
+X! 		DEFAULT_ARTICLE_NUM, 
+X! 		reread_active_file_secs,
+X! 		is_longfiles, 
+X! 		(tin_uid == real_uid ? 0 : 1));
+X! 	fprintf (fp, "CFG2: nntp=%d  nntp_only=%d  nntp_xuser=%d  nntp_xindex=%d  nntp_xspooldir=%d\n",
+X! 		is_nntp, 
+X! 		is_nntp_only,  
+X! 		xuser_supported, 
+X! 		xindex_supported, 
+X  		xspooldir_supported);
+X! 	fprintf (fp, "CFG3: debug=%d gateway=[%s] domain=[%s]\n",
+X! 		is_debug,
+X! 		(gateway ? gateway : ""),
+X! 		(domain ? domain : ""));
+X! 
+X! 	start_line_offset += 3;
+X  	
+X  	fprintf (fp, "\nPlease enter bug report/gripe/comment:\n");
+X  
+X***************
+X*** 974,980 ****
+X  			return TRUE;
+X  		case 's':
+X  			sprintf (msg, txt_mail_bug_report_confirm, bug_addr, add_addr);
+X! 			if (prompt_yn (LINES, msg, 'y')) {
+X  				strcpy (mail_to, bug_addr);
+X  				find_mail_header (HEADER_TO, nam, mail_to);
+X  				sprintf (msg, txt_mailing_to, mail_to);
+X--- 1004,1010 ----
+X  			return TRUE;
+X  		case 's':
+X  			sprintf (msg, txt_mail_bug_report_confirm, bug_addr, add_addr);
+X! 			if (prompt_yn (LINES, msg, 'n')) {
+X  				strcpy (mail_to, bug_addr);
+X  				find_mail_header (HEADER_TO, nam, mail_to);
+X  				sprintf (msg, txt_mailing_to, mail_to);
+X***************
+X*** 1042,1049 ****
+X  	fprintf (fp, "To: %s\n", from_addr);
+X  	fprintf (fp, "Subject: Re: %s\n", eat_re(note_h_subj) );
+X  	fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 1072,1079 ----
+X  	fprintf (fp, "To: %s\n", from_addr);
+X  	fprintf (fp, "Subject: Re: %s\n", eat_re(note_h_subj) );
+X  	fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X! 	if (*default_organization) {
+X! 		fprintf (fp, "Organization: %s\n", default_organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 1052,1059 ****
+X  	}
+X  	fputc ('\n', fp);
+X  
+X! 	if (copy_text) {		/* if "copy_text" */
+X! 		fprintf (fp, txt_in_art_you_write, note_h_messageid);
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X  	}
+X--- 1082,1091 ----
+X  	}
+X  	fputc ('\n', fp);
+X  
+X! 	if (copy_text) {
+X! 		if (strfquote (group, respnum, buf, sizeof (buf), mail_quote_format)) {
+X! 			fprintf (fp, "%s\n", buf);
+X! 		}
+X  		fseek (note_fp, note_mark[0], 0);
+X  		copy_fp (note_fp, fp, quote_chars);
+X  	}
+X***************
+X*** 1080,1085 ****
+X--- 1112,1118 ----
+X  			find_mail_header (HEADER_TO, nam, mail_to);
+X  			sprintf (msg, txt_mailing_to, mail_to);
+X  			wait_message (msg);
+X+ 			insert_x_headers (nam);
+X  #ifdef AMIGA
+X  			sprintf (buf, "%s <%s -f %s", mailer, nam, userid);
+X  #else
+X***************
+X*** 1150,1158 ****
+X  					my_strncpy (buf2, &buf[4], sizeof (buf2));
+X  					yank_to_addr (buf2, new_value);
+X  					found = TRUE;
+X! 				} 
+X  				break;
+X- 
+X  			case HEADER_NEWSGROUPS:
+X  				if (match_string (buf, "Newsgroups: ", new_value, sizeof (new_value))) {
+X  					found = TRUE;
+X--- 1183,1190 ----
+X  					my_strncpy (buf2, &buf[4], sizeof (buf2));
+X  					yank_to_addr (buf2, new_value);
+X  					found = TRUE;
+X! 				}
+X  				break;
+X  			case HEADER_NEWSGROUPS:
+X  				if (match_string (buf, "Newsgroups: ", new_value, sizeof (new_value))) {
+X  					found = TRUE;
+X***************
+X*** 1177,1194 ****
+X  }
+X  
+X  
+X! int cancel_article (group, respnum)
+X  	char *group;
+X  	int respnum;
+X  {
+X! 	char ch, ch_default = 'c';
+X  	char buf[LEN];
+X! 	char cancel[PATH_LEN];
+X  	char host_name[PATH_LEN];
+X  	char user_name[128];
+X  	char full_name[128];
+X  	char from[PATH_LEN];
+X  	FILE *fp;
+X  	int redraw_screen = FALSE;
+X  
+X  	/*
+X--- 1209,1227 ----
+X  }
+X  
+X  
+X! int delete_article (group, respnum)
+X  	char *group;
+X  	int respnum;
+X  {
+X! 	char ch, ch_default = 'd';
+X  	char buf[LEN];
+X! 	char delete[PATH_LEN];
+X  	char host_name[PATH_LEN];
+X  	char user_name[128];
+X  	char full_name[128];
+X  	char from[PATH_LEN];
+X  	FILE *fp;
+X+ 	int i;
+X  	int redraw_screen = FALSE;
+X  
+X  	/*
+X***************
+X*** 1199,1209 ****
+X  		return (redraw_screen);
+X  	}
+X  
+X  	start_line_offset = 4;
+X  
+X  	get_host_name (host_name);
+X  	get_user_info (user_name, full_name);
+X! 	get_from_name (user_name, host_name, full_name, cancel);
+X  
+X  	if (arts[respnum].from != arts[respnum].name) {
+X  		sprintf (from, "%s (%s)", arts[respnum].from, arts[respnum].name);
+X--- 1232,1262 ----
+X  		return (redraw_screen);
+X  	}
+X  
+X+ 	/*
+X+ 	 * Check if news / mail group
+X+ 	 */
+X+ 	i = find_group_index (group);
+X+ 	if (i == -1) {
+X+ 		clear_message ();
+X+ 		return (redraw_screen); 
+X+ 	}
+X+ 	if (active[i].type == GROUP_TYPE_MAIL) {
+X+ 		make_group_path (group, buf);
+X+ 		sprintf (delete, "%s/%s/%ld", active[i].spooldir, buf, respnum);
+X+ 		sprintf (buf, "Delete article [%s]? (y/n): ", delete);
+X+ 		if (prompt_yn (LINES, buf, 'y')) {
+X+ 			unlink (delete);
+X+ 			return TRUE;
+X+ 		} else {
+X+ 			return (redraw_screen); 
+X+ 		}
+X+ 	}
+X+ 		 
+X  	start_line_offset = 4;
+X  
+X  	get_host_name (host_name);
+X  	get_user_info (user_name, full_name);
+X! 	get_from_name (user_name, host_name, full_name, delete);
+X  
+X  	if (arts[respnum].from != arts[respnum].name) {
+X  		sprintf (from, "%s (%s)", arts[respnum].from, arts[respnum].name);
+X***************
+X*** 1212,1234 ****
+X  	}
+X  
+X  	if (debug == 2) {
+X! 		sprintf (msg, "From=[%s]  Cancel=[%s]", from, cancel);		
+X  		error_message (msg, "");
+X  	}
+X  	
+X! 	if (strcmp (from, cancel) != 0) {
+X! 		info_message (txt_art_cannot_cancel);
+X  		return (redraw_screen);
+X  	}
+X  			
+X  	clear_message ();
+X  	
+X! 	joinpath (cancel, homedir, ".cancel");
+X! 	if ((fp = fopen (cancel, "w")) == NULL) {
+X! 		perror_message (txt_cannot_open, cancel);
+X  		return (redraw_screen);
+X  	}
+X! 	chmod (cancel, 0600);
+X  
+X  	fprintf (fp, "Subject: cancel %s\n", note_h_messageid);
+X  	if (*note_h_followup) {
+X--- 1265,1287 ----
+X  	}
+X  
+X  	if (debug == 2) {
+X! 		sprintf (msg, "From=[%s]  Cancel=[%s]", from, delete);		
+X  		error_message (msg, "");
+X  	}
+X  	
+X! 	if (strcmp (from, delete) != 0) {
+X! 		info_message (txt_art_cannot_delete);
+X  		return (redraw_screen);
+X  	}
+X  			
+X  	clear_message ();
+X  	
+X! 	joinpath (delete, homedir, ".cancel");
+X! 	if ((fp = fopen (delete, "w")) == NULL) {
+X! 		perror_message (txt_cannot_open, delete);
+X  		return (redraw_screen);
+X  	}
+X! 	chmod (delete, 0600);
+X  
+X  	fprintf (fp, "Subject: cancel %s\n", note_h_messageid);
+X  	if (*note_h_followup) {
+X***************
+X*** 1237,1244 ****
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X  	}
+X  	fprintf (fp, "Control: cancel %s\n", note_h_messageid);
+X! 	if (*my_org) { 
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;	
+X  	}
+X  	if (*reply_to) {
+X--- 1290,1297 ----
+X  		fprintf (fp, "Newsgroups: %s\n", note_h_newsgroups);
+X  	}
+X  	fprintf (fp, "Control: cancel %s\n", note_h_messageid);
+X! 	if (*default_organization) { 
+X! 		fprintf (fp, "Organization: %s\n", default_organization);
+X  		start_line_offset++;	
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 1245,1253 ****
+X  		fprintf (fp, "Reply-To: %s\n", reply_to);
+X  		start_line_offset++;	
+X  	}
+X  	fputc ('\n', fp);
+X  
+X! 	fprintf (fp, "Article cancelled from within tin v%s PL%d\n",
+X  		VERSION, PATCHLEVEL);
+X  	
+X  	fclose (fp);
+X--- 1298,1310 ----
+X  		fprintf (fp, "Reply-To: %s\n", reply_to);
+X  		start_line_offset++;	
+X  	}
+X+ 	if (*note_h_distrib) {
+X+ 		fprintf (fp, "Distribution: %s\n", note_h_distrib);
+X+ 		start_line_offset++;	
+X+ 	}
+X  	fputc ('\n', fp);
+X  
+X! 	fprintf (fp, "Article cancelled from within tin [v%s PL%d]\n",
+X  		VERSION, PATCHLEVEL);
+X  	
+X  	fclose (fp);
+X***************
+X*** 1254,1295 ****
+X  	
+X  	while (1) {
+X  		do {
+X! 			sprintf (msg, "%s [%.*s]: %c", txt_quit_edit_cancel,
+X  				COLS-30, note_h_subj, ch_default);
+X  			wait_message (msg);
+X  			MoveCursor (LINES, (int) strlen (msg)-1);
+X  			if ((ch = (char) ReadCh ()) == CR)
+X  				ch = ch_default;
+X! 		} while (! strchr ("ceq\033", ch));
+X  
+X  		switch (ch) {
+X  		case 'e':
+X! 			invoke_editor (cancel);
+X  			redraw_screen = TRUE;
+X  			break;
+X  
+X  		case 'q':
+X  		case ESC:
+X! 			unlink (cancel);
+X  			clear_message ();
+X  			return (redraw_screen);
+X  
+X! 		case 'c':
+X! 			wait_message (txt_cancelling);
+X! 			if (submit_file (cancel)) {
+X! 				info_message (txt_art_cancelled);
+X! 				goto cancel_article_done;
+X  			} else {
+X! 				error_message (txt_command_failed_s, cancel);
+X  				break;
+X  			}
+X  		}
+X  	}
+X  
+X! cancel_article_done:
+X! 	find_mail_header (HEADER_SUBJECT, cancel, buf);
+X! 	unlink (cancel);
+X! 	update_art_posted_file (group, 'c', buf);
+X  
+X  	return (redraw_screen);
+X  }
+X--- 1311,1352 ----
+X  	
+X  	while (1) {
+X  		do {
+X! 			sprintf (msg, "%s [%.*s]: %c", txt_quit_edit_delete,
+X  				COLS-30, note_h_subj, ch_default);
+X  			wait_message (msg);
+X  			MoveCursor (LINES, (int) strlen (msg)-1);
+X  			if ((ch = (char) ReadCh ()) == CR)
+X  				ch = ch_default;
+X! 		} while (! strchr ("deq\033", ch));
+X  
+X  		switch (ch) {
+X  		case 'e':
+X! 			invoke_editor (delete);
+X  			redraw_screen = TRUE;
+X  			break;
+X  
+X  		case 'q':
+X  		case ESC:
+X! 			unlink (delete);
+X  			clear_message ();
+X  			return (redraw_screen);
+X  
+X! 		case 'd':
+X! 			wait_message (txt_deleting_art);
+X! 			if (submit_file (delete)) {
+X! 				info_message (txt_art_deleted);
+X! 				goto delete_article_done;
+X  			} else {
+X! 				error_message (txt_command_failed_s, delete);
+X  				break;
+X  			}
+X  		}
+X  	}
+X  
+X! delete_article_done:
+X! 	find_mail_header (HEADER_SUBJECT, delete, buf);
+X! 	unlink (delete);
+X! 	update_art_posted_file (group, 'd', buf);
+X  
+X  	return (redraw_screen);
+X  }
+X***************
+X*** 1306,1312 ****
+X  	char ch;
+X  	char ch_default = 'p';
+X  	FILE *fp;
+X! 	int ret_code = POSTED_NONE;
+X  	
+X  	start_line_offset = 4;
+X  
+X--- 1363,1369 ----
+X  	char ch;
+X  	char ch_default = 'p';
+X  	FILE *fp;
+X! 	int i, ret_code = POSTED_NONE;
+X  	
+X  	start_line_offset = 4;
+X  
+X***************
+X*** 1319,1326 ****
+X  	fprintf (fp, "Subject: %s\n", eat_re (note_h_subj));
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X  
+X! 	if (*my_org) {
+X! 		fprintf (fp, "Organization: %s\n", my_org);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X--- 1376,1384 ----
+X  	fprintf (fp, "Subject: %s\n", eat_re (note_h_subj));
+X  	fprintf (fp, "Newsgroups: %s\n", group);
+X  
+X! 	i = find_group_index (group);
+X! 	if (i >= 0 && active[i].attribute.organization != (char *) 0) {
+X! 		fprintf (fp, "Organization: %s\n", active[i].attribute.organization);
+X  		start_line_offset++;
+X  	}
+X  	if (*reply_to) {
+X***************
+X*** 1403,1409 ****
+X  
+X  	insert_x_headers (name);
+X  
+X! 	if (read_news_via_nntp) {
+X  #ifdef DEBUG
+X  		if (debug == 2) {
+X  			wait_message ("Using BUILTIN inews");
+X--- 1461,1467 ----
+X  
+X  	insert_x_headers (name);
+X  
+X! 	if (read_news_via_nntp && use_builtin_inews) {
+X  #ifdef DEBUG
+X  		if (debug == 2) {
+X  			wait_message ("Using BUILTIN inews");
+X***************
+X*** 1437,1474 ****
+X  }
+X  
+X  
+X- void add_signature (fp, flag)
+X- 	FILE *fp;
+X- 	int flag;
+X- {
+X- 	FILE *sigfp;
+X- 
+X- #ifdef NNTP_INEWS
+X- 	if (read_news_via_nntp) {
+X- 		flag = TRUE;
+X- 	}
+X- #endif
+X- 
+X- 	/*
+X- 	 * Use ~/.signature or ~/.Sig or custom .Sig files
+X- 	 */
+X- 	if ((sigfp = fopen (default_signature, "r")) != NULL) {
+X- 		if (flag) {
+X- 			fprintf (fp, "\n--\n");
+X- 			copy_fp (sigfp, fp, "");
+X- 		}
+X- 		fclose (sigfp);
+X- 		return;
+X- 	}
+X- 
+X- 	if ((sigfp = fopen (active[my_group[cur_groupnum]].attribute.sigfile, "r")) != NULL) {
+X- 		fprintf (fp, "\n--\n");
+X- 		copy_fp (sigfp, fp, "");
+X- 		fclose (sigfp);
+X- 	}
+X- }
+X- 
+X- 
+X  void insert_x_headers (infile)
+X  	char *infile;
+X  {
+X--- 1495,1500 ----
+X***************
+X*** 1482,1489 ****
+X  		if ((fp_out = fopen (outfile, "w")) != NULL) {
+X  			while (fgets (line, sizeof (line), fp_in) != NULL) {
+X  				if (! gotit && line[0] == '\n') {
+X! 					fprintf (fp_out, "X-Newsreader: TIN [version %s PL%d]\n\n",
+X! 						VERSION, PATCHLEVEL);
+X  					gotit = TRUE;
+X  				} else {
+X  					fputs (line, fp_out); 
+X--- 1508,1520 ----
+X  		if ((fp_out = fopen (outfile, "w")) != NULL) {
+X  			while (fgets (line, sizeof (line), fp_in) != NULL) {
+X  				if (! gotit && line[0] == '\n') {
+X! 					if (active[my_group[cur_groupnum]].type == GROUP_TYPE_MAIL) {
+X! 						fprintf (fp_out, "X-Mailer: TIN [version %s PL%d]\n\n",
+X! 							VERSION, PATCHLEVEL);
+X! 					} else {
+X! 						fprintf (fp_out, "X-Newsreader: TIN [version %s PL%d]\n\n",
+X! 							VERSION, PATCHLEVEL);
+X! 					}
+X  					gotit = TRUE;
+X  				} else {
+X  					fputs (line, fp_out); 
+Xdiff -rcs ../1.16/prompt.c ./prompt.c
+X*** ../1.16/prompt.c	Sun Nov 15 18:42:02 1992
+X--- ./prompt.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 139,145 ****
+X  
+X  	set_alarm_clock_on ();
+X  
+X! 	return (ch == 'y' ? TRUE : FALSE);
+X  }
+X  
+X  
+X--- 139,145 ----
+X  
+X  	set_alarm_clock_on ();
+X  
+X! 	return (ch == 'y' || ch == 'Y' ? TRUE : FALSE);
+X  }
+X  
+X  
+Xdiff -rcs ../1.16/proto.h ./proto.h
+X*** ../1.16/proto.h	Sun Nov 15 18:41:42 1992
+X--- ./proto.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X  /* active.c */
+X  extern void resync_active_file(void);
+X  extern int find_group_index(char *group);
+X! extern void read_active_file(void);
+X  extern void backup_active(int create);
+X  extern void check_for_any_new_groups(void);
+X  extern int prompt_subscribe_group(char *group);
+X--- 3,10 ----
+X  /* active.c */
+X  extern void resync_active_file(void);
+X  extern int find_group_index(char *group);
+X! extern int parse_active_line(char *line, long *max, long *min, char *moderated);
+X! extern void read_news_active_file(void);
+X  extern void backup_active(int create);
+X  extern void check_for_any_new_groups(void);
+X  extern int prompt_subscribe_group(char *group);
+X***************
+X*** 10,33 ****
+X  extern void set_default_attributes(void);
+X  extern void read_attributes_file(void);
+X  extern void write_attributes_file(void);
+X- extern void read_newsgroups_file(void);
+X  extern void read_active_times_file(void);
+X  extern void write_active_times_file(void);
+X  extern void load_active_size_info(char *info);
+X  extern int find_active_size_index(char *cur_active_server);
+X  /* amiga.c */
+X  /* art.c */
+X  extern void find_base(int index);
+X  extern int num_of_arts(void);
+X  extern int valid_artnum(long art);
+X! extern int purge_needed(void);
+X! extern void index_group(char *group, char *group_path);
+X  extern int read_group(char *group, char *group_path);
+X  extern void make_threads(int rethread);
+X  extern int parse_headers(FILE *fp, struct article_t *h);
+X  extern void write_index_file(char *group);
+X! extern int read_index_file(char *group_name);
+X! extern void find_index_file(char *group);
+X  extern void do_update(void);
+X  extern int artnum_comp(char *p1, char *p2);
+X  extern int subj_comp(char *p1, char *p2);
+X--- 11,34 ----
+X  extern void set_default_attributes(void);
+X  extern void read_attributes_file(void);
+X  extern void write_attributes_file(void);
+X  extern void read_active_times_file(void);
+X  extern void write_active_times_file(void);
+X  extern void load_active_size_info(char *info);
+X  extern int find_active_size_index(char *cur_active_server);
+X+ extern void read_motd_file(void);
+X  /* amiga.c */
+X  /* art.c */
+X  extern void find_base(int index);
+X  extern int num_of_arts(void);
+X  extern int valid_artnum(long art);
+X! extern int purge_needed(char *group_path);
+X! extern int index_group(char *group, char *group_path);
+X  extern int read_group(char *group, char *group_path);
+X  extern void make_threads(int rethread);
+X  extern int parse_headers(FILE *fp, struct article_t *h);
+X  extern void write_index_file(char *group);
+X! extern void read_index_file(char *group_name);
+X! extern int find_index_file(char *group);
+X  extern void do_update(void);
+X  extern int artnum_comp(char *p1, char *p2);
+X  extern int subj_comp(char *p1, char *p2);
+X***************
+X*** 34,39 ****
+X--- 35,41 ----
+X  extern int from_comp(char *p1, char *p2);
+X  extern int date_comp(char *p1, char *p2);
+X  extern void set_article(struct article_t *art);
+X+ extern int input_pending(void);
+X  /* curses.c */
+X  extern void setup_screen(void);
+X  extern int InitScreen(void);
+X***************
+X*** 69,74 ****
+X--- 71,78 ----
+X  /* feed.c */
+X  extern void feed_articles(int function, int level, char *prompt, int respnum, char *group_path);
+X  extern int print_file(char *command, int respnum, int count);
+X+ extern int get_post_proc_type(int proc_type);
+X+ extern int does_article_exist(int function, long artnum, char *path);
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 6'
+echo 'File tin-1.17.patch is continued in part 7'
+echo 7 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

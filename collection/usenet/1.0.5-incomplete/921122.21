@@ -1,0 +1,1933 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!sun-barr!cs.utexas.edu!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 07 of 17
+Message-ID: <1992Nov19.052315.25782@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:23:15 GMT
+Lines: 1923
+
+
+
+#!/bin/sh
+# this is part.07 (part 7 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/main.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 7; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/main.c'
+else
+echo 'x - continuing file xmfm/main.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/main.c' &&
+X * drag-n-drop procedure.
+X */
+X	String myTranslations =
+X		"#override\n\
+X		<Btn1Down>:	Arm() rddStartAction()\n\
+X		<Btn1Up>:	Activate() Disarm() myDropAction()\n\
+X		<Btn1Motion>:	rddDragAction()\n";
+#endif /* RDD */
+X
+X
+X
+X 
+X	/*	Initialize toolkit and open the display. 
+X		Use XtInitialize and XtWidgetToAppContext cos
+X		I can't get XtAppCreateShell to work
+X		in builtin_opendir()
+X	*/ 
+X	 app_shell = XtInitialize(
+X			 NULL, 		/* application name */	
+X	 	 	 Class_name, 	/* class name */	
+X	 	 	 NULL, 		/* options */	
+X	 	 	 0,		/* number of options */	
+X	 	 	 &argc, argv);
+X	app_context = XtWidgetToApplicationContext (app_shell);
+X	  
+#	ifdef DEBUG_MAIN
+X		fprintf(stderr, "Initialised toolkit\n");
+#	endif
+X 
+#ifdef RDD
+X	/* RDD add action myAction */
+X	{
+X		XtActionsRec actions;
+X		actions.string	= "myDropAction";
+X		actions.proc	= myDropAction;
+X		XtAppAddActions (app_context, &actions, 1);
+X	}
+X
+X	/* RDD  initialize the rdd package */
+X	rddInit (app_shell, app_context);
+X
+X	/* RDD parse translations table */
+X	trans_table = XtParseTranslationTable (myTranslations);
+#endif /* RDD */
+X
+#ifdef MOTIF_DD
+X        InitMotifDD (app_shell, app_context);
+#endif /* MOTIF_DD */
+X
+X	applic_widget = CreateApplication (app_shell);
+X	XtManageChild (applic_widget);
+X
+#	ifdef DEBUG_MAIN
+X		fprintf(stderr, "Created application\n");
+#	endif
+X
+X	/*	Create and realize main application window. 
+X	*/ 
+X	XtRealizeWidget (app_shell); 
+X
+#	ifdef DEBUG_MAIN
+X		fprintf(stderr, "Realised windows\n");
+#	endif
+X
+X	create_gcs (app_shell);
+X
+X
+X	/* set files in panes */
+X	XtVaGetValues (applic_widget,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X
+X	actions = LoadFileActions (dpi);
+X
+X	ResetFilesInPanes (dpi);
+X
+X	SetActionsInDirsToolbar (dpi);
+X
+X        SetFiltersInLabels (dpi);
+X
+X	/* set up a signal handler for children dying
+X	   typically actions performed on files that may
+X	   change directories
+X	*/
+X	signal (SIGCHLD, child_died);
+X
+X	/*	Get and dispatch events. 
+X	*/ 
+#	ifdef DEBUG_MAIN
+X		fprintf(stderr, "Main looping...\n");
+#	endif
+X
+#ifdef RDD
+X	rddAppMainLoop (app_context);
+#else
+X	XtAppMainLoop (app_context); 
+#endif /* RDD */
+} 
+X 
+X
+/*************************************************************************
+X * Function: DestroyDialogCB ()
+X * Purpose: destroy a dialog
+X * In parameters: w, c1, c2
+X * Out parameters:
+X * Precondition: w is a child of a popup shell
+X * Postcondition: parent on down all destroyed
+X ************************************************************************/ 
+/* ARGSUSED */
+void
+DestroyDialogCB
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer c1, XtPointer c2)
+#else
+X	(w, c1, c2)
+X	Widget w;
+X	XtPointer c1, c2;
+X
+#endif
+{
+X	XtUnmanageChild(w);
+X	XtDestroyWidget(XtParent(w));
+}
+X
+/*-------------------------------------------------------------
+**	Show Error Message Dialog when a system error has occurred
+*/
+X
+/*************************************************************************
+X * Function: ErrorDialog ()
+X * Purpose: show an error dialog
+X * In parameters: str
+X * Out parameters:
+X * Precondition: an error of some kind has occurred
+X * Postcondition: user has registered error
+X ************************************************************************/ 
+void ErrorDialog
+#ifdef UseFunctionPrototypes
+X	(char *str)
+#else
+X	(str)
+char * str;
+X
+#endif
+{	int n;
+X	Arg	args[MAX_ARGS];
+X	Widget cancel, help, dialog;
+X	XmString xmstr;
+X
+X	n = 0;
+X	xmstr = XmStringCreateSimple (str);
+X	XtSetArg (args[n], XmNmessageString, xmstr); n++;
+X	dialog = XmCreateErrorDialog(app_shell, "", args, n);
+X	XmStringFree(xmstr);
+X	XtAddCallback(dialog, XmNokCallback, DestroyDialogCB, NULL);
+X
+X	help = XmMessageBoxGetChild(dialog, 
+X			XmDIALOG_HELP_BUTTON);
+X	XtUnmanageChild(help);
+X
+X	cancel = XmMessageBoxGetChild(dialog, 
+X			XmDIALOG_CANCEL_BUTTON);
+X	XtUnmanageChild(cancel);
+X
+X	XtManageChild(dialog);
+}
+SHAR_EOF
+echo 'File xmfm/main.c is complete' &&
+chmod 0644 xmfm/main.c ||
+echo 'restore of xmfm/main.c failed'
+Wc_c="`wc -c < 'xmfm/main.c'`"
+test 12462 -eq "$Wc_c" ||
+	echo 'xmfm/main.c: original size 12462, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/menu.c ==============
+if test -f 'xmfm/menu.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/menu.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/menu.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/menu.c' &&
+/*------------------------------------------------------------- 
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/menu.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:37 $
+X * Version: $Revision: 1.7 $
+X * Purpose:
+X *   This file sets up the menu structure.
+X *   The appearance is (approximately)
+X *
+X *    ~File    ~Goto      ~Help
+X *    ~New file Goto Home ~Application
+X *    ~New dir  Goto dir   Men~u
+X *    ~Close    Open Home ~Keyboard
+X *    ~Exit     Open dir   Mous~e
+X *
+X *   where the ~ gives some clue about the mnemonic
+X *
+X * Revision history:
+X *	4 Aug 92	filter menu added
+X *      25 Aug 92       fixed menonmics clash in Goto menu
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <string.h> 
+#include <Xm/CascadeB.h> 
+#include <Xm/PushB.h> 
+#include <Xm/RowColumn.h> 
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern	Widget CreateMenu (
+#ifdef UseFunctionPrototypes
+X	Widget parent, XtPointer user_data
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern	char  help_applic_text[];
+extern	char  help_menu_text[];
+extern	char  help_mouse_text[];
+extern	char  help_keyboard_text[];
+extern  char  help_filter_text[];
+extern  char  help_bugs_text[];
+extern	char  help_about_text[];
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+/* File menu callbacks */
+extern void FileNewFileCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileNewDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileCopyCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileMoveCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileCloseCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileExitCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/* help menu callbacks */
+extern void HelpCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/* goto menu callbacks */
+extern void GotoHomeCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoOpenHomeCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoOpenDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/* run menu callbacks */
+extern void RunCommandCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void RunXtermCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/* filter menu callbacks */
+extern void FilterFileCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FilterDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FilterExecutableCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+static void	CreateFileSubMenu (
+#ifdef UseFunctionPrototypes
+X	Widget menu_bar, XtPointer user_data
+#endif
+);
+static void	CreateRunSubMenu (
+#ifdef UseFunctionPrototypes
+X	Widget menu_bar, XtPointer user_data
+#endif
+);
+static void	CreateHelpSubMenu (
+#ifdef UseFunctionPrototypes
+X	Widget parent, XtPointer user_data
+#endif
+);
+static void	CreateGotoSubMenu (
+#ifdef UseFunctionPrototypes
+X	Widget menu_bar, XtPointer user_data
+#endif
+);
+static void    CreateFilterSubMenu (
+#ifdef UseFunctionPrototypes
+X	Widget menu_bar, XtPointer user_data
+#endif
+);
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+#define MAX_ARGS	128
+X
+/*************************************************************************
+X * Function:  CreatePulldownMenuButton ()
+X * Purpose:
+X *     creates a single button in a pulldown 
+X *     menu system
+X * In parameters: parent, name, label, accel_text, accelerator,
+X                  mnemonic, callback_func, client_data
+X * Function return: button in menu
+X * Precondition: parent is non-null, other fields null or valid args
+X * Postcondition: button created with fileds set if non-null
+X ************************************************************************/ 
+static Widget
+CreatePulldownMenuButton 
+#ifdef UseFunctionPrototypes
+X	(Widget parent, String name, String label, String accel_text, String accelerator, char mnemonic, void (*callback_func) (/* ??? */), XtPointer client_data, XtPointer user_data)
+#else
+X	(parent, name, label,
+X		accel_text, accelerator, mnemonic,
+X		callback_func, client_data,
+X		user_data)
+X	Widget	parent;
+X	String	name;
+X	String	label;
+X	String	accel_text;
+X	String	accelerator;
+X	char	mnemonic;
+X	void	(*callback_func) ();
+X	XtPointer	client_data;
+X	XtPointer user_data;
+X
+#endif
+{
+X	Arg	args[MAX_ARGS];
+X	int	n;
+X	XmString	xm_accel_text = NULL;
+X	XmString	xm_label = NULL;
+X	Widget	button;
+X
+X	n = 0; 
+X	if (label != NULL)
+X	{
+X		xm_label = XmStringCreateLtoR(label, XmSTRING_DEFAULT_CHARSET);
+X		XtSetArg (args[n], XmNlabelString, xm_label); n++;
+X	}
+X	button = XmCreatePushButton (parent, name, args, n); 
+X	XtManageChild (button); 
+X	XtAddCallback (button, XmNactivateCallback, 
+X			callback_func, client_data); 
+X
+X	/* if accelerator non-NULL and resource db hasn't set it, set it */
+X	if (accel_text != NULL)
+X	{
+X		n = 0;
+X		XtSetArg (args[n], XmNacceleratorText, &xm_accel_text); n++;
+X		XtGetValues (button, args, n);
+X		if (xm_accel_text == NULL)
+X		{
+X			xm_accel_text = XmStringCreateLtoR(accel_text, 
+X						XmSTRING_DEFAULT_CHARSET);
+X			n = 0;
+X			XtSetArg (args[n], XmNacceleratorText, 
+X						xm_accel_text); n++;
+X			XtSetArg (args[n], XmNaccelerator, accelerator); n++;
+X			XtSetValues (button, args, n);
+X		}
+X	}
+X	/* if mnemonic non-NULL and resource db hasn't set it, set it */
+X	if (mnemonic != 0)
+X	{	KeySym	mnemonic_sym;
+X
+X		n = 0;
+X		XtSetArg (args[n], XmNmnemonic, &mnemonic_sym); n++;
+X		XtGetValues (button, args, n);
+X		if (mnemonic_sym == 0)
+X		{
+X			n = 0;
+X			XtSetArg (args[n], XmNmnemonic, mnemonic); n++;
+X			XtSetValues (button, args, n);
+X		}
+X	}
+X
+X	if (user_data != NULL)
+X		XtVaSetValues (button,
+X				XmNuserData, (XtArgVal) user_data,
+X				NULL);
+X
+X	/* reclaim used string space */
+X	if (xm_accel_text != NULL)
+X		XmStringFree (xm_accel_text);
+X	if (xm_label != NULL)
+X		XmStringFree (xm_label);
+X
+X	return (button);
+}
+X
+X 
+/*------------------------------------------------------------- 
+**	CreateMenu	- create menu structure
+**
+**	Return the menu bar
+**
+**	What this lot creates is the following menu:
+**
+*/ 
+X
+/*************************************************************************
+X * Function: CreateMenu ()
+X * Purpose: create the menu bar
+X * In parameters: parent
+X * Function return: menu bar widget unmanaged
+X * Precondition: parent non-null widget
+X * Postcondition: menu bar creted in unmanaged state, with all submenus
+X *                with associated callbacks created
+X ************************************************************************/ 
+Widget
+CreateMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget parent, XtPointer user_data)
+#else
+X	(parent, user_data)  
+X	Widget	parent;		/*  parent widget	*/ 
+X	XtPointer user_data;
+X
+#endif
+{ 
+X	Widget		menu_bar;	/*  MenuBar		*/ 
+X	Arg	args[MAX_ARGS];
+X 
+X	register int	n;		/*  arg count		*/ 
+X 
+X	/*	Create MenuBar in MainWindow. 
+X	*/ 
+X	n = 0; 
+X	menu_bar = XmCreateMenuBar (parent, "menu_bar", args, n);  
+X	XtManageChild (menu_bar); 
+X 
+#       ifdef DEBUG_MENU
+X                fprintf(stderr, "Created menu bar\n");
+#       endif
+X
+X
+X	/*	Create "File" PulldownMenu. 
+X	*/ 
+X	CreateFileSubMenu(menu_bar, user_data);
+X
+#       ifdef DEBUG_MENU
+X                fprintf(stderr, "Created file menu\n");
+#       endif
+X
+X	/*	Create "Goto" menu. 
+X	*/ 
+X	CreateGotoSubMenu(menu_bar, user_data);
+X 
+#       ifdef DEBUG_MENU
+X                fprintf(stderr, "Created goto menu\n");
+#       endif
+X
+X	/*	Create "Run" menu. 
+X	*/ 
+X	CreateRunSubMenu(menu_bar, user_data);
+X
+X	/*	Create "Filter" menu. 
+X	*/ 
+X	CreateFilterSubMenu(menu_bar, user_data);
+X 
+#       ifdef DEBUG_MENU
+X                fprintf(stderr, "Created run menu\n");
+#       endif
+X
+X	/*	Create "Help" menu. 
+X	*/ 
+X	CreateHelpSubMenu(menu_bar, user_data);
+X
+X 
+#       ifdef DEBUG_MENU
+X                fprintf(stderr, "Created help menu\n");
+#       endif
+X
+X	return (menu_bar);
+} 
+X
+X
+/*************************************************************************
+X * Function: CreateFileSubMenu ()
+X * Purpose:
+X *	Create SubMenu to handle File Actions
+X * In parameters: menu_bar, user_data
+X * Out parameters:
+X * Precondition: menu_bar is non-null widget
+X * Postcondition: file menu added to menu_bar
+X ************************************************************************/ 
+static void
+CreateFileSubMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget menu_bar, XtPointer user_data)
+#else
+X	(menu_bar, user_data)  
+X	Widget	menu_bar;		/*  parent widget	*/ 
+X	XtPointer user_data;
+X
+#endif
+{ 
+X	Widget		menu_pane;	/*  MenuPane		*/ 
+X	Widget		cascade;	/*  CascadeButton	*/ 
+X 
+X	Arg	args[MAX_ARGS];
+X	int	n;		/*  arg count		*/ 
+X 
+X	/*	Create "File" PulldownMenu. 
+X	**	Names, accelerators and mnemonics are all set
+X	**	in the resource database before we get here.
+X	*/ 
+X	n = 0; 
+X	menu_pane = XmCreatePulldownMenu (menu_bar, "menu_pane", args, n); 
+X 
+#	ifdef DEBUG_FILE
+X		fprintf (stderr, "Created file menu bar\n");
+#	endif
+X
+X	CreatePulldownMenuButton (menu_pane, "New file...", NULL,
+X			NULL, NULL, 'f',
+X			FileNewFileCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "New dir", NULL,
+X			NULL, NULL, 'd',
+X			FileNewDirCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Copy...", NULL,
+X			NULL, NULL, 'C',
+X			FileCopyCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Move...", NULL,
+X			NULL, NULL, 'M',
+X			FileMoveCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Close", NULL,
+X			"Ctrl+F4", "Ctrl<Key>F4", 'l',
+X			FileCloseCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Exit", NULL,
+X			"Meta+F4", "Meta<Key>F4", 'x',
+X			FileExitCB, NULL, user_data);
+X 
+X	n = 0; 
+X	XtSetArg (args[n], XmNsubMenuId, menu_pane);  n++; 
+X        XtSetArg (args[n], XmNmnemonic, 'F'); n++;
+X	cascade = XmCreateCascadeButton (menu_bar, "File", args, n); 
+X	XtManageChild (cascade); 
+}
+X
+/*************************************************************************
+X * Function: CreateGotoSubMenu ()
+X * Purpose:
+X *	Create SubMenu to handle Goto Actions
+X * In parameters: menu_bar
+X * Out parameters:
+X * Precondition: menu_bar is non-null widget
+X * Postcondition: file menu added to menu_bar
+X ************************************************************************/ 
+static void
+CreateGotoSubMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget menu_bar, XtPointer user_data)
+#else
+X	(menu_bar, user_data)  
+X	Widget	menu_bar;		/*  parent widget	*/ 
+X	XtPointer user_data;
+X
+#endif
+{ 
+X	Widget		menu_pane;	/*  MenuPane		*/ 
+X	Widget		cascade;	/*  CascadeButton	*/ 
+X	Arg	args[MAX_ARGS];
+X	int	n;		/*  arg count		*/ 
+X 
+X	/*	Create "Goto" PulldownMenu. 
+X	**	Names, accelerators and mnemonics are all set
+X	**	in the resource database before we get here.
+X	*/ 
+X	n = 0; 
+X	menu_pane = XmCreatePulldownMenu (menu_bar, "menu_pane", args, n); 
+X 
+#	ifdef DEBUG_FILE
+X		fprintf (stderr, "Created Goto menu bar\n");
+#	endif
+X
+X	CreatePulldownMenuButton (menu_pane, "Chdir Home", NULL,
+X			"Meta+H", "Meta<Key>H", 'H',
+X			GotoHomeCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Chdir Directory...", NULL,
+X			"Meta+D", "Meta<Key>D", 'D',
+X			GotoDirCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Open Home", NULL,
+X			"Ctrl+H", "Ctrl<Key>H", 'o',
+X			GotoOpenHomeCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Open Directory...", NULL,
+X			"Ctrl+D", "Ctrl<Key>D", 'i',
+X			GotoOpenDirCB, NULL, user_data);
+X	n = 0; 
+X	XtSetArg (args[n], XmNsubMenuId, menu_pane);  n++; 
+X        XtSetArg (args[n], XmNmnemonic, 'G'); n++;
+X	cascade = XmCreateCascadeButton (menu_bar, "Goto", args, n); 
+X	XtManageChild (cascade); 
+}
+X
+X
+/*************************************************************************
+X * Function: CreateFilterSubMenu ()
+X * Purpose:
+X *	Create SubMenu to handle Filter Actions
+X * In parameters: menu_bar
+X * Out parameters:
+X * Precondition: menu_bar is non-null widget
+X * Postcondition: filter menu added to menu_bar
+X ************************************************************************/ 
+static void
+CreateFilterSubMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget menu_bar, XtPointer user_data)
+#else
+X	(menu_bar, user_data)  
+X	Widget	menu_bar;		/*  parent widget	*/ 
+X	XtPointer user_data;
+X
+#endif
+{ 
+X	Widget		menu_pane;	/*  MenuPane		*/ 
+X	Widget		cascade;	/*  CascadeButton	*/ 
+X	Arg	args[MAX_ARGS];
+X	int	n;		/*  arg count		*/ 
+X 
+X	/*	Create "Filter" PulldownMenu. 
+X	**	Names, accelerators and mnemonics are all set
+X	**	in the resource database before we get here.
+X	*/ 
+X	n = 0; 
+X	menu_pane = XmCreatePulldownMenu (menu_bar, "menu_pane", args, n); 
+X 
+#	ifdef DEBUG_FILE
+X		fprintf (stderr, "Created Filter menu bar\n");
+#	endif
+X
+X	CreatePulldownMenuButton (menu_pane, "Files", NULL,
+X			NULL, NULL, 'F',
+X			FilterFileCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Executables", NULL,
+X			NULL, NULL, 'E',
+X			FilterExecutableCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Directories", NULL,
+X			NULL, NULL, 'D',
+X			FilterDirCB, NULL, user_data);
+X	n = 0; 
+X	XtSetArg (args[n], XmNsubMenuId, menu_pane);  n++; 
+X        XtSetArg (args[n], XmNmnemonic, 'i'); n++;
+X	cascade = XmCreateCascadeButton (menu_bar, "Filter", args, n); 
+X	XtManageChild (cascade); 
+}
+X
+X
+/*************************************************************************
+X * Function: CreateRunSubMenu ()
+X * Purpose:
+X *	Create SubMenu to handle Run Actions
+X * In parameters: menu_bar
+X * Out parameters:
+X * Precondition: menu_bar is non-null widget
+X * Postcondition: run menu added to menu_bar
+X ************************************************************************/ 
+static void
+CreateRunSubMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget menu_bar, XtPointer user_data)
+#else
+X	(menu_bar, user_data)  
+X	Widget	menu_bar;		/*  parent widget	*/ 
+X	XtPointer user_data;
+X
+#endif
+{ 
+X	Widget		menu_pane;	/*  MenuPane		*/ 
+X	Widget		cascade;	/*  CascadeButton	*/ 
+X	Arg	args[MAX_ARGS];
+X	int	n;		/*  arg count		*/ 
+X 
+X	/*	Create "Goto" PulldownMenu. 
+X	**	Names, accelerators and mnemonics are all set
+X	**	in the resource database before we get here.
+X	*/ 
+X	n = 0; 
+X	menu_pane = XmCreatePulldownMenu (menu_bar, "menu_pane", args, n); 
+X 
+#	ifdef DEBUG_FILE
+X		fprintf (stderr, "Created Run menu bar\n");
+#	endif
+X
+X	CreatePulldownMenuButton (menu_pane, "Command...", NULL,
+X			"Meta+C", "Meta<Key>C", 'C',
+X			RunCommandCB, NULL, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Xterm", NULL,
+X			"Meta+X", "Meta<Key>X", 'X',
+X			RunXtermCB, NULL, user_data);
+X	n = 0; 
+X	XtSetArg (args[n], XmNsubMenuId, menu_pane);  n++; 
+X        XtSetArg (args[n], XmNmnemonic, 'R'); n++;
+X	cascade = XmCreateCascadeButton (menu_bar, "Run", args, n); 
+X	XtManageChild (cascade); 
+}
+X
+/*************************************************************************
+X * Function: CreateHelpSubMenu ()
+X * Purpose: create the help pulldown menu
+X * In parameters: parent
+X * Out parameters:
+X * Precondition: parent is non-null widget
+X * Postcondition: help pulldown menu added to parent,
+X *                with all callbacks in place
+X ************************************************************************/ 
+static void
+CreateHelpSubMenu 
+#ifdef UseFunctionPrototypes
+X	(Widget parent, XtPointer user_data)
+#else
+X	(parent, user_data)
+X	Widget	parent;
+X	XtPointer user_data;
+X
+#endif
+{
+X	Widget	menu_pane;
+X	Widget	cascade;
+X	Arg	args[MAX_ARGS];
+X	int	n;
+X	
+X	n = 0;
+X	menu_pane = XmCreatePulldownMenu (parent, "menu_pane", args, n); 
+X 
+X	CreatePulldownMenuButton (menu_pane, "XmFm", NULL,
+X			NULL, NULL, 'X',
+X			HelpCB, help_applic_text, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Mouse", NULL,
+X			NULL, NULL, 'M',
+X			HelpCB, help_mouse_text, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Keyboard", NULL,
+X			NULL, NULL, 'K',
+X			HelpCB, help_keyboard_text, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Filters", NULL,
+X			NULL, NULL, 'F',
+X			HelpCB, help_filter_text, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "Bugs", NULL,
+X			NULL, NULL, 'B',
+X			HelpCB, help_bugs_text, user_data);
+X
+X	CreatePulldownMenuButton (menu_pane, "About", NULL,
+X			NULL, NULL, 'A',
+X			HelpCB, help_about_text, user_data);
+X 
+X	n = 0; 
+X	XtSetArg (args[n], XmNsubMenuId, menu_pane);  n++; 
+X	XtSetArg (args[n], XmNmnemonic, 'p'); n++;
+X	cascade = XmCreateCascadeButton (parent, "Help", args, n); 
+X	XtManageChild (cascade); 
+X 
+X	n = 0; 
+X	XtSetArg (args[n], XmNmenuHelpWidget, cascade);  n++; 
+X	XtSetValues (parent, args, n); 
+}
+SHAR_EOF
+chmod 0644 xmfm/menu.c ||
+echo 'restore of xmfm/menu.c failed'
+Wc_c="`wc -c < 'xmfm/menu.c'`"
+test 18186 -eq "$Wc_c" ||
+	echo 'xmfm/menu.c: original size 18186, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/prompt.c ==============
+if test -f 'xmfm/prompt.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/prompt.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/prompt.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/prompt.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/prompt.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:51 $
+X * Version: $Revision: 1.6 $
+X * Purpose:
+X *          and calls the Xt main loop.
+X *
+X * Revision history:
+X *	16 Oct 92	caddr_t changed to XtPointer
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#include <Xm/MainW.h> 
+#include <Xm/MessageB.h> 
+#include <Xm/SelectioB.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void PromptDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, char **answer
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern XtAppContext app_context;
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+static Bool dialog_over;
+X 
+X
+/*************************************************************************
+X * Function: modal_dialog_loop ()
+X * Purpose: 
+X * In parameters:
+X * Out parameters:
+X * Side effects: modifies dialog_over
+X * Precondition: 
+X * Postcondition:
+X ************************************************************************/ 
+static void
+modal_dialog_loop 
+#ifdef UseFunctionPrototypes
+X	(Widget w)
+#else
+X	(w)
+X	Widget w;
+X
+#endif
+{
+X	dialog_over = False;
+X	XtVaSetValues (w,
+X			XmNdialogStyle, XmDIALOG_FULL_APPLICATION_MODAL,
+X			NULL);
+X	XtManageChild (w);
+X	while (dialog_over == False)
+X		XtAppProcessEvent (app_context, XtIMAll);
+}
+X
+/*************************************************************************
+X * Function: OkDialogCB ()
+X * Purpose: handle the dialog OK button
+X * In parameters: w, c2
+X * Out parameters: answer
+X * Precondition: w is a child of a popup shell
+X * Postcondition: parent on down all destroyed, text field first copied
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void
+OkDialogCB
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer c2)
+#else
+X	(w, client_data, c2)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer  c2;
+X
+#endif
+{
+X	char ** answer = (char **) client_data;
+X	XmString xmstr;
+X
+X	XtVaGetValues (w, XmNtextString, &xmstr, NULL);
+X	/* decode the xmstr */
+X	/* this should be replaced by code that does not use obsoleted
+X	   XmSTRING_DEFAULT_CHARSET */
+X	XmStringGetLtoR (xmstr, XmSTRING_DEFAULT_CHARSET, answer);
+X	XmStringFree (xmstr);
+X
+X	dialog_over = True;
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+}
+X
+/*************************************************************************
+X * Function: CancelDialogCB ()
+X * Purpose: handle the dialog Cancel button
+X * In parameters: w, c2
+X * Out parameters: answer
+X * Precondition: w is a child of a popup shell
+X * Postcondition: parent on down all destroyed, anser set to NULL
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void
+CancelDialogCB
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer c2)
+#else
+X	(w, client_data, c2)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer  c2;
+X
+#endif
+{
+X	char ** answer = (char **) client_data;
+X
+X	*answer = NULL;
+X
+X	dialog_over = True;
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+}
+X
+/*************************************************************************
+X * Function: PromptDialog ()
+X * Purpose: show a prompt dialog, and find the prompted string
+X * In parameters: parent, prompt, modal
+X * Out parameters: answer 
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+void
+PromptDialog
+#ifdef UseFunctionPrototypes
+X	(Widget parent, char *prompt, int modal, char **answer)
+#else
+X	(parent, prompt, modal, answer)
+X	Widget parent;
+X	char * prompt;
+X	Bool modal;
+X	char ** answer;
+X
+#endif
+{	int n;
+X	Arg	args[MAX_ARGS];
+X	Widget help, dialog;
+X	XmString xmstr;
+X
+X	n = 0;
+X	xmstr = XmStringCreateSimple (prompt);
+X	XtSetArg (args[n], XmNselectionLabelString, xmstr); n++;
+X	dialog = XmCreatePromptDialog(parent, prompt, args, n);
+X	XmStringFree(xmstr);
+X
+X	XtAddCallback(dialog, XmNokCallback, OkDialogCB, (XtPointer) answer);
+X	XtAddCallback(dialog, XmNcancelCallback, CancelDialogCB, (XtPointer) answer);
+X
+X	help = XmSelectionBoxGetChild(dialog, 
+X			XmDIALOG_HELP_BUTTON);
+X	XtUnmanageChild(help);
+X
+X	/* set keyboard focus to text field */
+X	XmProcessTraversal (XmSelectionBoxGetChild (dialog,
+X						XmDIALOG_TEXT),
+X				XmTRAVERSE_CURRENT);
+X	XmProcessTraversal (XmSelectionBoxGetChild (dialog,
+X						XmDIALOG_TEXT),
+X				XmTRAVERSE_CURRENT);
+X	XmProcessTraversal (XmSelectionBoxGetChild (dialog,
+X						XmDIALOG_TEXT),
+X				XmTRAVERSE_CURRENT);
+X
+X	if (modal)
+X		modal_dialog_loop(dialog);
+}
+SHAR_EOF
+chmod 0644 xmfm/prompt.c ||
+echo 'restore of xmfm/prompt.c failed'
+Wc_c="`wc -c < 'xmfm/prompt.c'`"
+test 5990 -eq "$Wc_c" ||
+	echo 'xmfm/prompt.c: original size 5990, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/rdd.c ==============
+if test -f 'xmfm/rdd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/rdd.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/rdd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/rdd.c' &&
+/*                               -*- Mode: C -*- 
+X * rdd.c
+X * 
+X * Description     :  Roger's Drag 'n Drop Library.
+X * 					  A drag-n-drop library for Xt programs.
+X * 
+X * Author          : Roger Reynolds	 - 	rogerr@netcom.com
+X * Created On      : Sun Apr 26 14:14:01 1992
+X * 
+X * Configuration Management
+X * 
+X * @(#)rdd.c	1.10	10/5/92
+X * 
+X * VERSION   SPR   MODIFIER   DATE AND TIME
+X * 1.10      0     rogerr     Mon Oct  5 14:34:36 1992
+X *           more gcc stuff. 
+X * 1.9       0     rogerr     Tue Sep 29 11:41:27 1992
+X *           GCC2.2.2 clean up. Can now be cleanly compiled without 
+X *           -traditional. 
+X * 1.8       0     rogerr     Wed Sep 23 14:10:56 1992
+X *           use debug.h which defines DEBUGRDD TRACE and XtFree macros 
+X * 1.7       0     rogerr     Thu Aug 27 15:06:39 1992
+X *           added rddDragButton 
+X * 1.6       0     rogerr     Mon Aug 17 15:51:33 1992
+X *           additional example functionality 
+X * 1.5       0     rogerr     Tue Jul 28 16:11:38 1992
+X *           more ansi mumbo jumbo 
+X * 1.4       0     rogerr     Wed Jul 15 14:49:27 1992
+X *           send keymask in RddCallbackStruct so dropee knows what was 
+X *           going on 
+X * 1.3       0     rogerr     Fri Jun 26 16:16:58 1992
+X *           deleteDropHandler as widget destroy callback 
+X * 1.2       0     rogerr     Tue Jun 23 17:08:58 1992
+X *           now dragging pixmaps around 
+X * 
+X */
+X
+#include <stdio.h>
+#include <X11/Xatom.h>
+#include <X11/Intrinsic.h>
+#include <X11/cursorfont.h>
+#include <X11/StringDefs.h>
+X
+#include <rdd.h>
+X
+/*
+X *  Private variables containing bits of current state 
+X */
+static Widget topLevel;
+static XtAppContext appContext;
+static Display *display;
+static Atom rddProtocolMsg;
+static Atom rddSelnAtom;
+static Cursor dragCursor;
+static Pixmap dragPixmap, savePixmap;
+static int	pixmapwid, pixmaphgt, xcursoff, ycursoff;
+static Window getPointerWindow();
+static int rddDataType;
+static GC  dragGC;
+/*
+X *  Is this event an rdd drop message? 
+X */
+#define rddIsRddMessageEvent(ev)\
+X	((ev).type == ClientMessage && (ev).xclient.message_type == rddProtocolMsg)
+X
+X
+/*
+X * Data structure describing a "drop event handler" 
+X */
+typedef struct 
+{
+X	XtCallbackProc proc;
+X	char *data;
+X	Widget w;
+X	Boolean active;
+} HandlerData;
+X
+/*
+X * Internal list of all drop handlers 
+X */
+static HandlerData *handlerList;
+static int handlerListCnt, handlerListAllocCnt;
+X
+/*
+X * Action routines which changes the cursor when appropriate and begin
+X * the drag-n-drop process.
+X * They could be bound directly to btndown, btnmotion, and btnup events,
+X * but to do anything useful, rddSetDropData must be called someplace.
+X */
+static int bx, by, dragflag;
+X
+void
+rddStartAction (w, event, args, nargs)
+X	Widget w;
+X	XButtonEvent *event;
+X	String *args;
+X	int *nargs;
+{
+X	dragflag = 0;
+X	bx = event->x;
+X	by = event->y;
+X	xcursoff = 0;
+X	ycursoff = 0;
+X	DEBUGRDD (fprintf(stderr, "rddStartAction at %d,%d\n", bx, by););
+}
+X
+void
+rddDragAction (w, event, args, nargs)
+X	Widget w;
+X	XButtonEvent *event;
+X	String *args;
+X	int *nargs;
+{
+X	DEBUGRDD (fprintf(stderr, "rddDragAction\n"););
+X	if (dragflag == 0 && ((abs(bx - event->x)) > 10 ||
+X						  (abs(by - event->y)) > 10))
+X	{
+X		DEBUGRDD (fprintf(stderr, "using drag cursor %d\n", dragCursor););
+X		dragflag = 1;
+X		if (dragCursor)
+X			XDefineCursor (XtDisplay(w), XtWindow(w), dragCursor);
+X
+X		if (dragPixmap&&savePixmap)
+X			XCopyArea (display, RootWindow(display,0), savePixmap, dragGC,
+X					   bx=event->x_root-xcursoff, by=event->y_root-ycursoff,
+X					   pixmapwid, pixmaphgt,
+X					   0, 0);
+X	}
+X
+X	if (0)
+X	{
+X		u_int state;
+X		Window child, root;
+X		int x, y;
+X		XQueryPointer (display, RootWindow(display,0), &root, &child,
+X					   &x, &y, &x, &y, &state);
+X		DEBUGRDD (fprintf (stderr, "pointer root = 0x%x win 0x%x, state = 0x%x\n",
+X						root, child, state););
+X	}
+X
+X	if (dragflag && dragPixmap && savePixmap)
+X	{
+X		XCopyArea (display, savePixmap, RootWindow(display,0), dragGC,
+X				   0, 0, pixmapwid, pixmaphgt, bx, by);
+X
+X		XCopyArea (display, RootWindow(display,0), savePixmap, dragGC,
+X				   bx=event->x_root-xcursoff, by=event->y_root-ycursoff,
+X				   pixmapwid, pixmaphgt,
+X				   0, 0);
+X
+X		XCopyArea (display, dragPixmap, RootWindow(display,0), dragGC,
+X				   0, 0, pixmapwid, pixmaphgt, bx, by);
+X	}
+}
+X	
+void
+rddDropAction (w, event, args, nargs)
+X	Widget w;
+X	XButtonEvent *event;
+X	String *args;
+X	int *nargs;
+{
+X	DEBUGRDD (fprintf(stderr, "rddDropAction\n"););
+X	if (dragflag == 1)
+X	{
+X		XUndefineCursor (display, XtWindow(w));
+X		rddSendDropEvent(w, (XEvent*)event);
+X
+X		if (savePixmap)
+X		{
+X			XCopyArea (display, savePixmap, RootWindow(display,0), dragGC,
+X					   0, 0, pixmapwid, pixmaphgt, bx, by);
+X		}
+X	}
+}
+X
+X
+/*
+X * Install this as a callback on something like a push button, and
+X * you get a button which starts a drag, with the next click sending
+X * the drop event.  You might want to get in first and install a
+X * drag pixmap...
+X * NOTE: This is the only routine in rdd which assumes Motif.
+X * If you aren't using motif, then you may need to remove or edit this
+X * function...
+X */
+void
+rddDragCallback(w, client_data, cbs)
+X	Widget w;
+X	XtPointer client_data;
+X	XmAnyCallbackStruct *cbs;
+{
+X	XEvent event;
+X	XtAppContext app = XtWidgetToApplicationContext(w);
+X	int x, y;
+X    DEBUGRDD (fprintf(stderr, "rddDragCallback: w = 0x%x\n",
+X				   cbs->event->xany.window););
+X
+X	/* Make the pointer look like it moved some */
+X	x = cbs->event->xbutton.x;
+X	cbs->event->xbutton.x += 100;
+X	y = cbs->event->xbutton.y;
+X	cbs->event->xbutton.y += 100;
+X	rddStartAction(w, (XButtonEvent*)cbs->event, NULL, 0);
+X
+X	/* Then back again */
+X	cbs->event->xbutton.x = x;
+X	cbs->event->xbutton.y = y;
+X	rddDragAction(w, (XButtonEvent*)cbs->event, NULL, 0);
+X
+X
+X	/* Grab the pointer and start an event loop */
+X	XGrabPointer (XtDisplay(w), cbs->event->xbutton.window, True,
+X				  PointerMotionMask | ButtonReleaseMask,
+X				  GrabModeAsync, GrabModeAsync, None, None, 
+X				  cbs->event->xbutton.time);
+X	for (;;)
+X	{
+X    	XtAppNextEvent(app, &event);
+X
+X		XtDispatchEvent(&event);
+X		if (event.type == ButtonRelease)
+X		{
+X			/* Done, release pointer and send drop event */
+X			XUngrabPointer (XtDisplay(w), event.xbutton.time);
+X			rddDropAction (w, (XButtonEvent*)&event, NULL, 0);
+X			break;
+X		}
+X		else if (event.type == MotionNotify)
+X		{
+X			/* drag me */
+X			rddDragAction (w, (XButtonEvent*)&event, NULL, 0);
+X		}
+X	}
+X	DEBUGRDD (fprintf (stderr, "out of rddDragCallback\n"););
+}
+X
+/*
+X *  rddInit - 
+X * 		Initialize the rdd package.	This routine must be called before
+X * 		any other rdd routines.
+X * 			Initialize static data,
+X * 			Create rdd protocol atoms.
+X * 			Create default cursor used for drag operations.
+X * 			Register rdd actions.
+X */
+void
+rddInit(shell, context)
+X	Widget shell;
+X	XtAppContext context;
+{
+X	/* Should NOT need to CAST here!*/
+X	static XtActionsRec actions[3] = {
+X			"rddStartAction",   (XtActionProc)rddStartAction,
+X			"rddDragAction",    (XtActionProc)rddDragAction,
+X			"rddDropAction",    (XtActionProc)rddDropAction,
+X	};
+X
+X	DEBUGRDD (fprintf(stderr, "rddInit entered\n"););
+X
+X	topLevel		= shell;
+X	appContext		= context;
+X	display			= XtDisplay(topLevel);
+X	rddProtocolMsg	= XInternAtom (display, "RDD_MESSAGE", FALSE);
+X	rddSelnAtom		= XInternAtom (display, "RDD_SELECTION", FALSE);
+X	dragCursor 		= XCreateFontCursor (display, XC_cross);
+X
+X	{
+X		XGCValues gcv;
+X		XtGCMask  mask;
+X		
+X		mask =GCSubwindowMode;
+X		gcv.subwindow_mode = IncludeInferiors;
+X		dragGC	= XCreateGC (display, RootWindow(display,0), mask, &gcv);
+X	}
+X	
+X	XtAppAddActions (context, actions, XtNumber(actions));
+X
+X	DEBUGRDD (fprintf (stderr,"rddInit: topLevel=%d display=%d\n",
+X					topLevel, display););
+}
+X
+/*
+X * rddSetDragCursor - 
+X * 		Set the cursor that will be used for drag-n-drop operations.
+X */
+void
+rddSetDragCursor (cursor)
+X	Cursor cursor;
+X
+{
+X	dragCursor = cursor;
+}
+X
+/*
+X * rddSetDragPixmap - 
+X * 		Set the cursor that will be used for drag-n-drop operations.
+X */
+void
+rddSetDragPixmap (pixmap, wid, hgt)
+X	Pixmap pixmap;
+X	int wid, hgt;
+{
+X	if (savePixmap && (pixmapwid != wid || pixmaphgt != hgt))
+X	{
+X		XFreePixmap(display, savePixmap);
+X		savePixmap = 0;
+X	}
+X	if (!savePixmap)
+X	{
+X		savePixmap = XCreatePixmap (display, RootWindow(display,0), 
+X									pixmapwid = wid, pixmaphgt = hgt,
+X									XDefaultDepth(display,0));
+X	}
+X	DEBUGRDD (fprintf (stderr, "savePixmap = %d wid=%d hgt=%d\n",
+X					savePixmap, pixmapwid, pixmaphgt););
+X	dragPixmap = pixmap;
+}
+X
+void rddSetDragCursorOffset(x,y)
+X	int x,y;
+{
+X	xcursoff = x;
+X	ycursoff = y;
+}
+X
+/*
+X *  rddInitCheck - 
+X * 		Ensure that rdd has been initialized.
+X */
+static void
+rddInitCheck()
+{
+X	if (!topLevel)
+X	{
+X		fprintf (stderr, "rdd not initialized\n");
+X		exit(-1);
+X	}
+}
+X
+/*
+X *  These routines coordinate access to the rddSelection 
+X */
+X
+static unsigned char *rddSelnData;
+static unsigned long rddSelnLen;
+X
+X
+static int 
+rddSetSelection(data, nbytes)
+X	caddr_t data;
+X	int nbytes;
+{
+X	int stat;
+X	Window window;
+X
+X	rddInitCheck();
+X
+X	window = XtWindow(topLevel);
+X
+X	XSetSelectionOwner (display, rddSelnAtom, window, CurrentTime);
+X
+X	if (XGetSelectionOwner (display, rddSelnAtom) != window)
+X	{
+X		fprintf (stderr, "XSetSelectionOwner failed\n");
+X	}
+X
+X	if (rddSelnLen)
+X	{
+X		XtFree((char*)rddSelnData);
+X		rddSelnLen = 0;
+X	}
+X
+X	rddSelnData = (u_char *)XtMalloc(rddSelnLen=nbytes);
+X	bcopy (data, rddSelnData, rddSelnLen);
+X
+X	stat = XChangeProperty (display, RootWindow(display,0), rddSelnAtom,
+X							XA_STRING,
+X							8,
+X							PropModeReplace,
+X							rddSelnData, (int)rddSelnLen);
+X	return(stat);
+}
+X
+static int
+rddGetSelection (data)
+X	u_char **data;
+{
+X	int n;
+X	Atom type;
+X	int format, count;
+X	u_long leftover;
+X
+X	DEBUGRDD (fprintf (stderr, "rddGetSelection entered\n"););
+X
+X	rddInitCheck();
+X
+X	n =XGetWindowProperty (display, RootWindow(display,0), rddSelnAtom,
+X						   0L, 100000L,
+X						   FALSE,
+X						   AnyPropertyType,
+X						   &type, &format,
+X						   &rddSelnLen,
+X						   &leftover,
+X						   &rddSelnData);
+X
+X	*data = rddSelnData;
+X	return(rddSelnLen);	
+}
+X
+/*
+X *  getPointerWindow - 
+X * 		return the first subwindow of top which the pointer is in that
+X * 		has a drop handler installed on it.
+X */
+static Window
+getPointerWindow ()
+{
+X	int i;
+X	for (i=0; i < handlerListCnt; i++)
+X	{
+X		if (handlerList[i].active)
+X		{
+X			DEBUGRDD (fprintf(stderr, "returning handler %d %s window = 0x%x\n",
+X						   i, XtName(handlerList[i].w),
+X						   XtWindow(handlerList[i].w)););
+X			return (XtWindow(handlerList[i].w));
+X		}
+X	}
+X	DEBUGRDD (fprintf (stderr, "getPointerWindow returned 0\n"););
+X	return (0);
+}
+X
+/*
+X *  rddSendDropEvent - 
+X * 		Send an rdd drop message to the window which contains the pointer.
+X * 		The window parameter is filled in with the window id  of the widget
+X * 		passed in, or with the window id of the topLevel shell if w is NULL
+X * 		This is to facilitate a possible conversation between the
+X * 		dropping window and its target.  Such a conversation could be 
+X * 		needed to negotiate the details of a complex drop operation,
+X * 		none is required to send simple messages.
+X */
+void 
+rddSendDropEvent (w, event)
+X	Widget w;
+X	XEvent *event;
+{
+X	static XClientMessageEvent ev;
+X	XButtonEvent *bv = (XButtonEvent*)event;
+X
+X	if (!ev.type)
+X	{
+X		rddInitCheck();
+X		ev.type			= ClientMessage;
+X		ev.display		= display;
+X		ev.message_type = rddProtocolMsg;
+X		ev.format		= 32;
+X		ev.data.l[0]	= rddDataType;
+X	}
+X
+X
+X	ev.window	= XtWindow(topLevel);
+X	ev.data.l[1]	= w ? XtWindow(w) : XtWindow(topLevel);
+X
+X	if (bv && (bv->type == ButtonPress || bv->type == ButtonRelease))
+X		ev.data.l[2]	= bv->state;
+X	else
+X		ev.data.l[2]	= 0;
+X
+X	++ev.serial;
+X
+X	DEBUGRDD (fprintf(stderr, "rddSendDropEvent to win 0x%x\n", ev.window););
+X
+X	XSendEvent (display, PointerWindow, TRUE, NoEventMask, (XEvent*)&ev);
+}
+X
+/*
+X *  rddDropEventHandler - 
+X * 		This procedure is installed to handel rdd drop events on all windows.
+X * 		It dispatches to the user specified procedure after retrieving data
+X * 		from the rdd selection buffer.
+X */
+static void
+rddDropEventHandler(w, hd, ev)
+X	Widget w;
+X	HandlerData *hd;
+X	XClientMessageEvent *ev;
+{
+X	int nbytes;
+X	u_char *sdata;
+X	RddCallbackStruct cbs;
+X
+X	if (ev->type != ClientMessage || ev->message_type != rddProtocolMsg)
+X		return;
+X	
+X	nbytes = rddGetSelection (&sdata);
+X
+X	DEBUGRDD (fprintf (stderr,"GOT DROP MESSAGE %d bytes\n", nbytes););
+X
+X	if (hd && hd->proc)
+X	{
+X		cbs.data	= (caddr_t)sdata;
+X		cbs.len		= nbytes;
+X		cbs.type	= ev->data.l[0];
+X		cbs.from	= ev->data.l[1];
+X		cbs.keymask	= ev->data.l[2];
+X		cbs.event	= ev;
+X		(hd->proc)(hd->w, hd->data, &cbs);
+X	}
+}
+X
+static void
+enterLeaveProc(w, hd, ev)
+X	Widget w;
+X	HandlerData *hd;
+X	XCrossingEvent *ev;
+{
+X	hd->active	= (ev->type == EnterNotify);
+X	DEBUGRDD (fprintf(stderr, "window %s active = %d\n",
+X				   XtName(hd->w), hd->active););
+}
+X
+static void
+deleteDropHandler (w, h, cbs)
+X	Widget w;
+X	HandlerData *h;
+X	XtPointer *cbs;
+{
+X	int i;
+X
+X	DEBUGRDD (fprintf (stderr, "deleted handler for widget 0x%x\n", w););
+X	for (i=0; i < handlerListCnt; i++)
+X	{
+X		if (handlerList[i].w == w)	
+X		{
+X			bzero(&handlerList[i], sizeof(handlerList[i]));
+X			return;
+X		}
+X	}
+}
+X
+/*
+X *  rddAddDropHandler - 
+X * 		Add a callback routine to a widget for rdd drop events.
+X * 		Call scemantics for proc:
+X * 			void proc (Widget w; XtPointer data; RddCallbackStruct *cbs)
+X * 		where w     is the widget for which the handler is being called
+X * 			  data  is user specified data passed through to proc
+X * 			  cbs	is an RddCallbackStruct filled in.
+X */
+void
+rddAddDropHandler(w, proc, data)
+X	Widget w;
+X	XtCallbackProc proc;
+X	caddr_t data;
+{
+X	int i;
+X	HandlerData *newHandler;
+X
+X	rddInitCheck();
+X
+X	if (handlerListCnt >= handlerListAllocCnt)
+X	{
+X
+X		for (i=0; i < handlerListCnt; i++)
+X		{
+X			if (handlerList[i].w == 0)	/* was deleted */
+X				continue;
+X			 XtRemoveEventHandler(handlerList[i].w, 0, TRUE, 
+X								  rddDropEventHandler, 
+X								  handlerList+i);
+X			XtRemoveEventHandler (handlerList[i].w,
+X								  EnterWindowMask|LeaveWindowMask, FALSE, 
+X								  enterLeaveProc, 
+X								  handlerList+i);
+X		}
+X
+X		handlerListAllocCnt += 10;
+X		handlerList =
+X			(HandlerData*) XtRealloc((char*)handlerList,
+X								 sizeof(HandlerData) * handlerListAllocCnt);
+X		DEBUGRDD(fprintf(stderr,"handlerList = 0x%x\n", handlerList););
+X
+X		for (i=0; i < handlerListCnt; i++)
+X		{
+X			if (handlerList[i].w == 0)	/* was deleted */
+X				continue;
+X			XtAddEventHandler (handlerList[i].w, 0, TRUE, 
+X							   rddDropEventHandler, 
+X							   handlerList+i);
+X			XtAddEventHandler (handlerList[i].w,
+X							   EnterWindowMask|LeaveWindowMask,
+X							   FALSE, enterLeaveProc, 
+X							   handlerList+i);
+X		}
+X	}
+X
+X	newHandler = handlerList + handlerListCnt++;
+X	
+X	DEBUGRDD (fprintf(stderr, "rddAddDropHandler: for widget %s window=0x%x\n",
+X				  XtName(w), XtWindow(w)););
+X
+X	newHandler->proc	=	proc;
+X	newHandler->data	=	data;
+X	newHandler->w		=   w;
+X	newHandler->active	=   FALSE;
+X	XtAddEventHandler (w, 0, TRUE, 
+X					   rddDropEventHandler, newHandler);
+X	XtAddEventHandler (w, EnterWindowMask|LeaveWindowMask, FALSE, 
+X					   enterLeaveProc, newHandler);
+X	XtAddCallback (w, XtNdestroyCallback, deleteDropHandler, newHandler);
+}
+X
+/*
+X *  rddSetDropData - 
+X * 		Public function to set data into the rdd selection buffer.
+X */
+void
+rddSetDropData (data, len)
+X	caddr_t data;
+X	int len;
+{
+X	rddDataType = RDD_NO_DATA_TYPE;
+X	rddSetSelection (data, len);
+}
+X
+void
+rddSetDropDataType (data, len, type)
+X	caddr_t data;
+X	int len, type;
+{
+X	rddDataType = type;
+X	rddSetSelection (data, len);
+}
+X
+X
+X
+/*
+X *  rddAppMainLoop - 
+X * 		Replacement for XtAppMainLoop. This routine knows more than it
+X * 		should, but seems to be needed to make rdd work for "all" cases.
+X */
+void rddAppMainLoop(app)
+X	XtAppContext app;
+{
+X    XEvent event;
+X	Widget w;
+X
+X    for (;;)
+X	{
+X    	XtAppNextEvent(app, &event);
+X
+X		/*
+X		 * If it is an rdd message, try to dispatch it to the
+X		 * currently active drop window. 
+X		 */
+X		if (rddIsRddMessageEvent(event))
+X		{
+X			DEBUGRDD (fprintf(stderr, "clientMessage received window 0x%x\n",
+X						   event.xclient.window););
+X			if (!(event.xclient.window = getPointerWindow()))
+X			{
+X				DEBUGRDD (fprintf (stderr, "no window to dispatch to\n"););
+X				continue;
+X			}
+X		}
+X		if (!XtDispatchEvent(&event))
+X		{
+X			/*DEBUGRDD (fprintf (stderr, "rddAppMainLoop dispatch failed type %d\n",
+X							event.type););*/
+X		}
+X	}
+}
+X
+/*
+X * When called, initiate and dispatch an RDD operation.
+X * This can be used to, for example, to start an RDD thing by pressing 
+X * a button.  The next click will be reported to this window, and
+X * the user supplied function will be called, presumably to do
+X * rddSetDataType and rddDropActions.
+X */
+void 
+rddDragButton (w, ev, fptr)
+X	Widget w;
+X	XButtonEvent *ev;
+X	void (*fptr)();
+{
+X	XEvent event;
+X	Window win = XtWindow(w);
+X	XtAppContext app = XtWidgetToApplicationContext(w);
+X
+X    DEBUGRDD (fprintf(stderr, "rddDragButton: w = 0x%x app = 0x%x\n",
+X				   win, app););
+X
+X	rddStartAction(w, ev, NULL, 0);
+X
+X	ev->x += 100;
+X	ev->y += 100;
+X
+X	rddDragAction(w, ev, NULL, 0);
+X
+X	XGrabPointer (XtDisplay(w), win, FALSE,
+X				  PointerMotionMask | ButtonReleaseMask,
+X				  GrabModeAsync, GrabModeAsync, None, None, 
+X				  ev->time);
+X	for (;;)
+X	{
+X    	XtAppNextEvent(app, &event);
+X
+X		XtDispatchEvent(&event);
+X		if (event.type == ButtonRelease)
+X		{
+X			XUngrabPointer (XtDisplay(w), event.xbutton.time);
+X			(*fptr)(w, &event);
+X			break;
+X		}
+X		else if (event.type == MotionNotify)
+X		{
+X			rddDragAction (w, (XButtonEvent*)&event, NULL, 0);
+X		}
+X	}
+X	DEBUGRDD (fprintf (stderr, "out of rddDragButton\n"););
+}
+X
+#ifdef MAIN
+X
+/* As an example of how to add drag-n-drop to an existimg program,
+X * here is the hello program from chapter 2 of Dan Heller's book,
+X * modified so that the button can both initiate a drag-n-drop
+X * operation, and respond to something being dropped on it.
+X * 
+X * RDD comments denote rdd additions and changes.
+X */
+X
+X
+/* Written by Dan Heller.  Copyright 1991, O'Reilly && Associates.
+X * This program is freely distributable without licensing fees and
+X * is provided without guarantee or warrantee expressed or implied.
+X * This program is -not- in the public domain.
+X */
+X
+/* hello.c --
+X * Initialize the toolkit using an application context and a toplevel
+X * shell widget, then create a pushbutton that says Hello using
+X * the R4 varargs interface.
+X */
+#include <Xm/Xm.h>
+#include <Xm/PushB.h>
+X
+X
+/*
+X * RDD
+X * The normal translations for a button, plus those needed to do a 
+X * drag-n-drop procedure.
+X */
+String myTranslations =
+X		"<Btn1Down>:	Arm() myStartAction()		\n\
+X		<Btn1Up>:		Activate() Disarm() myDropAction() \n\
+X		<Btn1Motion>:	rddDragAction() \n\
+";
+X
+XXtAppContext  app;
+X
+/* RDD myStartAction */
+void myStartAction (w, event, args, nargs)
+X	Widget w;
+X	XButtonEvent *event;
+X	String *args;
+X	int *nargs;
+{
+X	static Pixmap pixmap;
+X	Display *dpy = XtDisplay(w);
+X	int wid=40, hgt=40;
+X	static GC gc;
+X
+X	if (!pixmap)
+X	{
+X		XGCValues gcv;
+X
+X		gcv.subwindow_mode = IncludeInferiors;
+X		gc = XCreateGC (dpy, XtWindow(w), GCSubwindowMode, &gcv);
+X		
+X		pixmap = XCreatePixmap (dpy, RootWindow(dpy,0), 
+X								wid, hgt, XDefaultDepth(dpy,0));
+X	}
+X
+X	/* Create a pixmap of the screen near the cursor */
+X	XCopyArea (dpy, RootWindow(dpy,0), pixmap, gc,
+X			   event->x_root-wid/2, event->y_root-hgt/2,
+X			   wid, hgt, 0, 0);
+X	rddSetDragPixmap (pixmap, wid, hgt);
+X	rddSetDragCursorOffset(wid/2, hgt/2);
+SHAR_EOF
+true || echo 'restore of xmfm/rdd.c failed'
+fi
+echo 'End of  part 7'
+echo 'File xmfm/rdd.c is continued in part 8'
+echo 8 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

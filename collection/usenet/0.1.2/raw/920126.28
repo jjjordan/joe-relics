@@ -1,0 +1,1573 @@
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!think.com!cass.ma02.bull.com!melb.bull.oz.au!sjg
+From: sjg@melb.bull.oz.au (Simon J Gerraty)
+Newsgroups: alt.sources
+Subject: nntpbatch: NNTP XBATCH client and server patches Part02/02
+Message-ID: <1992Jan24.051116.27342@melb.bull.oz.au>
+Date: 24 Jan 92 05:11:16 GMT
+Followup-To: alt.sources.d
+Organization: Bull HN Information Systems Australia
+Lines: 1563
+
+
+Archive-name: nntpbatch/Part02
+Submitted-by: sjg@melb.bull.oz.au (Simon J. Gerraty)
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 2)."
+# Contents:  nntpbatch.c remote.c xbatch.patch
+# Wrapped by sjg@taureau on Fri Jan 24 16:06:13 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f nntpbatch.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"nntpbatch.c\"
+else
+echo shar: Extracting \"nntpbatch.c\" \(11771 characters\)
+sed "s/^X//" >nntpbatch.c <<'END_OF_nntpbatch.c'
+X/* nntpbatch - transmit netnews batches across the internet with nntp
+X**
+X** This program is for transmitting netnews batches between sites
+X** that offer the NNTP service, internet style.
+X*/
+X
+X#include "../common/conf.h"
+X#include "nntpbatch.h"
+X#include <stdio.h>
+X#include <errno.h>
+X#include <ctype.h>
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include <sys/time.h>
+X#if defined(BSD_42) || defined(BSD_43)
+X#include <sys/resource.h>
+X#else
+X#include <sys/times.h>
+Xextern	time_t	time();
+X#endif
+X#include <sys/file.h>
+X#include <fcntl.h>
+X#include <signal.h>
+X#ifdef USG
+X#include "sysexits.h"
+X#else
+X#include <sysexits.h>
+X#endif
+X#ifdef	SYSLOG
+X#ifdef FAKESYSLOG
+X#include "../server/fakesyslog.h"
+X#else
+X#include <syslog.h>
+X#endif
+X#endif	/* SYSLOG */
+X#include "../common/nntp.h"
+X
+X#define	MAXFNAME	BUFSIZ	/* maximum filename size - big enough? */
+X#define	FCLOSE(fp)	(void) fclose(fp); (fp) = (FILE *)NULL
+X
+XFILE	*getfp();
+Xchar	*errmsg();
+Xvoid	requeue();
+XSIGRET	catchsig();
+Xvoid	restsig();
+Xvoid	logstats();
+Xvoid	log();
+Xint	interrupted();
+X
+X/*
+X** Globals that certain things need.
+X**
+X** Various subroutines want the program name to report errors.
+X** The queue file, queue file pointer and current article name are
+X** there to write out the state of the queue file from a signal handler
+X** (that is, the list of unsent and (possibly) failed articles) so
+X** that when next we try sending to a given remote site, we don't send
+X** stuff we've already sent.
+X*/
+Xchar	*Pname;			/* this program's invocation name */
+Xchar	*Host;			/* current remote host */
+Xchar	*Qfile;			/* current batch file we're operating on */
+XFILE	*Qfp;			/* the (FILE *) for above */
+Xu_long	BSize;			/* Size of the current batch file */
+X
+X/*
+X** Some flags, toggled by arguments
+X*/
+X#define	TOGGLE(boolean)	(boolean) = !(boolean)
+Xchar	Debug = FALSE;
+Xchar	Report_Stats = TRUE;
+X
+Xchar	*USAGE = "USAGE: nntpbatch [-d][-s][-T][-F][-D] hostname file [file ...]";
+Xchar	*Fmt = "%s localhost %s[%d]: %s\n";
+Xchar	*E_fopen = "fopen(%s, \"%s\"): %s";
+Xchar	*E_unlk = "unlink(%s): %s";
+X
+Xstruct {
+X	u_long	offered;
+X	u_long	succeeded;
+X	u_long	succ_bytes;
+X	u_long	failed;
+X} Stats = {0L, 0L, 0L};
+X
+Xdouble Tbegin, Tend;		/* transfer timestamps */
+X
+Xstatic  int	xbatch_denied = 0;
+X
+Xextern	int	errno;
+Xextern 	int	strncmp();
+Xextern	char	*rindex();
+Xextern	char	*index();
+Xextern	char	*mktemp();
+Xextern	char	*strcpy();
+X
+X#ifdef	USG
+Xvoid
+Xbzero(s, l)
+Xregister caddr_t s;
+Xregister int	l;
+X{
+X	while(l-- > 0) *s++ = 0;
+X}
+X#endif	/* USG */
+X
+Xmain(ac, av)
+Xint	ac;
+Xchar	*av[];
+X{
+X	register int	i;
+X	int	transport = T_IP_TCP;	/* default is IP/TCP */
+X	char **flist;
+X#if	defined(BSD_42) || defined(BSD_43)
+X	struct timeval tod;
+X	struct timezone tz;
+X
+X	(void) gettimeofday(&tod, &tz);
+X	Tbegin = tod.tv_sec + (double)tod.tv_usec/1000000.;
+X#else
+X	Tbegin = (double) time((time_t *)NULL);
+X#endif
+X
+X	Pname = ((Pname = rindex(av[0],'/')) ? Pname + 1 : av[0]);
+X	
+X	if (ac < 3) {
+X		fprintf(stderr, "%s: %s\n", Pname, USAGE);
+X		exit(EX_USAGE);
+X		}
+X
+X#ifdef	SYSLOG
+X	/* 4.2 BSD openlog has only two args */
+X#ifdef	BSD_42
+X	(void) openlog(Pname, LOG_PID);
+X#else
+X	(void) openlog(Pname, LOG_PID, SYSLOG);
+X#endif	/* BSD_42 */
+X#endif	/* SYSLOG */
+X
+X	i = 1;
+X	ac--;
+X	while (av[i][0] == '-') {
+X		switch(av[i][1]) {
+X			case 'T':
+X				transport = T_IP_TCP;
+X				break;
+X			case 'D':
+X				transport = T_DECNET;
+X				break;
+X			case 'F':
+X				transport = T_FD;
+X				break;
+X			case 's':
+X				TOGGLE(Report_Stats);
+X				break;
+X			case 'd':
+X				TOGGLE(Debug);
+X				break;
+X			default:
+X				fprintf(stderr, "%s: no such option: -%c\n",
+X					Pname, av[i][1]);
+X				fprintf(stderr, "%s: %s\n", Pname, USAGE);
+X				exit(EX_USAGE);
+X			}
+X		ac--;
+X		i++;
+X		}
+X
+X	if (ac < 2) {
+X		fprintf(stderr, "%s: %s\n", Pname, USAGE);
+X		exit(EX_USAGE);
+X		}
+X
+X	if (transport != T_FD)
+X		Host = av[i++];
+X	flist = &av[i];
+X
+X	bzero((caddr_t)&Stats, sizeof(Stats));
+X	if (sendbatches(Host, transport, flist) && Report_Stats)
+X		logstats();
+X	exit(xbatch_denied ? EX_NOPERM : EX_OK);
+X}
+X
+X/*
+X** Calculate how much time we've used,
+X** and report that (and the transfer statistics).
+X**
+X*/
+Xvoid logstats()
+X{
+X	static double ouser = 0.0, osys = 0.0;
+X	double user, sys;
+X	char buf[BUFSIZ];
+X#if	defined(BSD_42) || defined(BSD_43)
+X	struct rusage self, kids;
+X	struct timeval tod;
+X	struct timezone tzdummy;
+X
+X	(void) getrusage(RUSAGE_SELF, &self);
+X	(void) getrusage(RUSAGE_CHILDREN, &kids);
+X	(void) gettimeofday(&tod, &tzdummy);
+X
+X	Tend = tod.tv_sec + (double)tod.tv_usec/1000000.;
+X
+X	user = self.ru_utime.tv_sec + kids.ru_utime.tv_sec +
+X		(double) self.ru_utime.tv_usec/1000000. +
+X		(double) kids.ru_utime.tv_usec/1000000.;
+X	
+X	sys = self.ru_stime.tv_sec + kids.ru_stime.tv_sec +
+X		(double) self.ru_stime.tv_usec/1000000. +
+X		(double) kids.ru_stime.tv_usec/1000000.;
+X#else
+X#define	HZ	60.0	/* typical system clock ticks - param.h */
+X	struct tms	cpu;
+X
+X	(void) times(&cpu);
+X
+X	Tend = (double) time((time_t *)NULL);
+X	user = (double)(cpu.tms_utime + cpu.tms_cutime) / HZ;
+X	sys  = (double)(cpu.tms_stime + cpu.tms_cstime) / HZ;
+X#endif
+X	sprintf(buf,
+X		"%s batches %lu offered, %lu succeeded ( %lu bytes ), %lu failed",
+X		Host, Stats.offered, Stats.succeeded, Stats.succ_bytes,
+X		Stats.failed);
+X	log(L_INFO, buf);
+X	sprintf(buf, "%s xbatch user %.1f system %.1f elapsed %.1f",
+X		Host, (user - ouser), (sys - osys), (Tend - Tbegin));
+X	log(L_INFO, buf);
+X	/* reset reference point */
+X	Tbegin = Tend;	
+X	ouser = user;
+X	osys = sys;
+X}
+X
+X/*
+X** Given a hostname to connect to, and a file containing a (possibly compressed)
+X** netnews batch, send the file to the named host using NNTP.
+X**
+X** Return code is:
+X**	TRUE	- the batch was successfully transferred.
+X**
+X**	FALSE	- the transfer failed.
+X*/
+Xsendbatches(host, transport, files)
+Xchar	*host, **files;
+Xint	transport;
+X{
+X	register FILE	*fp;
+X	register int	retcode;
+X#ifdef	FTRUNCATE
+X	char	*mode = "r+";		/* so we can use ftruncate() */
+X#else
+X	char	*mode = "r";
+X#endif	/* FTRUNCATE */
+X	char	buf[BUFSIZ];
+X
+X	/*
+X	** Open a connection to the remote server
+X	*/
+X	if (hello(host, transport) == FAIL)
+X		return(FALSE);
+X	catchsig(interrupted);
+X	do {
+X		Qfile = *files++;
+X		if ((Qfp = fopen(Qfile, mode)) == (FILE *)NULL) {
+X			sprintf(buf, E_fopen, Qfile, mode, errmsg(errno));
+X			log(L_WARNING, buf);
+X			return(FALSE);
+X			}
+X
+X		/*
+X		** interlock with other copies of this process.
+X		** non-blocking.
+X		*/
+X		if (!lockfd(fileno(Qfp), Qfile, DONT_BLOCK)) {
+X			FCLOSE(Qfp);
+X			return(FALSE);
+X			}
+X
+X		dprintf(stderr, "%s: sending %s\n", Pname, Qfile);
+X
+X		if (retcode = sendbatch(host, Qfp)) {
+X			if (unlink(Qfile) < 0) {
+X				sprintf(buf, E_unlk, Qfile, errmsg(errno));
+X				log(L_WARNING, buf);
+X				retcode = FALSE;
+X				}
+X			}
+X		Qfile = (char *)NULL;
+X		FCLOSE(Qfp);
+X		} while (*files != (char *)NULL && retcode);
+X	goodbye(retcode ? WAIT : DONT_WAIT);
+X	return(TRUE);
+X}
+X
+X/*
+X** Perform one transfer operation:
+X**	Give XBATCH command
+X**	Wait for reply, and send batch if it's OK.
+X**	Wait for transfer confirmation, return TRUE if
+X**		he got it OK, FALSE if he didn't.
+X**	Watch all network I/O for errors, return FALSE if
+X**		the connection fails and we have to cleanup.
+X*/
+Xsendbatch(host, fp)
+Xchar	*host;
+XFILE	*fp;
+X{
+X	register int	code;
+X	char	buf[BUFSIZ];
+X	char	*e_xbatch = "%s batch: %s";
+X
+X	switch(code = xbatch(fp)) {
+X		case CONT_XBATCH:
+X		/*
+X		** They want it. Give it to 'em.
+X		*/
+X			if (!sendfile(fp)) {
+X				sprintf(buf, e_xbatch, host, errmsg(errno));
+X				log(L_NOTICE, buf);
+X				Stats.failed++;
+X				return(FALSE);
+X				}
+X		/*
+X		** Did the article transfer OK?
+X		** Stay tuned to this same socket to find out!
+X		*/
+X			while ((code = readreply(buf, sizeof(buf))) >= 100 && code < 200)
+X				;
+X			if (code != OK_XBATCHED) {
+X				Stats.failed++;
+X				if (code < 0) {
+X					if (errno > 0) {
+X						sprintf(buf, e_xbatch, host, errmsg(errno));
+X						log(L_NOTICE, buf);
+X						}
+X					else {
+X						char errbuf[BUFSIZ];
+X						sprintf(errbuf, e_xbatch, host, buf);
+X						log(L_NOTICE, errbuf);
+X						}
+X					}
+X				return(FALSE);
+X				}
+X			Stats.succeeded++;
+X			Stats.succ_bytes += BSize;
+X			break;
+X		case ERR_NOXBATCH:
+X			/* They don't let us do XBATCH xfers. */
+X			sprintf(buf,e_xbatch,host,"No XBATCH access.");
+X			log(L_NOTICE,buf);
+X			Stats.failed++;
+X			xbatch_denied++;
+X			return(FALSE);
+X		default:
+X			if (code < 0) {
+X				if (errno > 0) {
+X					sprintf(buf, e_xbatch, host, errmsg(errno));
+X					log(L_NOTICE, buf);
+X					}
+X				else {
+X					sprintf(buf, e_xbatch, host, "ihave");
+X					log(L_NOTICE, buf);
+X					}
+X				}
+X			else {
+X				sprintf(buf, "%s improper response to XBATCH: %d", host, code);
+X				log(L_WARNING, buf);
+X				}
+X			Stats.failed++;
+X			return(FALSE);
+X		}
+X	return(TRUE);
+X}
+X
+Xchar *
+Xerrmsg(code)
+Xint code;
+X{
+X	extern int sys_nerr;
+X	extern char *sys_errlist[];
+X	static char ebuf[6+5+1];
+X
+X	if (code > sys_nerr || code < 0) {
+X		(void) sprintf(ebuf, "Error %d", code);
+X		return ebuf;
+X	} else
+X		return sys_errlist[code];
+X}
+X
+X/*
+X** Stat the file containing a netnews batch and send the XBATCH command
+X** containing the file size.
+X*/
+Xxbatch(fp)
+XFILE	*fp;
+X{
+X	register int	code;
+X	register char	*id;
+X	char	buf[BUFSIZ];
+X	struct stat sbuf;
+X
+X	if (fstat(fileno(fp),&sbuf) < 0) {
+X		sprintf(buf, "Can't stat batch file: %s",errmsg(errno));
+X		log(L_DEBUG,buf);
+X		return(ERR_XFERFAIL);
+X		}
+Xagain:
+X	sprintf(buf, "XBATCH %d", sbuf.st_size);
+X	Stats.offered++;
+X	BSize = sbuf.st_size;
+X	code = converse(buf, sizeof(buf));
+X#ifdef AUTH
+X	if (code == ERR_NOAUTH) {
+X		xmitauth(Host);
+X		goto again;
+X		}
+X#endif
+X	return(code);
+X}
+X
+X/*
+X** OK, clean up any mess
+X*/
+Xcleanup()
+X{
+X	dprintf(stderr, "%s: cleanup()\n", Pname);
+X	if (Qfp == (FILE *)NULL || Qfile == (char *)NULL)
+X		return;
+X	Stats.failed++;
+X	FCLOSE(Qfp);
+X} 
+X
+X/*
+X** Signal stuff
+X**
+X** There's probably too much stuff to do in this signal
+X** handler, but we're going to exit anyway...
+X*/
+Xinterrupted(sig)
+Xint	sig;
+X{
+X	char buf[BUFSIZ];
+X
+X#ifndef RELSIG
+X	catchsig(SIG_IGN);	/* for System V - hope we're quick enough */
+X#endif	/* RELSIG */
+X	sprintf(buf, "%s signal %d", Host, sig);
+X	log(L_NOTICE, buf);
+X	cleanup();
+X	if (Report_Stats)
+X		logstats();
+X	goodbye(DONT_WAIT);
+X	exit(EX_TEMPFAIL);
+X}
+X
+Xstruct {
+X	int	signo;
+X	ifunp	state;
+X} SigList[] = {
+X	{SIGHUP},
+X	{SIGINT},
+X	{SIGQUIT},
+X	{SIGTERM},
+X	{NULL}
+X};
+X
+XSIGRET
+Xcatchsig(handler)
+Xifunp	handler;
+X{
+X	register int	i;
+X
+X	if (handler != SIG_IGN) {
+X		for(i = 0; SigList[i].signo != NULL; i++) {
+X			SigList[i].state = signal(SigList[i].signo, handler);
+X		}
+X	} else {
+X		for(i = 0; SigList[i].signo != NULL; i++) {
+X			(void) signal(SigList[i].signo, handler);
+X		}
+X	}
+X}
+X
+Xvoid
+Xrestsig()
+X{
+X	register int	i;
+X
+X	for(i = 0; SigList[i].signo != NULL; i++) {
+X		if (SigList[i].state != (ifunp)(-1))
+X			(void) signal(SigList[i].signo, SigList[i].state);
+X	}
+X}
+X
+X/*
+X** log stuff
+X*/
+Xvoid
+Xlog(importance, error)
+Xint	importance;
+Xchar	*error;
+X{
+X	FILE	*report = (importance == L_INFO ? stdout : stderr);
+X	fprintf(report, "%s: %s\n", Pname, error);
+X#ifdef	SYSLOG
+X	switch(importance) {
+X#ifdef LOG
+X	case L_DEBUG:	importance = LOG_DEBUG;		break;
+X#endif
+X	case L_INFO:	importance = LOG_INFO;		break;
+X	case L_NOTICE:	importance = LOG_NOTICE;	break;
+X	case L_WARNING:	importance = LOG_WARNING;	break;
+X	default:	importance = LOG_DEBUG;		break;
+X	}
+X	syslog(importance, error);
+X#endif	/* SYSLOG */
+X}
+X
+X/*
+X** Lock a file descriptor
+X**
+X** NOTE: if the appropriate system calls are unavailable,
+X** this subroutine is a no-op.
+X*/
+Xlockfd(fd, file, non_blocking)
+Xint	fd, non_blocking;
+Xchar	*file;			/* just for error reporting */
+X{
+X	char	buf[BUFSIZ];
+X#ifdef	USG
+X#ifdef	F_TLOCK
+X	if (lockf(fd, (non_blocking ? F_TLOCK : F_LOCK), 0) < 0) {
+X		if (errno != EACCES) {
+X			sprintf(buf, "lockf(%s): %s\n", file, errmsg(errno));
+X			log(L_WARNING, buf);
+X		}
+X		return(FALSE);
+X	}
+X#endif	/* F_TLOCK */
+X#else
+X#ifdef	LOCK_EX
+X	if (flock(fd, LOCK_EX|(non_blocking ? LOCK_NB : 0)) < 0) {
+X		if (errno != EWOULDBLOCK) {
+X			sprintf(buf, "flock(%s): %s\n", file, errmsg(errno));
+X			log(L_WARNING, buf);
+X		}
+X		return(FALSE);
+X	}
+X#endif	/* LOCK_EX */
+X#endif	/* USG */
+X	return(TRUE);
+X}
+END_OF_nntpbatch.c
+if test 11771 -ne `wc -c <nntpbatch.c`; then
+    echo shar: \"nntpbatch.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f remote.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"remote.c\"
+else
+echo shar: Extracting \"remote.c\" \(8045 characters\)
+sed "s/^X//" >remote.c <<'END_OF_remote.c'
+X/*
+X** remote communication routines for NNTP/SMTP style communication.
+X**
+X************
+X** 92-01-23 mmap stuff removed <sjg@melb.bull.oz.au>
+X** 
+X** David Robinson (david@elroy.jpl.nasa.gov) and
+X** Steve Groom (stevo@elroy.jpl.nasa.gov), June 30, 1989.
+X**
+X************
+X**
+X**	sendcmd		- return TRUE on error.
+X**
+X**	readreply	- return reply code or FAIL for error;
+X**				modifies buffer passed to it.
+X**
+X**	converse	- sendcmd() & readreply();
+X**				return reply code or FAIL for error;
+X**				modifies buffer passed to it.
+X**
+X**	hello		- establish connection with remote;
+X**				check greeting code.
+X**
+X**	goodbye		- give QUIT command, and shut down connection.
+X**
+X**	sfgets		- safe fgets(); does fgets with TIMEOUT.
+X**			  (N.B.: possibly unportable stdio macro ref in here)
+X**
+X**	sendfile	- send a binary file.
+X**
+X** Erik E. Fair <fair@ucbarpa.berkeley.edu>
+X*/
+X#include "../common/conf.h"
+X#include "nntpbatch.h"
+X#include <sys/types.h>
+X#include <sys/socket.h>
+X#include <errno.h>
+X#include <stdio.h>
+X#include <ctype.h>
+X#include <setjmp.h>
+X#include <signal.h>
+X#ifdef dgux
+X#define _IOERR  _IO_ERR
+X#endif
+X#ifdef SYSLOG
+X#ifdef FAKESYSLOG
+X#include "../server/fakesyslog.h"
+X#else
+X#include <syslog.h>
+X#endif
+X#endif
+X#include "get_tcp_conn.h"
+X#include "../common/nntp.h"
+X
+Xstatic	jmp_buf	SFGstack;
+XFILE	*rmt_rd;
+XFILE	*rmt_wr;
+Xchar	*sfgets();
+X
+Xextern	int	errno;
+Xextern	char	Debug;
+Xextern	char	*errmsg();
+Xextern	char	*strcpy();
+Xextern	void	log();
+X
+X/*
+X** send cmd to remote, terminated with a CRLF.
+X*/
+Xsendcmd(cmd)
+Xchar	*cmd;
+X{
+X	if (cmd == (char *)NULL)
+X		return(TRUE);	/* error */
+X	dprintf(stderr, ">>> %s\n", cmd);	/* DEBUG */
+X	(void) fprintf(rmt_wr, "%s\r\n", cmd);
+X	(void) fflush(rmt_wr);
+X	return(ferror(rmt_wr));
+X}
+X
+X/*
+X** read a reply line from the remote server and return the code number
+X** as an integer, and the message in a buffer supplied by the caller.
+X** Returns FAIL if something went wrong.
+X*/
+Xreadreply(buf, size)
+Xregister char	*buf;
+Xint	size;
+X{
+X	register char	*cp;
+X	register int	len;
+X
+X	if (buf == (char *)NULL || size <= 0)
+X		return(FAIL);
+X
+X	/*
+X	** make sure it's invalid, unless we say otherwise
+X	*/
+X	buf[0] = '\0';
+X
+X	/*
+X	** read one line from the remote
+X	*/
+X	if (sfgets(buf, size, rmt_rd) == NULL)
+X		return(FAIL);	/* error reading from remote */
+X
+X	/*
+X	** Make sure that what the remote sent us had a CRLF at the end
+X	** of the line, and then null it out.
+X	*/
+X	if ((len = strlen(buf)) > 2 && *(cp = &buf[len - 2]) == '\r' &&
+X		*(cp + 1) == '\n')
+X	{
+X		*cp = '\0';
+X	} else
+X		return(FAIL);	/* error reading from remote */
+X
+X	dprintf(stderr, "%s\n", buf);	/* DEBUG */
+X	/*
+X	** Skip any non-digits leading the response code 
+X	** and then convert the code from ascii to integer for
+X	** return from this routine.
+X	*/
+X	cp = buf;
+X	while(*cp != '\0' && isascii(*cp) && !isdigit(*cp))
+X		cp++;	/* skip anything leading */
+X
+X	if (*cp == '\0' || !isascii(*cp))
+X		return(FAIL);	/* error reading from remote */
+X
+X	return(atoi(cp));
+X}
+X
+X/*
+X** send a command to the remote, and wait for a response
+X** returns the response code, and the message in the buffer
+X*/
+Xconverse(buf, size)
+Xchar	*buf;
+Xint	size;
+X{
+X	register int	resp;
+X
+X	if (sendcmd(buf))
+X		return(FAIL);	/* Ooops! Something went wrong in xmit */
+X	/*
+X	** Skip the silly 100 series messages, since they're not the
+X	** final response we can expect
+X	*/
+X	while((resp = readreply(buf, size)) >= 100 && resp < 200)
+X		continue;
+X	return(resp);
+X}
+X
+X/*
+X** Contact the remote server and set up the two global FILE pointers
+X** to that descriptor.
+X**
+X** I can see the day when this routine will have 8 args:  one for
+X** hostname, and one for each of the seven ISO Reference Model layers
+X** for networking. A curse upon those involved with the ISO protocol
+X** effort: may they be forced to use the network that they will create,
+X** as opposed to something that works (like the Internet).
+X*/
+Xhello(host, transport)
+Xchar	*host;
+Xint	transport;
+X{ char	*service;
+X	char	*rmode = "r";
+X	char	*wmode = "w";
+X	char	*e_fdopen = "fdopen(%d, \"%s\"): %s";
+X	int	socket0, socket1;	/* to me (bad pun) */
+X	char	buf[BUFSIZ];
+X
+X	switch(transport) {
+X	case T_IP_TCP:
+X		service = "nntp";
+X		socket0 = get_tcp_conn(host, service);
+X		break;
+X	case T_DECNET:
+X#ifdef DECNET
+X		(void) signal(SIGPIPE, SIG_IGN);
+X		service = "NNTP";
+X		socket0 = dnet_conn(host, service, 0, 0, 0, 0, 0);
+X		if (socket0 < 0) {
+X			switch(errno) {
+X			case EADDRNOTAVAIL:
+X				socket0 = NOHOST;
+X				break;
+X			case ESRCH:
+X				socket0 = NOSERVICE;
+X				break;
+X			}
+X		}
+X		break;
+X#else
+X		log(L_WARNING, "no DECNET support compiled in");
+X		return(FAIL);
+X#endif
+X	case T_FD:
+X		service = "with a smile";
+X		socket0 = atoi(host);
+X		break;
+X	}
+X
+X	if (socket0 < 0) {
+X		switch(socket0) {
+X		case NOHOST:
+X			sprintf(buf, "%s host unknown", host);
+X			log(L_WARNING, buf);
+X			return(FAIL);
+X		case NOSERVICE:
+X			sprintf(buf, "%s service unknown: %s", host, service);
+X			log(L_WARNING, buf);
+X			return(FAIL);
+X		case FAIL:
+X			sprintf(buf, "%s hello: %s", host, errmsg(errno));
+X			log(L_NOTICE, buf);
+X			return(FAIL);
+X		}
+X	}
+X
+X	if ((socket1 = dup(socket0)) < 0) {
+X		sprintf(buf, "dup(%d): %s", socket0, errmsg(errno));
+X		log(L_WARNING, buf);
+X		(void) close(socket0);
+X		return(FAIL);
+X	}
+X
+X	if ((rmt_rd = fdopen(socket0, rmode)) == (FILE *)NULL) {
+X		sprintf(buf, e_fdopen, socket0, rmode);
+X		log(L_WARNING, buf);
+X		(void) close(socket0);
+X		(void) close(socket1);
+X		return(FAIL);
+X	}
+X
+X	if ((rmt_wr = fdopen(socket1, wmode)) == (FILE *)NULL) {
+X		sprintf(buf, e_fdopen, socket1, wmode);
+X		log(L_WARNING, buf);
+X		(void) fclose(rmt_rd);
+X		rmt_rd = (FILE *)NULL;
+X		(void) close(socket1);
+X		return(FAIL);
+X	}
+X
+X	switch(readreply(buf, sizeof(buf))) {
+X	case OK_CANPOST:
+X	case OK_NOPOST:
+X		if (ferror(rmt_rd)) {
+X			goodbye(DONT_WAIT);
+X			return(FAIL);
+X		}
+X		break;
+X	default:
+X		if (buf[0] != '\0') {
+X			char	err[BUFSIZ];
+X
+X			sprintf(err, "%s greeted us with %s", host, buf);
+X			log(L_NOTICE, err);
+X		}
+X		goodbye(DONT_WAIT);
+X		return(FAIL);
+X	}
+X	return(NULL);
+X}
+X
+X/*
+X** Say goodbye to the nice remote server.
+X**
+X** We trap SIGPIPE because the socket might already be gone.
+X*/
+Xgoodbye(wait_for_reply)
+Xint	wait_for_reply;
+X{
+X	register ifunp	pstate = signal(SIGPIPE, SIG_IGN);
+X
+X	if (sendcmd("QUIT"))
+X		wait_for_reply = FALSE;	/* override, something's wrong. */
+X	/*
+X	** I don't care what they say to me; this is just being polite.
+X	*/
+X	if (wait_for_reply) {
+X		char	buf[BUFSIZ];
+X
+X		(void) readreply(buf, sizeof(buf));
+X	}
+X	(void) fclose(rmt_rd);
+X	rmt_rd = (FILE *)NULL;
+X	(void) fclose(rmt_wr);
+X	rmt_wr = (FILE *)NULL;
+X	if (pstate != (ifunp)(-1));
+X		(void) signal(SIGPIPE, pstate);
+X}
+X
+Xstatic SIGRET
+Xto_sfgets()
+X{
+X	longjmp(SFGstack, 1);
+X}
+X
+X/*
+X** `Safe' fgets, ala sendmail. This fgets will timeout after some
+X** period of time, on the assumption that if the remote did not
+X** return, they're gone.
+X** WARNING: contains a possibly unportable reference to stdio
+X** error macros.
+X*/
+Xchar *
+Xsfgets(buf, size, fp)
+Xchar	*buf;
+Xint	size;
+XFILE	*fp;
+X{
+X	register char	*ret;
+X	int	esave;
+X
+X	if (buf == (char *)NULL || size <= 0 || fp == (FILE *)NULL)
+X		return((char *)NULL);
+X	if (setjmp(SFGstack)) {
+X		(void) alarm(0);		/* reset alarm clock */
+X		(void) signal(SIGALRM, SIG_DFL);
+X#ifdef apollo
+X		fp->_flag |= _SIERR;
+X#else
+X		fp->_flag |= _IOERR;		/* set stdio error */
+X#endif
+X#ifndef ETIMEDOUT
+X		errno = EPIPE;			/* USG doesn't have ETIMEDOUT */
+X#else
+X		errno = ETIMEDOUT;		/* connection timed out */
+X#endif
+X		return((char *)NULL);		/* bad read, remote time out */
+X	}
+X	(void) signal(SIGALRM, to_sfgets);
+X	(void) alarm(TIMEOUT);
+X	ret = fgets(buf, size, fp);
+X	esave = errno;
+X	(void) alarm(0);			/* reset alarm clock */
+X	(void) signal(SIGALRM, SIG_DFL);	/* reset SIGALRM */
+X	errno = esave;
+X	return(ret);
+X}
+X
+X/*
+X** send the contents of an open file descriptor to the remote.
+X** Return FALSE if something went wrong.
+X*/
+Xsendfile(fp)
+XFILE	*fp;
+X{
+X	register int	c;
+X	register FILE	*remote = rmt_wr;
+X	static char dbuf[1024];
+X
+X	if (fp == (FILE *)NULL)
+X	  return(FALSE);
+X
+X	while ((c = fread(dbuf, sizeof(char), sizeof(dbuf), fp)) > 0)
+X	{
+X	  if (fwrite(dbuf,sizeof(char),c,remote) < c)
+X	  {
+X	    return(FALSE);
+X	  }
+X	}
+X	(void)fflush(remote);
+X	return (ferror(fp) == 0);
+X}
+END_OF_remote.c
+if test 8045 -ne `wc -c <remote.c`; then
+    echo shar: \"remote.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f xbatch.patch -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"xbatch.patch\"
+else
+echo shar: Extracting \"xbatch.patch\" \(15342 characters\)
+sed "s/^X//" >xbatch.patch <<'END_OF_xbatch.patch'
+XThis set of patches adds the XBATCH command to NNTPD
+X
+XIt should be applied by changing directory to the root
+Xof the NNTP source tree and using the command:
+X	patch -p0 < this_file
+X
+X*** common/nntp.h.old	Fri Jan 24 13:31:07 1992
+X--- common/nntp.h	Fri Jan 24 12:49:08 1992
+X***************
+X*** 2,7 ****
+X--- 2,8 ----
+X   * Response codes for NNTP server
+X   *
+X   * @(#)Header: nntp.h,v 1.8 90/07/05 02:08:31 sob Exp $
+X+  * @(#)nntp.h 1.2 92/01/24 15:08:18 (sjg)
+X   *
+X   * First digit:
+X   *
+X***************
+X*** 45,55 ****
+X--- 46,58 ----
+X  #define	OK_NEWNEWS	230	/* New articles by message-id follow */
+X  #define	OK_NEWGROUPS	231	/* New newsgroups follow */
+X  #define	OK_XFERED	235	/* Article transferred successfully */
+X+ #define	OK_XBATCHED	239	/* Batch transferred successfully */
+X  #define	OK_POSTED	240	/* Article posted successfully */
+X  #define	OK_AUTHSYS	280	/* Authorization system ok */
+X  #define	OK_AUTH		281	/* Authorization (user/pass) ok */
+X  
+X  #define	CONT_XFER	335	/* Continue to send article */
+X+ #define	CONT_XBATCH	339	/* Continue to send batch */
+X  #define	CONT_POST	340	/* Continue to post article */
+X  #define	NEED_AUTHINFO	380	/* authorization is required */
+X  #define	NEED_AUTHDATA	381	/* <type> authorization data required */
+X***************
+X*** 67,72 ****
+X--- 70,76 ----
+X  #define	ERR_XFERRJCT	437	/* Article rejected, don't resend */
+X  #define	ERR_NOPOST	440	/* Posting not allowed */
+X  #define	ERR_POSTFAIL	441	/* Posting failed */
+X+ #define	ERR_NOXBATCH	449	/* Batch transfer not allowed */
+X  #define	ERR_NOAUTH	480	/* authorization required for command */
+X  #define	ERR_AUTHSYS	481	/* Authorization system invalid */
+X  #define	ERR_AUTHREJ	482	/* Authorization data rejected */
+X*** server/batch.c.old	Fri Jan 24 13:32:16 1992
+X--- server/batch.c	Fri Jan 24 12:59:43 1992
+X***************
+X*** 1,5 ****
+X--- 1,6 ----
+X  #ifndef lint
+X  static	char	*rcsid = "@(#)$Header: batch.c,v 1.15 91/01/13 03:27:26 sob Exp $";
+X+ static char	*sccs_id = "@(#)batch.c 1.3 92/01/24 15:10:29 (sjg)";
+X  #endif
+X  /*
+X   * Batch subroutine for Cnews.
+X***************
+X*** 61,66 ****
+X--- 62,69 ----
+X  	int arts;			/* number of articles */
+X  } btch = { NULL, NULL, NO, 0, 0 };
+X  
+X+ static int do_newsrun=0;	/* don't do it  */
+X+ 
+X  /*
+X   * stash stdin (up to ".") on the end of the batch input file.
+X   * kick newsrun if the batch is non-empty and too big or too old.
+X***************
+X*** 103,108 ****
+X--- 106,112 ----
+X  	}
+X  	if (btch.name == NULL)
+X  		return 0;
+X+ 
+X  	tempfile[0] = '\0';
+X  #ifdef UMASK
+X  	(void) umask(UMASK);
+X***************
+X*** 119,125 ****
+X  	if (tempfile[0] != '\0')
+X  		(void) unlink(tempfile);
+X  	if (status == 1 && oktorunbatch())
+X! 		status = enqueue(cont_code, err_code, errbuf);
+X  	return status;
+X  }
+X  
+X--- 123,132 ----
+X  	if (tempfile[0] != '\0')
+X  		(void) unlink(tempfile);
+X  	if (status == 1 && oktorunbatch())
+X! 	{
+X! 	  do_newsrun++;
+X! 	  status = enqueue(cont_code, err_code, errbuf);
+X! 	}
+X  	return status;
+X  }
+X  
+X***************
+X*** 257,264 ****
+X  	syslog(LOG_ERR, "%s transfer_timeout", hostname);
+X  #endif LOG
+X  #endif
+X! 	(void) unlink(tempfile);
+X! 	exit(1);
+X  #endif XFER_TIMEOUT
+X  }
+X  
+X--- 264,279 ----
+X  	syslog(LOG_ERR, "%s transfer_timeout", hostname);
+X  #endif LOG
+X  #endif
+X! 	/*
+X! 	 * 92-01-22 <sjg@sun0>
+X! 	 * used to just unlink and exit.
+X! 	 * we don't want that for xbatch
+X! 	 */
+X! 	if (tempfile[0])
+X! 	{
+X! 	  (void) unlink(tempfile);
+X! 	  exit(1);
+X! 	}
+X  #endif XFER_TIMEOUT
+X  }
+X  
+X***************
+X*** 339,345 ****
+X  
+X  	if (btch.isopen && fstat(fileno(btch.file), &stbuf) >= 0) {
+X  		if (btch.size > 0)
+X! 			enqueue(cont_code, err_code, errbuf);
+X  		else {
+X  			(void) fclose(btch.file);
+X  			btch.file = NULL;
+X--- 354,362 ----
+X  
+X  	if (btch.isopen && fstat(fileno(btch.file), &stbuf) >= 0) {
+X  		if (btch.size > 0)
+X! 		{
+X! 		  enqueue(cont_code, err_code, errbuf);
+X! 		}
+X  		else {
+X  			(void) fclose(btch.file);
+X  			btch.file = NULL;
+X***************
+X*** 453,458 ****
+X--- 470,477 ----
+X  	signal(SIGHUP, SIG_IGN);
+X  	(void) fflush(stdout);
+X  	(void) fflush(stderr);
+X+ 	if (!do_newsrun)
+X+ 	  exit(0);		/* that's all */
+X  	newsrun = strsave(NEWSRUN);
+X  	if (newsrun == NULL)
+X  		newsrun = "/usr/lib/newsbin/input/newsrun";
+X***************
+X*** 499,501 ****
+X--- 518,774 ----
+X  #endif
+X  
+X  
+X+ #ifdef XBATCH
+X+ #ifndef DFUNIT
+X+ # define DFUNIT 1024
+X+ #endif
+X+ 
+X+ /* NAME:
+X+  *	xbatch - accept complete batches
+X+  *
+X+  * SYNOPSIS:
+X+  *      xbatch size
+X+  *      
+X+  * DESCRIPTION:
+X+  *      This function receives complete batches from the client 
+X+  *      and injects them into the Cnews input queue.  It uses 
+X+  *      the same enqueue() routine as the normal 
+X+  *      batch_input_article().   However, for efficiency this 
+X+  *      routine disables the exec'ing of "newsrun".
+X+  *
+X+  *      xbatch takes a single argument "nbytes" which is the 
+X+  *      size in bytes of the batch to be transfered.  NNTP is 
+X+  *      expected to simpy copy and enqueue this many bytes from 
+X+  *      stdin. 
+X+  *      
+X+  *      Using xbatch, the time taken to transfer news from 
+X+  *      ladcgw.ladc.bull.com to taureau.melb.bull.oz.au 
+X+  *      is reduced by a number of hours.
+X+  *      
+X+  *      The possible? client/server conversations look like:
+X+  *      C: XBATCH nbytes
+X+  *      S: 339 Ok
+X+  *      C: sends "nbytes" of data
+X+  *      S: 239 Batch transfered successfully.
+X+  *      
+X+  *      The client has the option of sending another batch.
+X+  *      
+X+  *      C: XBATCH nbytes
+X+  *      S: 339 Ok
+X+  *      C: sends "nbytes" of data
+X+  *      S: 436 xbatch failed: [extra data]
+X+  *      
+X+  *      The client can try to re-send the current batch.
+X+  *      The following can happen any time, and may well occur 
+X+  *      after a failed transfer.
+X+  *      
+X+  *      C: XBATCH nbytes
+X+  *      S: 400 xbatch failed: [extra data], goodbye.
+X+  *
+X+  *      The client should call back later.
+X+  *      
+X+  *      C: XBATCH nbytes
+X+  *      S: 449 Sorry, you are not allowed to transfer batches.
+X+  *      
+X+  *      The client should not bother trying again.
+X+  * 
+X+  *      Please send copies of updates to this code to:
+X+  *      <sjg@melb.bull.oz.au>
+X+  *      
+X+  * RETURN VALUE:
+X+  *      None
+X+  */
+X+ void
+X+ xbatch(argc, argv)
+X+   int	argc;
+X+   char	*argv[];
+X+ {
+X+   char		errbuf[2 * NNTP_STRLEN];
+X+   int		retcode = 1;
+X+   size_t	nbytes;
+X+   
+X+   if (canxfer < 2)
+X+   {
+X+     printf("%d Sorry, you are not allowed to transfer batches.\r\n",
+X+ 	   ERR_NOXBATCH);
+X+ #ifdef LOG
+X+     syslog(LOG_INFO, "%s xbatch rejected", hostname);
+X+ #endif
+X+     (void) fflush(stdout);
+X+     return ;
+X+   }
+X+   if (argc > 1)
+X+     nbytes = atoi(argv[1]);
+X+   else
+X+     nbytes = 0;
+X+   if (nbytes <= 0)
+X+   {
+X+     printf("%d Invalid or missing size for xbatch.\r\n",
+X+ 	   ERR_CMDSYN);
+X+     (void) fflush(stdout);
+X+     return ;
+X+   }
+X+   if (!space(MINFREE + (nbytes / DFUNIT)))
+X+   {
+X+     /* force error reporting code into sending */
+X+     /* an out-of-space error message	       */
+X+     if (gethostname(errbuf, MAXHOSTNAMELEN) < 0)
+X+       (void) strcpy(errbuf, "Amnesiac");
+X+     
+X+     (void) strcat(errbuf, " NNTP server out of space. Try later.");
+X+     
+X+     retcode = 0;		/* indicates that an error occurred */
+X+   }
+X+   do_newsrun=0;			/* don't do newsrun */
+X+   if (btch.isopen)
+X+   {
+X+     enqpartbatch(INF_DEBUG, INF_DEBUG, errbuf);
+X+     if (btch.isopen)
+X+     {
+X+       if (gethostname(errbuf, MAXHOSTNAMELEN) < 0)
+X+ 	(void) strcpy(errbuf, "Amnesiac");
+X+       (void) strcat(errbuf, " NNTP server can't prepare batch. Try Later.");
+X+       retcode = -1;		/* a problem */
+X+     }
+X+   }
+X+   if (retcode == 1)
+X+   {
+X+     /* 
+X+      * Ok, we can now try and receive the batch.
+X+      */
+X+     retcode = get_xbatch(CONT_XBATCH, errbuf, nbytes);
+X+   }
+X+   switch (retcode)
+X+   {
+X+   case -1:
+X+     printf("%d xbatch failed: %s, goodbye\r\n", ERR_GOODBYE, errbuf);
+X+     break;
+X+   case 0:
+X+     printf("%d xbatch failed: %s\r\n", ERR_XFERFAIL, errbuf);
+X+     break;
+X+   default:
+X+     printf("%d Batch transfered successfully.\r\n", OK_XBATCHED);
+X+     break;
+X+   }
+X+   (void) fflush(stdout);
+X+   
+X+ #ifdef LOG
+X+   syslog(LOG_INFO, "%s xbatch %s", hostname,
+X+ 	 retcode >= 0 ? "succeeded" : "failed");
+X+ #endif
+X+   return ;
+X+ }
+X+ 
+X+ int
+X+ get_xbatch(cont_code, errbuf, nbytes)
+X+   int	cont_code;
+X+   char	*errbuf;
+X+   size_t nbytes;
+X+ {
+X+   char		buf[512];
+X+   int 		status = 1;			/* okay status */
+X+   size_t	count=0;
+X+   register int	icnt, ocnt;
+X+   
+X+   /* protect locking */
+X+   signal(SIGINT, SIG_IGN);
+X+   signal(SIGQUIT, SIG_IGN);
+X+   signal(SIGHUP, SIG_IGN);
+X+ 
+X+ #ifdef LOG
+X+   syslog(LOG_INFO, "%s xbatch %d bytes", hostname, nbytes);
+X+ #endif
+X+   if (btch.name == NULL)
+X+   {
+X+     /* BATCH_FILE may trigger unprivileged() */
+X+     btch.name = mktemp(strsave(BATCH_FILE));
+X+   }
+X+   if (btch.name == NULL)
+X+     return 0;
+X+ #ifdef UMASK
+X+   (void) umask(UMASK);
+X+ #endif
+X+   if (btch.file == NULL)
+X+   {
+X+     btch.file = fopen(btch.name, "a");
+X+     if (btch.file == NULL)
+X+     {
+X+ #ifdef SYSLOG
+X+       syslog(LOG_ERR,"xbatch(): %s: %m", btch.name);
+X+ #endif
+X+       return 0;
+X+     }
+X+     btch.isopen = YES;
+X+     btch.size = 0;
+X+     btch.start = time(&btch.start);
+X+   }
+X+   tempfile[0] = '\0';
+X+   printf("%d Ok\r\n", cont_code);
+X+   (void) fflush(stdout);
+X+ #ifdef XFER_TIMEOUT
+X+   signal(SIGALRM, xfer_timeout);
+X+   (void) alarm(XFER_TIMEOUT);
+X+ #endif
+X+   while (count < nbytes)
+X+   {
+X+     if ((ocnt = nbytes - count) > sizeof (buf))
+X+       ocnt = sizeof (buf);
+X+     if ((icnt = fread(buf, sizeof (char), ocnt, stdin)) > 0)
+X+     {
+X+       if ((ocnt = fwrite(buf, sizeof (char), icnt, btch.file)) == icnt)
+X+       {
+X+ 	count += ocnt;
+X+       }
+X+       else
+X+       {
+X+ #ifdef DEBUG
+X+ 	printf("%d xbatch: ocnt == %d != icnt == %d\r\n",
+X+ 	       INF_DEBUG, ocnt, icnt);
+X+ 	(void) fflush(stdout);
+X+ #endif /* DEBUG */
+X+ 	break;
+X+       }
+X+     }
+X+     else
+X+     {
+X+ #ifdef DEBUG
+X+       printf("%d xbatch: looking for %d, got icnt == %d\r\n",
+X+ 	     INF_DEBUG, ocnt, icnt);
+X+       (void) fflush(stdout);
+X+ #endif /* DEBUG */
+X+       break;
+X+     }
+X+   }
+X+   (void) fflush(btch.file);
+X+   (void) fclose(btch.file);
+X+ #ifdef XFER_TIMEOUT
+X+   (void) alarm(0);
+X+   (void) signal(SIGALRM, SIG_DFL);
+X+ #endif
+X+   
+X+   if (count < nbytes)
+X+   {
+X+     sprintf(errbuf, "xbatch: short by %d bytes",
+X+ 	    nbytes - count);
+X+ #ifdef SYSLOG
+X+ #ifdef LOG
+X+     syslog(LOG_ERR, "%s %s", hostname, errbuf);
+X+ #else
+X+     syslog(LOG_ERR, errbuf);
+X+ #endif
+X+ #endif
+X+     unlink(btch.name);		/* toss it. */
+X+     btch.file = NULL;
+X+     btch.isopen = NO;
+X+     btch.start = 0;
+X+     btch.size = 0;
+X+     return 0;
+X+   }
+X+ #ifdef DEBUG
+X+   printf("%d Got that, please wait a tick while I pass it on.\r\n",
+X+ 	 INF_DEBUG);
+X+   (void) fflush(stdout);
+X+ #endif /* DEBUG */
+X+   return (enqueue(INF_DEBUG, INF_DEBUG, errbuf) == 1);
+X+ }
+X+ #endif /* XBATCH */
+X*** server/serve.c.old	Fri Jan 24 13:32:17 1992
+X--- server/serve.c	Fri Jan 24 12:57:34 1992
+X***************
+X*** 1,5 ****
+X--- 1,6 ----
+X  #ifndef lint
+X  static char	*sccsid = "@(#)$Header: serve.c,v 1.37 91/01/10 17:19:52 sob Exp $";
+X+ static char	*sccs_id = "@(#)serve.c 1.3 92/01/24 15:10:04 (sjg)";
+X  #endif
+X  
+X  /*
+X***************
+X*** 27,32 ****
+X--- 28,36 ----
+X  extern	int	ahbs(), group(), help(), ihave();
+X  extern	int	list(), newgroups(), newnews(), nextlast(), post();
+X  extern	int	slave(), stat(), xhdr();
+X+ #ifdef XBATCH
+X+ extern  void	xbatch();
+X+ #endif
+X  
+X  extern int errno;
+X  
+X***************
+X*** 61,66 ****
+X--- 65,73 ----
+X  #ifdef XHDR
+X  	"xhdr",		0,	xhdr,
+X  #endif XHDR
+X+ #ifdef XBATCH
+X+ 	"xbatch",	0,	xbatch,
+X+ #endif
+X  };
+X  #define NUMCMDS (sizeof(cmdtbl) / sizeof(struct cmdent))
+X  
+X***************
+X*** 243,255 ****
+X  		*cp = '\0';
+X  	else
+X  		timeptr = "Unknown date";
+X! #ifdef AUTH
+X! 	printf("%d %s NNTP[auth] server version %s ready at %s (%s).\r\n",
+X  #else
+X! 	printf("%d %s NNTP server version %s ready at %s (%s).\r\n",
+X  #endif
+X  		canpost ? OK_CANPOST : OK_NOPOST,
+X! 		host, nntp_version,
+X  		timeptr,
+X  		canpost ? "posting ok" : "no posting");
+X  	(void) fflush(stdout);
+X--- 250,272 ----
+X  		*cp = '\0';
+X  	else
+X  		timeptr = "Unknown date";
+X! 
+X! 	line[0] = '\0';
+X! #if defined(AUTH) && defined(XBATCH)
+X! 	strcpy(line, "[xbatch,auth]");
+X  #else
+X! # ifdef XBATCH
+X! 	strcpy(line, "[xbatch]");
+X! # else
+X! #   ifdef AUTH
+X! 	strcpy(line, "[auth]");
+X! #   endif
+X! # endif
+X  #endif
+X+ 	
+X+ 	printf("%d %s NNTP%s server version %s ready at %s (%s).\r\n",
+X  		canpost ? OK_CANPOST : OK_NOPOST,
+X! 		host, line, nntp_version,
+X  		timeptr,
+X  		canpost ? "posting ok" : "no posting");
+X  	(void) fflush(stdout);
+X*** server/access.c.old	Fri Jan 24 13:32:16 1992
+X--- server/access.c	Fri Jan 24 12:57:36 1992
+X***************
+X*** 1,5 ****
+X--- 1,7 ----
+X  #ifndef lint
+X  static char	*sccsid = "@(#)$Header: access.c,v 1.23 90/08/10 22:58:39 sob Exp $";
+X+ static char	*sccs_id = "@(#)access.c 1.3 92/01/24 15:09:27 (sjg)";
+X+ };
+X  #endif
+X  
+X  #include "common.h"
+X***************
+X*** 26,32 ****
+X   *
+X   *			"canxfer" is a pointer to storage for
+X   *			an integer,which we set to 1 if the
+X!  *			client can transfer news, 0 otherwise.
+X   *
+X   *			"gdlist" is a comma separated list of
+X   *			newsgroups/distributions which the client
+X--- 28,36 ----
+X   *
+X   *			"canxfer" is a pointer to storage for
+X   *			an integer,which we set to 1 if the
+X!  *			client can transfer news, 2 if they can 
+X!  *                      send batches for passing straight to 
+X!  *                      rnews,  0 otherwise.
+X   *
+X   *			"gdlist" is a comma separated list of
+X   *			newsgroups/distributions which the client
+X***************
+X*** 70,75 ****
+X--- 74,82 ----
+X  
+X  #ifdef DEBUG
+X  	*canread = *canpost = *canxfer = 1;
+X+ #ifdef XBATCH
+X+ 	*canxfer = 2;
+X+ #endif
+X  	return;
+X  #endif
+X  
+X***************
+X*** 208,213 ****
+X--- 215,224 ----
+X  			(void) strcpy(gdlist, groups);
+X  		}
+X  	}
+X+ #ifdef XBATCH
+X+ 		if (*canxfer && (readperm[0] == 'X' || readperm[0] == 'B'))
+X+ 		  *canxfer = 2;
+X+ #endif
+X  /*
+X   * The access check expects there to be spaces between the group names.
+X   * In the access file, there are commas between the groupnames.
+X*** server/help.c.old	Fri Jan 24 13:32:17 1992
+X--- server/help.c	Fri Jan 24 12:48:03 1992
+X***************
+X*** 1,5 ****
+X--- 1,6 ----
+X  #ifndef lint
+X  static char	*sccsid = "@(#)$Header: help.c,v 1.8 90/01/15 23:18:58 sob Exp $";
+X+ static char	*sccs_id = "@(#)help.c 1.2 92/01/24 15:09:57 (sjg)";
+X  #endif
+X  
+X  #include "common.h"
+X***************
+X*** 21,28 ****
+X  	printf("NEXT        POST         QUIT\r\n");
+X  	printf("STAT        NEWGROUPS    HELP\r\n");
+X  	printf("IHAVE       NEWNEWS      SLAVE\r\n");
+X! 	printf("\r\nAdditionally, the following extention is supported:\r\n\r\n");
+X  	printf("XHDR        Retrieve a single header line from a range of articles.\r\n");
+X  	printf("\r\n");
+X  	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X  	printf(".\r\n");
+X--- 22,30 ----
+X  	printf("NEXT        POST         QUIT\r\n");
+X  	printf("STAT        NEWGROUPS    HELP\r\n");
+X  	printf("IHAVE       NEWNEWS      SLAVE\r\n");
+X! 	printf("\r\nAdditionally, the following extentions are supported:\r\n\r\n");
+X  	printf("XHDR        Retrieve a single header line from a range of articles.\r\n");
+X+ 	printf("XBATCH <size> Transfer prepared news batches.\r\n");
+X  	printf("\r\n");
+X  	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X  	printf(".\r\n");
+END_OF_xbatch.patch
+if test 15342 -ne `wc -c <xbatch.patch`; then
+    echo shar: \"xbatch.patch\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of archive 2 \(of 2\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked both archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+Simon J. Gerraty		<sjg@melb.bull.oz.au> (Work)
+				<sjg@zen.void.oz.au>  (Home)
+
+#include <disclaimer,_witty_comment>

@@ -1,0 +1,75 @@
+Xref: funic comp.lang.tcl:1751 alt.sources:4878
+Path: funic!fuug!mcsun!uknet!doc.ic.ac.uk!agate!ames!saimiri.primate.wisc.edu!sdd.hp.com!ncr-sd!SanDiego.NCR.COM!torynews!ncrlnk!psinntp!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Newsgroups: comp.lang.tcl,alt.sources
+Subject: biffclock.tcl - biff & xclock WITH comments this time
+Message-ID: <BxqEz0.6vn@NeoSoft.com>
+Date: 15 Nov 92 00:35:18 GMT
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Lines: 65
+
+Here's a little Tcl script that combines basic biff and xclock
+functionality into 60-odd lines, with comments.
+#
+# biff and xclock, together in Tcl/Tk, written during the lunch break
+# at LISA VI (10/21/92) and placed into the public domain.
+# karl@neosoft.com, morrison@paranet.com
+#
+# Requires Extended Tcl for environment access and time display.
+#
+
+set flagDownBitmap "/usr/include/X11/bitmaps/flagdown"
+set flagUpBitmap "/usr/include/X11/bitmaps/flagup"
+set bitmapState -1
+
+# define widgets for display of biff bitmaps and time, inform geometry manager
+label .mailbox 
+label .time -font "*fixed-medium-r-normal--*-200-*"
+pack append . .mailbox {top expand} .time {bottom expand}
+
+# get mailbox from environment, or guess if not in environment
+if [info exists env(MAIL)] {
+    set MAIL $env(MAIL)
+} else {
+    set MAIL "/usr/spool/mail/[id user]"
+}
+
+# if new mail,
+#	if haven't barked for new mail,
+#		bark (i.e., change bitmap)
+# else
+#	unbark (i.e., change bitmap)
+proc check_and_bark {} {
+    global MAIL flagDownBitmap flagUpBitmap bitmapState
+
+    if {[file exists $MAIL] && ([file size $MAIL] != 0) \
+       && ([file mtime $MAIL] > [file atime $MAIL])} {
+		if {$bitmapState != 1} {
+			.mailbox configure -bitmap "@$flagUpBitmap"
+			set bitmapState 1
+		}
+    } else {
+		if {$bitmapState != 0} {
+			.mailbox configure -bitmap "@$flagDownBitmap"
+			set bitmapState 0
+		}
+    }
+}
+
+proc schedule {} {
+
+	# check mailbox status & do the right thing
+    check_and_bark
+
+	# display current time
+    .time configure -text [fmtclock [getclock] "%H:%M"]
+
+	# not recursion, request to Tk event loop to do this again in 60 seconds
+    after 60000 schedule
+}
+
+# do the first call to schedule, the rest will schedule themselves
+schedule
+-- 
+-- Email info@NeoSoft.com for info on getting interactive Internet access.
+"Turn on your hot tub by email now.  Ask me how."

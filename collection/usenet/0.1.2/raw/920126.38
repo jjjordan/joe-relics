@@ -1,0 +1,53 @@
+Path: funic!news.funet.fi!sunic!dkuug!diku!juul
+From: juul@diku.dk (Anders Juul Munch)
+Newsgroups: alt.sources
+Subject: Re: random numbers in an interval
+Message-ID: <1992Jan25.213423.26015@odin.diku.dk>
+Date: 25 Jan 92 21:34:23 GMT
+References: <7632@fuhainf.fernuni-hagen.de>
+Sender: juul@vigrid.diku.dk
+Organization: Department of Computer Science, U of Copenhagen
+Lines: 42
+
+streibel@fuhainf2.fernuni-hagen.de (Hans Streibel) writes:
+
+>I am looking for a good way to transform numbers given by a random number
+>generator to a certain interval, let's say 0...N.
+
+>All random number generators that I know of produce numbers in the range
+>of 0 to MAX, where MAX is a very large number.
+
+
+long random(long N)
+{
+  long x;
+  
+  do
+  {                    /*(1)   (2)*/
+    x = random_upto_MAX() / (MAX/(N+1));
+  }while(x >= N);
+
+  return x;
+}
+
+
+The potential rounding error of the "/" below (1) is compensated for
+by using N+1 instead of N. The probable rounding error below (2) makes the
+net result potentially greater. All in all, what you get is evenly
+distributed on 0..N-1, when it's in that range, but sometimes it is greater
+than N-1, in which case you just try again. But this happens to rarely to
+degrade performance.
+
+Please be ware that it produces the N different values 0 .. N-1, but never
+N itself. 
+
+CODE IS NOT TESTED.
+
+Hope this helps.
+
+
+Anders Munch		|  Department of Computer Science
+juul@diku.dk		|  University of Copenhagen, Denmark
+Disclaimer: This it not a disclaimer, nor is it a proposition.
+Disclaimer: Any similarity between the disclaimers here and the disclaimers
+            of my employer is purely accidental.

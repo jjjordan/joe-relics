@@ -1,0 +1,2477 @@
+Path: funic!fuug!mcsun!hp4nl!svin02!wzv!wietse
+From: wietse@wzv.win.tue.nl (Wietse Venema)
+Newsgroups: alt.sources
+Subject: unproto - ansi to old c converter
+Message-ID: <2569@wzv.win.tue.nl>
+Date: 1 Sep 91 21:19:26 GMT
+Followup-To: alt.sources.d
+Distribution: alt
+Organization: Eindhoven University of Technology, The Netherlands
+Lines: 2466
+
+This is a filter that sits in between the C preprocessor and the next C
+compiler stage. Its purpose is to leave old-style C alone, and to
+de-ANSI-fy function headings, function pointer type declarations (and
+casts), function type declarations, and combinations thereof. Many
+freely-distributable unprotoizers have problems with the latter because
+they are based on a non-recursive algorithm or even make assumptions
+about code layout.
+
+The unprototyper has support for systems that require special tricks
+for variadic functions (many don't). A sample `stdarg.h' file is
+provided that works with sparc, 80*86 and that should also work with
+mc68xxx and vax.
+
+Other ANSI-isms are just passed on without modification, such as
+trigraphs, token pasting (##), #pragmas and stringizing (#text).
+
+The unprototyper does not understand declarations of (whatever). The
+result will be a syntax error so this should not go by unnoticed.
+
+I successfully used this unprototyper on a few megabytes of source.
+Please let me know if the program has some severe problems that I
+overlooked.  If all goes well, the next version of this program will be
+submitted to comp.sources.misc.
+
+	Wietse Venema
+	wietse@wzv.win.tue.nl
+	Eindhoven University of Technology
+	The Netherlands
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  README Makefile tok_io.c tok_class.c tok_pool.c unproto.c
+#   vstring.c parse.h token.h vstring.h cpp.sh stdarg.h varargs.c
+#   example.c example.out unproto.1
+# Wrapped by wietse@wzv on Sun Sep  1 23:10:00 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f README -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"README\"
+else
+echo shar: Extracting \"README\" \(3776 characters\)
+sed "s/^X//" >README <<'END_OF_README'
+X@(#) README 1.1 91/09/01 23:08:31
+X
+Xunproto - ANSI C to old C converter
+X
+XPurpose:
+X
+XThis is a filter that sits in between the C preprocessor and the next C
+Xcompiler stage. Its purpose is to leave old-style C alone, and to
+Xde-ANSI-fy function headings, function pointer type declarations (and
+Xcasts), function type declarations, and combinations thereof. Many
+Xfreely-distributable unprotoizers have problems with the latter because
+Xthey are based on a non-recursive algorithm or even make assumptions
+Xabout code layout.
+X
+XThe unprototyper has support for systems that require special tricks
+Xfor variadic functions (many don't). A sample `stdarg.h' file is
+Xprovided.
+X
+XRestrictions:
+X
+XOther ANSI-isms are just passed on without modification, such as
+Xtrigraphs, token pasting (##), #pragmas and stringizing (#text).
+X
+XThe unprototyper does not understand declarations of (whatever). The
+Xresult will be a syntax error so this should not go by unnoticed.
+X
+XOperation:
+X
+XThis package implements an non-default C preprocessor (the output from
+Xthe default C preprocessor being piped through the unprototyper).  How
+Xone tells the C compiler to use an non-default preprocessor program is
+Xsomewhat compiler-dependent:
+X
+X    SunOS 4.x:  cc -Qpath directory_with_non-default_cpp ...
+X
+X    SysV Rel2:  cc -Bdirectory_with_non-default_cpp/ -tp ...
+X
+XYour C compiler manual should provide the necessary information.
+X
+XOn some systems the lint(1) command is just a shell script, and writing
+Xa version that uses the unprototyper should not be too hard. With SunOS
+X4.x, /usr/bin/lint is not a shell script, but it accepts the same
+Xcommand syntax as the cc(1) for the specification of a non-default
+Xcompiler pass. 
+X
+XYou may have to do some research on the lint command provided with your
+Xown machine.
+X
+XConfiguration:
+X
+XCheck the contents of the `stdarg.h' file provided with this package.
+XThis file serves a dual purpose. It should be included by C source file
+Xthat implements ANSI-style variadic functions. It is also used to
+Xconfigure the `unproto' program so that it emits the proper magic for
+Xthe `...' construct.
+X
+XThe `stdarg.h' file contains definitions for the sparc architecture and
+Xfor architectures that pass arguments via the stack (usually OK for
+X80*86, mc68k and vax C compilers).  Risc processors often need special
+Xtricks.  These are usually found in the file `/usr/include/varargs.h'.
+X
+XThe file `varargs.c' provided with this package can be used to verify
+Xthat the `stdarg.h' file has been set up correctly.
+X
+XFor maximal flexibility, you can use the `cpp' shell script provided
+Xwith this package to set up the pipe between the default C preprocessor
+Xand the unprototyper command. The script assumes that the unprototyper
+Xbinary is called `unproto'. See the Makefile for details.
+X
+XThe overhead of shell-script interpretation can be avoided by having
+Xthe unprototyper itself open the pipe to the C preprocessor.  In this
+Xcase, the `unproto.c' source file should be compiled with the
+X`PIPE_THROUGH_CPP' macro defined as the pathname of the C preprocessor
+X(usually `/lib/cpp'), and the unprototyper binary should be called
+X`cpp'.  See the Makefile for details.
+X
+XInstallation:
+X
+XInstall the `stdarg.h' include file and the `unproto.1' manual page in
+Xsuitable places.
+X
+XIf you use the `cpp' shell script to pipe the preprocessor output
+Xthrough the unprototyper program, install the `unproto' binary in a
+Xplace where the `cpp' shell script can find it, and install the `cpp'
+Xshell script in a suitable place.
+X
+XIf the unprototyper itself opens the pipe to the C preprocessor (i.e.
+Xthe unprototyper was built with the `PIPE_THROUGH_CPP' macro defined),
+Xinstall the `cpp' unprototyper binary in a suitable place.
+X
+X	Wietse Venema
+X	wietse@wzv.win.tue.nl
+X	Eindhoven University of Technology
+X	The Netherlands
+END_OF_README
+if test 3776 -ne `wc -c <README`; then
+    echo shar: \"README\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f Makefile -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"Makefile\"
+else
+echo shar: Extracting \"Makefile\" \(2523 characters\)
+sed "s/^X//" >Makefile <<'END_OF_Makefile'
+X# @(#) Makefile 1.1 91/09/01 23:08:32
+X
+X## BEGIN CONFIGURATION STUFF
+X
+X# For maximal flexibility, the "/lib/cpp | unproto" pipeline can be
+X# packaged as an executable shell script (see the provided file "cpp.sh")
+X# that should be installed as "/whatever/cpp". This script should then be
+X# specified to the C compiler as a non-default preprocessor.
+X#
+X# PROG	= unproto
+X# PIPE	= 
+X
+X# For maximal performance, the overhead of shell script inpretation can
+X# be eliminated by having the unprototyper program itself open the pipe
+X# to the preprocessor.  In that case, define the CPP_PROG macro as the
+X# path name of the default C preprocessor (usually "/lib/cpp"), install
+X# the unprototyper as "/whatever/cpp" and specify it to the C compiler as
+X# a non-default preprocessor.
+X# 
+XPROG	= cpp
+XPIPE	= -DPIPE_THROUGH_CPP=\"/lib/cpp\"
+X
+X# Some compilers complain about some #directives. An example follows.
+X# This is only a partial solution, because the directives are still seen
+X# by /lib/cpp.
+X#
+X# SKIP	= -DIGNORE_DIRECTIVES=\"foo\",\"bar\"
+X#
+XSKIP	= -DIGNORE_DIRECTIVES=\"pragma\"
+X
+X# If you need support for functions that implement ANSI-style variable
+X# length argument lists, edit the stdarg.h file provided with this
+X# package so that it contains the proper definitions for your machine.
+X
+X## END CONFIGURATION STUFF
+X
+XCFILES	= tok_io.c tok_class.c tok_pool.c unproto.c vstring.c
+XHFILES	= parse.h token.h vstring.h
+XSCRIPTS	= cpp.sh
+XSAMPLES	= stdarg.h varargs.c example.c example.out 
+XSOURCES	= README Makefile $(CFILES) $(HFILES) $(SCRIPTS) $(SAMPLES)
+XFILES	= $(SOURCES) unproto.1
+XOBJECTS	= tok_io.o tok_class.o tok_pool.o unproto.o vstring.o
+X
+XCFLAGS	= -O $(PIPE) $(SKIP)
+X#CFLAGS	= -O -pg -Dstatic= $(PIPE) $(SKIP)
+X#CFLAGS	= -g $(PIPE) $(SKIP) -DDEBUG
+X
+X$(PROG): $(OBJECTS)
+X	cc $(CFLAGS) -o $@ $(OBJECTS) 
+X
+X# For linting, enable all bells and whistles.
+X
+Xlint:
+X	lint -DPIPE_THROUGH_CPP=\"foo\" -DIGNORE_DIRECTIVES=\"foo\",\"bar\" \
+X	$(CFILES)
+X
+X# Testing requires that the program is compiled with -DDEBUG
+X
+Xtest:	$(PROG) example.c example.out
+X	./cpp example.c >example.tmp
+X	@echo the following diff command should produce no output
+X	diff -b example.out example.tmp
+X	rm -f example.tmp
+X
+Xshar:	$(FILES)
+X	@shar $(FILES)
+X
+Xarchive:
+X	$(ARCHIVE) $(SOURCES)
+X
+Xclean:
+X	rm -f *.o core cpp unproto mon.out varargs.o varargs example.tmp
+X
+Xtok_class.o : tok_class.c parse.h token.h 
+Xtok_io.o : tok_io.c token.h vstring.h 
+Xtok_pool.o : tok_pool.c token.h vstring.h 
+Xunproto.o : unproto.c vstring.h stdarg.h parse.h token.h 
+Xvstring.o : vstring.c vstring.h 
+END_OF_Makefile
+if test 2523 -ne `wc -c <Makefile`; then
+    echo shar: \"Makefile\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f tok_io.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"tok_io.c\"
+else
+echo shar: Extracting \"tok_io.c\" \(9938 characters\)
+sed "s/^X//" >tok_io.c <<'END_OF_tok_io.c'
+X/*++
+X/* NAME
+X/*	tok_io 3
+X/* SUMMARY
+X/*	token I/O
+X/* PACKAGE
+X/*	unproto
+X/* SYNOPSIS
+X/*	#include "token.h"
+X/*
+X/*	struct token *tok_get(skip_flag)
+X/*	int skip_flag;
+X/*
+X/*	void tok_unget(t)
+X/*	struct token *t;
+X/*
+X/*	void tok_flush(t)
+X/*	struct token *t;
+X/*
+X/*	void tok_show(t)
+X/*	struct token *t;
+X/*
+X/*	void put_str(s)
+X/*	char *s;
+X/*
+X/*	void put_ch(c)
+X/*	int c;
+X/*
+X/*	void show_line_number()
+X/* DESCRIPTION
+X/*	These functions read from stdin and write to stdout. The
+X/*	output functions maintain some memory so that two successive
+X/*	words will always be separated by white space.
+X/*
+X/*	The input routines eliminate backslash-newline from the input.
+X/*
+X/*	tok_get() reads the next token from standard input. It returns
+X/*	a null pointer when the end of input is reached. If the skip_flag
+X/*	argument is nonzero, white space (except newline) will be skipped.
+X/*
+X/*	tok_unget() implements a limited amount of token push back.
+X/*
+X/*	tok_show() displays the contents of a (possibly composite) token
+X/*	on the standard output.
+X/*
+X/*	tok_flush() displays the contents of a (possibly composite) token
+X/*	on the standard output and makes it available for re-use.
+X/*
+X/*	put_str() writes a null-terminated string to standard output.
+X/*
+X/*	put_ch() writes one character to standard output.
+X/*
+X/*	show_line_number() displays the line number of the next line
+X/*	to be written to standard output, in a format suitable for the C
+X/*	compiler parser phase.
+X/* BUGS
+X/*	The tokenizer is just good enough for the unproto filter.
+X/*	As a benefit, it is quite fast.
+X/* AUTHOR(S)
+X/*	Wietse Venema
+X/*	Eindhoven University of Technology
+X/*	Department of Mathematics and Computer Science
+X/*	Den Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X/* LAST MODIFICATION
+X/*	91/09/01 23:08:33
+X/* VERSION/RELEASE
+X/*	1.1
+X/*--*/
+X
+Xstatic char io_sccsid[] = "@(#) tok_io.c 1.1 91/09/01 23:08:33";
+X
+X/* C library */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X
+Xextern char *strchr();
+Xextern char *malloc();
+Xextern char *realloc();
+Xextern char *strcpy();
+X
+X/* Application-specific stuff */
+X
+X#include "token.h"
+X#include "vstring.h"
+X
+Xextern void error();			/* XXX */
+X
+X/* Stuff to keep track of original source file name and position */
+X
+Xstatic char path[BUFSIZ];		/* current file name */
+Xstatic int line = 0;			/* # of last read line */
+X
+X/* Forward declarations */
+X
+Xstatic void read_quoted();
+Xstatic void read_comment();
+X
+X/* Buffered i/o stuff */
+X
+Xstatic struct vstring *buf = 0;		/* read-ahead buffer */
+Xstatic char *bp = "";			/* buffer position */
+X
+X#ifdef DEBUG
+X#define	INITBUF	1			/* small initial buffer size */
+X#else
+X#define	INITBUF BUFSIZ			/* reasonable initial buffer size */
+X#endif
+X
+X#define	input()		(*bp ? *bp++ : next_line())
+X#define	unput(c)	(*--bp = (c))
+X
+X#define	TOK_BUFSIZE	5		/* token push-back buffer size */
+X
+Xstatic struct token *tok_buf[TOK_BUFSIZE];
+Xstatic int tok_bufpos = 0;
+X
+X/* Type of last token sent to output, for pretty printing */
+X
+Xstatic int last_tok = 0;
+X
+X/* Directives that should be ignored. */
+X
+X#ifdef IGNORE_DIRECTIVES
+X
+Xstatic char *ignore_directives[] = {
+X    IGNORE_DIRECTIVES,
+X    0,
+X};
+X
+X#endif
+X
+X/* Modified string and ctype stuff. */
+X
+X#define	STREQUAL(x,y)	(*(x) == *(y) && strcmp((x),(y)) == 0)
+X
+X#define	ISALNUM(c)	(isalnum(c) || (c) == '_')
+X#define	ISALPHA(c)	(isalpha(c) || (c) == '_')
+X#define	ISSPACE(c)	(isspace(c) && c != '\n')
+X#define	ISDOT(c)	(c == '.')
+X
+X/* Collect all characters that satisfy one condition */
+X
+X#define	COLLECT(v,c,cond) { \
+X				register struct vstring *vs = v; \
+X				register char *cp = vs->str; \
+X				*cp++ = c; \
+X				for (;;) { \
+X				    if ((c = input()) == 0) { \
+X					break; \
+X				    } else if (cond) { \
+X					if (VS_ADDCH(vs, cp, c) == 0) \
+X					    error(1, "out of memory"); \
+X				    } else { \
+X					unput(c); \
+X					break; \
+X				    } \
+X				} \
+X				*cp = 0; \
+X			    }
+X
+X/* show_line_number - print cpp-style line number info */
+X
+Xvoid    show_line_number()
+X{
+X    /* Use the last input line number. */
+X
+X    printf("# %d %s\n", line, path);
+X}
+X
+X/* do_control - parse control line, uses tok_get() */
+X
+Xstatic int do_control()
+X{
+X    struct token *t1;
+X    struct token *t2;
+X    int     pass_thru = 1;		/* 0 = ignore, 1 = output */
+X
+X    (void) input();				/* skip the hash */
+X
+X    if (t1 = tok_get(NO_WSPACE)) {
+X	switch (t1->tokno) {
+X
+X	    /*
+X	     * In case of line number control, the remainder of the line has
+X	     * the format: linenumber "pathname".
+X	     */
+X	case TOK_NUMBER:
+X	    if (t2 = tok_get(NO_WSPACE)) {
+X		if (t2->tokno == '"') {
+X		    line = atoi(t1->vstr->str) - 1;
+X		    strcpy(path, t2->vstr->str);
+X		}
+X		tok_free(t2);
+X	    }
+X	    break;
+X
+X#ifdef IGNORE_DIRECTIVES
+X	case TOK_WORD:
+X	    /* Optionally ignore other #directives, such as #pragma. */
+X	    {
+X		char  **cpp;
+X		char   *cp = t1->vstr->str;
+X
+X		for (cpp = ignore_directives; *cpp; cpp++) {
+X		    if (STREQUAL(cp, *cpp)) {
+X			pass_thru = 0;
+X			break;
+X		    }
+X		}
+X	    }
+X	    break;
+X#endif
+X	}
+X	tok_free(t1);
+X    }
+X    return (pass_thru);
+X}
+X
+X/* next_line - read one logical line, handle #control */
+X
+Xstatic int next_line()
+X{
+X    register int c;
+X    register char *cp;
+X
+X    /* Allocate buffer upon first entry */
+X
+X    if (buf == 0)
+X	buf = vs_alloc(INITBUF);
+X
+X    for (;;) {
+X	cp = buf->str;
+X
+X	/* Account for EOF and line continuations */
+X
+X	while ((c = getchar()) != EOF) {
+X	    if (VS_ADDCH(buf, cp, c) == 0)	/* store character */
+X		error(1, "out of memory");
+X	    if (c == '\n') {			/* real end of line */
+X		line++;
+X		break;
+X	    } else if (c == '\\') {
+X		if ((c = getchar()) == EOF) {
+X		    break;
+X		} else if (c == '\n') {		/* backslash-newline */
+X		    line++;
+X		    put_ch('\n');		/* preserve line count */
+X		    cp--;			/* un-store backslash */
+X		} else {
+X		    ungetc(c, stdin);		/* backslash-other */
+X		}
+X	    }
+X	}
+X	*cp = 0;
+X	bp = buf->str;
+X
+X	/* Account for EOF and #control */
+X
+X	switch (bp[0]) {
+X	case 0:				/* EOF */
+X	    return (0);
+X	case '#':				/* control */
+X	    if (do_control())
+X		fputs(buf->str, stdout);	/* pass through */
+X	    else
+X		putchar('\n');			/* filter out */
+X	    break;
+X	default:				/* non-control */
+X	    return (input());
+X	}
+X    }
+X}
+X
+X/* tok_unget - push back one token */
+X
+Xvoid    tok_unget(t)
+Xregister struct token *t;
+X{
+X    if (tok_bufpos >= TOK_BUFSIZE)
+X	error(1, "too much pushback");
+X    tok_buf[tok_bufpos++] = t;
+X}
+X
+X/* tok_get - get next token */
+X
+Xstruct token *tok_get(skip_flag)
+Xint     skip_flag;
+X{
+X    register struct token *t;
+X    register int c;
+X    int     d;
+X
+X    /* Use push-back token, if any. */
+X
+X    if (tok_bufpos) {
+X	t = tok_buf[--tok_bufpos];
+X	return (t);
+X    }
+X
+X    /*
+X     * Get one from the pool and fill it in. The loop is here in case we
+X     * should skip white-space tokens, which happens in a minority of all
+X     * cases.
+X     */
+X
+X    t = tok_alloc();
+X
+X    for (;;) {
+X	if ((c = input()) == 0) {
+X	    tok_free(t);
+X	    return (0);
+X	} else if (!isascii(c)) {
+X	    t->vstr->str[0] = c;
+X	    t->vstr->str[1] = 0;
+X	    t->tokno = TOK_OTHER;
+X	    return (t);
+X	} else if (c == '"' || c == '\'') {
+X	    read_quoted(t, c);
+X	    t->tokno = c;
+X	    return (t);
+X	} else if (ISALPHA(c)) {
+X	    COLLECT(t->vstr, c, ISALNUM(c));
+X	    t->tokno = TOK_WORD;
+X	    return (t);
+X	} else if (isdigit(c)) {
+X	    COLLECT(t->vstr, c, isdigit(c));
+X	    t->tokno = TOK_NUMBER;
+X	    return (t);
+X	} else if (ISSPACE(c)) {
+X	    COLLECT(t->vstr, c, ISSPACE(c));
+X	    if (skip_flag)
+X		continue;
+X	    t->tokno = TOK_WSPACE;
+X	    return (t);
+X	} else if (ISDOT(c)) {
+X	    COLLECT(t->vstr, c, ISDOT(c));
+X	    t->tokno = TOK_OTHER;
+X	    return (t);
+X	} else {
+X	    t->vstr->str[0] = c;
+X	    if (c == '/') {
+X		if ((d = input()) == '*') {
+X		    t->vstr->str[1] = d;	/* comment */
+X		    read_comment(t->vstr);
+X		    if (skip_flag)
+X			continue;
+X		    t->tokno = TOK_WSPACE;
+X		    return (t);
+X		} else {
+X		    unput(d);
+X		}
+X	    }
+X	    t->vstr->str[1] = 0;
+X	    t->tokno = c;
+X	    return (t);
+X	}
+X    }
+X}
+X
+X/* read_qouted - read string or character literal */
+X
+Xstatic void read_quoted(t, ch)
+Xregister struct token *t;
+Xint     ch;
+X{
+X    register char *cp = t->vstr->str;
+X    register int c;
+X
+X    *cp++ = ch;
+X
+X    while (c = input()) {
+X	if (c == '\n') {			/* newline in string */
+X	    unput(c);
+X	    break;
+X	}
+X	if (VS_ADDCH(t->vstr, cp, c) == 0)	/* store character */
+X	    error(1, "out of memory");
+X	if (c == ch)				/* end of string */
+X	    break;
+X	if (c == '\\')				/* eat next character */
+X	    if ((c = input()) != 0 && VS_ADDCH(t->vstr, cp, c) == 0)
+X		error(1, "out of memory");
+X    }
+X    *cp = 0;
+X    return;
+X}
+X
+X/* read_comment - stuff a whole comment into one huge token */
+X
+Xstatic void read_comment(vs)
+Xregister struct vstring *vs;
+X{
+X    register char *cp = vs->str + 2;	/* skip slash star */
+X    register int c;
+X    register int d;
+X
+X    while (c = input()) {
+X	if (VS_ADDCH(vs, cp, c) == 0)
+X	    error(1, "out of memory");
+X	if (c == '*') {
+X	    if ((d = input()) == '/') {
+X		if (VS_ADDCH(vs, cp, d) == 0)
+X		    error(1, "out of memory");
+X		break;
+X	    } else {
+X		unput(d);
+X	    }
+X	}
+X    }
+X    *cp = 0;
+X}
+X
+X/* put_str - output a string */
+X
+Xvoid    put_str(s)
+Xchar   *s;
+X{
+X    fputs(s, stdout);
+X    last_tok = s[0];				/* XXX */
+X#ifdef DEBUG
+X    fflush(stdout);
+X#endif
+X}
+X
+X/* put_ch - put character */
+X
+Xvoid    put_ch(c)
+Xint     c;
+X{
+X    last_tok = putchar(c);
+X#ifdef DEBUG
+X    fflush(stdout);
+X#endif
+X}
+X
+X/* tok_show - output (possibly composite) token */
+X
+Xvoid    tok_show(t)
+Xstruct token *t;
+X{
+X    register struct token *p;
+X    register struct token *s;
+X
+X    switch (t->tokno) {
+X    case TOK_LIST:
+X	for (s = t->head; s; s = s->next) {
+X	    put_ch(s->tokno);			/* opening paren or ',' */
+X	    for (p = s->head; p; p = p->next)
+X		tok_show(p);
+X	}
+X	put_ch(')');				/* closing paren */
+X	break;
+X    case TOK_WORD:
+X	if (ISALPHA(last_tok))
+X	    putchar(' ');
+X	/* FALLTRHOUGH */
+X    default:
+X	fputs(t->vstr->str, stdout);		/* token contents */
+X	last_tok = t->vstr->str[0];
+X#ifdef DEBUG
+X    fflush(stdout);
+X#endif
+X	if (t->head)				/* trailing blanks */
+X            for (p = t->head; p; p = p->next)
+X                tok_show(p);
+X    }
+X}
+END_OF_tok_io.c
+if test 9938 -ne `wc -c <tok_io.c`; then
+    echo shar: \"tok_io.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f tok_class.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"tok_class.c\"
+else
+echo shar: Extracting \"tok_class.c\" \(3625 characters\)
+sed "s/^X//" >tok_class.c <<'END_OF_tok_class.c'
+X/*++
+X/* NAME
+X/*	tok_class 3
+X/* SUMMARY
+X/*	collect composite tokens
+X/* PACKAGE
+X/*	unproto
+X/* SYNOPSIS
+X/*	#include "parse.h"
+X/*
+X/*	struct token *tok_class(skip)
+X/*	int skip;
+X/* DESCRIPTION
+X/*	tok_class() collects a single and composite tokens.
+X/*	At present, the only composite tokens are ()-delimited,
+X/*	comma-separated lists.
+X/*
+X/*	The skip argument has the same meaning as with the tok_get()
+X/*	function.
+X/* DIAGNOSTICS
+X/*	The code complains if input terminates in the middle of a list.
+X/* BUGS
+X/*	Does not preserve white space at the beginning of a list element
+X/*	or after the end of a list.
+X/* AUTHOR(S)
+X/*	Wietse Venema
+X/*	Eindhoven University of Technology
+X/*	Department of Mathematics and Computer Science
+X/*	Den Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X/* LAST MODIFICATION
+X/*	91/09/01 23:08:34
+X/* VERSION/RELEASE
+X/*	1.1
+X/*--*/
+X
+Xstatic char class_sccsid[] = "@(#) tok_class.c 1.1 91/09/01 23:08:34";
+X
+X/* Application-specific stuff */
+X
+X#include "parse.h"
+X#include "vstring.h"
+X#include "token.h"
+X
+Xstatic struct token *tok_list();
+Xstatic void tok_list_struct();
+Xstatic void tok_list_append();
+X
+X/* tok_space_append - append trailing space except after list */
+X
+X#define	tok_space_append(list,t) { \
+X				    if (list == 0 	/* leading space*/ \
+X					|| list->tokno == TOK_LIST) \
+X					tok_free(t); \
+X				    else \
+X					tok_list_append(list, t); \
+X				}
+X
+X/* tok_class - distinguish between single tokens and composite tokens */
+X
+Xstruct token *tok_class(skip)
+Xint     skip;
+X{
+X    register struct token *t;
+X
+X    if ((t = tok_get(skip)) && t->tokno == '(') {
+X	return (tok_list(t));
+X    } else {
+X	return (t);
+X    }
+X}
+X
+X/* tok_list - collect ()-delimited, comma-separated list of tokens */
+X
+Xstatic struct token *tok_list(t)
+Xstruct token *t;
+X{
+X    register struct token *list = tok_alloc();
+X
+X    list->tokno = TOK_LIST;
+X    list->head = list->tail = t;
+X#ifdef DEBUG
+X    strcpy(list->vstr->str, "LIST");
+X#endif
+X
+X    for (;;) {
+X	if ((t = tok_get(DO_WSPACE)) == 0) {	/* skip blanks */
+X	    error(0, "premature EOF in list");
+X	    return (list);			/* do not waste any data */
+X	}
+X	switch (t->tokno) {
+X	case ')':				/* end of list */
+X	    tok_free(t);
+X	    return (list);
+X	case '{':				/* struct/union type */
+X	    tok_list_struct(list->tail, t);
+X	    break;
+X	case TOK_WSPACE:			/* preserve trailing blanks */
+X	    tok_space_append(list->tail->tail, t);	/* except after list */
+X	    break;
+X	case '\n':				/* preserve line count */
+X	    tok_flush(t);
+X	    break;
+X	case ',':				/* list separator */
+X	    tok_list_append(list, t);
+X	    break;
+X	case '(':				/* beginning of list */
+X	    tok_list_append(list->tail, tok_list(t));
+X	    break;
+X	default:				/* ordinary token */
+X	    tok_list_append(list->tail, t);
+X	    break;
+X	}
+X    }
+X}
+X
+X/* tok_list_struct - collect structured type info within list */
+X
+Xstatic void tok_list_struct(list, t)
+Xregister struct token *list;
+Xregister struct token *t;
+X{
+X    tok_list_append(list, t);
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	switch (t->tokno) {
+X	case '\n':				/* preserve line count */
+X	    tok_flush(t);
+X	    break;
+X	case TOK_WSPACE:			/* preserve trailing blanks */
+X	    tok_space_append(list->tail, t);	/* except after list */
+X	    break;
+X	case '{':				/* recurse */
+X	    tok_list_struct(list, t);
+X	    break;
+X	case '}':				/* done */
+X	    tok_list_append(list, t);
+X	    return;
+X	default:				/* other */
+X	    tok_list_append(list, t);
+X	    break;
+X	}
+X    }
+X}
+X
+X/* tok_list_append - append data to list */
+X
+Xstatic void tok_list_append(h, t)
+Xstruct token *h;
+Xstruct token *t;
+X{
+X    if (h->head == 0) {
+X	h->head = h->tail = t;
+X    } else {
+X	h->tail->next = t;
+X	h->tail = t;
+X    }
+X}
+END_OF_tok_class.c
+if test 3625 -ne `wc -c <tok_class.c`; then
+    echo shar: \"tok_class.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f tok_pool.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"tok_pool.c\"
+else
+echo shar: Extracting \"tok_pool.c\" \(2184 characters\)
+sed "s/^X//" >tok_pool.c <<'END_OF_tok_pool.c'
+X/*++
+X/* NAME
+X/*	tok_pool 3
+X/* SUMMARY
+X/*	maintain pool of unused token structures
+X/* PACKAGE
+X/*	unproto
+X/* SYNOPSIS
+X/*	#include "token.h"
+X/*
+X/*	struct token *tok_alloc()
+X/*
+X/*	void tok_free(t)
+X/*	struct token *t;
+X/* DESCRIPTION
+X/*	tok_alloc() and tok_free() maintain a pool of unused token
+X/*	structures.
+X/*
+X/*	tok_alloc() takes the first free token structure from the pool
+X/*	or allocates a new one if the pool is empty.
+X/*
+X/*	tok_free() adds a (possibly composite) token structure to the pool.
+X/* BUGS
+X/*	The pool never shrinks.
+X/* AUTHOR(S)
+X/*	Wietse Venema
+X/*	Eindhoven University of Technology
+X/*	Department of Mathematics and Computer Science
+X/*	Den Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X/* LAST MODIFICATION
+X/*	91/09/01 23:08:36
+X/* VERSION/RELEASE
+X/*	1.1
+X/*--*/
+X
+Xstatic char pool_sccsid[] = "@(#) tok_pool.c 1.1 91/09/01 23:08:36";
+X
+X/* C library */
+X
+Xextern char *malloc();
+X
+X/* Application-specific stuff */
+X
+X#include "token.h"
+X#include "vstring.h"
+X
+Xextern void error();
+X
+X#define	TOKLEN	5			/* initial string buffer length */
+X
+Xstruct token *tok_pool = 0;		/* free token pool */
+X
+X/* tok_alloc - allocate token structure from pool or heap */
+X
+Xstruct token *tok_alloc()
+X{
+X    register struct token *t;
+X
+X    if (tok_pool) {				/* re-use an old one */
+X	t = tok_pool;
+X	tok_pool = t->next;
+X    } else {					/* create a new one */
+X	if ((t = (struct token *) malloc(sizeof(struct token))) == 0
+X	    || (t->vstr = vs_alloc(TOKLEN)) == 0)
+X	    error(1, "out of memory");
+X    }
+X    t->next = t->head = t->tail = 0;
+X#ifdef	DEBUG
+X    strcpy(t->vstr->str, "BUSY");
+X#endif
+X    return (t);
+X}
+X
+X/* tok_free - return (possibly composite) token to pool of free tokens */
+X
+Xvoid    tok_free(t)
+Xregister struct token *t;
+X{
+X#ifdef DEBUG
+X    /* Check if we are freeing free token */
+X
+X    register struct token *p;
+X
+X    for (p = tok_pool; p; p = p->next)
+X	if (p == t)
+X	    error(1, "freeing free token");
+X#endif
+X
+X    /* Free neighbours and subordinates first */
+X
+X    if (t->next)
+X	tok_free(t->next);
+X    if (t->head)
+X	tok_free(t->head);
+X
+X    /* Free self */
+X
+X    t->next = tok_pool;
+X    t->head = t->tail = 0;
+X    tok_pool = t;
+X#ifdef	DEBUG
+X    strcpy(t->vstr->str, "FREE");
+X#endif
+X}
+END_OF_tok_pool.c
+if test 2184 -ne `wc -c <tok_pool.c`; then
+    echo shar: \"tok_pool.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f unproto.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"unproto.c\"
+else
+echo shar: Extracting \"unproto.c\" \(19438 characters\)
+sed "s/^X//" >unproto.c <<'END_OF_unproto.c'
+X/*++
+X/* NAME
+X/*	unproto 1
+X/* SUMMARY
+X/*	ANSI C to old C converter
+X/* PACKAGE
+X/*	unproto
+X/* SYNOPSIS
+X/*	/lib/cpp ... | unproto
+X/*
+X/*	/somewhere/cpp ...
+X/* DESCRIPTION
+X/*	This document describes a filter that sits between the
+X/*	C preprocessor (usually \fI/lib/cpp\fP) and the next C compiler
+X/*	pass. It rewrites ANSI-C style function headers, function type
+X/*	declarations, function pointer types, and function pointer casts
+X/*	to old style. Other ANSI-isms are passed on without modification
+X/*	(token pasting, pragmas, etcetera).
+X/*
+X/*	For maximal flexibility, the "cpp | unproto" pipeline can  be
+X/*	packaged as an executable shell script named "/somewhere/cpp".
+X/*	This script should then be specified to the C compiler as a 
+X/*	non-default preprocessor.
+X/*
+X/*	The overhead of shell script interpretation can be avoided by
+X/*	having the unprototyper itself open the pipe to the preprocessor.
+X/*	In that case, the source should be compiled with the PIPE_THROUGH_CPP 
+X/*	macro defined (usually as "/lib/cpp"), and the resulting binary 
+X/*	should be installed as "/somewhere/cpp".
+X/* SEE ALSO
+X/* .ad
+X/* .fi
+X/*	cc(1), how to specify a non-default C preprocessor.
+X/*
+X/*	Some versions of the lint command are implemented as a shell
+X/*	script. It should require only minor modification for integration
+X/*	with the unprotoizer. Other versions of the lint command accept the same
+X/*	command syntax as the C compiler for the specification of a non-default
+X/*	preprocessor. Some research may be needed.
+X/* DIAGNOSTICS
+X/*	The progam will complain if it unexpectedly
+X/*	reaches the end of input.
+X/* BUGS
+X/*	Should be run on preprocessed source only, i.e. after macro expansion.
+X/*
+X/*	Declarations of (whatever) are misunderstood and will result in
+X/*	syntax errors.
+X/* AUTHOR(S)
+X/*	Wietse Venema (wietse@wzv.win.tue.nl)
+X/*	Eindhoven University of Technology
+X/*	Department of Mathematics and Computer Science
+X/*	Den Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X/* LAST MODIFICATION
+X/*	91/09/01 23:08:37
+X/* VERSION/RELEASE
+X/*	1.1
+X/*--*/
+X
+Xstatic char unproto_sccsid[] = "@(#) unproto.c 1.1 91/09/01 23:08:37";
+X
+X/* C library */
+X
+X#include <stdio.h>
+X#include <errno.h>
+X
+Xextern void exit();
+Xextern int optind;
+Xextern char *optarg;
+Xextern int getopt();
+X
+X/* Application-specific stuff */
+X
+X#include "vstring.h"
+X#include "stdarg.h"
+X#include "parse.h"
+X#include "token.h"
+X
+X/* Forward declarations. */
+X
+Xstatic struct token *dcl_flush();
+Xstatic void block_flush();
+Xstatic void block_dcls();
+Xstatic struct token *show_func_ptr_type();
+Xstatic struct token *show_struct_type();
+Xstatic void show_arg_name();
+Xstatic void show_type();
+Xstatic void pair_flush();
+Xstatic void check_cast();
+X
+X#define	check_cast_flush(t)	(check_cast(t), tok_free(t))
+X
+X#ifdef PIPE_THROUGH_CPP
+Xstatic int pipe_stdin_through_cpp();
+X#endif
+X
+X/* Disable debugging printfs while preserving side effects. */
+X
+X#ifdef DEBUG
+X#define	DPRINTF	printf
+X#else
+X#define	DPRINTF (void)
+X#endif
+X
+X/* An attempt to make some complicated expressions a bit more readable. */
+X
+X#define	STREQ(x,y)		(*(x) == *(y) && !strcmp((x),(y)))
+X
+X#define	LAST_ARG_AND_EQUAL(s,c)	((s)->next == 0 && (s)->head \
+X				&& ((s)->head == (s)->tail) \
+X				&& (STREQ((s)->head->vstr->str, (c))))
+X
+X#define	LIST_BEGINS_WITH_STAR(s) (s->head->head && s->head->head->tokno == '*')
+X
+X#define	IS_FUNC_PTR_TYPE(s)	(s->tokno == TOK_LIST && s->next \
+X				&& s->next->tokno == TOK_LIST \
+X				&& LIST_BEGINS_WITH_STAR(s))
+X
+X/* main - driver */
+X
+Xint     main(argc, argv)
+Xint     argc;
+Xchar  **argv;
+X{
+X    register struct token *t;
+X
+X#ifdef	PIPE_THROUGH_CPP			/* pipe through /lib/cpp */
+X    int     cpp_status;
+X    int     wait_pid;
+X    int     cpp_pid;
+X
+X    cpp_pid = pipe_stdin_through_cpp(argv);
+X#endif
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	if (t = dcl_flush(t)) {			/* try declaration */
+X	    if (t->tokno == '{') {		/* examine rejected token */
+X		block_flush(t);			/* body */
+X	    } else {
+X		tok_flush(t);			/* other, recover */
+X	    }
+X	}
+X    }
+X
+X#ifdef	PIPE_THROUGH_CPP			/* pipe through /lib/cpp */
+X    while ((wait_pid = wait(&cpp_status)) != -1 && wait_pid != cpp_pid)
+X	 /* void */ ;
+X    return (wait_pid != cpp_pid || cpp_status != 0);
+X#else
+X    return (0);
+X#endif
+X}
+X
+X#ifdef	PIPE_THROUGH_CPP		/* pipe through /lib/cpp */
+X
+X/* pipe_stdin_through_cpp - avoid shell script overhead */
+X
+Xstatic int pipe_stdin_through_cpp(argv)
+Xchar  **argv;
+X{
+X    int     pipefds[2];
+X    int     pid;
+X    char  **cpptr = argv;
+X
+X    /*
+X     * This fix is mandatory for System V Release 2, but it should not harm
+X     * elsewhere. With most UNIX implementations, the second non-option
+X     * argument to /lib/cpp specifies the output file. If an output file
+X     * other than stdout is specified, we must force /lib/cpp to write to
+X     * stdout, and we must redirect our own standard output to the desired
+X     * output file.
+X     */
+X
+X    /* Skip to first non-option argument, if any. */
+X
+X    while (*++cpptr && **cpptr == '-' && *(*cpptr + 1))
+X	 /* void */ ;
+X
+X    /* Take action if there is an output file name argument. */
+X
+X    if (*cpptr && *++cpptr && (**cpptr != '-' || *(*cpptr + 1))) {
+X
+X	/* Redirect our own standard output before we clobber the file name. */
+X
+X	if (freopen(*cpptr, "w", stdout) == 0) {
+X	    perror(*cpptr);
+X	    exit(1);
+X	}
+X	/* Clobber the file name argument so that /lib/cpp writes to stdout */
+X
+X	*cpptr = "-";
+X    }
+X    /* Set up the pipe that connects /lib/cpp to our standard input. */
+X
+X    if (pipe(pipefds)) {
+X	perror("pipe");
+X	exit(1);
+X    }
+X    switch (pid = fork()) {
+X    case -1:					/* error */
+X	perror("fork");
+X	exit(1);
+X    case 0:					/* child */
+X	close(pipefds[0]);
+X	close(1);
+X	if (dup(pipefds[1]) != 1)
+X	    error(1, "dup() problem");
+X	close(pipefds[1]);
+X	execv(PIPE_THROUGH_CPP, argv);
+X	perror(PIPE_THROUGH_CPP);
+X	exit(1);
+X    default:					/* parent */
+X	close(pipefds[1]);
+X	close(0);
+X	if (dup(pipefds[0]) != 0)
+X	    error(1, "dup() problem");
+X	close(pipefds[0]);
+X	return (pid);
+X    }
+X}
+X
+X#endif
+X
+X/* error - report problem and optionally quit */
+X
+Xvoid    error(bailout, s)
+Xint     bailout;
+Xchar   *s;
+X{
+X    fprintf(stderr, "%s\n", s);
+X    if (bailout)
+X	exit(1);
+X}
+X
+X/* header_flush - rewrite new-style function header to old style */
+X
+Xstatic void header_flush(t)
+Xregister struct token *t;
+X{
+X    register struct token *s;
+X
+X    /* Do argument names, but suppress void and rewrite trailing ... */
+X
+X    if (LAST_ARG_AND_EQUAL(t->head, "void")) {
+X	put_str("()\n");			/* no arguments */
+X    } else {
+X	for (s = t->head; s; s = s->next) {	/* foreach argument... */
+X	    if (LAST_ARG_AND_EQUAL(s, "...")) {
+X#ifdef _VA_ALIST_				/* see ./stdarg.h */
+X		put_ch(s->tokno);		/* ',' */
+X		put_str(_VA_ALIST_);		/* varargs magic */
+X#endif
+X	    } else {
+X		put_ch(s->tokno);		/* opening '(' or ',' */
+X		show_arg_name(s);		/* extract argument name */
+X	    }
+X	}
+X	put_str(")\n");				/* closing ')' */
+X    }
+X
+X    /* Do argument types, but suppress void and trailing ... */
+X
+X    if (!LAST_ARG_AND_EQUAL(t->head, "void")) {
+X	for (s = t->head; s; s = s->next) {	/* foreach argument... */
+X	    if (!LAST_ARG_AND_EQUAL(s, "...")) {
+X		if (s->head != s->tail) {	/* really new-style argument? */
+X		    show_line_number();		/* fix line number */
+X		    show_type(s);		/* rewrite type info */
+X		    put_str(";\n");
+X		}
+X	    }
+X	}
+X    }
+X    tok_free(t);
+X    show_line_number();				/* because '{' follows */
+X}
+X
+X/* show_arg_name - extract argument name from argument type info */
+X
+Xstatic void show_arg_name(s)
+Xregister struct token *s;
+X{
+X    if (s->head) {
+X	register struct token *p;
+X	register struct token *t = 0;
+X
+X	/* Find the last interesting item. */
+X
+X	for (p = s->head; p; p = p->next) {
+X	    if (p->tokno == TOK_WORD) {
+X		t = p;				/* remember last word */
+X	    } else if (IS_FUNC_PTR_TYPE(p)) {
+X		t = p;				/* or function pointer */
+X		p = p->next;
+X	    }
+X	}
+X
+X	/* Extract argument name from last interesting item. */
+X
+X	if (t) {
+X	    if (t->tokno == TOK_LIST)
+X		show_arg_name(t->head);		/* function pointer, recurse */
+X	    else
+X		tok_show(t);			/* print last word */
+X	}
+X    }
+X}
+X
+X/* show_type - rewrite type to old-style syntax */
+X
+Xstatic void show_type(s)
+Xregister struct token *s;
+X{
+X    register struct token *p;
+X
+X    for (p = s->head; p; p = p->next) {
+X	if (IS_FUNC_PTR_TYPE(p)) {
+X	    p = show_func_ptr_type(p);		/* function pointer type */
+X	} else {
+X	    tok_show(p);			/* other */
+X	}
+X    }
+X}
+X
+X/* show_func_ptr_type - display function_pointer type using old-style syntax */
+X
+Xstatic struct token *show_func_ptr_type(t)
+Xstruct token *t;
+X{
+X    register struct token *s;
+X
+X    /*
+X     * Rewrite (list1) (list2) to (list1) (). Only (list1) is given to us;
+X     * the caller must have verified the presence of (list2). Account for the
+X     * rare case that (list1) is a comma-separated list. That should be an
+X     * error, but we do not want to waste any information.
+X     */
+X
+X    for (s = t->head; s; s = s->next) {
+X	put_ch(s->tokno);			/* opening paren or ',' */
+X	show_type(s);				/* recurse */
+X    }
+X    put_str(")()");				/* closing paren */
+X    return (t->next);
+X}
+X
+X/* show_struct_type - display structured type, rewrite function-pointer types */
+X
+Xstatic struct token *show_struct_type(p)
+Xregister struct token *p;
+X{
+X    tok_show(p);				/* opening brace */
+X
+X    while (p->next) {				/* XXX cannot return 0 */
+X	p = p->next;
+X	if (IS_FUNC_PTR_TYPE(p)) {
+X	    p = show_func_ptr_type(p);		/* function-pointer member */
+X	} else if (p->tokno == '{') {
+X	    p = show_struct_type(p);		/* recurse */
+X	} else {
+X	    tok_show(p);			/* other */
+X	    if (p->tokno == '}') {
+X		return (p);			/* done */
+X	    }
+X	}
+X    }
+X    DPRINTF("/* missing '}' */");
+X    return (p);
+X}
+X
+X/* is_func_ptr_cast - recognize function-pointer type cast */
+X
+Xstatic int is_func_ptr_cast(t)
+Xregister struct token *t;
+X{
+X    register struct token *p;
+X
+X    /*
+X     * Examine superficial structure. Require (list1) (list2). Require that
+X     * list1 begins with a star.
+X     */
+X
+X    if (!IS_FUNC_PTR_TYPE(t))
+X	return (0);
+X
+X    /*
+X     * Make sure that there is no name in (list1). Do not worry about
+X     * unexpected tokens, because the compiler will complain anyway.
+X     */
+X
+X    for (p = t->head->head; p; p = p->next) {
+X	switch (p->tokno) {
+X	case TOK_LIST:				/* recurse */
+X	    return (is_func_ptr_cast(p));
+X	case TOK_WORD:				/* name in list */
+X	    return (0);
+X	}
+X    }
+X    return (1);					/* no name found */
+X}
+X
+X/* check_cast - display ()-delimited, comma-separated list */
+X
+Xstatic void check_cast(t)
+Xstruct token *t;
+X{
+X    register struct token *s;
+X    register struct token *p;
+X
+X    /*
+X     * Rewrite function-pointer types and function-pointer casts. Do not
+X     * blindly rewrite (*list1)(list2) to (*list1)(). Function argument lists
+X     * are about the only thing we can discard without provoking diagnostics
+X     * from the compiler.
+X     */
+X
+X    for (s = t->head; s; s = s->next) {
+X	put_ch(s->tokno);			/* opening paren or ',' */
+X	for (p = s->head; p; p = p->next) {
+X	    switch (p->tokno) {
+X	    case TOK_LIST:
+X		if (is_func_ptr_cast(p)) {	/* not: IS_FUNC_PTR_TYPE(p) */
+X		    p = show_func_ptr_type(p);	/* or we might take away */
+X		} else {			/* function-call arguments */
+X		    check_cast(p);		/* recurse */
+X		}
+X		break;
+X	    case '{':
+X		p = show_struct_type(p);	/* rewrite func. ptr. types */
+X		break;
+X	    default:
+X		tok_show(p);
+X		break;
+X	    }
+X	}
+X    }
+X    put_ch(')');				/* closing paren */
+X}
+X
+X/* block_dcls - on the fly rewrite decls/initializers at start of block */
+X
+Xstatic void block_dcls()
+X{
+X    register struct token *t;
+X    register char *cp;
+X
+X    /*
+X     * Away from the top level, a declaration should be preceded by type or
+X     * storage-class information. That is why inside blocks, structs and
+X     * unions we insist on reading one word before passing the _next_ token
+X     * to the dcl_flush() function.
+X     * 
+X     * Struct and union declarations look the same everywhere: we make an
+X     * exception for these more regular constructs and pass the "struct" and
+X     * "union" tokens to the type_dcl() function.
+X     * 
+X     * At present, this is the only place where we care about C keywords;
+X     * therefore, keyword processing is not done in the tokenizer where it
+X     * would slow down everything else, too.
+X     */
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	switch (t->tokno) {
+X	case TOK_WSPACE:			/* preserve white space */
+X	case '\n':				/* preserve line count */
+X	    tok_flush(t);
+X	    break;
+X	case TOK_WORD:				/* type declarations? */
+X	    cp = t->vstr->str;
+X	    /* Get rid of some keywords that can be followed by another word */
+X	    if (STREQ(cp, "return") == 0 && STREQ(cp, "do") == 0
+X		&& STREQ(cp, "sizeof") == 0) {
+X		/* Special-case the "struct" and "union" keywords */
+X		if (STREQ(cp, "struct") || STREQ(cp, "union")) {
+X		    t = dcl_flush(t);		/* the special regular case */
+X		} else {
+X		    tok_flush(t);		/* advance to next token */
+X		    t = dcl_flush(tok_class(DO_WSPACE));
+X		}
+X		if (t == 0)			/* dcl_flush() succeeded */
+X		    break;
+X	    }
+X	    /* FALLTRHOUGH */
+X	default:				/* end of declarations */
+X	    DPRINTF("/* end dcls */");
+X	    /* FALLTRHOUGH */
+X	case '}':				/* ent of block */
+X	    tok_unget(t);
+X	    return;
+X	}
+X    }
+X}
+X
+X/* block_flush - rewrite struct, union or statement block on the fly */
+X
+Xstatic void block_flush(t)
+Xregister struct token *t;
+X{
+X    static int count = 0;
+X
+X    tok_flush(t);
+X    DPRINTF("/*%d*/", ++count);
+X
+X    /*
+X     * Rewrite function pointer types in declarations and function pointer
+X     * casts in initializers at start of block.
+X     */
+X
+X    block_dcls();
+X
+X    /* Remainder of block: only rewrite function pointer casts. */
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	if (t->tokno == TOK_LIST) {
+X	    check_cast_flush(t);
+X	} else if (t->tokno == '{') {
+X	    block_flush(t);
+X	} else {
+X	    tok_flush(t);
+X	    if (t->tokno == '}') {
+X		DPRINTF("/*%d*/", count--);
+X		return;
+X	    }
+X	}
+X    }
+X    DPRINTF("/* missing '}' */");
+X}
+X
+X/* pair_flush - on the fly rewrite casts in grouped stuff */
+X
+Xstatic void pair_flush(t, start, stop)
+Xregister struct token *t;
+Xregister int start;
+Xregister int stop;
+X{
+X    tok_flush(t);
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	if (t->tokno == start) {		/* recurse */
+X	    pair_flush(t, start, stop);
+X	} else if (t->tokno == TOK_LIST) {	/* expression or cast */
+X	    check_cast_flush(t);
+X	} else {				/* other, copy */
+X	    tok_flush(t);
+X	    if (t->tokno == stop) {		/* done */
+X		return;
+X	    }
+X	}
+X    }
+X    DPRINTF("/* missing '%c' */", stop);
+X}
+X
+X/* initializer - on the fly rewrite casts in initializer */
+X
+Xstatic void initializer()
+X{
+X    register struct token *t;
+X
+X    while (t = tok_class(DO_WSPACE)) {
+X	switch (t->tokno) {
+X	case ',':				/* list separator */
+X	case ';':				/* list terminator */
+X	    tok_unget(t);
+X	    return;
+X	case TOK_LIST:				/* expression or cast */
+X	    check_cast_flush(t);
+X	    break;
+X	case '[':				/* array substript, may nest */
+X	    pair_flush(t, '[', ']');
+X	    break;
+X	case '{':				/* structured data, may nest */
+X	    pair_flush(t, '{', '}');
+X	    break;
+X	default:				/* other, just copy */
+X	    tok_flush(t);
+X	    break;
+X	}
+X    }
+X}
+X
+X/* func_ptr_dcl_flush - rewrite function pointer declaration */
+X
+Xstatic struct token *func_ptr_dcl_flush(list)
+Xregister struct token *list;
+X{
+X    register struct token *t;
+X
+X    /*
+X     * Ignore blanks because they would be output earlier than the list that
+X     * preceded them... Recover gracefully from syntax errors.
+X     */
+X
+X    while (t = tok_class(NO_WSPACE)) {
+X	switch (t->tokno) {
+X	case '\n':				/* preserve line count */
+X	    tok_flush(t);
+X	    break;
+X	case TOK_LIST:
+X	    /* Function pointer type: (list1) (list2) -> (list1) () */
+X	    (void) show_func_ptr_type(list);	/* may be recursive */
+X	    tok_free(list);
+X	    tok_free(t);
+X	    return (0);
+X	default:				/* not a declaration */
+X	    tok_unget(t);
+X	    return (list);
+X	}
+X    }
+X
+X    /* Hit EOF; must be mistake, but do not waste any information. */
+X
+X    return (list);
+X}
+X
+X/* function_dcl_flush - rewrite function { heading, type declaration } */
+X
+Xstatic struct token *function_dcl_flush(list)
+Xregister struct token *list;
+X{
+X    register struct token *t;
+X
+X    /*
+X     * Ignore blanks because they would be output earlier than the list that
+X     * preceded them...
+X     */
+X
+X    while (t = tok_class(NO_WSPACE)) {
+X	switch (t->tokno) {
+X	case '\n':
+X	    /* Preserve line count */
+X	    tok_flush(t);
+X	    break;
+X	case '{':
+X	    /* Function heading: word (list) { -> old style heading */
+X	    header_flush(list);
+X	    tok_unget(t);
+X	    return (0);
+X	case TOK_WORD:
+X	    /* Old-style function heading: word (list) word...{ */
+X	    tok_flush(list);
+X	    tok_unget(t);
+X	    return (0);
+X	case TOK_LIST:
+X	    /* Function typedef? word (list1) (list) -> word (list1) () */
+X	    tok_flush(list);
+X	    put_str("()");
+X	    tok_free(t);
+X	    return (0);
+X	case ',':
+X	case ';':
+X	    /* Function type declaration: word (list) -> word () */
+X	    tok_free(list);
+X	    put_str("()");
+X	    tok_unget(t);
+X	    return (0);
+X	default:
+X	    /* Something else, reject the list. */
+X	    tok_unget(t);
+X	    return (list);
+X	}
+X    }
+X
+X    /* Hit EOF; must be mistake, but do not waste any information. */
+X
+X    return (list);
+X}
+X
+X/* dcl_flush - parse declaration on the fly, return rejected token */
+X
+Xstatic struct token *dcl_flush(t)
+Xregister struct token *t;
+X{
+X    register int got_word;
+X
+X    /*
+X     * Away from the top level, type or storage-class information is required
+X     * for an (extern or forward) function type declaration or a variable
+X     * declaration.
+X     * 
+X     * With our naive word-counting approach, this means that the caller should
+X     * read one word before passing the next token to us. This is how we
+X     * distinguish, for example, function declarations from function calls.
+X     * 
+X     * An exception are structs and unions, because they look the same at any
+X     * level. The caller should give is the "struct" or "union" token.
+X     */
+X
+X    for (got_word = 0; t; t = tok_class(DO_WSPACE)) {
+X	switch (t->tokno) {
+X	case TOK_WSPACE:			/* advance past blanks */
+X	case '\n':				/* advance past newline */
+X	case '*':				/* indirection: keep trying */
+X	    tok_flush(t);
+X	    break;
+X	case TOK_WORD:				/* word: keep trying */
+X	    got_word = 1;
+X	    tok_flush(t);
+X	    break;
+X	default:
+X
+X	    /*
+X	     * Function pointer types can be preceded by zero or more words
+X	     * (at least one when not at the top level). Other stuff can be
+X	     * accepted only after we have seen at least one word (two words
+X	     * when not at the top level). See also the above comment on
+X	     * structs and unions.
+X	     */
+X
+X	    if (t->tokno == TOK_LIST && LIST_BEGINS_WITH_STAR(t)) {
+X		if (t = func_ptr_dcl_flush(t)) {
+X		    return (t);			/* reject token */
+X		} else {
+X		    got_word = 1;		/* for = and [ and , and ; */
+X		}
+X	    } else if (got_word == 0) {
+X		return (t);			/* reject token */
+X	    } else {
+X		switch (t->tokno) {
+X		case TOK_LIST:			/* function type */
+X		    if (t = function_dcl_flush(t))
+X			return (t);		/* reject token */
+X		    break;
+X		case '[':			/* dimension, does not nest */
+X		    pair_flush(t, '[', ']');
+X		    break;
+X		case '=':			/* initializer follows */
+X		    tok_flush(t);
+X		    initializer();		/* rewrite casts */
+X		    break;
+X		case '{':			/* struct, union, may nest */
+X		    block_flush(t);		/* use code for stmt blocks */
+X		    break;
+X		case ',':			/* separator: keep trying */
+X		    got_word = 0;
+X		    tok_flush(t);
+X		    break;
+X		case ';':			/* terminator: succeed */
+X		    tok_flush(t);
+X		    return (0);
+X		default:			/* reject token */
+X		    return (t);
+X		}
+X	    }
+X	}
+X    }
+X    return (0);					/* hit EOF */
+X}
+END_OF_unproto.c
+if test 19438 -ne `wc -c <unproto.c`; then
+    echo shar: \"unproto.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f vstring.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"vstring.c\"
+else
+echo shar: Extracting \"vstring.c\" \(2230 characters\)
+sed "s/^X//" >vstring.c <<'END_OF_vstring.c'
+X/*++
+X/* NAME
+X/*	vs_alloc(), VS_ADDCH()
+X/* SUMMARY
+X/*	auto-resizing string library
+X/* PACKAGE
+X/*	vstring
+X/* SYNOPSIS
+X/*	#include "vstring.h"
+X/*
+X/*	extern struct vstring *vs_alloc(len)
+X/*	int len;
+X/*
+X/*	int VS_ADDCH(vs, wp, ch)
+X/*	struct vstring *vs;
+X/*	char *wp;
+X/*	int ch;
+X/* DESCRIPTION
+X/*	These functions and macros implement a small library for
+X/*	arbitrary-length strings that grow automatically when
+X/*	they fill up. The allocation strategy is such that there
+X/*	will always be place for the terminating null character.
+X/*
+X/*	vs_alloc() allocates storage for a variable-length string.
+X/*	It returns a null pointer in case of problems.
+X/*
+X/*	VS_ADDCH() adds a character to a variable-length string
+X/*	and automagically extends the string if fills up.
+X/*	\fIvs\fp is a pointer to a vstring structure; \fIwp\fP
+X/*	the current write position in the corresponding character
+X/*	array; \fIch\fP the character value to be written.
+X/*	Note that VS_ADDCH() is a macro that evaluates some
+X/*	arguments more than once.
+X/* BUGS
+X/*	Auto-resizing may change the address of the string data in
+X/*	a vstring structure. Beware of dangling pointers.
+X/* AUTHOR(S)
+X/*	Wietse Venema
+X/*	Eindhoven University of Technology
+X/*	Department of Mathematics and Computer Science
+X/*	Den Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X/* LAST MODIFICATION
+X/*	91/09/01 23:08:38
+X/* VERSION/RELEASE
+X/*	1.1
+X/*--*/
+X
+Xstatic char vstring_sccsid[] = "@(#) vstring.c 1.1 91/09/01 23:08:38";
+X
+X/* C library */
+X
+Xextern char *malloc();
+Xextern char *realloc();
+X
+X/* Application-specific stuff */
+X
+X#include "vstring.h"
+X
+X/* vs_alloc - initial string allocation */
+X
+Xstruct vstring *vs_alloc(len)
+Xint     len;
+X{
+X    register struct vstring *vp;
+X
+X    if (len < 1 
+X	|| (vp = (struct vstring *) malloc(sizeof(struct vstring))) == 0
+X	|| (vp->str = malloc(len)) == 0)
+X	return (0);
+X    vp->last = vp->str + len - 1;
+X    return (vp);
+X}
+X
+X/* vs_realloc - extend string, update write pointer */
+X
+Xchar   *vs_realloc(vp, cp)
+Xregister struct vstring *vp;
+Xchar   *cp;
+X{
+X    int     where = cp - vp->str;
+X    int     len = vp->last - vp->str + 1;
+X
+X    if ((vp->str = realloc(vp->str, len *= 2)) == 0)
+X	return (0);
+X    vp->last = vp->str + len - 1;
+X    return (vp->str + where);
+X}
+END_OF_vstring.c
+if test 2230 -ne `wc -c <vstring.c`; then
+    echo shar: \"vstring.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f parse.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"parse.h\"
+else
+echo shar: Extracting \"parse.h\" \(97 characters\)
+sed "s/^X//" >parse.h <<'END_OF_parse.h'
+X/* @(#) parse.h 1.1 91/09/01 23:08:39 */
+X
+Xextern struct token *tok_class();
+Xextern void error();
+END_OF_parse.h
+if test 97 -ne `wc -c <parse.h`; then
+    echo shar: \"parse.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f token.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"token.h\"
+else
+echo shar: Extracting \"token.h\" \(1271 characters\)
+sed "s/^X//" >token.h <<'END_OF_token.h'
+X/* @(#) token.h 1.1 91/09/01 23:08:40 */
+X
+Xtypedef struct token {
+X    int     tokno;			/* token value, see below */
+X    int     len;			/* string or list length */
+X    struct vstring *vstr;		/* token contents */
+X    struct token *next;
+X    struct token *head;
+X    struct token *tail;
+X};
+X
+X/* Special token values */
+X
+X#define	TOK_LIST	256		/* () delimited list */
+X#define	TOK_WORD	257		/* keyword or identifier */
+X#define	TOK_NUMBER	258		/* number */
+X#define	TOK_WSPACE	259		/* white space except newline */
+X#define	TOK_OTHER	260		/* other multi-char token */
+X
+X/* Input/output functions */
+X
+Xextern struct token *tok_get();		/* read next single token */
+Xextern void tok_show();			/* display (composite) token */
+Xextern struct token *tok_class();	/* classify tokens */
+Xextern void put_ch();			/* write character */
+Xextern void put_str();			/* write string */
+Xextern void tok_unget();		/* stuff token back into input */
+X
+X#define	tok_flush(t)	(tok_show(t), tok_free(t))
+X
+X/* tok_get() options */
+X
+X#define	DO_WSPACE	0		/* retain space, tab */
+X#define	NO_WSPACE	1		/* skip space, tab */
+X
+X/* Memory management */
+X
+Xstruct token *tok_alloc();		/* allocate token storage */
+Xextern void tok_free();			/* re-cycle storage */
+X
+X/* Other support fuctions */
+X
+Xextern void show_line_number();
+END_OF_token.h
+if test 1271 -ne `wc -c <token.h`; then
+    echo shar: \"token.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f vstring.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"vstring.h\"
+else
+echo shar: Extracting \"vstring.h\" \(410 characters\)
+sed "s/^X//" >vstring.h <<'END_OF_vstring.h'
+X/* @(#) vstring.h 1.1 91/09/01 23:08:42 */
+X
+Xstruct vstring {
+X    char   *str;			/* string value */
+X    char   *last;			/* last position */
+X};
+X
+Xextern struct vstring *vs_alloc();	/* initial allocation */
+Xextern char *vs_realloc();		/* string extension */
+X
+X/* macro to add one character to auto-resized string */
+X
+X#define	VS_ADDCH(vs,wp,c) \
+X    ((wp < (vs)->last || (wp = vs_realloc(vs,wp))) ? (*wp++ = c) : 0)
+END_OF_vstring.h
+if test 410 -ne `wc -c <vstring.h`; then
+    echo shar: \"vstring.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f cpp.sh -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"cpp.sh\"
+else
+echo shar: Extracting \"cpp.sh\" \(202 characters\)
+sed "s/^X//" >cpp.sh <<'END_OF_cpp.sh'
+X#!/bin/sh
+X
+X# @(#) cpp.sh 1.1 91/09/01 23:08:43
+X
+X# Unprototypeing preprocessor for non-ANSI C compilers. Define __STDC__
+X# if you have enough courage.
+X
+Xexec /lib/cpp "$@" -Dconst= -Dvolatile= | unproto 
+END_OF_cpp.sh
+if test 202 -ne `wc -c <cpp.sh`; then
+    echo shar: \"cpp.sh\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f stdarg.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"stdarg.h\"
+else
+echo shar: Extracting \"stdarg.h\" \(1421 characters\)
+sed "s/^X//" >stdarg.h <<'END_OF_stdarg.h'
+X /*
+X  * @(#) stdarg.h 1.1 91/09/01 23:08:44
+X  * 
+X  * Sample stdarg.h file for use with the unproto filter.
+X  * 
+X  * This file serves two purposes.
+X  * 
+X  * 1 - As an include file for use with ANSI-style C source that implements
+X  * variadic functions.
+X  * 
+X  * 2 - To configure the unproto filter itself. If the _VA_ALIST_ macro is
+X  * defined, its value will appear in the place of the "..." in argument
+X  * lists of variadic function *definitions* (not declarations).
+X  * 
+X  * Compilers that pass arguments via the stack can use the default code at the
+X  * end of this of this file (this usually applies for the VAX, MC68k and
+X  * 80*86 architectures).
+X  * 
+X  * RISC-based systems often need special tricks. An example of the latter is
+X  * given for the SPARC architecture. Read your /usr/include/varargs.h for
+X  * more information.
+X  * 
+X  * You can use the varargs.c program provided with the unproto package to
+X  * verify that the stdarg.h file has been set up correctly.
+X  */
+X
+X#ifdef sparc
+X#  define _VA_ALIST_		"__builtin_va_alist"
+X   typedef char *va_list;
+X#  define va_start(ap, p)	(ap = (char *) &__builtin_va_alist)
+X#  define va_arg(ap, type)	((type *) __builtin_va_arg_incr((type *) ap))[0]
+X#  define va_end(ap)
+X#else /* vax, mc68k, 80*86 */
+X   typedef char *va_list;
+X#  define va_start(ap, p)	(ap = (char *) (&(p)+1))
+X#  define va_arg(ap, type)	((type *) (ap += sizeof(type)))[-1]
+X#  define va_end(ap)
+X#endif
+END_OF_stdarg.h
+if test 1421 -ne `wc -c <stdarg.h`; then
+    echo shar: \"stdarg.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f varargs.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"varargs.c\"
+else
+echo shar: Extracting \"varargs.c\" \(606 characters\)
+sed "s/^X//" >varargs.c <<'END_OF_varargs.c'
+X /*
+X  * @(#) varargs.c 1.1 91/09/01 23:08:45
+X  * 
+X  * This program can be used to verify that the stdarg.h file is set up
+X  * correctly for your system. If it works, it should print one line with the
+X  * text "stdarg.h works".
+X  */
+X
+X#include <stdio.h>
+X#include "stdarg.h"
+X
+Xmain(int argc, char *argv[])
+X{
+X    varargs_test("%s %s\n", "stdarg.h", "works");
+X}
+X
+Xvarargs_test(char *fmt, ...)
+X{
+X    va_list ap;
+X
+X    va_start(ap, fmt);
+X    while (*fmt) {
+X	if (strncmp("%s", fmt, 2) == 0) {
+X	    fputs(va_arg(ap, char *), stdout);
+X	    fmt += 2;
+X	} else {
+X	    putchar(*fmt);
+X	    fmt++;
+X	}
+X    }
+X    va_end(ap);
+X}
+END_OF_varargs.c
+if test 606 -ne `wc -c <varargs.c`; then
+    echo shar: \"varargs.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f example.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"example.c\"
+else
+echo shar: Extracting \"example.c\" \(2008 characters\)
+sed "s/^X//" >example.c <<'END_OF_example.c'
+X /*
+X  * @(#) example.c 1.1 91/09/01 23:08:46
+X  * 
+X  * Examples of things that can be done with the unproto package
+X  */
+X
+X /*
+X  * New-style argument list with structured argument, one field being pointer
+X  * to function returning pointer to function with function-pointer argument
+X  */
+X
+Xx(struct {
+X    struct {
+X	int (*(*foo) (int (*arg1) (double))) (float arg2);
+X    } foo;
+X} baz) {
+X    return (0);
+X}
+X
+X /*
+X  * Old-style argument list with new-style argument type, declaration
+X  * embedded within block. Plus a couple assignments with function calls that
+X  * look like casts.
+X  */
+X
+Xfoo(bar)
+Xint     (*(*bar) (float)) (int);
+X{
+X    int     (*baz) (int) = (int (*) (int)) 0,
+X	    y = (y * (*baz) (y)),
+X	    *(*z) (int) = (int *(*) (int)) 0;
+X
+X    struct { int (*foo)(int); } *(*s)(int) = 
+X	(struct { int (*foo)(int); } *(*)(int)) 0;
+X
+X    {
+X	y = (y * (*baz) (y));
+X    }
+X    {
+X	z = (int *(*) (int)) 0;
+X    }
+X    {
+X	s = (struct { int (*foo)(int); } *(*)(int)) 0;
+X    }
+X
+X    return (0);
+X}
+X
+X/* Multiple declarations in one statement */
+X
+Xtest1()
+X{
+X	int foo2,*(*(*bar)(int))(float),*baz(double);
+X}
+X
+X/* Discriminate declarations from executable statements */
+X
+Xtest2(char *y)
+X{
+X	int foo = 5,atoi(char *);
+X
+X	foo = 5,atoi(y);
+X}
+X
+X/* Declarations without explicit type */
+X
+Xtest3,test4(int);
+X
+Xtest5(int y)
+X{
+X	{
+X		test3;
+X	}
+X	{
+X		test4(y);
+X	}
+X}
+X
+Xtest6[1],test7(int);
+X
+Xtest7(int x)
+X{
+X	{
+X		test6[1];
+X	}
+X	{
+X		test7(x);
+X	}
+X}
+X
+X/* Checking a complicated cast */
+X
+Xstruct {
+X    struct {
+X	int (*f)(int), o;
+X    } bar;
+X} (*baz2)(int) = (struct { struct { int (*f)(int), o; } bar; } (*)(int)) 0;
+X
+X/* Distinguish things with the same shape but with different meaning */
+X
+Xtest8(x)
+X{
+X    {
+X	struct {
+X	    int     foo;
+X	} bar(int);
+X    }
+X    {
+X	do {
+X	    int     foo;
+X	} while (x);
+X    }
+X}
+X
+X/* Do not think foo(*bar) is a function pointer declaration */
+X
+Xtest9(char *bar)
+X{
+X    foo(*bar);
+X}
+X
+X/* another couple of special-cased words. */
+X
+Xtest10(int x)
+X{
+X    {
+X	int test10(int);
+X	do  test10(x);
+X	while (x);
+X    }
+X    {
+X	return test10(x);
+X    }
+X}
+END_OF_example.c
+if test 2008 -ne `wc -c <example.c`; then
+    echo shar: \"example.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f example.out -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"example.out\"
+else
+echo shar: Extracting \"example.out\" \(1876 characters\)
+sed "s/^X//" >example.out <<'END_OF_example.out'
+X# 1 "example.c" 
+X 
+X
+X
+X
+X
+X
+X 
+X
+X
+X
+X
+Xx
+X
+X
+X
+X(baz)
+X# 16 "example.c"
+Xstruct {    struct {	int (*(*foo)())();    } foo;} baz;
+X# 16 "example.c"
+X{/*1*/
+X    /* end dcls */return (0);
+X}/*1*/
+X
+X 
+X
+X
+X
+X
+X
+Xfoo
+X(bar)int     (*(*bar)())();
+X{/*1*/
+X    int     (*baz)() = (int (*)()) 0,
+X	    y = (y * (*baz)(y)),
+X	    *(*z)() = (int *(*)()) 0;
+X
+X    struct {/*2*/ int (*foo)(); }/*2*/ *(*s)() = 
+X	(struct { int (*foo)(); } *(*)()) 0;
+X
+X    /* end dcls */{/*2*/
+X	y /* end dcls */= (y * (*baz)(y));
+X    }/*2*/
+X    {/*2*/
+X	z /* end dcls */= (int *(*)()) 0;
+X    }/*2*/
+X    {/*2*/
+X	s /* end dcls */= (struct { int (*foo)(); } *(*)()) 0;
+X    }/*2*/
+X
+X    return (0);
+X}/*1*/
+X
+X
+X
+Xtest1
+X()
+X# 52 "example.c"
+X{/*1*/
+X	int foo2,*(*(*bar)())(),*baz();
+X}/*1*/
+X
+X
+X
+Xtest2
+X(y)
+X# 59 "example.c"
+Xchar *y;
+X# 59 "example.c"
+X{/*1*/
+X	int foo = 5,atoi();
+X
+X	foo /* end dcls */= 5,atoi(y);
+X}/*1*/
+X
+X
+X
+Xtest3,test4();
+X
+Xtest5
+X(y)
+X# 70 "example.c"
+Xint y;
+X# 70 "example.c"
+X{/*1*/
+X	/* end dcls */{/*2*/
+X		test3/* end dcls */;
+X	}/*2*/
+X	{/*2*/
+X		test4/* end dcls */(y);
+X	}/*2*/
+X}/*1*/
+X
+Xtest6[1],test7();
+X
+Xtest7
+X(x)
+X# 82 "example.c"
+Xint x;
+X# 82 "example.c"
+X{/*1*/
+X	/* end dcls */{/*2*/
+X		test6/* end dcls */[1];
+X	}/*2*/
+X	{/*2*/
+X		test7/* end dcls */(x);
+X	}/*2*/
+X}/*1*/
+X
+X
+X
+Xstruct {/*1*/
+X    struct {/*2*/
+X	int (*f)(), o;
+X    }/*2*/ bar;
+X}/*1*/ (*baz2)() = (struct { struct { int (*f)(), o; } bar; } (*)()) 0;
+X
+X
+X
+Xtest8
+X(x)
+X# 102 "example.c"
+X{/*1*/
+X    /* end dcls */{/*2*/
+X	struct {/*3*/
+X	    int     foo;
+X	}/*3*/ bar();
+X    }/*2*/
+X    {/*2*/
+X	/* end dcls */do {/*3*/
+X	    int     foo;
+X	}/*3*/ while (x);
+X    }/*2*/
+X}/*1*/
+X
+X
+X
+Xtest9
+X(bar)
+X# 118 "example.c"
+Xchar *bar;
+X# 118 "example.c"
+X{/*1*/
+X    foo/* end dcls */(*bar);
+X}/*1*/
+X
+X
+X
+Xtest10
+X(x)
+X# 125 "example.c"
+Xint x;
+X# 125 "example.c"
+X{/*1*/
+X    /* end dcls */{/*2*/
+X	int test10();
+X	/* end dcls */do  test10(x);
+X	while (x);
+X    }/*2*/
+X    {/*2*/
+X	/* end dcls */return test10(x);
+X    }/*2*/
+X}/*1*/
+END_OF_example.out
+if test 1876 -ne `wc -c <example.out`; then
+    echo shar: \"example.out\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f unproto.1 -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"unproto.1\"
+else
+echo shar: Extracting \"unproto.1\" \(1993 characters\)
+sed "s/^X//" >unproto.1 <<'END_OF_unproto.1'
+X.TH UNPROTO 1 
+X.ad
+X.fi
+X.SH NAME
+Xunproto
+X\-
+XANSI C to old C converter
+X.SH PACKAGE
+X.na
+X.nf
+Xunproto
+X.SH SYNOPSIS
+X.na
+X.nf
+X/lib/cpp ... | unproto
+X
+X/somewhere/cpp ...
+X.SH DESCRIPTION
+X.ad
+X.fi
+XThis document describes a filter that sits between the
+XC preprocessor (usually \fI/lib/cpp\fP) and the next C compiler
+Xpass. It rewrites ANSI-C style function headers, function type
+Xdeclarations, function pointer types, and function pointer casts
+Xto old style. Other ANSI-isms are passed on without modification
+X(token pasting, pragmas, etcetera).
+X
+XFor maximal flexibility, the "cpp | unproto" pipeline can  be
+Xpackaged as an executable shell script named "/somewhere/cpp".
+XThis script should then be specified to the C compiler as a
+Xnon-default preprocessor.
+X
+XThe overhead of shell script interpretation can be avoided by
+Xhaving the unprototyper itself open the pipe to the preprocessor.
+XIn that case, the source should be compiled with the PIPE_THROUGH_CPP
+Xmacro defined (usually as "/lib/cpp"), and the resulting binary
+Xshould be installed as "/somewhere/cpp".
+X.SH SEE ALSO
+X.na
+X.nf
+X.ad
+X.fi
+Xcc(1), how to specify a non-default C preprocessor.
+X
+XSome versions of the lint command are implemented as a shell
+Xscript. It should require only minor modification for integration
+Xwith the unprotoizer. Other versions of the lint command accept the same
+Xcommand syntax as the C compiler for the specification of a non-default
+Xpreprocessor. Some research may be needed.
+X.SH DIAGNOSTICS
+X.ad
+X.fi
+XThe progam will complain if it unexpectedly
+Xreaches the end of input.
+X.SH BUGS
+X.ad
+X.fi
+XShould be run on preprocessed source only, i.e. after macro expansion.
+X
+XDeclarations of (whatever) are misunderstood and will result in
+Xsyntax errors.
+X.SH AUTHOR(S)
+X.na
+X.nf
+XWietse Venema (wietse@wzv.win.tue.nl)
+XEindhoven University of Technology
+XDepartment of Mathematics and Computer Science
+XDen Dolech 2, P.O. Box 513, 5600 MB Eindhoven, The Netherlands
+X.SH LAST MODIFICATION
+X.na
+X.nf
+X91/09/01 23:08:37
+X.SH VERSION/RELEASE
+X.na
+X.nf
+X1.1
+END_OF_unproto.1
+if test 1993 -ne `wc -c <unproto.1`; then
+    echo shar: \"unproto.1\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of shell archive.
+exit 0

@@ -1,0 +1,339 @@
+Path: funic!fuug!mcsun!Germany.EU.net!ira.uka.de!ira.uka.de!chx400!sicsun!disuns2!lslsun4!chris
+From: chris@lslsun4.epfl.ch (Christian Iseli)
+Newsgroups: alt.sources
+Subject: Unofficial xgopher patch to display images
+Keywords: xgopher gopher
+Message-ID: <5107@disuns2.epfl.ch>
+Date: 15 Nov 92 15:40:30 GMT
+Sender: news@disuns2.epfl.ch
+Followup-To: alt.sources.d
+Organization: Ecole Polytechnique Federale de Lausanne
+Lines: 326
+Nntp-Posting-Host: lslsun4.epfl.ch
+
+Here is a quick hack to add the possibility for xgopher to display
+images (for example Meteosat images which can be found on various gopher
+servers). It's just a quick hack, but seems to do the trick. It's based
+on the sound playing stuff. Here's the diff against the xgopher 1.1
+release. This patch is, of course, totally unofficial and utterly
+unsupported :-)
+
+--------- apply with patch -----------------------
+
+*** Xgopher.ad.orig	Sun Nov 15 15:20:16 1992
+--- Xgopher.ad	Sun Nov 15 16:09:28 1992
+***************
+*** 12,17 ****
+--- 12,19 ----
+  Xgopher.directoryTime:			600
+  Xgopher.hasSound:			True
+  Xgopher.soundCommand:			/usr/bin/tr -d '\012\015' | play -v7
++ Xgopher.hasImage:			True
++ Xgopher.imageCommand:			/usr/local/bin/xv -
+  Xgopher.allowTelnet:			True
+  Xgopher.telnetCommand:			xterm -e telnet
+  Xgopher.itemStart:			500
+*** conf.h.orig	Sun Nov 15 15:10:22 1992
+--- conf.h	Sun Nov 15 16:09:02 1992
+***************
+*** 35,40 ****
+--- 35,42 ----
+  #define DIRECTORY_TIME	600		/* number of seconds a dir is valid */
+  #define HAS_SOUND	TRUE		/* the X server(!) has sound	  */
+  #define SOUND_COMMAND	"/usr/bin/tr -d '\012\015' | play -v7"	/* command to get sound out  	  */
++ #define HAS_IMAGE	TRUE		/* the X server(!) has image	  */
++ #define IMAGE_COMMAND	"/usr/local/bin/xv -"	/* command to get image out  	  */
+  #define ALLOW_TELNET	TRUE		/* allow telnet sessions          */
+  #define TELNET_COMMAND	"xterm -e telnet"
+  					/* command to start telnet  	  */
+***************
+*** 54,59 ****
+--- 56,62 ----
+  #define PREFIX_INDEX	"<idx> "	/* listing prefix for index search   */
+  #define PREFIX_TELNET	"<tel> "	/* listing prefix for telnet session */
+  #define PREFIX_SOUND	"<snd> "	/* listing prefix for sound files    */
++ #define PREFIX_IMAGE	"<img> "	/* listing prefix for image files    */
+  #define PREFIX_UNKNOWN	"<???> "	/* listing prefix for unknown files  */
+  
+  /* ----- end of application defaults ---- */
+*** gopher.h.orig	Sun Nov 15 15:31:00 1992
+--- gopher.h	Sun Nov 15 15:31:56 1992
+***************
+*** 75,80 ****
+--- 75,81 ----
+  #define A_CNS		'9'
+  #define A_DUP_SERVER	'+'
+  #define A_SOUND		's'
++ #define A_IMAGE		'I'
+  #define A_EVENT		'e'
+  #define A_CALENDAR	'c'
+  #define A_EOI		'.'
+*** options.c.orig	Sun Nov 15 15:14:23 1992
+--- options.c	Sun Nov 15 15:18:35 1992
+***************
+*** 101,106 ****
+--- 101,107 ----
+  	makePrefix(prefixIndex,  appResources.prefixIndex);
+  	makePrefix(prefixTelnet, appResources.prefixTelnet);
+  	makePrefix(prefixSound,  appResources.prefixSound);
++ 	makePrefix(prefixImage,  appResources.prefixImage);
+  	makePrefix(prefixUnknown,appResources.prefixUnknown);
+  
+  #ifdef DEBUG
+***************
+*** 127,132 ****
+--- 128,137 ----
+  			appResources.hasSound ? "True" : "False");
+  	LOG (logFP, "\tsoundCommand:\t%s\n",
+  			appResources.soundCommand);
++ 	LOG (logFP, "\thasImage:\t%s\n",
++ 			appResources.hasImage ? "True" : "False");
++ 	LOG (logFP, "\timageCommand:\t%s\n",
++ 			appResources.imageCommand);
+  	LOG (logFP, "\tallowTelnet:\t%s\n",
+  			appResources.allowTelnet ? "True" : "False");
+  	LOG (logFP, "\ttelnetCommand:\t%s\n",
+***************
+*** 160,165 ****
+--- 165,172 ----
+  			 PREFIX_LEN, appResources.prefixIndex);
+  	LOG (logFP, "\tprefixSound:\t%.*s\n",
+  			 PREFIX_LEN, appResources.prefixSound);
++ 	LOG (logFP, "\tprefixImage:\t%.*s\n",
++ 			 PREFIX_LEN, appResources.prefixImage);
+  	LOG (logFP, "\tprefixUnknown:\t%.*s\n",
+  			 PREFIX_LEN, appResources.prefixUnknown);
+  #endif /* DEBUG */
+*** options.h.orig	Sun Nov 15 15:23:40 1992
+--- options.h	Sun Nov 15 15:28:02 1992
+***************
+*** 37,42 ****
+--- 37,44 ----
+  	int		directoryTime;
+  	Boolean		hasSound;
+  	String		soundCommand;
++ 	Boolean		hasImage;
++ 	String		imageCommand;
+  	Boolean		allowTelnet;
+  	String		telnetCommand;
+  	int		itemStart;
+***************
+*** 53,58 ****
+--- 55,61 ----
+  	String		prefixCSO;
+  	String		prefixIndex;
+  	String		prefixSound;
++ 	String		prefixImage;
+  	String		prefixUnknown;
+  	} gopherAppResources, *gopherAppResourcesP;
+  
+***************
+*** 86,91 ****
+--- 89,98 ----
+  		GOffset(hasSound), XtRImmediate, (XPointer) HAS_SOUND},
+      {"soundCommand", "SoundCommand", XtRString, sizeof(String),
+  		GOffset(soundCommand), XtRString, SOUND_COMMAND},
++     {"hasImage", "HasImage", XtRBoolean, sizeof(Boolean),
++ 		GOffset(hasImage), XtRImmediate, (XPointer) HAS_IMAGE},
++     {"imageCommand", "ImageCommand", XtRString, sizeof(String),
++ 		GOffset(imageCommand), XtRString, IMAGE_COMMAND},
+      {"allowTelnet", "AllowTelnet", XtRBoolean, sizeof(Boolean),
+  		GOffset(allowTelnet), XtRImmediate, (XPointer) ALLOW_TELNET},
+      {"telnetCommand", "TelnetCommand", XtRString, sizeof(String),
+***************
+*** 118,123 ****
+--- 125,132 ----
+  		GOffset(prefixIndex), XtRString, PREFIX_INDEX},
+      {"prefixSound", "prefixSound", XtRString, sizeof(String),
+  		GOffset(prefixSound), XtRString, PREFIX_SOUND},
++     {"prefixImage", "prefixImage", XtRString, sizeof(String),
++ 		GOffset(prefixImage), XtRString, PREFIX_IMAGE},
+      {"prefixUnknown", "prefixUnknown", XtRString, sizeof(String),
+  		GOffset(prefixUnknown), XtRString, PREFIX_UNKNOWN},
+      };
+*** prefixP.h.orig	Sun Nov 15 15:56:54 1992
+--- prefixP.h	Sun Nov 15 15:57:12 1992
+***************
+*** 21,24 ****
+--- 21,25 ----
+  	prefixIndex   [PREFIX_LEN],
+  	prefixTelnet  [PREFIX_LEN],
+  	prefixSound   [PREFIX_LEN],
++ 	prefixImage   [PREFIX_LEN],
+  	prefixUnknown [PREFIX_LEN];
+*** util.c.orig	Sun Nov 15 15:09:29 1992
+--- util.c	Sun Nov 15 16:07:47 1992
+***************
+*** 92,97 ****
+--- 92,100 ----
+  	    case A_SOUND:
+  		PREFIX(gi, prefixSound);
+  		break;
++ 	    case A_IMAGE:
++ 		PREFIX(gi, prefixImage);
++ 		break;
+  	    case A_EOI:
+  		freeItem(gi);
+  		return NULL;
+***************
+*** 155,161 ****
+  			    gi->type == A_CSO ||
+  			    gi->type == A_INDEX ||
+  			    gi->type == A_TELNET ||
+! 			    gi->type == A_SOUND) {
+  				appendItem(&(d->contents), gi);
+  
+  			} else {
+--- 158,165 ----
+  			    gi->type == A_CSO ||
+  			    gi->type == A_INDEX ||
+  			    gi->type == A_TELNET ||
+! 			    gi->type == A_SOUND ||
+! 			    gi->type == A_IMAGE) {
+  				appendItem(&(d->contents), gi);
+  
+  			} else {
+***************
+*** 558,563 ****
+--- 562,665 ----
+  	}
+  }
+  
++ /* getImage
++    get an image file and display it. */
++ 
++ BOOLEAN
++ getImage(gi)
++ gopherItemP	gi;
++ {
++ 	static BOOLEAN	firstTime = TRUE;
++ 	static BOOLEAN	imageCommandOK = TRUE;
++ 	static char	*imageCmd;
++ 	char		message[MESSAGE_STRING_LEN];
++ 	FILE		*imageCmdFile;
++ 	int		s;
++ 	static int	childPID = 0;
++ 
++ 	/* see if image command is turned on */
++ 
++ 	if (! appResources->hasImage) {
++ 		showError("This machine does not support images.");
++ 		return FALSE;
++ 	}
++ 
++ 	if (childPID != 0) {	/* image may still be active */
++ 
++ 		union wait	status;
++ 		int		pid;
++ 		struct rusage	rusage;
++ 
++ 		pid = wait3(&status, WNOHANG, &rusage);
++ 		if (pid == 0) {
++ 		    showError("Another image file is still showing. Close it first.");
++ 		    return FALSE;
++ 		} else if (pid == childPID) {
++ 			childPID = 0;
++ 		} else {
++ 			showError("It doesn't look good for showing any more images.");
++ 			return FALSE;
++ 		}
++ 	}
++ 
++ 	/* see if image command is an executable file */
++ 
++ 	if (firstTime) {
++ 		firstTime = FALSE;
++ 		imageCmd = cmdPath(appResources->imageCommand);
++ 		if (imageCmd == NULL) {
++ 			imageCommandOK = FALSE;
++ 		}
++ 	}
++ 
++ 	if (! imageCommandOK) {
++ 		sprintf (message,
++ 			"Unable to execute the image display command: \'%s\'\n",
++ 			imageCmd);
++ 		showError(message);
++ 		return FALSE;
++ 	}
++ 
++ 	if ((childPID = fork()) < 0) {
++ 		sprintf(message,
++ 		    "Unable to display the image (error %d)\n",
++ 		    errno);
++ 		showError(message);
++ 		return FALSE;
++ 
++ 	} else if (childPID != 0) {
++ 		return TRUE;
++ 
++ 	} else {
++ 
++ 		s = connectToSocket(gi->host, gi->port);
++ 		if (s < 0) {
++ 			networkError(s, gi->host, gi->port);
++ 			return FALSE;
++ 		}
++ 
++ 		writeString(s, vStringValue(&(gi->selector)));
++ 		writeString(s, EOL_STRING);
++ 
++ 		imageCmdFile = popen(imageCmd, "w");
++ 
++ 		if (imageCmdFile == NULL) {
++ 		    sprintf(message,
++ 			"Unable to start the image command (\'%s\')\n",
++ 			    imageCmd);
++ 			showError(message);
++ 			close (s);
++ 			exit(-1);
++ 		}
++ 
++ 		copyNetUntilEOF(s, imageCmdFile);
++ 
++ 		close(s);
++ 		pclose(imageCmdFile);
++ 		exit(0);
++ 	}
++ }
++ 
+  
+  #define NET_BUFFER_SIZE	1400
+  
+***************
+*** 758,763 ****
+--- 860,870 ----
+  		   by getSound. */
+  
+  		result = getSound(gi);
++ 		
++ 		break;
++ 
++ 	case A_IMAGE:
++ 		result = getImage(gi);
+  		
+  		break;
+  
+*** util.h.orig	Sun Nov 15 15:51:32 1992
+--- util.h	Sun Nov 15 15:52:11 1992
+***************
+*** 84,89 ****
+--- 84,95 ----
+  #endif
+  );
+  
++ BOOLEAN getImage(
++ #ifdef PROTO
++ 	gopherItemP	/* gi */
++ #endif
++ );
++ 
+  void	getTempFile(
+  #ifdef PROTO
+  	char *		/* tempName */
+
+-- 
+
+					Christian Iseli
+					LSL-DI-EPFL
+					Lausanne, Switzerland

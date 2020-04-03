@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!paladin.american.edu!darwin.sura.net!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 3 of 10
+Message-ID: <By2MHK.Ku0@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:48:55 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part3
+
+BW *bw=(BW *)w->object;
+pdupown(bw->cursor,&w->t->markb);
+updall();
+}
+X
+void umarkk(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+pdupown(bw->cursor,&w->t->markk);
+updall();
+}
+X
+void ublkdel(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(w->t->markb && w->t->markk &&
+X   w->t->markb->b==w->t->markk->b &&
+X   w->t->markk->byte>w->t->markb->byte &&
+X   (!square || w->t->markb->col<w->t->markk->col))
+X if(square)
+X  {
+X  pdelrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col,
+X           bw->overtype);
+X  return;
+X  }
+X else
+X  {
+X  bdel(w->t->markb,w->t->markk);
+X  prm(w->t->markb);
+X  prm(w->t->markk);
+X  return;
+X  }
+msgnw(w,"No block");
+}
+X
+void ublkmove(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+long size;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   (size=w->t->markk->byte-w->t->markb->byte)>0 &&
+X   (!square || w->t->markb->col<w->t->markk->col))
+X if(square)
+X  {
+X  long height=w->t->markk->line-w->t->markb->line;
+X  long width;
+X  long ocol=bw->cursor->col;
+X  B *tmp=pextrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col);
+X  pdelrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col,
+X           bw->overtype);
+X  if(bw->overtype)
+X   {
+X   while(bw->cursor->col<ocol)
+X    if(brc(bw->cursor)==' ') pgetc(bw->cursor);
+X    else if(bw->cursor->col+bw->b->tab-bw->cursor->col%bw->b->tab<=
+X            bw->cursor->col) pgetc(bw->cursor);
+X    else binsc(bw->cursor,' '), pgetc(bw->cursor);
+X   width=povrrect(bw->cursor,tmp);
+X   }
+X  else width=pinsrect(bw->cursor,tmp);
+X  brm(tmp);
+X  while(bw->cursor->col<ocol) pgetc(bw->cursor);
+X  umarkb(w);
+X  umarkk(w);
+X  pline(w->t->markk,w->t->markk->line+height);
+X  pcol(w->t->markk,w->t->markb->col+width);
+X  return;
+X  }
+X else if(bw->cursor->b!=w->t->markk->b ||
+X         bw->cursor->byte>w->t->markk->byte ||
+X         bw->cursor->byte<w->t->markb->byte)
+X  {
+X  binsb(bw->cursor,w->t->markb,w->t->markk);
+X  ublkdel(w);
+X  umarkb(w);
+X  umarkk(w);
+X  pfwrd(w->t->markk,size);
+X  updall();
+X  return;
+X  }
+msgnw(w,"No block");
+}
+X
+void ublkcpy(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+long size;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   (size=w->t->markk->byte-w->t->markb->byte)>0 &&
+X   (!square || w->t->markb->col < w->t->markk->col))
+X if(square)
+X  {
+X  B *tmp=pextrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col);
+X  long width;
+X  long height;
+X  if(bw->overtype) width=povrrect(bw->cursor,tmp);
+X  else width=pinsrect(bw->cursor,tmp);
+X  height=w->t->markk->line-w->t->markb->line;
+X  brm(tmp);
+X  umarkb(w);
+X  umarkk(w);
+X  pline(w->t->markk,w->t->markk->line+height);
+X  pcol(w->t->markk,w->t->markb->col+width);
+X  return;
+X  }
+X else
+X  {
+X  binsb(bw->cursor,w->t->markb,w->t->markk);
+X  umarkb(w);
+X  umarkk(w);
+X  pfwrd(w->t->markk,size);
+X  updall();
+X  return;
+X  }
+msgnw(w,"No block");
+}
+X
+void ushell(w)
+W *w;
+{
+nescape(w->t->t);
+ttsusp();
+nreturn(w->t->t);
+}
+X
+void dowrite(w,s)
+W *w;
+char *s;
+{
+long size;
+int fl;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   (size=w->t->markk->byte-w->t->markb->byte)>0 &&
+X   (!square || w->t->markk->col>w->t->markb->col))
+X {
+X if(square)
+X  {
+X  B *tmp=pextrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col);
+X  if(fl=bsave(tmp->bof,s,tmp->eof->byte)) msgnw(w,msgs[5+fl]);
+X  brm(tmp);
+X  }
+X else if(fl=bsave(w->t->markb,s,size)) msgnw(w,msgs[5+fl]);
+X }
+else msgnw(w,"No block");
+vsrm(s);
+}
+X
+void ublksave(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   (w->t->markk->byte-w->t->markb->byte)>0 &&
+X   (!square || w->t->markk->col>w->t->markb->col))
+X {
+X wmkfpw(w,"Name of file to write (^C to abort): ",&filehist,dowrite,"Names");
+X return;
+X }
+msgnw(w,"No block");
+}
+X
+long pindent();
+X
+void setindent(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p, *q;
+long indent;
+if(pblank(bw->cursor)) return;
+X
+p=pdup(bw->cursor);
+q=pdup(p);
+indent=pindent(p);
+X
+do
+X if(!pprevl(p)) goto done;
+X else pboln(p);
+X while(pindent(p)>=indent && !pblank(p));
+pnextl(p);
+done:
+pboln(p);
+if(w->t->markb) prm(w->t->markb);
+w->t->markb=p; p->owner=&w->t->markb;
+X
+do
+X if(!pnextl(q)) break;
+X while(pindent(q)>=indent && !pblank(q));
+pfcol(q);
+X
+if(w->t->markk) prm(w->t->markk);
+w->t->markk=q; q->owner=&w->t->markk;
+X
+updall();
+}
+X
+void urindent(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(square)
+X {
+X if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X    w->t->markb->byte<=w->t->markk->byte && w->t->markb->col<=w->t->markk->col)
+X  {
+X  P *p=pdup(w->t->markb);
+X  do
+X   {
+X   pcol(p,w->t->markb->col);
+X   pfill(p,w->t->markb->col+bw->istep,bw->indentc=='\t'?1:0);
+X   } while(pnextl(p) && p->line<=w->t->markk->line);
+X  prm(p);
+X  }
+X return;
+X }
+if(!w->t->markb || !w->t->markk || w->t->markb->b!=w->t->markk->b ||
+X   bw->cursor->byte<w->t->markb->byte || bw->cursor->byte>w->t->markk->byte)
+X {
+X setindent(w);
+X }
+else
+X {
+X P *p=pdup(w->t->markb);
+X while(p->byte<w->t->markk->byte)
+X  {
+X  pbol(p);
+X  while(p->col<bw->istep) binsc(p,bw->indentc), pgetc(p);
+X  pnextl(p);
+X  }
+X prm(p);
+X }
+}
+X
+void ulindent(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(square)
+X {
+X if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X    w->t->markb->byte<=w->t->markk->byte && w->t->markb->col<=w->t->markk->col)
+X  {
+X  P *p=pdup(w->t->markb);
+X  P *q=pdup(p);
+X  do
+X   {
+X   pcol(p,w->t->markb->col);
+X   while(p->col<w->t->markb->col+bw->istep)
+X    {
+X    int c=pgetc(p);
+X    if(c!=' ' && c!='\t' && c!=bw->indentc)
+X     {
+X     prm(p);
+X     prm(q);
+X     return;
+X     }
+X    }
+X   } while(pnextl(p) && p->line<=w->t->markk->line);
+X  pset(p,w->t->markb);
+X  do
+X   {
+X   pcol(p,w->t->markb->col);
+X   pset(q,p);
+X   pcol(q,w->t->markb->col+bw->istep);
+X   bdel(p,q);
+X   } while(pnextl(p) && p->line<=w->t->markk->line);
+X  prm(p); prm(q);
+X  }
+X return;
+X }
+if(!w->t->markb || !w->t->markk || w->t->markb->b!=w->t->markk->b ||
+X   bw->cursor->byte<w->t->markb->byte || bw->cursor->byte>w->t->markk->byte)
+X {
+X setindent(w);
+X }
+else
+X {
+X P *p=pdup(w->t->markb);
+X P *q=pdup(p);
+X pbol(p);
+X while(p->byte<w->t->markk->byte)
+X  {
+X  if(pindent(p)<bw->istep) { prm(p); return; }
+X  pnextl(p);
+X  }
+X pset(p,w->t->markb);
+X pbol(p);
+X while(p->byte<w->t->markk->byte)
+X  {
+X  pset(q,p);
+X  while(q->col<bw->istep) pgetc(q);
+X  bdel(p,q);
+X  pnextl(p);
+X  }
+X prm(p); prm(q);
+X }
+}
+X
+static void dofilt(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+int fr[2];
+int fw[2];
+char c;
+X
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   w->t->markk->byte>w->t->markb->byte &&
+X   (!square || w->t->markk->col>w->t->markb->col)) goto go;
+msgnw(w,"No block");
+return;
+X
+go:
+X
+pipe(fr);
+pipe(fw);
+nescape(w->t->t);
+ttclsn();
+if(!fork())
+X {
+X signrm();
+X close(0);
+X close(1);
+X dup(fw[0]);
+X dup(fr[1]);
+X close(fw[0]);
+X close(fr[1]);
+X close(fw[1]);
+X close(fr[0]);
+X execl("/bin/sh","/bin/sh","-c",s,NULL);
+X _exit(0);
+X }
+close(fr[1]);
+close(fw[0]);
+if(fork())
+X {
+X long szz;
+X close(fw[1]);
+X if(square)
+X  {
+X  B *tmp=bmk();
+X  long width;
+X  long height;
+X  pdelrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col,
+X           bw->overtype);
+X  binsfd(tmp->bof,fr[0],MAXLONG);
+X  if(bw->overtype) width=povrrect(w->t->markb,tmp);
+X  else width=pinsrect(w->t->markb,tmp);
+X  if(tmp->eof->col || !tmp->eof->line) height=tmp->eof->line;
+X  else height=tmp->eof->line-1;
+X  pdupown(w->t->markb,&w->t->markk);
+X  pline(w->t->markk,w->t->markk->line+height);
+X  pcol(w->t->markk,w->t->markb->col+width);
+X  brm(tmp);
+X  updall();
+X  }
+X else
+X  {
+X  bdel(w->t->markb,w->t->markk);
+X  szz=w->t->markk->b->eof->byte;
+X  binsfd(w->t->markk,fr[0],MAXLONG);
+X  pfwrd(w->t->markk,w->t->markk->b->eof->byte-szz);
+X  }
+X close(fr[0]);
+X wait(0);
+X wait(0);
+X }
+else
+X {
+X if(square)
+X  {
+X  B *tmp=pextrect(w->t->markb,w->t->markk,w->t->markb->col,w->t->markk->col);
+X  bsavefd(tmp->bof,fw[1],tmp->eof->byte);
+X  }
+X else bsavefd(w->t->markb,fw[1],w->t->markk->byte-w->t->markb->byte);
+X close(fw[1]);
+X _exit(0);
+X }
+vsrm(s);
+ttopnn();
+nreturn(w->t->t);
+bw->cursor->xcol=bw->cursor->col;
+}
+X
+void ufilt(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   (w->t->markk->byte-w->t->markb->byte)>0)
+X {
+X wmkpw(w,"Command to filter block through (^C to abort): ",
+X       &filthist,dofilt,NULL);
+X return;
+X }
+msgnw(w,"No block");
+}
+X
+/****************************/
+/* File loading and storing */
+/****************************/
+X
+static int backup(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(!bw->b->backup)
+X {
+X char *s=0;
+X /* Create command string */
+X s=vsncpy(s,0,sc("/bin/cp "));
+X s=vsncpy(s,sLEN(s),sz(bw->b->name));
+X s=vsadd(s,' ');
+X s=vsncpy(s,sLEN(s),sz(bw->b->name));
+X s=vsncpy(s,sLEN(s),sc("~ 2>/dev/null"));
+X
+X if(system(s))
+X  {
+X  msgnw(w,"Couldn't make backup file... file not saved");
+X  vsrm(s);
+X  return 1;
+X  }
+X else
+X  {
+X  bw->b->backup=1;
+X  vsrm(s);
+X  return 0;
+X  }
+X }
+else return 0;
+}
+X
+static int dosave(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+FILE *f;
+int fl;
+if(backup(w)) { vsrm(s); return 1; }
+if(fl=bsave(bw->b->bof,s,bw->b->eof->byte))
+X {
+X msgnw(w,msgs[fl+5]);
+X vsrm(s);
+X return 1;
+X }
+else
+X {
+X if(!bw->b->name) bw->b->name=zdup(s);
+X if(!zcmp(bw->b->name,s)) bw->b->chnged=0;
+X vsrm(s);
+X return 0;
+X }
+}
+X
+void usave(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+W *pw=wmkfpw(w,"Name of file to save (^C to abort): ",&filehist,dosave,"Names");
+if(pw && bw->b->name)
+X {
+X BW *pbw=(BW *)pw->object;
+X binss(pbw->cursor,bw->b->name);
+X pset(pbw->cursor,pbw->b->eof); pbw->cursor->xcol=pbw->cursor->col;
+X }
+}
+X
+static void doedit(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+void *object=bw->object;
+B *b=bfind(s);
+if(!b)
+X {
+X b=bmk();
+X if(!zlen(s))
+X  msgnwt(w,"New file ");
+X else
+X  {
+X  int fl;
+X  if(fl=bload(b,s)) msgnwt(w,msgs[fl+5]);
+X  }
+X }
+bwrm(bw);
+w->object=(void *)(bw=bwmk(w->t,b,w->x,w->y+1,w->w,w->h-1));
+wredraw(w);
+setoptions(bw,s);
+bw->object=object;
+vsrm(s);
+}
+X
+void uedit(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(bw->b->count==1 && bw->b->chnged)
+X {
+X int c=query(w,"Do you really want to throw away this file (y,n)? ");
+X if(c!='y' && c!='Y') return;
+X }
+wmkfpw(w,"Name of file to edit (^C to abort): ",&filehist,doedit,"Names");
+}
+X
+static void doinsf(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+int fl;
+if(square)
+X {
+X B *tmp=bmk();
+X if(fl=binsf(tmp->bof,s)) msgnw(w,msgs[fl+5]);
+X else
+X  if(bw->overtype) povrrect(bw->cursor,tmp);
+X  else pinsrect(bw->cursor,tmp);
+X brm(tmp);
+X }
+else
+X if(fl=binsf(bw->cursor,s)) msgnw(w,msgs[fl+5]);
+vsrm(s);
+bw->cursor->xcol=bw->cursor->col;
+}
+X
+void uinsf(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+wmkfpw(w,"Name of file to insert (^C to abort): ",&filehist,doinsf,"Names");
+}
+X
+extern char *exmsg;
+X
+static void doex(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+bw->b->name=zdup(s); 
+if(dosave(w,s)) { free(bw->b->name); bw->b->name=0; return; }
+exmsg=vsncpy(NULL,0,sc("File "));
+exmsg=vsncpy(exmsg,sLEN(exmsg),sz(bw->b->name));
+exmsg=vsncpy(exmsg,sLEN(exmsg),sc(" saved."));
+bw->b->chnged=0;
+wabort(w);
+}
+X
+void uexsve(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(!bw->b->chnged)
+X {
+X exmsg=vsncpy(NULL,0,sc("File "));
+X exmsg=vsncpy(exmsg,sLEN(exmsg),sz(bw->b->name));
+X exmsg=vsncpy(exmsg,sLEN(exmsg),sc(" not changed so no updated needed."));
+X wabort(w);
+X return;
+X }
+if(bw->b->name)
+X {
+X if(dosave(w,vsncpy(NULL,0,sz(bw->b->name)))) return;
+X exmsg=vsncpy(NULL,0,sc("File "));
+X exmsg=vsncpy(exmsg,sLEN(exmsg),sz(bw->b->name));
+X exmsg=vsncpy(exmsg,sLEN(exmsg),sc(" saved."));
+X bw->b->chnged=0;
+X wabort(w);
+X } 
+else wmkfpw(w,"Name of file to save (^C to abort): ",&filehist,doex,"Names");
+}
+X
+/*************/
+/* Goto line */
+/*************/
+X
+static void doline(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+long num=0;
+sscanf(s,"%ld",&num);
+if(num>=1) pline(bw->cursor,num-1), bw->cursor->xcol=bw->cursor->col;
+else msgnw(w,"Invalid line number");
+vsrm(s);
+}
+X
+void uline(w)
+W *w;
+{
+wmkpw(w,"Goto line (^C to abort): ",&linehist,doline,NULL);
+}
+X
+/************************/
+/* Basic edit functions */
+/************************/
+X
+void uquote(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int c=queryn(w,"Ctrl-");
+if((c>=0x40 && c<=0x5F) || (c>='a' && c<='z')) c&=0x1F;
+if(c=='?') c=127;
+utype(w,c);
+}
+X
+void uquote8(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int c=queryn(w,"Meta-");
+if(c=='`')
+X {
+X c=queryn(w,"Meta-Ctrl-");
+X if((c>=0x40 && c<=0x5F) || (c>='a' && c<='z')) c&=0x1F;
+X if(c=='?') c=127;
+X }
+c|=128;
+utype(w,c);
+}
+X
+void uretyp(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+nredraw(w->t->t);
+}
+X
+P *pboi(p)
+P *p;
+{
+pbol(p);
+while(cwhite(brc(p))) pgetc(p);
+return p;
+}
+X
+int pisedge(p)
+P *p;
+{
+P *q;
+int c;
+if(pisbol(p)) return 1;
+if(piseol(p)) return 1;
+q=pdup(p);
+pboi(q);
+if(q->byte==p->byte) goto yes;
+if(cwhite(c=brc(p)))
+X {
+X pset(q,p); if(cwhite(prgetc(q))) goto no;
+X if(c=='\t') goto yes;
+X pset(q,p); pgetc(q);
+X if(pgetc(q)==' ') goto yes;
+X goto no;
+X }
+else
+X {
+X pset(q,p); c=prgetc(q);
+X if(c=='\t') goto yes;
+X if(c!=' ') goto no;
+X if(prgetc(q)==' ') goto yes;
+X goto no;
+X }
+X
+yes: prm(q); return 1;
+no:  prm(q); return 0;
+}
+X
+void upedge(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+prgetc(bw->cursor);
+while(!pisedge(bw->cursor)) prgetc(bw->cursor);
+}
+X
+void unedge(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+pgetc(bw->cursor);
+while(!pisedge(bw->cursor)) pgetc(bw->cursor);
+}
+X
+void ubol(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+pbol(bw->cursor);
+}
+X
+void ueol(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+peol(bw->cursor);
+}
+X
+void ubof(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+pbof(bw->cursor);
+}
+X
+void ueof(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+peof(bw->cursor);
+}
+X
+void ultarw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+prgetc(bw->cursor);
+}
+X
+X
+void urtarw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+pgetc(bw->cursor);
+}
+X
+void uprvwrd(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int c, d;
+X
+/* Move to end of previous word or edge */
+lp:
+d=' ';
+while(c=prgetc(bw->cursor),
+X      c!= MAXINT && !cword(c) && (!cwhitel(c) || cwhitel(d)))
+X d=c; 
+if(c==' ')
+X {
+X d=prgetc(bw->cursor); if(d!=MAXINT) pgetc(bw->cursor);
+X if(!cwhitel(d)) { pgetc(bw->cursor); goto lp; }
+X }
+if(c!= MAXINT) pgetc(bw->cursor);
+X
+X
+/* Move to beginning of current word */
+while(cword(c=prgetc(bw->cursor)));
+if(c!= MAXINT) pgetc(bw->cursor);
+}
+X
+void unxtwrd(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int c, d;
+/* Move to start of next word or edge */
+lp:
+d=' ';
+while(c=brc(bw->cursor),
+X      c!= MAXINT && !cword(c) && (!cwhitel(c) || cwhitel(d)))
+X d=pgetc(bw->cursor);
+if(c==' ')
+X {
+X pgetc(bw->cursor); d=brc(bw->cursor); prgetc(bw->cursor);
+X if(!cwhitel(d)) goto lp;
+X }
+X
+/* Move to end of current word */
+while(c=brc(bw->cursor), cword(c)) pgetc(bw->cursor);
+}
+X
+void utomatch(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int c, f, dir, cnt, d;
+P *p;
+c=brc(bw->cursor);
+f= MAXINT; dir=1;
+if(c=='(') f=')';
+if(c=='[') f=']';
+if(c=='{') f='}';
+if(c=='`') f='\'';
+if(c=='<') f='>';
+if(c==')') f='(', dir= -1;
+if(c==']') f='[', dir= -1;
+if(c=='}') f='{', dir= -1;
+if(c=='\'') f='`', dir= -1;
+if(c=='>') f='<', dir= -1;
+if(f== MAXINT) return;
+if(dir==1)
+X {
+X p=pdup(bw->cursor);
+X cnt=0;
+X pgetc(p);
+X while(d=pgetc(p), d!= MAXINT)
+X  if(d==c) ++cnt;
+X  else if(d==f) if(!cnt--) break;
+X if(d!= MAXINT)
+X  {
+X  prgetc(p);
+X  pset(bw->cursor,p);
+X  }
+X prm(p);
+X }
+else
+X {
+X p=pdup(bw->cursor);
+X cnt=0;
+X while(d=prgetc(p), d!= MAXINT)
+X  if(d==c) ++cnt;
+X  else if(d==f) if(!cnt--) break;
+X if(d!= MAXINT) pset(bw->cursor,p);
+X prm(p);
+X }
+}
+X
+void uuparw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+long col=bw->cursor->xcol;
+pprevl(bw->cursor);
+pboln(bw->cursor);
+pcol(bw->cursor,bw->cursor->xcol=col);
+}
+X
+void udnarw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+long col=bw->cursor->xcol;
+if(!pnextl(bw->cursor)) pboln(bw->cursor);
+pcol(bw->cursor,bw->cursor->xcol=col);
+}
+X
+void scrup(w,n,flg)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int scrollamnt=0;
+int cursoramnt=0;
+int x;
+long col=bw->cursor->xcol;
+if(bw->top->line>=n) scrollamnt=cursoramnt=n;
+else if(bw->top->line) scrollamnt=cursoramnt=bw->top->line;
+else
+X if(flg) cursoramnt=bw->cursor->line;
+X else if(bw->cursor->line>=n) cursoramnt=n;
+X
+for(x=0;x!=scrollamnt;++x) pprevl(bw->top);
+pboln(bw->top);
+for(x=0;x!=cursoramnt;++x) pprevl(bw->cursor);
+pboln(bw->cursor); pcol(bw->cursor,bw->cursor->xcol=col);
+if(scrollamnt && scrollamnt<bw->h)
+X {
+X nscrldn(w->t->t,bw->y,bw->y+bw->h,scrollamnt);
+X scrldn(w->t->t->updtab,bw->y,bw->y+bw->h,scrollamnt);
+X }
+else if(scrollamnt)
+X {
+X scrldn(w->t->t->updtab,bw->y,bw->y+bw->h,bw->h);
+X }
+}
+X
+void scrdn(w,n,flg)
+W *w;
+{
+BW *bw=(BW *)w->object;
+int scrollamnt=0;
+int cursoramnt=0;
+int x;
+long col=bw->cursor->xcol;
+X
+if(bw->top->b->eof->line<bw->top->line+bw->h)
+X {
+X cursoramnt=bw->top->b->eof->line-bw->cursor->line;
+X if(!flg && cursoramnt>n) cursoramnt=n;
+X }
+else if(bw->top->b->eof->line-(bw->top->line+bw->h)>=n)
+X cursoramnt=scrollamnt=n;
+else
+X cursoramnt=scrollamnt=bw->top->b->eof->line-(bw->top->line+bw->h)+1;
+X
+for(x=0;x!=scrollamnt;++x) pnextl(bw->top);
+for(x=0;x!=cursoramnt;++x) pnextl(bw->cursor);
+pcol(bw->cursor,bw->cursor->xcol=col);
+if(scrollamnt && scrollamnt<bw->h)
+X {
+X int x;
+X nscrlup(w->t->t,bw->y,bw->y+bw->h,scrollamnt);
+X scrlup(w->t->t->updtab,bw->y,bw->y+bw->h,scrollamnt);
+X }
+else if(scrollamnt) scrlup(w->t->t->updtab,bw->y,bw->y+bw->h,bw->h);
+}
+X
+int pgamnt= -1;
+X
+void upgup(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(pgamnt== -1) scrup(w,bw->h/2+(bw->h&1),1);
+else if(pgamnt<bw->h) scrup(w,bw->h-pgamnt,1);
+else scrup(w,1,1);
+}
+X
+void upgdn(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+if(pgamnt== -1) scrdn(w,bw->h/2+(bw->h&1),1);
+else if(pgamnt<bw->h) scrdn(w,bw->h-pgamnt,1);
+else scrdn(w,1,1);
+}
+X
+void uupslide(w)
+W *w;
+{
+scrup(w,1,0);
+}
+X
+void udnslide(w)
+W *w;
+{
+scrdn(w,1,0);
+}
+X
+void udelch(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+p=pdup(bw->cursor);
+pgetc(p);
+bdel(bw->cursor,p);
+prm(p);
+}
+X
+void ubacks(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+int c;
+if(bw->overtype && !pisbol(bw->cursor) && !piseol(bw->cursor))
+X {
+X if((c=prgetc(bw->cursor))!='\t') return;
+X else if(c!=MAXINT) pgetc(bw->cursor);
+X }
+p=pdup(bw->cursor);
+if((c=prgetc(bw->cursor))!= MAXINT) bdel(bw->cursor,p);
+prm(p);
+}
+X
+void udelw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+int c;
+p=pdup(bw->cursor);
+c=brc(p);
+if(cword(c))
+X while(c=brc(p), cword(c)) pgetc(p);
+else if(cwhitel(c))
+X while(c=brc(p), cwhitel(c)) pgetc(p);
+else pgetc(p);
+bdel(bw->cursor,p);
+prm(p);
+}
+X
+void ubackw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+int c;
+p=pdup(bw->cursor);
+c=prgetc(bw->cursor);
+if(cword(c))
+X {
+X while(c=prgetc(bw->cursor), cword(c));
+X if(c!= MAXINT) pgetc(bw->cursor);
+X }
+else if(cwhitel(c))
+X {
+X while(c=prgetc(bw->cursor), cwhitel(c));
+X if(c!= MAXINT) pgetc(bw->cursor);
+X }
+bdel(bw->cursor,p);
+prm(p);
+}
+X
+void udelel(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+p=pdup(bw->cursor);
+peol(p);
+if(bw->cursor->byte==p->byte)
+X {
+X prm(p);
+X udelch(w);
+X }
+else
+X {
+X bdel(bw->cursor,p);
+X prm(p);
+X }
+}
+X
+void udelbl(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+p=pdup(bw->cursor);
+pbol(p);
+bdel(p,bw->cursor);
+prm(p);
+}
+X
+void udelln(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+pbol(bw->cursor);
+p=pdup(bw->cursor);
+pnextl(p);
+bdel(bw->cursor,p);
+prm(p);
+}
+X
+void ucenter(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p=bw->cursor, *q;
+long endcol, begcol, x;
+int c;
+X
+peol(p);
+while(!pisbol(p) && cwhite(c=prgetc(p)));
+if(pisbol(p)) return;
+pgetc(p); endcol=p->col;
+X
+pbol(p);
+while(!piseol(p) && cwhite(c=pgetc(p)));
+if(piseol(p)) return;
+prgetc(p); begcol=p->col;
+X
+if(endcol-begcol>bw->rmargin+bw->lmargin) return;
+X
+q=pdup(p); pbol(q); bdel(q,p); prm(q);
+X
+for(x=0;x!=(bw->lmargin+bw->rmargin)/2-(endcol-begcol)/2;++x) binsc(p,' ');
+X
+if(!pnextl(p))
+X {
+X binsc(p,'\n');
+X pgetc(p);
+X }
+}
+X
+/* Paragraph stuff */
+X
+/* Determine if line pointer is on is blank */
+X
+int pblank(p)
+P *p;
+{
+P *q=pdup(p);
+int rtval;
+pbol(q);
+while(cwhite(brc(q))) pgetc(q);
+rtval=piseol(q);
+prm(q);
+return rtval;
+}
+X
+/* Determine indentation level of line pointer is on */
+X
+long pindent(p)
+P *p;
+{
+P *q=pdup(p);
+long col;
+pbol(q);
+while(cwhite(brc(q))) pgetc(q);
+col=q->col;
+prm(q);
+return col;
+}
+X
+/* Move pointer to beginning of paragraph */
+X
+P *pbop(p)
+P *p;
+{
+long indent;
+pbol(p);
+indent=pindent(p);
+while(!pisbof(p))
+X {
+X long ind;
+X pprevl(p); pboln(p);
+X ind=pindent(p);
+X if(pblank(p) || ind<indent)
+X  {
+X  pnextl(p);
+X  break;
+X  }
+X if(ind>indent) break;
+X }
+return p;
+}
+X
+/* Move pointer to end of paragraph */
+X
+P *peop(p)
+P *p;
+{
+long indent;
+pbol(p);
+indent=pindent(p);
+while(!piseof(p))
+X {
+X long ind;
+X pnextl(p);
+X ind=pindent(p);
+X if(ind>indent || pblank(p)) break;
+X if(ind<indent) indent=ind;
+X }
+if(piseof(p))  peol(p);
+return p;
+}
+X
+/* Wrap word */
+X
+void wrapword(p,indent)
+P *p;
+long indent;
+{
+int c;
+long to=p->byte;
+while(!pisbol(p) && !cwhite(c=prgetc(p)));
+if(!pisbol(p))
+X {
+X pgetc(p);
+X binsc(p,'\n'), ++to;
+X pgetc(p);
+X if(indent) while(indent--) binsc(p,' '), ++to;
+X }
+pfwrd(p,to-p->byte);
+}
+X
+/* Reformat paragraph */
+X
+void uformat(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+long indent;
+char *buf, *b;
+int len;
+long curoff;
+int c;
+P *p, *q;
+p=pdup(bw->cursor); pbol(p);
+X
+if(pblank(p))
+X {
+X prm(p);
+X return;
+X }
+X
+pbop(p);
+curoff=bw->cursor->byte-p->byte;
+peop(bw->cursor);
+X
+if(bw->cursor->lbyte) binsc(bw->cursor,'\n'), pgetc(bw->cursor);
+if(piseof(bw->cursor)) binsc(bw->cursor,'\n');
+X
+indent=pindent(p);
+q=pdup(p); pnextl(q);
+if(q->line!=bw->cursor->line) indent=pindent(q);
+prm(q);
+if(bw->lmargin>indent) indent=bw->lmargin;
+X
+buf=(char *)malloc(len=(bw->cursor->byte-p->byte));
+brmem(p,buf,len);
+bdel(p,bw->cursor);
+prm(p);
+X
+/* text is in buffer.  insert it at cursor */
+X
+/* Do first line */
+b=buf;
+p=pdup(bw->cursor);
+X
+while(len--)
+X {
+X if(b-buf==curoff) pset(bw->cursor,p);
+X c= *b++;
+X if(c=='\n') { ++len; --b; break; }
+X if(cwhite(c))
+X  {
+X  char *r=b;
+X  int rlen=len;
+X  int z;
+X  while(rlen--)
+X   {
+X   z=*r++;
+X   if(z=='\n') break;
+X   if(!cwhite(z)) goto ok;
+X   }
+X  ++len; --b; break;
+X  ok:;
+X  }
+X binsc(p,c); pgetc(p);
+X if(p->col>bw->rmargin && !cwhite(c))
+X  {
+X  wrapword(p,indent);
+X  break;
+X  }
+X }
+X
+while(len>0)
+X if(cwhitel(*b))
+X  {
+X  if(b[-1]=='.' || b[-1]=='?' || b[-1]=='!') binsc(p,' '), pgetc(p);
+X  binsc(p,' '); pgetc(p);
+X  while(len && cwhitel(*b))
+X   {
+X   if(b-buf==curoff) pset(bw->cursor,p);
+X   ++b, --len;
+X   }
+X  }
+X else
+X  {
+X  if(b-buf==curoff) pset(bw->cursor,p);
+X  binsc(p,*b++); --len; pgetc(p);
+X  if(p->col>bw->rmargin) wrapword(p,indent);
+X  }
+X
+binsc(p,'\n');
+prm(p);
+free(buf);
+}
+X
+void uinsc(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+binsc(bw->cursor,' ');
+}
+X
+void utype(w,c)
+W *w;
+int c;
+{
+BW *bw=(BW *)w->object;
+P *p;
+if(pblank(bw->cursor))
+X while(bw->cursor->col<bw->lmargin) binsc(bw->cursor,' '), pgetc(bw->cursor);
+binsc(bw->cursor,c);
+pgetc(bw->cursor);
+if(bw->wordwrap && bw->cursor->col>bw->rmargin && !cwhite(c))
+X wrapword(bw->cursor,bw->lmargin);
+else if(bw->overtype && !piseol(bw->cursor) && c!='\t') udelch(w);
+}
+X
+void urtn(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *p;
+int c;
+p=pdup(bw->cursor);
+binsc(bw->cursor,'\n');
+pgetc(bw->cursor);
+if(bw->autoindent)
+X {
+X pbol(p);
+X while(cwhite(c=pgetc(p))) binsc(bw->cursor,c), pgetc(bw->cursor);
+X }
+prm(p);
+}
+X
+void uopen(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+P *q=pdup(bw->cursor);
+urtn(w);
+pset(bw->cursor,q);
+prm(q);
+}
+X
+void dotag(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+char buf[512];
+FILE *f;
+void *object=bw->object;
+f=fopen("tags","r");
+while(fgets(buf,512,f))
+X {
+X int x, y, c;
+X for(x=0;buf[x] && buf[x]!=' ' && buf[x]!='\t';++x);
+X c=buf[x]; buf[x]=0;
+X if(!zcmp(s,buf))
+X  {
+X  buf[x]=c;
+X  while(buf[x]==' ' || buf[x]=='\t') ++x;
+X  for(y=x;buf[y] && buf[y]!=' ' && buf[y]!='\t' && buf[y]!='\n';++y);
+X  if(x!=y)
+X   {
+X   B *b;
+X   c=buf[y]; buf[y]=0;
+X   b=bfind(buf+x);
+X   if(!b)
+X    {
+X    int fl;
+X    b=bmk();
+X    if(fl=bload(b,buf+x))
+X     { msgnwt(w,msgs[fl+5]); brm(b); vsrm(s); fclose(f); return; }
+X    }
+X   bwrm(bw);
+X   w->object=(void *)(bw=bwmk(w->t,b,w->x,w->y+1,w->w,w->h-1));
+X   wredraw(w);
+X   setoptions(bw,buf+x);
+X   bw->object=object;
+X   
+X   buf[y]=c;
+X   while(buf[y]==' ' || buf[y]=='\t') ++y;
+X   for(x=y;buf[x] && buf[x]!='\n';++x);
+X   buf[x]=0;
+X   if(x!=y)
+X    {
+X    long line=0;
+X    if(buf[y]>='0' && buf[y]<='9')
+X     {
+X     sscanf(buf+y,"%ld",&line);
+X     if(line>=1) pline(bw->cursor,line-1), bw->cursor->xcol=bw->cursor->col;
+X     else msgnw(w,"Invalid line number");
+X     }
+X    else
+X     {
+X     if(buf[y]=='/' || buf[y]=='?')
+X      {
+X      ++y;
+X      if(buf[y]=='^') buf[--y]='\\';
+X      }
+X     if(buf[x-1]=='/' || buf[x-1]=='?')
+X      {
+X      --x;
+X      buf[x]=0;
+X      if(buf[x-1]=='$')
+X       {
+X       buf[x-1]='\\';
+X       buf[x]='$';
+X       ++x;
+X       buf[x]=0;
+X       }
+X      }
+X     if(x!=y)
+X      {
+X      w->t->pattern=vsncpy(NULL,0,sz(buf+y));
+X      w->t->options=0;
+X      w->t->repeat= -1;
+X      pfnext(w);
+X      }
+X     }
+X    }
+X   vsrm(s);
+X   fclose(f);
+X   return;
+X   }
+X  }
+X }
+msgnw(w,"Not found");
+vsrm(s);
+fclose(f);
+}
+X
+void utag(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+W *pw;
+if(bw->b->count==1 && bw->b->chnged)
+X {
+X int c=query(w,"Do you really want to throw away this file (y,n)? ");
+X if(c!='y' && c!='Y') return;
+X }
+pw=wmkfpw(w,"Tag string to find (^C to abort): ",&taghist,dotag,NULL);
+if(pw && cword(brc(bw->cursor)))
+X {
+X BW *pbw=(BW *)pw->object;
+X P *p=pdup(bw->cursor);
+X P *q=pdup(p);
+X int c;
+X while(cword(c=prgetc(p))); if(c!=MAXINT) pgetc(p);
+X pset(q,p); while(cword(c=pgetc(q))); if(c!=MAXINT) prgetc(q);
+X binsb(pbw->cursor,p,q);
+X pset(pbw->cursor,pbw->b->eof); pbw->cursor->xcol=pbw->cursor->col;
+X prm(p); prm(q);
+X }
+}
+X
+/* Mode commands */
+X
+void uisquare(w)
+W *w;
+{
+square= !square;
+if(square) msgnw(w,"Rectangle mode selected.  Effects block commands & Insert file");
+else msgnw(w,"Normal text-stream mode selected");
+updall();
+}
+X
+void uiindent(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+bw->autoindent= !bw->autoindent;
+if(bw->autoindent) msgnw(w,"Autoindent enabled");
+else msgnw(w,"Autoindent disabled");
+}
+X
+void uiwrap(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+bw->wordwrap= !bw->wordwrap;
+if(bw->wordwrap) msgnw(w,"Word wrap enabled");
+else msgnw(w,"Word wrap disabled");
+}
+X
+void uitype(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+bw->overtype= !bw->overtype;
+if(bw->overtype==0) msgnw(w,"Insert mode");
+else msgnw(w,"Overtype mode");
+}
+X
+void uimid(w)
+W *w;
+{
+mid= !mid;
+if(mid) msgnw(w,"Cursor will be recentered after a scroll");
+else msgnw(w,"Cursor will not be recentered after a scroll");
+}
+X
+void uiforce(w)
+W *w;
+{
+force= !force;
+if(force) msgnw(w,"Last line forced to have LF when file saved");
+else msgnw(w,"Last line not forced to have LF");
+}
+X
+void uiasis(w)
+W *w;
+{
+dspasis= !dspasis;
+if(dspasis) msgnw(w,"Characters above 127 displayed as-is");
+else msgnw(w,"Characters above 127 remapped");
+refigure();
+updall();
+}
+X
+void uistacol(w)
+W *w;
+{
+stacol= !stacol;
+}
+X
+void uistarow(w)
+W *w;
+{
+starow= !starow;
+}
+X
+static void dolmar(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+long v=bw->lmargin;
+sscanf(s,"%ld",&v);
+vsrm(s);
+bw->lmargin=v;
+}
+X
+void uilmargin(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+char buf[80];
+sprintf(buf,"Left margin %ld (^C to abort): ",bw->lmargin);
+wmkpw(w,buf,NULL,dolmar,NULL);
+}
+X
+static void docindent(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+int v=bw->indentc;
+sscanf(s,"%d",&v);
+vsrm(s);
+bw->indentc=v;
+}
+X
+void uicindent(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+char buf[80];
+sprintf(buf,"Indent char %d (SPACE=32, TAB=9, ^C to abort): ",
+X        bw->indentc);
+wmkpw(w,buf,NULL,docindent,NULL);
+}
+X
+static void doistep(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+long v=bw->istep;
+sscanf(s,"%ld",&v);
+vsrm(s);
+bw->istep=v;
+}
+X
+void uiistep(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+char buf[80];
+sprintf(buf,"Indent step %ld (^C to abort): ",bw->istep);
+wmkpw(w,buf,NULL,doistep,NULL);
+}
+X
+static void dormar(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+long v=bw->rmargin;
+sscanf(s,"%ld",&v);
+vsrm(s);
+bw->rmargin=v;
+}
+X
+void uirmargin(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+char buf[80];
+sprintf(buf,"Right margin %ld (^C to abort): ",bw->rmargin);
+wmkpw(w,buf,NULL,dormar,NULL);
+}
+X
+static void dotab(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+int v=bw->b->tab;
+sscanf(s,"%ld",&v);
+if(v<0 || v>256) v=8;
+vsrm(s);
+bw->b->tab=v;
+refigure();
+updall();
+}
+X
+void uitab(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+char buf[80];
+sprintf(buf,"Tab width %d (^C to abort): ",bw->b->tab);
+wmkpw(w,buf,NULL,dotab,NULL);
+}
+X
+static void dopgamnt(w,s)
+W *w;
+char *s;
+{
+BW *bw=(BW *)w->object;
+long v=pgamnt;
+sscanf(s,"%ld",&v);
+vsrm(s);
+if(v<-1) v= -1;
+pgamnt=v;
+}
+X
+void uipgamnt(w)
+W *w;
+{
+char buf[80];
+sprintf(buf,"Lines to keep for pgup/pgdn or -1 for 1/2 (%ld): ",pgamnt);
+wmkpw(w,buf,NULL,dopgamnt,NULL);
+}
+X
+/* Argument setting */
+X
+void uarg(w,c)
+W *w;
+{
+char buf[80];
+if(c>='1' && c<='9') w->t->arg=(c&0xF);
+else w->t->arg=0;
+sprintf(buf,"%d",w->t->arg); msgnw(w,buf);
+while(c=edgetc(), c>='0' && c<='9')
+X {
+X w->t->arg=w->t->arg*10+(c&0xf);
+X sprintf(buf,"%d",w->t->arg); msgnw(w,buf);
+X }
+if(c==3) w->t->arg=0;
+else eungetc(c);
+}
+SHAR_EOF
+chmod 0600 edfuncs.c ||
+echo 'restore of edfuncs.c failed'
+Wc_c="`wc -c < 'edfuncs.c'`"
+test 32824 -eq "$Wc_c" ||
+	echo 'edfuncs.c: original size 32824, current size' "$Wc_c"
+fi
+# ============= edfuncs.h ==============
+if test -f 'edfuncs.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping edfuncs.h (File already exists)'
+else
+echo 'x - extracting edfuncs.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'edfuncs.h' &&
+/* User edit functions
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iedfncs
+#define _Iedfncs 1
+X
+#include "config.h"
+X
+extern char *msgs[];
+X
+void umarkb();
+void umarkk();
+void ublkdel();
+void ublkcpy();
+void ublkmove();
+void ublksave();
+X
+void ufilt();
+void ulindent();
+void urindent();
+X
+void uarg();
+X
+void ugroww();
+void ushrnk();
+void unextw();
+void uprevw();
+void uexpld();
+X
+void ushell();
+X
+void uretyp();
+X
+void uexsve();
+void usave();
+void uedit();
+void uinsf();
+X
+void ubof();
+void ueof();
+X
+void ubol();
+void ueol();
+void upedge();
+void unedge();
+X
+void ultarw();
+void urtarw();
+X
+void uprvwrd();
+void unxtwrd();
+X
+void uuparw();
+void udnarw();
+X
+void upgup();
+void upgdn();
+void uupslide();
+void udnslide();
+X
+void uline();
+X
+void utomatch();
+X
+void uopen();
+void uinsc();
+X
+void udelch();
+void ubacks();
+X
+void udelw();
+void ubackw();
+X
+void udelel();
+void udelbl();
+void udelln();
+X
+void uquote();
+void uquote8();
+void urtn();
+void utype();
+X
+void ucenter();
+void uformat();
+X
+void uirmargin();
+void uilmargin();
+void uitype();
+void uiwrap();
+void uiindent();
+void uipgamnt();
+void uimid();
+void uiforce();
+void uiasis();
+void uistarow();
+void uistacol();
+void uitab();
+void uisquare();
+void uiistep();
+void uicindent();
+void utag();
+X
+#endif
+SHAR_EOF
+chmod 0600 edfuncs.h ||
+echo 'restore of edfuncs.h failed'
+Wc_c="`wc -c < 'edfuncs.h'`"
+test 1933 -eq "$Wc_c" ||
+	echo 'edfuncs.h: original size 1933, current size' "$Wc_c"
+fi
+# ============= heap.c ==============
+if test -f 'heap.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping heap.c (File already exists)'
+else
+echo 'x - extracting heap.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'heap.c' &&
+/* Fast space-efficient heap manager
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "blocks.h"
+#include "random.h"
+#include "heap.h"
+X
+#define MAXSIZE (MAXINT-16)
+X
+/* A free block of memory */
+X
+typedef struct freeblck FREE;
+struct freeblck
+X {
+X int size;		/* Includes self, +1 for allocated blocks */
+X 			/* Equals '1' for end of heap or segment */
+X FREE *next;		/* Data part of allocated blocks begins here */
+X FREE *prev;
+X };
+X
+static int reent=0;	/* Set if freeit is reentering itself */
+void *sbrk();		/* Operating system memory allocator */
+void (*mtrap)()=0;	/* Memory overflow handler */
+static trapflag=0;	/* Set while handling an overflow condition */
+X
+static char *heapend=0;	/* Top of heap */
+X
+/* A skiplist entry */
+X
+struct skipnode
+X {
+X int key;
+X int nptrs;
+X FREE *value;
+X struct skipnode *ptrs[1];
+X };
+X
+/* Max number of pointers in a skiplist node */
+#define SKIPDPTH 16
+X
+static struct skipnode *freeones[SKIPDPTH+1];	/* Free lists of skip nodes */
+static struct skipnode *top=0;			/* Skip list root node */
+static struct skipnode nil;			/* Ending skiplist node */
+static struct skipnode *update[SKIPDPTH];	/* Record of search path */
+X
+/* Memory allocator for skip-list nodes */
+X
+static char *big=0;
+static int bigx=0;
+X
+/* Allocation amount for skiplist data */
+#define SKIPCHNK 256
+X
+/* Key is for recomputing skip-list search after a reentrant malloc */
+X
+static struct skipnode *skipa(x,key)
+int x, key;
+{
+struct skipnode *t;
+int amnt;
+if(freeones[x])
+X {
+X t=freeones[x];
+X freeones[x]=(struct skipnode *)t->value;
+X return t;
+X }
+amnt=sizeof(struct skipnode)+sizeof(struct skipnode *)*(x-1);
+if(bigx+amnt>SKIPCHNK || !big)
+X {
+X reent=1;
+X big=(char *)malloc(SKIPCHNK);
+X if(key)
+X  {
+X  struct skipnode *t=top;
+X  int y;
+X  for(y=top->nptrs;--y>=0;)
+X   {
+X   while(t->ptrs[y]->key<key) t=t->ptrs[y];
+X   update[y]=t;
+X   }
+X  }
+X reent=0;
+X bigx=0;
+X }
+t=(struct skipnode *)(big+bigx);
+bigx+=amnt;
+return t;
+}
+X
+/* Free a skip node */
+X
+static void freea(t)
+struct skipnode *t;
+{
+t->value=(FREE *)freeones[t->nptrs];
+freeones[t->nptrs]=t;
+}
+X
+/* Insert a free block into the free-list */
+X
+static void freeit(b)
+FREE *b;
+{
+struct skipnode *t=top;
+int x;
+b=normalize(b);
+for(x=top->nptrs;--x>=0;)
+X {
+X while(t->ptrs[x]->key<b->size) t=t->ptrs[x];
+X update[x]=t;
+X }
+t=t->ptrs[0];
+if(t->key==b->size)
+X {
+X b->next=t->value;
+X b->prev=0;
+X t->value->prev=b;
+X t->value=b;
+X }
+else
+X {
+X int level;
+X for(level=1;random()<0x29000000;++level);
+X if(level>15) level=15;
+X b->size+=1;
+X t=(struct skipnode *)skipa(level,b->size-1);
+X b->size-=1;
+X while(level>top->nptrs) update[top->nptrs++]=top;
+X t->nptrs=level;
+X for(x=0;x!=level;++x) t->ptrs[x]=update[x]->ptrs[x], update[x]->ptrs[x]=t;
+X t->key=b->size;
+X t->value=b;
+X b->next=0; b->prev=0;
+X }
+}
+X
+/* Remove an element from the free list */
+X
+static void unfreeit(b)
+FREE *b;
+{
+struct skipnode *t;
+int y;
+if(b->prev)
+X {
+X if(b->prev->next=b->next) b->next->prev=b->prev;
+X return;
+X }
+t=top;
+for(y=top->nptrs;--y>=0;)
+X {
+X while(t->ptrs[y]->key<b->size) t=t->ptrs[y];
+X update[y]=t;
+X }
+t=t->ptrs[0];
+if(b->next) b->next->prev=0, t->value=b->next;
+else
+X {
+X int x;
+X for(x=0;x!=top->nptrs && update[x]->ptrs[x]==t;++x)
+X  update[x]->ptrs[x]=t->ptrs[x];
+X while(top->nptrs && top->ptrs[top->nptrs-1]==&nil) --top->nptrs;
+X freea(t);
+X }
+}
+X
+void *malloc(size)
+{
+int x;
+int flg=0, y;
+FREE *b;
+struct skipnode *t;
+if(!top)
+X {
+X nil.key=MAXINT;
+X nil.nptrs=0;
+X nil.ptrs[0]= &nil;
+X top= &nil;
+X top=(struct skipnode *)skipa(16,0);
+X top->key=0;
+X top->nptrs=0;
+X for(x=0;x!=16;++x) top->ptrs[x]= &nil;
+X }
+size+=sizeof(int);
+if(size<sizeof(FREE)) size=sizeof(FREE);
+size=(size+sizeof(int)-1)&~(sizeof(int)-1);
+loop:
+b=0;
+t=top;
+for(y=top->nptrs;--y>=0;)
+X {
+X while(t->ptrs[y]->key<size) t=t->ptrs[y];
+X update[y]=t;
+X }
+t=t->ptrs[0];
+if(t->key!= MAXINT)
+X {
+X b=t->value;
+X if(b->next) b->next->prev=0, t->value=b->next;
+X else
+X  {
+X  for(x=0;x!=top->nptrs && update[x]->ptrs[x]==t;++x)
+X   update[x]->ptrs[x]=t->ptrs[x];
+X  while(top->nptrs && top->ptrs[top->nptrs-1]==&nil) --top->nptrs;
+X  freea(t);
+X  }
+X }
+if(b)
+X {
+X while(!(1&*(int *)((char *)b+b->size)))
+X  {
+X  FREE *c=(FREE *)((char *)b+b->size);
+X  if((long)b->size+(long)c->size>=MAXSIZE) break;
+X  b->size+=c->size;
+X  unfreeit(c);
+X  }
+X if(normalize((char *)b+b->size)+sizeof(int)==heapend)
+X  {
+X  sbrk(-b->size);
+X  heapend=(char *)b;
+X  b->size=1;
+X  goto loop;
+X  }
+X if((b->size-size)>=(size>>2) && b->size-size>=sizeof(FREE) && !reent)
+X  {
+X  FREE *c=(FREE *)((char *)b+size);
+X  c->size=b->size-size;
+X  b->size=size|1;
+X  freeit(c);
+X  }
+X else b->size|=1;
+X if(flg) trapflag=0;
+X return (void *)((char *)b+sizeof(int));
+X }
+b=(FREE *)sbrk(size+sizeof(int));
+if(!b || b==((FREE *)(long)-1))
+X {
+X if(mtrap && !trapflag)
+X  {
+X  trapflag=1;
+X  flg=1;
+X  mtrap(size);
+X  goto loop;
+X  }
+X write(2,"\rOut of memory\r\n",16);
+X _exit(1);
+X }
+b=normalize(b);
+if(normalize(heapend)==(char *)b)
+X {
+X b=(FREE *)(heapend-sizeof(int));
+X size+=sizeof(int);
+X }
+heapend=normalize((char *)b+size)+sizeof(int);
+*((int *)heapend-1)=1;
+b->size=size|1;
+if(flg) trapflag=0;
+return (void *)((char *)b+sizeof(int));
+}
+X
+void *memalign(align,size)
+int align,size;
+{
+FREE *b;
+char *blk;
+int off;
+size+=sizeof(int);
+if(size<sizeof(FREE)) size=sizeof(FREE);
+size=(size+sizeof(int)-1)&~(sizeof(int)-1);
+align=(align+sizeof(int)-1)&~(sizeof(int)-1);
+if(!align) align=sizeof(int);
+if(size>=align) blk=(char *)malloc(size+align+sizeof(FREE));
+else blk=(char *)malloc(align*2+sizeof(FREE));
+off=physical(blk)%align;
+if(off)
+X {
+X b=(FREE *)(blk-sizeof(int));
+X if(align-off>=sizeof(FREE)) blk+=align-off;
+X else blk+=2*align-off;
+X *((int *)blk-1)=b->size-(blk-sizeof(int)-(char *)b);
+X b->size-= *((int *)blk-1);
+X freeit(b);
+X }
+b=normalize((FREE *)(blk-sizeof(int)));
+if((b->size-1-size)>=(size>>2) && b->size-1-size>=sizeof(FREE))
+X {
+X FREE *c=(FREE *)((char *)b+size);
+X c->size=b->size-1-size;
+X b->size=size+1;
+X freeit(c);
+X }
+return (char *)b+sizeof(int);
+}
+X
+void *realloc(blk,size)
+void *blk;
+int size;
+{
+FREE *b;
+int osize;
+if(!blk) return malloc(size);
+b=(FREE *)((char *)blk-sizeof(int));
+osize=b->size-1-sizeof(int);
+size+=sizeof(int);
+if(size<sizeof(FREE)) size=sizeof(FREE);
+size=(size+sizeof(int)-1)&~(sizeof(int)-1);
+while(!(1&*(int *)((char *)b+b->size-1)))
+X {
+X FREE *c=(FREE *)((char *)b+b->size-1);
+X if((long)b->size+(long)c->size>=MAXSIZE) break;
+X b->size+=c->size;
+X unfreeit(c);
+X }
+if(size<=b->size-1)
+X {
+X if(b->size-1-size>size && b->size-1-size>=sizeof(FREE))
+X  {
+X  FREE *c=(FREE *)((char *)b+size);
+X  c->size=b->size-size-1;
+X  b->size=size+1;
+X  freeit(c);
+X  }
+X return blk;
+X }
+else
+X {
+X char *n=(char *)malloc(size);
+X FREE *c=(FREE *)(n-sizeof(int));
+X if(normalize((char *)c+c->size-1)+sizeof(int)==heapend &&
+X    (FREE *)normalize(((char *)b+b->size-1))==c)
+X  {
+X  sbrk(-(c->size-1+b->size-1-size));
+X  b->size=size+1;
+X  heapend=normalize((char *)b+b->size-1)+sizeof(int);
+X  *((int *)heapend-1)=1;
+X  return blk;
+X  }
+X mcpy(n,blk,osize);
+X free(blk);
+X return (void *)n;
+X }
+}
+X
+void free(blk)
+void *blk;
+{
+FREE *b;
+if(!blk) return;
+b=(FREE *)((char *)blk-sizeof(int));
+b->size-=1;
+while(!(1&*(int *)((char *)b+b->size)))
+X {
+X FREE *c=(FREE *)((char *)b+b->size);
+X if((long)b->size+(long)c->size>=MAXSIZE) break;
+X b->size+=c->size;
+X unfreeit(c);
+X }
+if(normalize((char *)b+b->size)+sizeof(int)==heapend)
+X {
+X heapend=(char *)b+sizeof(int);
+X sbrk(-b->size);
+X b->size=1;
+X }
+else freeit(b);
+}
+X
+void *calloc(a,b)
+int a,b;
+{
+return (void *)mset((char *)malloc(a*b),0,a*b);
+}
+SHAR_EOF
+chmod 0600 heap.c ||
+echo 'restore of heap.c failed'
+Wc_c="`wc -c < 'heap.c'`"
+test 8056 -eq "$Wc_c" ||
+	echo 'heap.c: original size 8056, current size' "$Wc_c"
+fi
+# ============= heap.h ==============
+if test -f 'heap.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping heap.h (File already exists)'
+else
+echo 'x - extracting heap.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'heap.h' &&
+/* Fast space-efficient heap maneger
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+/* - Uses "best-fit" algorithm- but maintains a fast skip-list database of each
+X *   set of equal sized free blocks.  This eliminates the long linked-list
+X *   search delay which slows the "best-fit" algorithm.
+X * - Contiguous free blocks get coalesced
+X * - Gives memory back to operating system when it can
+X * - Overhead for allocated blocks: sizeof(int)
+X * - Minimum allocated block size is 2*sizeof(int) (not including overhead)
+X * - Blocks are always aligned on integer boundaries
+X * - Macro provided for reading block size
+X * - 'memalign' routine provided for allocating blocks on a given alignment
+X * - Works ok in segmented systems or where sbrk() is called by other functions
+X */
+X
+#ifndef _Iheap
+#define _Iheap 1
+X
+#include "config.h"
+X
+/* void (*mtrap)(int size);
+X *
+X * If 'mtrap' is set to 0 (it's default value), then if the system runs
+X * out of memory, an error message is sent to stderr and the program is
+X * aborted.
+X *
+X * If 'mtrap' is set to the address of a function, then that function gets
+X * one chance (mtrap will only ever be called once for each out of memory
+X * condition and it will never be reentered) to free up at least 'size' bytes
+X * of memory.  If 'mtrap' doesn't free up the memory or if there isn't enough
+X * contiguous space to satisfy the allocation request, the default action is
+X * taken.  The 'mtrap' function may call the memory allocation routines (but
+X * hopefully with smaller requests :-).
+X */
+extern void (*mtrap)();
+X
+/* void *malloc(int size);
+X *
+X * Allocate a block of at least 'size' bytes from the heap.  If 'size' is zero,
+X * a small block is allocated.
+X *
+X * The allocated block will begin on an address which is a multiple of
+X * sizeof(int).
+X */
+void *malloc();
+X
+/* void *calloc(int a,int b);
+X *
+X * Allocate a block of at least 'a'*'b' bytes from the heap.  The first 'a'*'b'
+X * bytes are cleared.  If 'a'*'b' is zero, a small block is allocated (and it
+X * is not cleared).
+X *
+X * The allocated block will begin on an address which is a multiple of
+X * sizeof(int).
+X */
+void *calloc();
+X
+/* void *realloc(void *blk,int size);
+X *
+X * Modify amount allocated to 'blk' to 'size' and return pointer to block
+X * (which might be at a different address).  If 'size' is zero, a small amount
+X * is left allocated to the block.  If 'blk' is null, a new block is allocated.
+X *
+X * The allocated block will begin on an address which is a multiple of
+X * sizeof(int).
+X */
+void *realloc();
+X
+/* void free(void *blk);
+X *
+X * Return a block to the heap so that it can be reused.  If 'blk'==0,
+X * nothing happens.
+X */
+void free();
+X
+/* void *memalign(int align,int size);
+X *
+X * Allocate a block of at least 'size' bytes beginning on an address which
+X * is a multiple of 'align'.  'align' is rounded up to a multiple of
+X * sizeof(int).  If 'size' is zero, a small block is allocated.
+X */
+void *memalign();
+X
+/* int msize(void *blk);
+X *
+X * Return size of a block returned by malloc/realloc/calloc/memalign.  Returns
+X * zero if 'blk' is 0.  Warning: this is an unsafe macro (blk can be
+X * accessed more than once).
+X */
+#define msize(blk) ((blk)?*((int *)(blk)-1)-(1+sizeof(int)):0)
+X
+#endif
+SHAR_EOF
+chmod 0600 heap.h ||
+echo 'restore of heap.h failed'
+Wc_c="`wc -c < 'heap.h'`"
+test 3883 -eq "$Wc_c" ||
+	echo 'heap.h: original size 3883, current size' "$Wc_c"

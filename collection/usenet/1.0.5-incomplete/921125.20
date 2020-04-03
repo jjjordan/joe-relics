@@ -1,0 +1,238 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - bug in patch 01
+Message-ID: <jan.722644196@pandonia>
+Sender: news@csc.canberra.edu.au
+Organization: Info Sci & Eng, University of Canberra, AUSTRALIA
+Date: 24 Nov 92 22:29:56 GMT
+Lines: 228
+
+
+Sorry about this. The patch01 Iposted yesterday contains a correction to
+the Imakefile of "InstallProgram(pauseme)". This has a missing argument,
+and when you try to run "xmkmf" it corrupts the Imakefile. Since a patch
+is unlikely to succeed in repairing this, I am posting the entire
+Imakefile again. In addition, since the patch on bitmaps/Imakefile may 
+not have taken I am posting that in its entirety too.  This is a shar
+file that should be run from the directory in which xmfm has been
+installed. 
+
+------------ CUT HERE -----------------------
+#!/bin/sh
+# This is a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/24/1992 22:28 UTC by jan@pandonia
+# Source directory /usr/usrs/xsource/xmfm
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   1319 -rw-r--r-- Imakefile
+#   1300 -rw-r--r-- bitmaps/Imakefile
+#
+# ============= Imakefile ==============
+if test -f 'Imakefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Imakefile (File already exists)'
+else
+echo 'x - extracting Imakefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Imakefile' &&
+#define XmClientDepLibs  $(USRLIBDIR)/libXm.a
+#define XmClientLibs  -lXm -lXmu -lXext -lXt -lX11
+X
+#include "My.rules"
+X
+MINCLUDESRC=.
+X
+DEFINES =  -g -DALLOW_ROWCOL_RESIZE -DRDD -DALLOW_EDITRES -DUseFunctionPrototypes
+INCLUDES = -I. -I$(INCLUDESRC) -I$(MINCLUDESRC) 
+DEPLIBS = XmClientDepLibs
+LOCAL_LIBRARIES = $(AUTOUTILLIB) XmClientLibs 
+CC = gcc 
+X
+EXTRA_LOAD_FLAGS =
+X
+SUBDIRS = bitmaps
+X
+OBJS=	main.o menu.o \
+X	  help.o help_mes.o  \
+X          drag.o \
+X          refresh.o \
+X	  filecb.o \
+X	  file_act.o \
+X	  warning.o \
+X	  xmvararg.o \
+X	  buttoncb.o \
+X	  DirMgr.o \
+X	  Directory.o \
+X	  RegExp.o \
+X	  builtin.o \
+X	  gotocb.o \
+X	  runcb.o \
+X	  utils.o \
+X	  prompt.o \
+X          filtercb.o \
+X          info.o \
+X	  rdd.o \
+X	  applicat.o
+X
+X
+SRCS= main.c menu.c \
+X	  help.c help_mes.c  \
+X          drag.c \
+X	  filecb.c \
+X	  file_act.c \
+X	  warning.c \
+X	  xmvararg.c \
+X	  buttoncb.c \
+X	  DirMgr.c \
+X	  Directory.c \
+X	  RegExp.c \
+X	  builtin.c \
+X	  gotocb.c \
+X	  runcb.c \
+X	  utils.c \
+X	  prompt.c \
+X          filtercb.c \
+X          info.c \
+X	  rdd.c \
+X	  applicat.c
+X
+X
+X
+PROGRAMS=xmfm
+X
+NormalLibraryObjectRule()
+X
+MSimpleProgramTarget(xmfm,$(LOCAL_LIBRARIES),NullParameter)
+X
+InstallProgram(pauseme, $(BINDIR))
+InstallAppDefaults(XmFm)
+InstallNonExecFile(xmfmrc,$(XAPPLOADDIR))
+InstallManPage(xmfm,$(ManDir))
+X
+#define IHaveSubdirs
+SHAR_EOF
+chmod 0644 Imakefile ||
+echo 'restore of Imakefile failed'
+Wc_c="`wc -c < 'Imakefile'`"
+test 1319 -eq "$Wc_c" ||
+	echo 'Imakefile: original size 1319, current size' "$Wc_c"
+fi
+# ============= bitmaps/Imakefile ==============
+if test ! -d 'bitmaps'; then
+    echo 'x - creating directory bitmaps'
+    mkdir 'bitmaps'
+fi
+if test -f 'bitmaps/Imakefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping bitmaps/Imakefile (File already exists)'
+else
+echo 'x - extracting bitmaps/Imakefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bitmaps/Imakefile' &&
+BITMAPS = bitmap.xbm \
+X	block.xbm \
+X	calc32.xbm \
+X	ccode.xbm \
+X	character.xbm \
+X	circles.xbm \
+X	classless.xbm \
+X	classless.xbmm \
+X	contours.xbm \
+X	copy.xbm \
+X	copyCursor.xbc \
+X	copyCursorMask.xbcm \
+X	core.xbm \
+X	dot_sc.xbm \
+X	dotdot.xbm \
+X	elisp.xbm \
+X	elispc.xbm \
+X	emptytick.xbm \
+X	escherknot.xbm \
+X	file.xbm \
+X	folder.xbm \
+X	gauge1.xbm \
+X	gauge2.xbm \
+X	gauge3.xbm \
+X	gauge4.xbm \
+X	gauge5.xbm \
+X	gauge6.xbm \
+X	gauge7.xbm \
+X	gauge8.xbm \
+X	gnuplot.xbm \
+X	graph.xbm \
+X	grey.xbm \
+X	hcode.xbm \
+X	herefolder.xbm \
+X	icon.xbm \
+X	idrawdoc.xbm \
+X	ipaintdoc.xbm \
+X	iwritedoc.xbm \
+X	kitchensink.xbm \
+X	lcode.xbm \
+X	lib.xbm \
+X	mailer-daemon.xbm \
+X	mailfull.xbm \
+X	make.xbm \
+X	makefile.xbm \
+X	manpage.xbm \
+X	maze.xbm \
+X	move.xbm \
+X	moveCursor.xbc \
+X	moveCursorMask.xbcm \
+X	ocode.xbm \
+X	palette.xbm \
+X	prog.xbm \
+X	rip.xbm \
+X	slink.xbm \
+X	socket.xbm \
+X	sunlogo.xbm \
+X	text.xbm \
+X	tick.xbm \
+X	tmp \
+X	trash.xbm \
+X	tty.xbm \
+X	wingdogs.xbm \
+X	x.xbm \
+X	xascii.xbm \
+X	xcal32.xbm \
+X	xchess.xbm \
+X	xclock.xbm \
+X	xdbx.xbm \
+X	xditview.xbm \
+X	xdtm.xbm \
+X	xdtm_prompt.xbm \
+X	xdtm_question.xbm \
+X	xdtm_selection.xbm \
+X	xdtm_warning.xbm \
+X	xeyes.xbm \
+X	xglobe.xbm \
+X	xinfo.xbm \
+X	xload.xbm \
+X	xlogo.xbm \
+X	xroach.xbm \
+X	xterm.xbm \
+X	xtiff.xbm \
+X	ycode.xbm \
+X	z.xbm \
+X	xlogo32
+InstallMultiple($(BITMAPS),$(LIBDIR)/bitmaps/XmFm)
+X
+SHAR_EOF
+chmod 0644 bitmaps/Imakefile ||
+echo 'restore of bitmaps/Imakefile failed'
+Wc_c="`wc -c < 'bitmaps/Imakefile'`"
+test 1300 -eq "$Wc_c" ||
+	echo 'bitmaps/Imakefile: original size 1300, current size' "$Wc_c"
+fi
+exit 0
+
+
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

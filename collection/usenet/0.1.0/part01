@@ -1,0 +1,2022 @@
+Path: funic!fuug!mcsun!uunet!zaphod.mps.ohio-state.edu!qt.cs.utexas.edu!yale.edu!cmcl2!sbcs.sunysb.edu!libserv1.ic.sunysb.edu!jallen
+From: jallen@libserv1.ic.sunysb.edu (Joseph Allen)
+Newsgroups: alt.sources
+Subject: JOE Version 0.1.0: Part 1 of 3
+Message-ID: <1991Sep3.204714.10540@sbcs.sunysb.edu>
+Date: 3 Sep 91 20:47:14 GMT
+Sender: rcarter@wpi.wpi.edu
+Organization: State University of New York at Stony Brook
+Lines: 2010
+Originator: jallen@libserv1.ic.sunysb.edu
+Nntp-Posting-Host: libserv1.ic.sunysb.edu
+
+Cut the shell archive parts of the three posts
+Make a directory for the editor and go into it
+'cat' the three parts into a file
+'sh' the file
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create the files:
+#	COPYING
+#	Makefile
+#	NEWS
+#	README
+#	async.h
+#	asyncbsd.c
+#	asyncesix.c
+#	asynchpux.c
+#	asyncposix.c
+#	asyncxenix.c
+#	blocks.c
+#	blocks.h
+#	cruddy.c
+#	joe.1
+#	joe.c
+#	joe.h
+#	.joerc
+# This archive created: Fri Aug 30 15:34:35 1991
+# By:	Randolph Carter (nee. Joseph H. Allen) (Kadath Tours, Inc.)
+export PATH; PATH=/bin:$PATH
+if test -f 'COPYING'
+then
+	echo shar: will not over-write existing file "'COPYING'"
+else
+cat << \SHAR_EOF > 'COPYING'
+
+		    GNU GENERAL PUBLIC LICENSE
+		     Version 1, February 1989
+
+ Copyright (C) 1989 Free Software Foundation, Inc.
+                    675 Mass Ave, Cambridge, MA 02139, USA
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+			    Preamble
+
+  The license agreements of most software companies try to keep users
+at the mercy of those companies.  By contrast, our General Public
+License is intended to guarantee your freedom to share and change free
+software--to make sure the software is free for all its users.  The
+General Public License applies to the Free Software Foundation's
+software and to any other program whose authors commit to using it.
+You can use it for your programs, too.
+
+  When we speak of free software, we are referring to freedom, not
+price.  Specifically, the General Public License is designed to make
+sure that you have the freedom to give away or sell copies of free
+software, that you receive source code or can get it if you want it,
+that you can change the software or use pieces of it in new free
+programs; and that you know you can do these things.
+
+  To protect your rights, we need to make restrictions that forbid
+anyone to deny you these rights or to ask you to surrender the rights.
+These restrictions translate to certain responsibilities for you if you
+distribute copies of the software, or if you modify it.
+
+  For example, if you distribute copies of a such a program, whether
+gratis or for a fee, you must give the recipients all the rights that
+you have.  You must make sure that they, too, receive or can get the
+source code.  And you must tell them their rights.
+
+  We protect your rights with two steps: (1) copyright the software, and
+(2) offer you this license which gives you legal permission to copy,
+distribute and/or modify the software.
+
+  Also, for each author's protection and ours, we want to make certain
+that everyone understands that there is no warranty for this free
+software.  If the software is modified by someone else and passed on, we
+want its recipients to know that what they have is not the original, so
+that any problems introduced by others will not reflect on the original
+authors' reputations.
+
+  The precise terms and conditions for copying, distribution and
+modification follow.
+
+		    GNU GENERAL PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. This License Agreement applies to any program or other work which
+contains a notice placed by the copyright holder saying it may be
+distributed under the terms of this General Public License.  The
+"Program", below, refers to any such program or work, and a "work based
+on the Program" means either the Program or any work containing the
+Program or a portion of it, either verbatim or with modifications.  Each
+licensee is addressed as "you".
+
+  1. You may copy and distribute verbatim copies of the Program's source
+code as you receive it, in any medium, provided that you conspicuously and
+appropriately publish on each copy an appropriate copyright notice and
+disclaimer of warranty; keep intact all the notices that refer to this
+General Public License and to the absence of any warranty; and give any
+other recipients of the Program a copy of this General Public License
+along with the Program.  You may charge a fee for the physical act of
+transferring a copy.
+
+  2. You may modify your copy or copies of the Program or any portion of
+it, and copy and distribute such modifications under the terms of Paragraph
+1 above, provided that you also do the following:
+
+    a) cause the modified files to carry prominent notices stating that
+    you changed the files and the date of any change; and
+
+    b) cause the whole of any work that you distribute or publish, that
+    in whole or in part contains the Program or any part thereof, either
+    with or without modifications, to be licensed at no charge to all
+    third parties under the terms of this General Public License (except
+    that you may choose to grant warranty protection to some or all
+    third parties, at your option).
+
+    c) If the modified program normally reads commands interactively when
+    run, you must cause it, when started running for such interactive use
+    in the simplest and most usual way, to print or display an
+    announcement including an appropriate copyright notice and a notice
+    that there is no warranty (or else, saying that you provide a
+    warranty) and that users may redistribute the program under these
+    conditions, and telling the user how to view a copy of this General
+    Public License.
+
+    d) You may charge a fee for the physical act of transferring a
+    copy, and you may at your option offer warranty protection in
+    exchange for a fee.
+
+Mere aggregation of another independent work with the Program (or its
+derivative) on a volume of a storage or distribution medium does not bring
+the other work under the scope of these terms.
+
+  3. You may copy and distribute the Program (or a portion or derivative of
+it, under Paragraph 2) in object code or executable form under the terms of
+Paragraphs 1 and 2 above provided that you also do one of the following:
+
+    a) accompany it with the complete corresponding machine-readable
+    source code, which must be distributed under the terms of
+    Paragraphs 1 and 2 above; or,
+
+    b) accompany it with a written offer, valid for at least three
+    years, to give any third party free (except for a nominal charge
+    for the cost of distribution) a complete machine-readable copy of the
+    corresponding source code, to be distributed under the terms of
+    Paragraphs 1 and 2 above; or,
+
+    c) accompany it with the information you received as to where the
+    corresponding source code may be obtained.  (This alternative is
+    allowed only for noncommercial distribution and only if you
+    received the program in object code or executable form alone.)
+
+Source code for a work means the preferred form of the work for making
+modifications to it.  For an executable file, complete source code means
+all the source code for all modules it contains; but, as a special
+exception, it need not include source code for modules which are standard
+libraries that accompany the operating system on which the executable
+file runs, or for standard header files or definitions files that
+accompany that operating system.
+
+  4. You may not copy, modify, sublicense, distribute or transfer the
+Program except as expressly provided under this General Public License.
+Any attempt otherwise to copy, modify, sublicense, distribute or transfer
+the Program is void, and will automatically terminate your rights to use
+the Program under this License.  However, parties who have received
+copies, or rights to use copies, from you under this General Public
+License will not have their licenses terminated so long as such parties
+remain in full compliance.
+
+  5. By copying, distributing or modifying the Program (or any work based
+on the Program) you indicate your acceptance of this license to do so,
+and all its terms and conditions.
+
+  6. Each time you redistribute the Program (or any work based on the
+Program), the recipient automatically receives a license from the original
+licensor to copy, distribute or modify the Program subject to these
+terms and conditions.  You may not impose any further restrictions on the
+recipients' exercise of the rights granted herein.
+
+  7. The Free Software Foundation may publish revised and/or new versions
+of the General Public License from time to time.  Such new versions will
+be similar in spirit to the present version, but may differ in detail to
+address new problems or concerns.
+
+Each version is given a distinguishing version number.  If the Program
+specifies a version number of the license which applies to it and "any
+later version", you have the option of following the terms and conditions
+either of that version or of any later version published by the Free
+Software Foundation.  If the Program does not specify a version number of
+the license, you may choose any version ever published by the Free Software
+Foundation.
+
+  8. If you wish to incorporate parts of the Program into other free
+programs whose distribution conditions are different, write to the author
+to ask for permission.  For software which is copyrighted by the Free
+Software Foundation, write to the Free Software Foundation; we sometimes
+make exceptions for this.  Our decision will be guided by the two goals
+of preserving the free status of all derivatives of our free software and
+of promoting the sharing and reuse of software generally.
+
+			    NO WARRANTY
+
+  9. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+REPAIR OR CORRECTION.
+
+  10. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING
+OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED
+TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+		     END OF TERMS AND CONDITIONS
+
+	Appendix: How to Apply These Terms to Your New Programs
+
+  If you develop a new program, and you want it to be of the greatest
+possible use to humanity, the best way to achieve this is to make it
+free software which everyone can redistribute and change under these
+terms.
+
+  To do so, attach the following notices to the program.  It is safest to
+attach them to the start of each source file to most effectively convey
+the exclusion of warranty; and each file should have at least the
+"copyright" line and a pointer to where the full notice is found.
+
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 19yy  <name of author>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 1, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+Also add information on how to contact you by electronic and paper mail.
+
+If the program is interactive, make it output a short notice like this
+when it starts in an interactive mode:
+
+    Gnomovision version 69, Copyright (C) 19xx name of author
+    Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; type `show c' for details.
+
+The hypothetical commands `show w' and `show c' should show the
+appropriate parts of the General Public License.  Of course, the
+commands you use may be called something other than `show w' and `show
+c'; they could even be mouse-clicks or menu items--whatever suits your
+program.
+
+You should also get your employer (if you work as a programmer) or your
+school, if any, to sign a "copyright disclaimer" for the program, if
+necessary.  Here a sample; alter the names:
+
+  Yoyodyne, Inc., hereby disclaims all copyright interest in the
+  program `Gnomovision' (a program to direct compilers to make passes
+  at assemblers) written by James Hacker.
+
+  <signature of Ty Coon>, 1 April 1989
+  Ty Coon, President of Vice
+
+That's all there is to it!
+SHAR_EOF
+if test 12488 -ne "`wc -c < 'COPYING'`"
+then
+	echo shar: error transmitting "'COPYING'" '(should have been 12488 characters)'
+fi
+fi # end of overwriting check
+if test -f 'Makefile'
+then
+	echo shar: will not over-write existing file "'Makefile'"
+else
+cat << \SHAR_EOF > 'Makefile'
+# Makefile for Joe's Own Editor
+
+# Directory to install joe and .joerc into
+WHERE = /usr/bin
+
+# Use these two for 'cc'
+CC = cc
+CFLAGS = -DKEYDEF=\"$(WHERE)/.joerc\" -O
+
+# Use these two for 'gcc'
+#CC = gcc
+#CFLAGS = -DKEYDEF=\"$(WHERE)/.joerc\" -O
+
+foo:
+	@echo Type make followed by one of the following
+	@echo
+	@echo bsd hpux xenix esix posix cruddy install clean
+
+bsd: joe.o asyncbsd.o blocks.o
+	$(CC) $(CFLAGS) joe.o asyncbsd.o blocks.o -ltermcap -o joe
+
+xenix: joe.o asyncxenix.o blocks.o
+	$(CC) $(CFLAGS) joe.o asyncxenix.o blocks.o -lx -ltermcap -o joe
+
+hpux: joe.o asynchpux.o blocks.o
+	$(CC) $(CFLAGS) joe.o asynchpux.o blocks.o -ltermcap -o joe
+
+esix: joe.o asyncesix.o blocks.o
+	$(CC) $(CFLAGS) joe.o asyncesix.o blocks.o -lcurses -lbsd -o joe
+
+posix: joe.o asyncposix.o blocks.o
+	$(CC) $(CFLAGS) joe.o asyncposix.o blocks.o -ltermcap -o joe
+
+cruddy: joe.o cruddy.o blocks.o
+	$(CC) $(CFLAGS) joe.o cruddy.o blocks.o -o joe
+
+install:
+	strip joe
+	mv joe $(WHERE)
+	cp .joerc $(WHERE)
+	chmod a+x $(WHERE)/joe
+	chmod a+r $(WHERE)/.joerc
+
+clean:
+	rm -f asyncbsd.o asyncxenix.o asynchpux.o asyncesix.o asyncposix.o \
+cruddy.o blocks.o joe.o
+
+asyncbsd.o cruddy.o asyncxenix.o asynxhpux.o asyncesix.o : async.h
+
+blocks.o : blocks.h
+
+joe.o : blocks.h joe.h async.h
+SHAR_EOF
+if test 1264 -ne "`wc -c < 'Makefile'`"
+then
+	echo shar: error transmitting "'Makefile'" '(should have been 1264 characters)'
+fi
+fi # end of overwriting check
+if test -f 'NEWS'
+then
+	echo shar: will not over-write existing file "'NEWS'"
+else
+cat << \SHAR_EOF > 'NEWS'
+
+Release 0.1.0 of JOE (Joe's Own Editor):  Note that this program was
+previously calles 'E' (which turned out to be the RAND EDITOR and one of the
+synonyms for vi) and 'J' (which turned out to be a language and the name of
+another UNIX editor).  See below for list of big fixes and new features. 
+Find the source for this release in 'alt.sources'
+
+FIXES AND NEW FEATURES FOR THIS VERSION
+
+	* Left arrow jumping fixed
+
+	* No longer touches the IXON IXOFF setting
+
+	* Reference to Gnu EMACS removed from the copyright notice :-)
+
+	* The patch for Undo and Redo is not needed for this version.
+
+	* Name of initialization file changed to '.joerc'
+
+	* Versions for ESIX and POSIX now included
+	  (think you Mike Lijewski for the POSIX driver)
+
+	* Users can now customize the help text.  The help text is now placed
+	  in the initialization file
+
+	* A compile option for passing characters with bit 7 set has been
+	  added.  This is for Iceland
+
+	* Added kill line function for the emacs people.  See 'killlin' in
+          the .joerc file
+
+	* The ioctls TIOCGSIZE and TIOCGWINSZ are used to get the
+	  screen/window size.  If the window changes size, JOE resizes the
+	  screen on the next key press
+
+	* Prompts and messages wider than the screen width are now handled
+	  properly
+
+=-=-=-=-=-=
+
+Release 0.0.0 of 'J' (Joe's Editor):  This release supersedes all previous
+versions which lack a release number.  Note that this program was previously
+called 'E' but the name has been changed ('E' turns out to be one of the
+synonyms for 'vi').  See below for list of bug fixes and new features.  The
+2 following posts contain the source.
+
+Introduction
+
+	'J' is a small screen editor which was designed to be easy to use for
+novice users but also to be powerful and complete enough for experienced
+users.  Several elements of its design are unique innovations.  Here is a
+copy of the on-line help text to give you a feel for this editor:
+
+GO TO              DELETE    MISC      BLOCK    FIND     QUOTE    WINDOW
+^B left  ^F right ^D single ^T  mode   ^KB mark ^KF text `  Ctrl  ^KO split
+^Z word  ^X word  ^W >word  ^R  retype ^KK end  ^L  next ^\ bit-7 ^KI 1 / all
+^A edge  ^E edge  ^O word<  ^KA center ^KC copy ^KL line FILE     ^KP up
+^P up    ^N down  ^J >line  ^KJ format ^KM move EXIT     ^KD save ^KN down
+^U page  ^V page  ^Y line   ^KZ shell  ^KW save ^KX save ^KR read ^KG grow
+^KU top ^KV end   ^K- undo  ^K, indnt< ^KY kill ^C abort/         ^KT shrink
+^G matching ([<{` ^K+ redo  ^K. indnt>             close window  ^KE get file
+
+Other relevent features:
+
+	* Extremely small - the XENIX version is only 58K
+
+	* Help text can be left on while editing
+
+	* Key layout designed to eliminate headaches: ^Q and ^S are not used,
+	  both ^H and DEL are backspace.  Also, each user may customize
+	  his key layout by modifying a simple initialization file
+
+	* Versions for BSD, HPUX and XENIX 386 are included.  A simple tty
+	  driver is also provided to ease porting to other systems
+
+	* Currently only VT100/ANSI terminals are supported.  If the terminal
+	  has scrolling regions, J uses them.  Has well-tuned interruptable
+	  screen update algorithm
+
+	* Has: autoindent, word-wrap, overtype/insert, picture mode (right-
+	  arrow makes space past ends of lines), right margin (for paragraph
+	  formatting and center), and magic tabs (the column number of text
+	  after tab stops is preserved when inserting and deleting)
+
+	* The cursor column doesn't 'jump' when you move between long and
+	  short lines.  Instead the cursor column only jumps when you try to
+	  edit in an invalid place or if picture mode is set, the invalid
+	  place is made real by space filling
+
+	* Editor modes can be set depending on file extension
+
+	* No line length restrictions.  Binary files can be edited without
+	  difficulty
+
+	* Long lines are truncated, not wrapped (I.E., the screen scrolls to
+	  the right to get to the truncated parts)
+
+FIXES FOR THIS VERSION
+
+	* Shell escape lock-ups are fixed
+
+	* Paragraph reformat glitch is fixed
+
+	* Cursor update screwynesses fixed for picture mode
+
+	* Goto next word/Goto previous word/Delete word left and Delete word
+	  right were made more consistant
+
+NEW FEATURES FOR THIS VERSION
+
+	* ~ can be used at file name prompts to expand user home directories
+
+	* J now has undelete and redelete (you can go backwards and forewards
+	  through the delete buffer to select which text you want to undelete)
+
+	* J now has indent functions.  A marked block can be indented more
+	  or less. If you use an indent function outside a marked block, the
+	  lines with the same or greater indent level surrounding the cursor
+	  are marked
+
+	* Right margin was added for paragraph format and center line
+
+	* Goto matching parenthasis (or [ { ` < )
+
+	* ` was made the quote control character key because ^_ is not easy
+	  generate on many keyboard.  `` gets `
+
+	* tty drivers were rewritten.  This made the screen update faster
+	  (now the screen update is instantaneous on 20MHz 386s).  Screen
+	  update preempting also works better
+
+THE PLAN
+
+	Version 1.0.0 will be a complete rewrite.  It should be done sometime
+before january.  These are my goals for it:
+
+	* Block oriented software virtual memory support (for less thrashing
+	  and elimination of file size limits caused by the system's process
+	  size limit)
+
+	* MS-DOS support
+
+	* X windows support
+
+	* Better integration with UNIX:  J will be able to process text
+	  through pipes (like vi), will have standard unix regular expressions,
+	  and will be usable as a 'more' program.
+
+	* Will be terminal independant and use termcap and terminfo
+
+	* Will have a ASCII/HEX dump display mode
+
+	* Will have complete program developement support (save&make, next
+	  error/previous error, tags file support)
+
+	* Will have a much more powerful scrolling algorithm.  I have a
+	  methode which is simpler and faster than even GNU-EMACS' Gosling
+	  algorithm
+
+	* All of this will require no changes to the basic keyboard layout-
+	  maybe one more added line of help text for new things
+
+	* It will probably have keyboard macros but it won't have much of
+	  an extension language.  Maybe in version 2.0.0
+
+	* I expect all of this not to add more than 30 or 40% to the size
+
+		Joseph H. Allen
+		28 Dale Lane
+		Smithtown, N.Y. 11787
+
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}
+SHAR_EOF
+if test 6600 -ne "`wc -c < 'NEWS'`"
+then
+	echo shar: error transmitting "'NEWS'" '(should have been 6600 characters)'
+fi
+fi # end of overwriting check
+if test -f 'README'
+then
+	echo shar: will not over-write existing file "'README'"
+else
+cat << \SHAR_EOF > 'README'
+If you don't know what this is, read the NEWS file.
+
+To compile:
+
+	(1) Determine where you want to install the editor program and the
+	    system default keymap file.  Put this path in the Makefile.  If
+	    you're a mere user, don't worry about this.  Instead, place a copy
+	    of the '.joerc' file in your home directory. 
+
+	(2) If you need to be able to display characters with bit 7 set as-
+	    is (instead of in inverse), comment out the '#define NOHIGHBIT'
+	    line in the file 'joe.h'
+
+	(3) type 'make xenix' for Xenix systems, 'make hpux' for HPUX systems
+	    or 'make bsd' for BSD systems.  If none of these work, type
+	    'make cruddy' to make a version with an inferior terminal driver.
+
+	(4) To install it in the system, log in as superuser and do
+	    'make install'
+
+	(5) When JOE is used, be sure the baud rate as reported by stty is correctly
+	    set.  If you're not on a real serial terminal, try to set the baud
+	    rate to the best guess of what the actual throughput is.  In particular,
+	    if you use JOE on a windowing system, the window updates will be much
+	    faster if you set the baud rate to 'extb' or '38400'.
+SHAR_EOF
+if test 1148 -ne "`wc -c < 'README'`"
+then
+	echo shar: error transmitting "'README'" '(should have been 1148 characters)'
+fi
+fi # end of overwriting check
+if test -f 'async.h'
+then
+	echo shar: will not over-write existing file "'async.h'"
+else
+cat << \SHAR_EOF > 'async.h'
+/* Terminal interface header file
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+int aopen();		/* fflush(stdout) and then set terminal to
+			   character at a time mode */
+int aclose();		/* Flush output and then restore original tty mode */
+int aflush();		/* Flush the output and sleep for the amount of time
+			   the output will need to get to the terminal (I.E.,
+			   depends on the baud rate).  Then check if there's
+			   any typeahead and set 'have' if there is */
+int anext();		/* Call aflush() and then return next char from
+			   terminal */
+
+extern int have;	/* Set if there is typeahead */
+
+int eputs();		/* Write string to terminal */
+int eputc();		/* Write character to terminal */
+			/* If the output buffer gets full, these call
+			   aflush() */
+
+int shell();		/* Shell escape */
+int tsignal();              /* JOE's signal handler.  This function saves the
+                           current edit file in 'aborted.joe' and then exists.
+                           Some signals might be set up to call this */
+
+int termtype();             /* Determine the following terminal parameters */
+
+extern int width;       /* Screen width */
+extern int height;      /* Screen height */
+extern int scroll;      /* Set=use scrolling regions, Clr=don't use them */
+
+int getsize();		/* Set width and height again with TIOCGSIZE */
+
+/* If termtype does nothing, these values defualt to: width=80, height=24,
+   scroll=1 (true).
+ 
+   Note that the only terminal type supported is ANSI/VT100
+ */
+SHAR_EOF
+if test 2177 -ne "`wc -c < 'async.h'`"
+then
+	echo shar: error transmitting "'async.h'" '(should have been 2177 characters)'
+fi
+fi # end of overwriting check
+if test -f 'asyncbsd.c'
+then
+	echo shar: will not over-write existing file "'asyncbsd.c'"
+else
+cat << \SHAR_EOF > 'asyncbsd.c'
+/* Terminal interface for BSD
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#include <sgtty.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <signal.h>
+#include <sys/time.h>
+#include "async.h"
+
+#define HZ 10			/* Clock ticks/second */
+
+#define DIVISOR 11000000	/* The baud rate divided into this should
+				   give the number of microseconds per
+				   character.  It should attempt to
+				   reflect the true throughput, which is
+				   usually slower than the best possible
+				   for a given baud rate */
+
+#define TIMES 3			/* Times per second that we check for
+				   typeahead */
+
+static struct sgttyb oarg;
+static struct tchars otarg;
+static struct ltchars oltarg;
+
+static unsigned char *obuf=0;
+static unsigned obufp=0;
+static unsigned obufsiz;
+static unsigned long ccc;
+
+static unsigned speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+
+aopen()
+{
+int x;
+struct sgttyb arg;
+struct tchars targ;
+struct ltchars ltarg;
+fflush(stdout);
+signal(SIGHUP,tsignal);
+signal(SIGINT,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGALRM,SIG_IGN);
+signal(SIGTERM,tsignal);
+signal(SIGUSR1,SIG_IGN);
+signal(SIGUSR2,SIG_IGN);
+ioctl(fileno(stdin),TIOCGETP,&arg);
+ioctl(fileno(stdin),TIOCGETC,&targ);
+ioctl(fileno(stdin),TIOCGLTC,&ltarg);
+oarg=arg; otarg=targ; oltarg=ltarg;
+arg.sg_flags=( (arg.sg_flags&~(ECHO|CRMOD) ) | CBREAK) ;
+targ.t_intrc= -1;
+targ.t_quitc= -1;
+targ.t_eofc= -1;
+targ.t_brkc= -1;
+ltarg.t_suspc= -1;
+ltarg.t_dsuspc= -1;
+ltarg.t_rprntc= -1;
+ltarg.t_flushc= -1;
+ltarg.t_werasc= -1;
+ltarg.t_lnextc= -1;
+ioctl(fileno(stdin),TIOCSETN,&arg);
+ioctl(fileno(stdin),TIOCSETC,&targ);
+ioctl(fileno(stdin),TIOCSLTC,&ltarg);
+ccc=0;
+for(x=0;x!=30;x+=2)
+ if(arg.sg_ospeed==speeds[x])
+  {
+  ccc=DIVISOR/speeds[x+1];
+  break;
+  }
+if(!obuf)
+ {
+ if(!(TIMES*ccc)) obufsiz=4096;
+ else
+  {
+  obufsiz=1000000/(TIMES*ccc);
+  if(obufsiz>4096) obufsiz=4096;
+  }
+ if(!obufsiz) obufsiz=1;
+ obuf=(unsigned char *)malloc(obufsiz);
+ }
+}
+
+aclose()
+{
+aflush();
+ioctl(fileno(stdin),TIOCSETN,&oarg);
+ioctl(fileno(stdin),TIOCSETC,&otarg);
+ioctl(fileno(stdin),TIOCSLTC,&oltarg);
+signal(SIGHUP,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGALRM,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGUSR1,SIG_DFL);
+signal(SIGUSR2,SIG_DFL);
+}
+
+int have=0;
+static unsigned char havec;
+static int yep;
+
+static dosig()
+{
+yep=1;
+}
+
+aflush()
+{
+if(obufp)
+ {
+ struct itimerval a,b;
+ unsigned long usec=obufp*ccc;
+ if(usec>=500000/HZ)
+  {
+  a.it_value.tv_sec=usec/1000000;
+  a.it_value.tv_usec=usec%1000000;
+  a.it_interval.tv_usec=0;
+  a.it_interval.tv_sec=0;
+  signal(SIGALRM,dosig);
+  yep=0;
+  sigsetmask(sigmask(SIGALRM));
+  setitimer(ITIMER_REAL,&a,&b);
+  write(fileno(stdout),obuf,obufp);
+  while(!yep) sigpause(0);
+  signal(SIGALRM,SIG_DFL);
+  }
+ else write(fileno(stdout),obuf,obufp);
+ obufp=0;
+ }
+if(!have)
+ {
+ fcntl(fileno(stdin),F_SETFL,FNDELAY);
+ if(read(fileno(stdin),&havec,1)==1) have=1;
+ fcntl(fileno(stdin),F_SETFL,0);
+ }
+}
+
+anext()
+{
+aflush();
+if(have) have=0;
+else if(read(fileno(stdin),&havec,1)<1) tsignal();
+return havec;
+}
+
+eputc(c)
+unsigned char c;
+{
+obuf[obufp++]=c;
+if(obufp==obufsiz) aflush();
+}
+
+eputs(s)
+char *s;
+{
+while(*s)
+ {
+ obuf[obufp++]= *(s++);
+ if(obufp==obufsiz) aflush();
+ }
+}
+
+getsize()
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+#ifdef TIOCGSIZE
+if(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+ {
+ if(getit.ts_lines>=3) height=getit.ts_lines;
+ if(getit.ts_cols>=2) width=getit.ts_cols;
+ }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+ {
+ if(getit.ws_row>=3) height=getit.ws_row;
+ if(getit.ws_col>=2) width=getit.ws_col;
+ }
+#endif
+#endif
+}
+
+termtype()
+{
+unsigned char entry[1024];
+unsigned char area[1024];
+unsigned char *foo=area;
+unsigned char *x=(unsigned char *)getenv("TERM");
+if(!x) goto down;
+if(tgetent(entry,x)!=1) goto down;
+height=tgetnum("li");
+if(height<3) height=24;
+width=tgetnum("co");
+if(width<2) width=80;
+if(!tgetstr("cs",&foo)) scroll=0;
+down:
+getsize();
+}
+
+shell(s)
+char *s;
+{
+aclose();
+if(fork()) wait(0);
+else
+ {
+ execl(s,s,0);
+ _exit(0);
+ }
+aopen();
+}
+SHAR_EOF
+if test 4916 -ne "`wc -c < 'asyncbsd.c'`"
+then
+	echo shar: error transmitting "'asyncbsd.c'" '(should have been 4916 characters)'
+fi
+fi # end of overwriting check
+if test -f 'asyncesix.c'
+then
+	echo shar: will not over-write existing file "'asyncesix.c'"
+else
+cat << \SHAR_EOF > 'asyncesix.c'
+/* Terminal interface for ESIX
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <termio.h>
+#include "async.h"
+
+struct winsize
+{
+unsigned short ws_row;
+unsigned short ws_col;
+unsigned short ws_xpixel;
+unsigned short ws_ypixel;
+};
+
+#define DIVISOR 12000000
+#define TIMES 2
+
+static struct termio oldterm;
+
+static unsigned char *obuf=0;
+static unsigned obufp=0;
+static unsigned obufsiz;
+static unsigned long ccc;
+
+static unsigned speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+
+aopen()
+{
+int x;
+struct termio newterm;
+fflush(stdout);
+signal(SIGHUP,tsignal);
+signal(SIGINT,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGALRM,SIG_IGN);
+signal(SIGTERM,tsignal);
+signal(SIGUSR1,SIG_IGN);
+signal(SIGUSR2,SIG_IGN);
+signal(SIGPWR,tsignal);
+ioctl(fileno(stdin),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR);
+newterm.c_oflag=0;
+newterm.c_cc[VINTR]= -1;
+newterm.c_cc[VQUIT]= -1;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(stdin),TCSETAW,&newterm);
+ccc=0;
+for(x=0;x!=30;x+=2)
+ if((newterm.c_cflag&CBAUD)==speeds[x])
+  {
+  ccc=DIVISOR/speeds[x+1];
+  break;
+  }
+if(!obuf)
+ {
+ if(!(TIMES*ccc)) obufsiz=4096;
+ else
+  {
+  obufsiz=1000000/(TIMES*ccc);
+  if(obufsiz>4096) obufsiz=4096;
+  }
+ if(!obufsiz) obufsiz=1;
+ obuf=(unsigned char *)malloc(obufsiz);
+ }
+}
+
+aclose()
+{
+aflush();
+ioctl(fileno(stdin),TCSETAW,&oldterm);
+signal(SIGHUP,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGALRM,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGUSR1,SIG_DFL);
+signal(SIGUSR2,SIG_DFL);
+signal(SIGPWR,SIG_DFL);
+}
+
+int have=0;
+static unsigned char havec;
+static int yep;
+
+static dosig()
+{
+yep=1;
+}
+
+aflush()
+{
+if(obufp)
+ {
+ struct itimerval a,b;
+ unsigned long usec=obufp*ccc;
+ if(usec>=500000/HZ)
+  {
+  a.it_value.tv_sec=usec/1000000;
+  a.it_value.tv_usec=usec%1000000;
+  a.it_interval.tv_usec=0;
+  a.it_interval.tv_sec=0;
+  signal(SIGALRM,dosig);
+  yep=0;
+  sigsetmask(sigmask(SIGALRM));
+  setitimer(ITIMER_REAL,&a,&b);
+  write(fileno(stdout),obuf,obufp);
+  while(!yep) sigpause(0);
+  signal(SIGALRM,SIG_DFL);
+  }
+ else write(fileno(stdout),obuf,obufp);
+ obufp=0;
+ }
+if(!have)
+ {
+ fcntl(fileno(stdin),F_SETFL,O_NDELAY);
+ if(read(fileno(stdin),&havec,1)==1) have=1;
+ fcntl(fileno(stdin),F_SETFL,0);
+ }
+}
+
+anext()
+{
+aflush();
+if(have) have=0;
+else if(read(fileno(stdin),&havec,1)<1) tsignal();
+return havec;
+}
+
+eputc(c)
+unsigned char c;
+{
+obuf[obufp++]=c;
+if(obufp==obufsiz) aflush();
+}
+
+eputs(s)
+char *s;
+{
+while(*s)
+ {
+ obuf[obufp++]= *(s++);
+ if(obufp==obufsiz) aflush();
+ }
+}
+
+getsize()
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+#ifdef TIOCGSIZE
+if(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+ {
+ if(getit.ts_lines>=3) height=getit.ts_lines;
+ if(getit.ts_cols>=2) width=getit.ts_cols;
+ }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+ {
+ if(getit.ws_row>=3) height=getit.ws_row;
+ if(getit.ws_col>=2) width=getit.ws_col;
+ }
+#endif
+#endif
+}
+
+termtype()
+{
+unsigned char entry[1024];
+unsigned char area[1024];
+unsigned char *foo=area;
+unsigned char *x=(unsigned char *)getenv("TERM");
+if(!x) goto down;
+if(tgetent(entry,x)!=1) goto down;
+height=tgetnum("li");
+if(height<3) height=24;
+width=tgetnum("co");
+if(width<2) width=80;
+if(!tgetstr("cs",&foo)) scroll=0;
+down:
+getsize();
+}
+
+shell(s)
+char *s;
+{
+aclose();
+if(fork()) wait(0);
+else
+ {
+ execl(s,s,0);
+ _exit(0);
+ }
+aopen();
+}
+SHAR_EOF
+if test 4357 -ne "`wc -c < 'asyncesix.c'`"
+then
+	echo shar: error transmitting "'asyncesix.c'" '(should have been 4357 characters)'
+fi
+fi # end of overwriting check
+if test -f 'asynchpux.c'
+then
+	echo shar: will not over-write existing file "'asynchpux.c'"
+else
+cat << \SHAR_EOF > 'asynchpux.c'
+/* Terminal interface for HPUX
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/param.h>
+#include <termio.h>
+#include "async.h"
+
+#define DIVISOR 12000000
+#define TIMES 2
+
+static struct termio oldterm;
+
+static unsigned char *obuf=0;
+static unsigned obufp=0;
+static unsigned obufsiz;
+static unsigned long ccc;
+
+static unsigned speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+
+aopen()
+{
+int x;
+struct termio newterm;
+fflush(stdout);
+signal(SIGHUP,tsignal);
+signal(SIGINT,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGALRM,SIG_IGN);
+signal(SIGTERM,tsignal);
+signal(SIGUSR1,SIG_IGN);
+signal(SIGUSR2,SIG_IGN);
+signal(SIGPWR,tsignal);
+ioctl(fileno(stdin),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR);
+newterm.c_oflag=0;
+newterm.c_cc[VINTR]= -1;
+newterm.c_cc[VQUIT]= -1;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(stdin),TCSETAW,&newterm);
+ccc=0;
+for(x=0;x!=30;x+=2)
+ if((newterm.c_cflag&CBAUD)==speeds[x])
+  {
+  ccc=DIVISOR/speeds[x+1];
+  break;
+  }
+if(!obuf)
+ {
+ if(!(TIMES*ccc)) obufsiz=4096;
+ else
+  {
+  obufsiz=1000000/(TIMES*ccc);
+  if(obufsiz>4096) obufsiz=4096;
+  }
+ if(!obufsiz) obufsiz=1;
+ obuf=(unsigned char *)malloc(obufsiz);
+ }
+}
+
+aclose()
+{
+aflush();
+ioctl(fileno(stdin),TCSETAW,&oldterm);
+signal(SIGHUP,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGALRM,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGUSR1,SIG_DFL);
+signal(SIGUSR2,SIG_DFL);
+signal(SIGPWR,SIG_DFL);
+}
+
+int have=0;
+static unsigned char havec;
+static int yep;
+
+static dosig()
+{
+yep=1;
+}
+
+aflush()
+{
+if(obufp)
+ {
+ struct itimerval a,b;
+ unsigned long usec=obufp*ccc;
+ if(usec>=500000/HZ)
+  {
+  a.it_value.tv_sec=usec/1000000;
+  a.it_value.tv_usec=usec%1000000;
+  a.it_interval.tv_usec=0;
+  a.it_interval.tv_sec=0;
+  signal(SIGALRM,dosig);
+  yep=0;
+  sigsetmask(sigmask(SIGALRM));
+  setitimer(ITIMER_REAL,&a,&b);
+  write(fileno(stdout),obuf,obufp);
+  while(!yep) sigpause(0);
+  signal(SIGALRM,SIG_DFL);
+  }
+ else write(fileno(stdout),obuf,obufp);
+ obufp=0;
+ }
+if(!have)
+ {
+ fcntl(fileno(stdin),F_SETFL,O_NDELAY);
+ if(read(fileno(stdin),&havec,1)==1) have=1;
+ fcntl(fileno(stdin),F_SETFL,0);
+ }
+}
+
+anext()
+{
+aflush();
+if(have) have=0;
+else if(read(fileno(stdin),&havec,1)<1) tsignal();
+return havec;
+}
+
+eputc(c)
+unsigned char c;
+{
+obuf[obufp++]=c;
+if(obufp==obufsiz) aflush();
+}
+
+eputs(s)
+char *s;
+{
+while(*s)
+ {
+ obuf[obufp++]= *(s++);
+ if(obufp==obufsiz) aflush();
+ }
+}
+
+getsize()
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+#ifdef TIOCGSIZE
+if(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+ {
+ if(getit.ts_lines>=3) height=getit.ts_lines;
+ if(getit.ts_cols>=2) width=getit.ts_cols;
+ }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+ {
+ if(getit.ws_row>=3) height=getit.ws_row;
+ if(getit.ws_col>=2) width=getit.ws_col;
+ }
+#endif
+#endif
+}
+
+termtype()
+{
+unsigned char entry[1024];
+unsigned char area[1024];
+unsigned char *foo=area;
+unsigned char *x=(unsigned char *)getenv("TERM");
+if(!x) goto down;
+if(tgetent(entry,x)!=1) goto down;
+height=tgetnum("li");
+if(height<3) height=24;
+width=tgetnum("co");
+if(width<2) width=80;
+if(!tgetstr("cs",&foo)) scroll=0;
+down:
+getsize();
+}
+
+shell(s)
+char *s;
+{
+aclose();
+if(fork()) wait(0);
+else
+ {
+ execl(s,s,0);
+ _exit(0);
+ }
+aopen();
+}
+SHAR_EOF
+if test 4234 -ne "`wc -c < 'asynchpux.c'`"
+then
+	echo shar: error transmitting "'asynchpux.c'" '(should have been 4234 characters)'
+fi
+fi # end of overwriting check
+if test -f 'asyncposix.c'
+then
+	echo shar: will not over-write existing file "'asyncposix.c'"
+else
+cat << \SHAR_EOF > 'asyncposix.c'
+/* Terminal interface for POSIX
+   Copyright (C) 1991 Joseph H. Allen
+   (Contributed by Mike Lijewski)
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License along with
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+Mass Ave, Cambridge, MA 02139, USA.  */ 
+
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <termios.h>
+#include <unistd.h>
+#include "async.h"
+
+#define DIVISOR 12000000
+#define TIMES 2
+
+static struct termios oldterm;
+
+static unsigned char *obuf=0;
+static unsigned obufp=0;
+static unsigned obufsiz;
+static unsigned long ccc;
+
+static speed_t speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400,B19200,19200,
+B38400,38400
+};
+
+aopen()
+{
+int x;
+struct sigaction action;
+speed_t baud;
+struct termios newterm;
+fflush(stdout);
+tcdrain(STDOUT_FILENO);
+sigemptyset(&action.sa_mask);
+action.sa_handler=tsignal;
+sigaction(SIGHUP,&action,NULL);
+sigaction(SIGTERM,&action,NULL);
+action.sa_handler=SIG_IGN;
+sigaction(SIGINT,&action,NULL);
+sigaction(SIGQUIT,&action,NULL);
+sigaction(SIGPIPE,&action,NULL);
+sigaction(SIGALRM,&action,NULL);
+sigaction(SIGUSR1,&action,NULL);
+sigaction(SIGUSR2,&action,NULL);
+tcgetattr(STDIN_FILENO,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR);
+newterm.c_oflag=0;
+/* we needn't worry about special characters since SIGS are disabled */
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+tcsetattr(STDIN_FILENO,TCSANOW,&newterm);
+ccc=0;
+baud=cfgetospeed(&newterm);
+for(x=0;x!=34;x+=2)
+ if(baud==speeds[x])
+  {
+  ccc=DIVISOR/speeds[x+1];
+  break;
+  }
+if(!obuf)
+ {
+ if(!(TIMES*ccc)) obufsiz=4096;
+ else
+  {
+  obufsiz=1000000/(TIMES*ccc);
+  if(obufsiz>4096) obufsiz=4096;
+  }
+ if(!obufsiz) obufsiz=1;
+ obuf=(unsigned char *)malloc(obufsiz);
+ }
+}
+
+aclose()
+{
+struct sigaction action;
+aflush();
+tcsetattr(STDIN_FILENO,TCSANOW,&oldterm);
+sigemptyset(&action.sa_mask);
+action.sa_handler=SIG_DFL;
+sigaction(SIGHUP,&action,NULL);
+sigaction(SIGINT,&action,NULL);
+sigaction(SIGQUIT,&action,NULL);
+sigaction(SIGPIPE,&action,NULL);
+sigaction(SIGALRM,&action,NULL);
+sigaction(SIGTERM,&action,NULL);
+sigaction(SIGUSR1,&action,NULL);
+sigaction(SIGUSR2,&action,NULL);
+}
+
+int have=0;
+static unsigned char havec;
+static int yep;
+
+static dosig()
+{
+yep=1;
+}
+
+aflush()
+{
+if(obufp)
+ {
+ struct itimerval a,b;
+ unsigned long usec=obufp*ccc;
+ if(usec>=500000/HZ)
+  {
+  a.it_value.tv_sec=usec/1000000;
+  a.it_value.tv_usec=usec%1000000;
+  a.it_interval.tv_usec=0;
+  a.it_interval.tv_sec=0;
+  signal(SIGALRM,dosig);
+  yep=0;
+  sigsetmask(sigmask(SIGALRM));
+  setitimer(ITIMER_REAL,&a,&b);
+  write(fileno(stdout),obuf,obufp);
+  while(!yep) sigpause(0);
+  signal(SIGALRM,SIG_DFL);
+  }
+ else write(fileno(stdout),obuf,obufp);
+ obufp=0;
+ }
+if(!have)
+ {
+ fcntl(STDIN_FILENO,F_SETFL,O_NDELAY);
+ if(read(STDIN_FILENO,&havec,1)==1) have=1;
+ fcntl(STDIN_FILENO,F_SETFL,0);
+ }
+}
+
+anext()
+{
+aflush();
+if(have) have=0;
+else if(read(STDIN_FILENO,&havec,1)<1) tsignal();
+return havec;
+}
+
+eputc(c)
+unsigned char c;
+{
+obuf[obufp++]=c;
+if(obufp==obufsiz) aflush();
+}
+
+eputs(s)
+char *s;
+{
+while(*s)
+ {
+ obuf[obufp++]= *(s++);
+ if(obufp==obufsiz) aflush();
+ }
+}
+
+getsize()
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+#ifdef TIOCGSIZE
+if(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+ {
+ if(getit.ts_lines>=3) height=getit.ts_lines;
+ if(getit.ts_cols>=2) width=getit.ts_cols;
+ }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+ {
+ if(getit.ws_row>=3) height=getit.ws_row;
+ if(getit.ws_col>=2) width=getit.ws_col;
+ }
+#endif
+#endif
+}
+
+termtype()
+{
+unsigned char entry[1024];
+unsigned char area[1024];
+unsigned char *foo=area;
+unsigned char *x=(unsigned char *)getenv("TERM");
+if(!x) goto down;
+if(tgetent(entry,x)!=1) goto down;
+height=tgetnum("li");
+if(height<3) height=24;
+width=tgetnum("co");
+if(width<2) width=80;
+if(!tgetstr("cs",&foo)) scroll=0;
+down:
+getsize();
+}
+
+shell(s)
+char *s;
+{
+aclose();
+if(fork()) wait(0);
+else
+ {
+ execl(s,s,0);
+ _exit(0);
+ }
+aopen();
+}
+SHAR_EOF
+if test 4662 -ne "`wc -c < 'asyncposix.c'`"
+then
+	echo shar: error transmitting "'asyncposix.c'" '(should have been 4662 characters)'
+fi
+fi # end of overwriting check
+if test -f 'asyncxenix.c'
+then
+	echo shar: will not over-write existing file "'asyncxenix.c'"
+else
+cat << \SHAR_EOF > 'asyncxenix.c'
+/* Terminal interface for XENIX
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#include <stdio.h>
+#include <signal.h>
+#include <termio.h>
+#include "async.h"
+
+#define DIVISOR 12000
+#define TIMES 2
+
+static struct termio oldterm;
+
+static unsigned char *obuf=0;
+static unsigned obufp=0;
+static unsigned obufsiz;
+static unsigned long ccc;
+
+static unsigned speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+
+aopen()
+{
+int x;
+struct termio newterm;
+fflush(stdout);
+signal(SIGHUP,tsignal);
+signal(SIGINT,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGALRM,SIG_IGN);
+signal(SIGTERM,tsignal);
+signal(SIGUSR1,SIG_IGN);
+signal(SIGUSR2,SIG_IGN);
+signal(SIGPWR,tsignal);
+ioctl(fileno(stdin),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR);
+newterm.c_oflag=0;
+newterm.c_cc[VINTR]= -1;
+newterm.c_cc[VQUIT]= -1;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(stdin),TCSETAW,&newterm);
+ccc=0;
+for(x=0;x!=30;x+=2)
+ if((newterm.c_cflag&CBAUD)==speeds[x])
+  {
+  ccc=DIVISOR/speeds[x+1];
+  break;
+  }
+if(!obuf)
+ {
+ if(!(TIMES*ccc)) obufsiz=4096;
+ else
+  {
+  obufsiz=1000/(TIMES*ccc);
+  if(obufsiz>4096) obufsiz=4096;
+  }
+ if(!obufsiz) obufsiz=1;
+ obuf=(unsigned char *)malloc(obufsiz);
+ }
+}
+
+aclose()
+{
+aflush();
+ioctl(fileno(stdin),TCSETAW,&oldterm);
+signal(SIGHUP,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGALRM,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGUSR1,SIG_DFL);
+signal(SIGUSR2,SIG_DFL);
+signal(SIGPWR,SIG_DFL);
+}
+
+int have=0;
+
+aflush()
+{
+if(obufp)
+ {
+ write(fileno(stdout),obuf,obufp);
+ nap(obufp*ccc);
+ obufp=0;
+ }
+if(!have) if(rdchk(fileno(stdin))>0) have=1;
+}
+
+anext()
+{
+unsigned char c;
+aflush();
+if(read(fileno(stdin),&c,1)<1) tsignal();
+have=0;
+return c;
+}
+
+eputc(c)
+unsigned char c;
+{
+obuf[obufp++]=c;
+if(obufp==obufsiz) aflush();
+}
+
+eputs(s)
+char *s;
+{
+while(*s)
+ {
+ obuf[obufp++]= *(s++);
+ if(obufp==obufsiz) aflush();
+ }
+}
+
+getsize()
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+#ifdef TIOCGSIZE
+if(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+ {
+ if(getit.ts_lines>=3) height=getit.ts_lines;
+ if(getit.ts_cols>=2) width=getit.ts_cols;
+ }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+ {
+ if(getit.ws_row>=3) height=getit.ws_row;
+ if(getit.ws_col>=2) width=getit.ws_col;
+ }
+#endif
+#endif
+}
+
+termtype()
+{
+unsigned char entry[1024];
+unsigned char area[1024];
+unsigned char *foo=area;
+unsigned char *x=(unsigned char *)getenv("TERM");
+if(!x) goto down;
+if(tgetent(entry,x)!=1) goto down;
+height=tgetnum("li");
+if(height<3) height=24;
+width=tgetnum("co");
+if(width<2) width=80;
+if(!tgetstr("cs",&foo)) scroll=0;
+down:
+getsize();
+}
+
+shell(s)
+char *s;
+{
+aclose();
+if(fork()) wait(0);
+else
+ {
+ execl(s,s,0);
+ _exit(0);
+ }
+aopen();
+}
+SHAR_EOF
+if test 3623 -ne "`wc -c < 'asyncxenix.c'`"
+then
+	echo shar: error transmitting "'asyncxenix.c'" '(should have been 3623 characters)'
+fi
+fi # end of overwriting check
+if test -f 'blocks.c'
+then
+	echo shar: will not over-write existing file "'blocks.c'"
+else
+cat << \SHAR_EOF > 'blocks.c'
+/* Various memory block functions
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+
+#include "blocks.h"
+
+/* Set block to zero */
+
+unsigned char *bzero(bk,sz)
+unsigned char *bk;
+{
+unsigned char *b=bk-1;
+if(sz) do b[sz]=0; while(--sz);
+return bk;
+}
+
+/* Set block to unsigned character */
+
+unsigned char *bset(bk,sz,c)
+unsigned char *bk;
+unsigned char c;
+{
+unsigned char *b=bk-1;
+if(sz) do b[sz]=c; while(--sz);
+return bk;
+}
+
+/* Move a possibly overlapping block of memory without loosing any data */
+
+unsigned char *bmove(dst,src,sz)
+unsigned char *dst;
+unsigned char *src;
+{
+if(src==dst || !sz) return dst;
+if(src>dst)
+ {
+ unsigned x=0;
+ do dst[x]=src[x]; while(++x, --sz);
+ }
+else
+ {
+ unsigned char *d=dst-1;
+ --src;
+ do d[sz]=src[sz]; while(--sz);
+ } 
+return dst;
+}
+
+/* Move a block in the forward direction */
+
+unsigned char *bfwrd(dst,src,sz)
+unsigned char *dst;
+unsigned char *src;
+{
+if(src!=dst && sz)
+ {
+ unsigned x=0;
+ do dst[x]=src[x]; while(++x,--sz);
+ }
+return dst;
+}
+
+/* Move a block in the backward direction */
+
+unsigned char *bbkwd(dst,src,sz)
+unsigned char *dst;
+unsigned char *src;
+{
+unsigned char *s=src-1, *d=dst-1;
+if(s!=d && sz) do d[sz]=s[sz]; while(--sz);
+return dst;
+}
+
+unsigned umin(a,b)
+unsigned a,b;
+{
+return (a>b)?b:a;
+}
+
+unsigned umax(a,b)
+unsigned a,b;
+{
+return (a>b)?a:b;
+}
+
+int min(a,b)
+{
+return (a>b)?b:a;
+}
+
+int max(a,b)
+{
+return (a>b)?a:b;
+}
+
+/* Compare blocks for equality */
+
+int beq(dst,src,sz)
+unsigned char *dst;
+unsigned char *src;
+{
+unsigned char *d=dst-1, *s=src-1;
+if(!sz) return 1;
+do
+ if(d[sz]!=s[sz]) return 0;
+while(--sz);
+return 1;
+}
+
+/* Compare blocks for equality case insensitive */
+
+int bieq(dst,src,sz)
+unsigned char *dst;
+unsigned char *src;
+{
+unsigned char *d=dst, *s=src; int cnt=sz;
+if(!cnt) return 1;
+do
+ if(*s>='a' && *s<='z')
+  {
+  if(*d>='a' && *d<='z') { if(*(d++)!=*(s++)) return 0; }
+  else if(*(d++)!=(0x5f&*(s++))) return 0;
+  }
+ else if(*d>='a' && *d<='z')
+  {
+  if(*s>='a' && *s<='z') { if(*(d++)!=*(s++)) return 0; }
+  else if(*(s++)!=(0x5f&*(d++))) return 0;
+  }
+ else if(*(d++)!=*(s++)) return 0;
+while(--cnt);
+return 1;
+}
+
+unsigned char *bchr(bk,sz,c)
+unsigned char *bk;
+unsigned char c;
+{
+unsigned char *s=bk;
+int cnt=sz;
+if(cnt)
+ do if(*s==c) return s;
+ while(++s, --cnt);
+return 0;
+}
+
+unsigned char *brchr(bk,sz,c)
+unsigned char *bk, c;
+{
+unsigned char *s=bk+sz;
+int cnt=sz;
+if(cnt)
+ do if(*(--s)==c) return s;
+ while(--cnt);
+return 0;
+}
+SHAR_EOF
+if test 3092 -ne "`wc -c < 'blocks.c'`"
+then
+	echo shar: error transmitting "'blocks.c'" '(should have been 3092 characters)'
+fi
+fi # end of overwriting check
+if test -f 'blocks.h'
+then
+	echo shar: will not over-write existing file "'blocks.h'"
+else
+cat << \SHAR_EOF > 'blocks.h'
+/* Memory block functions header file
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License along with
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+Mass Ave, Cambridge, MA 02139, USA.  */ 
+
+unsigned char *bzero();
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

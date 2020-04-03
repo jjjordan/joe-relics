@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 6 of 10
+Message-ID: <By2ML1.L0q@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:51:00 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part6
+
+X      rand_type = TYPE_4;
+X      rand_deg = DEG_4;
+X      rand_sep = SEP_4;
+X    }
+X
+X  state = &((long *) arg_state)[1];	/* First location.  */
+X  /* Must set END_PTR before srandom.  */
+X  end_ptr = &state[rand_deg];
+X  srandom(seed);
+X  if (rand_type == TYPE_0)
+X    state[-1] = rand_type;
+X  else
+X    state[-1] = (MAX_TYPES * (rptr - state)) + rand_type;
+X
+X  return ostate;
+}
+X
+/* Restore the state from the given state array.
+X   Note: It is important that we also remember the locations of the pointers
+X   in the current state information, and restore the locations of the pointers
+X   from the old state information.  This is done by multiplexing the pointer
+X   location into the zeroeth word of the state information. Note that due
+X   to the order in which things are done, it is OK to call setstate with the
+X   same state as the current state
+X   Returns a pointer to the old state information.  */
+void *setstate(arg_state)
+void *arg_state;
+{
+X  register long *new_state = (long *) arg_state;
+X  register int type = new_state[0] % MAX_TYPES;
+X  register int rear = new_state[0] / MAX_TYPES;
+X  void *ostate = (void *) &state[-1];
+X
+X  if (rand_type == TYPE_0)
+X    state[-1] = rand_type;
+X  else
+X    state[-1] = (MAX_TYPES * (rptr - state)) + rand_type;
+X
+X  switch (type)
+X    {
+X    case TYPE_0:
+X    case TYPE_1:
+X    case TYPE_2:
+X    case TYPE_3:
+X    case TYPE_4:
+X      rand_type = type;
+X      rand_deg = degrees[type];
+X      rand_sep = seps[type];
+X      break;
+X    default:
+X      /* State info munged.  */
+X      return NULL;
+X    }
+X
+X  state = &new_state[1];
+X  if (rand_type != TYPE_0)
+X    {
+X      rptr = &state[rear];
+X      fptr = &state[(rear + rand_sep) % rand_deg];
+X    }
+X  /* Set end_ptr too.  */
+X  end_ptr = &state[rand_deg];
+X
+X  return ostate;
+}
+X
+/* If we are using the trivial TYPE_0 R.N.G., just do the old linear
+X   congruential bit.  Otherwise, we do our fancy trinomial stuff, which is the
+X   same in all ther other cases due to all the global variables that have been
+X   set up.  The basic operation is to add the number at the rear pointer into
+X   the one at the front pointer.  Then both pointers are advanced to the next
+X   location cyclically in the table.  The value returned is the sum generated,
+X   reduced to 31 bits by throwing away the "least random" low bit.
+X   Note: The code takes advantage of the fact that both the front and
+X   rear pointers can't wrap on the same call by not testing the rear
+X   pointer if the front one has wrapped.  Returns a 31-bit random number.  */
+X
+long random()
+{
+X  if (rand_type == TYPE_0)
+X    {
+X      state[0] = ((state[0] * 1103515245) + 12345) & MAXLONG;
+X      return state[0];
+X    }
+X  else
+X    {
+X      long i;
+X      *fptr += *rptr;
+X      /* Chucking least random bit.  */
+X      i = (*fptr >> 1) & MAXLONG;
+X      ++fptr;
+X      if (fptr >= end_ptr)
+X	{
+X	  fptr = state;
+X	  ++rptr;
+X	}
+X      else
+X	{
+X	  ++rptr;
+X	  if (rptr >= end_ptr)
+X	    rptr = state;
+X	}
+X      return i;
+X    }
+}
+SHAR_EOF
+chmod 0600 random.c ||
+echo 'restore of random.c failed'
+Wc_c="`wc -c < 'random.c'`"
+test 12354 -eq "$Wc_c" ||
+	echo 'random.c: original size 12354, current size' "$Wc_c"
+fi
+# ============= random.h ==============
+if test -f 'random.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping random.h (File already exists)'
+else
+echo 'x - extracting random.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'random.h' &&
+#ifndef _Irandom
+#define _Irandom 1
+X
+#include "config.h"
+X
+long random();
+void srandom();
+void *initstate();
+void *setstate();
+X
+#endif
+SHAR_EOF
+chmod 0600 random.h ||
+echo 'restore of random.h failed'
+Wc_c="`wc -c < 'random.h'`"
+test 134 -eq "$Wc_c" ||
+	echo 'random.h: original size 134, current size' "$Wc_c"
+fi
+# ============= reg.c ==============
+if test -f 'reg.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping reg.c (File already exists)'
+else
+echo 'x - extracting reg.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'reg.c' &&
+/* Generate list of matching directory entries
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/dir.h>
+#include "config.h"
+#include "vs.h"
+#include "va.h"
+#include "regex.h"
+X
+char **rexpnd(path,word)
+char *path, *word;
+{
+void *dir;
+char **lst=0;
+struct direct *de;
+if(path && path[0]) dir=opendir(path);
+else dir=opendir(".");
+if(!dir) return 0;
+while(de=readdir(dir))
+X if(zcmp(".",de->d_name))
+X  if(rmatch(word,de->d_name))
+X   lst=vaadd(lst,vsncpy(NULL,0,de->d_name,slen(de->d_name)));
+closedir(dir);
+return lst;
+}
+SHAR_EOF
+chmod 0600 reg.c ||
+echo 'restore of reg.c failed'
+Wc_c="`wc -c < 'reg.c'`"
+test 1259 -eq "$Wc_c" ||
+	echo 'reg.c: original size 1259, current size' "$Wc_c"
+fi
+# ============= regex.c ==============
+if test -f 'regex.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping regex.c (File already exists)'
+else
+echo 'x - extracting regex.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'regex.c' &&
+/* Regular expression subroutines
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "zstr.h"
+#include "vs.h"
+#include "b.h"
+#include "regex.h"
+X
+static int brackz(a,c)
+unsigned char **a;
+unsigned char c;
+{
+int flag;
+unsigned char *s= *a;
+if(*s=='^' || *s=='*')
+X {
+X flag=1;
+X ++s;
+X 
+X if(*s==']')
+X  {
+X  ++s;
+X  if(c==']') flag=0;
+X  }
+X
+X while(*s)
+X  if(*s==']') { ++s; break; }
+X  else
+X   {
+X   if(c==*s) flag=0;
+X   if(s[1]=='-' && s[2] && s[2]!=']' && s[0]<=s[2])
+X    {
+X    if(c>=s[0] && c<=s[2]) flag=0;
+X    s+=2;
+X    }
+X   ++s;
+X   }
+X
+X *a=s;
+X return flag;
+X }
+else
+X {
+X flag=0;
+X
+X if(*s==']')
+X  {
+X  ++s;
+X  if(c==']') flag=1;
+X  }
+X
+X while(*s)
+X  if(*s==']') { ++s; break; }
+X  else
+X   {
+X   if(c==*s) flag=1;
+X   if(s[1]=='-' && s[2] && s[2]!=']' && s[0]<=s[2])
+X    {
+X    if(c>=s[0] && c<=s[2]) flag=1;
+X    s+=2;
+X    }
+X   ++s;
+X   }
+X 
+X *a=s;
+X return flag;
+X }
+}
+X
+static int brack(a,la,c)
+unsigned char **a;
+int *la;
+unsigned char c;
+{
+int flag;
+unsigned char *s= *a;
+int l= *la;
+if(!l) return 0;
+if(*s=='^' || *s=='*')
+X {
+X flag=1;
+X ++s; --l;
+X 
+X if(l && *s==']')
+X  {
+X  ++s; --l;
+X  if(c==']') flag=0;
+X  }
+X
+X while(l)
+X  if(*s==']') { ++s; --l; break; }
+X  else
+X   {
+X   if(c==*s) flag=0;
+X   if(l>=3 && s[1]=='-' && s[2]!=']' && s[0]<=s[2])
+X    {
+X    if(c>=s[0] && c<=s[2]) flag=0;
+X    s+=2; l-=2;
+X    }
+X   ++s; --l;
+X   }
+X
+X *a=s; *la=l;
+X return flag;
+X }
+else
+X {
+X flag=0;
+X
+X if(l && *s==']')
+X  {
+X  ++s; --l;
+X  if(c==']') flag=1;
+X  }
+X
+X while(l)
+X  if(*s==']') { ++s; --l; break; }
+X  else
+X   {
+X   if(c==*s) flag=1;
+X   if(l>=3 && s[1]=='-' && s[2]!=']' && s[0]<=s[2])
+X    {
+X    if(c>=s[0] && c<=s[2]) flag=1;
+X    s+=2; l-=2;
+X    }
+X   ++s; --l;
+X   }
+X 
+X *a=s; *la=l;
+X return flag;
+X }
+}
+X
+int rmatch(a,b)
+char *a, *b;
+{
+for(;;)
+X switch(*a)
+X  {
+X case '*': ++a;
+X           do if(rmatch(a,b)) return 1; while(*b++);
+X           return 0;
+X
+X case '[': ++a;
+X           if(!*b) return 0;
+X           if(!brackz(&a,*b)) return 0;
+X           ++b;
+X           break;
+X
+X case '?': ++a;
+X           if(!*b) return 0;
+X           ++b;
+X           break;
+X
+X case 0:   if(!*b) return 1;
+X           else return 0;
+X
+X case '\\':
+X           if(!*++a) return 0;
+X
+X default:  if(*a++!=*b++) return 0;
+X  }
+}
+X
+int rimatch(a,b)
+char *a, *b;
+{
+for(;;)
+X switch(*a)
+X  {
+X case '*': ++a;
+X           do if(rimatch(a,b)) return 1; while(*b++);
+X           return 0;
+X
+X case '[': ++a;
+X           if(!*b) return 0;
+X           if(!brackz(&a,*b)) return 0;
+X           ++b;
+X           break;
+X
+X case '?': ++a;
+X           if(!*b) return 0;
+X           ++b;
+X           break;
+X
+X case 0:   if(!*b) return 1;
+X           else return 0;
+X
+X case '\\':
+X           if(!*++a) return 0;
+X
+X default:  if(toup(*a++)!=toup(*b++)) return 0;
+X  }
+}
+X
+char *pieces[26]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+X
+static void savec(n,c)
+char c;
+{
+char *s=0;
+if(pieces[n]) vsrm(pieces[n]);
+s=vsncpy(s,0,&c,1);
+pieces[n]=s;
+}
+X
+static void saves(n,p,szz)
+P *p;
+long szz;
+{
+if(szz>=MAXINT-31) pieces[n]=vstrunc(pieces[n],0);
+else
+X {
+X pieces[n]=vstrunc(pieces[n],szz);
+X brmem(p,pieces[n],szz);
+X }
+}
+X
+static int skip_special(p)
+X P *p;
+X {
+X  int to, s;
+X  P *q;
+X  switch(s=pgetc(p))
+X   {
+X    case '"':
+X    do
+X     if((s=pgetc(p))=='\\') pgetc(p), s=pgetc(p);
+X     while(s!=MAXINT && s!='\"');
+X    if(s=='\"') return MAXINT-1;
+X    break;
+X
+X    case '\'':
+X    do
+X     if((s=pgetc(p))=='\\') s=pgetc(p), s=pgetc(p);
+X     while(s!=MAXINT && s!='\'');
+X    if(s=='\'') return MAXINT-1;
+X    break;
+X
+X    case '[': to=']'; goto skip;
+X    case '(': to=')'; goto skip;
+X    case '{': to='}';
+X    skip: do
+X     s=skip_special(p);
+X     while(s!=to && s!=MAXINT);
+X    if(s==to) return MAXINT-1;
+X    break;
+X
+X    case '/':
+X    s=pgetc(p);
+X    if(s=='*')
+X     do
+X      {
+X      s=pgetc(p);
+X      while(s=='*') if((s=pgetc(p))=='/') return MAXINT-1;
+X      } while(s!=MAXINT);
+X    else
+X     if(s!=MAXINT) s=prgetc(p);
+X     else s='/';
+X    break;
+X
+X   }
+X  return s;
+X }
+X
+int pmatch(regex,len,p,n)
+char *regex;
+P *p;
+{
+int c,d;
+P *q;
+while(len--)
+X switch(c=*regex++)
+X  {
+X case '\\':
+X  if(!len--) return 0;
+X  switch(c=*regex++)
+X   {
+X  case '?':
+X   d=pgetc(p);
+X   if(d== MAXINT) return 0;
+X   savec(n++,(char)d);
+X   break;
+X
+X  case 'n':
+X   d=pgetc(p);
+X   if(d!='\n') return 0;
+X   break;
+X
+X  case '*':
+X   q=pdup(p);
+X   do
+X    {
+X    long pb=p->byte;
+X    if(pmatch(regex,len,p,n+1))
+X     { saves(n,q,pb-q->byte); prm(q); return 1; }
+X    }
+X    while(pgetc(p)!= MAXINT);
+X   pset(p,q); prm(q);
+X   return 0;
+X	
+X  case 'c':
+X   q=pdup(p);
+X   do
+X    {
+X    long pb=p->byte;
+X    if(pmatch(regex,len,p,n+1))
+X     { saves(n,q,pb-q->byte); prm(q); return 1; }
+X    }
+X    while((c=skip_special(p))!= MAXINT);
+X   pset(p,q); prm(q);
+X   return 0;
+X
+X  case '[':
+X   d=pgetc(p);
+X   if(d== MAXINT) return 0;
+X   if(!brack(&regex,&len,d)) { prgetc(p); return 0; }
+X   savec(n++,(char)d);
+X   break;
+X
+X  case '+':
+X   {
+X    char *oregex=regex;
+X    int olen=len;
+X    q=pdup(p);
+X    /* move forward */
+X    if (len--,(*regex++=='['))
+X     brack(&regex,&len,c);
+X    do
+X     {
+X      long pb=p->byte;
+X      if(pmatch(regex,len,p,n+1))
+X       { saves(n,q,pb-q->byte); prm(q); return 1; }
+X      regex=oregex;
+X      len=olen;
+X     }
+X    while(
+X     (MAXINT!=(c=pgetc(p))) &&
+X      (
+X       (len--,(*regex++=='[')) ?
+X        brack(&regex,&len,c) :
+X        regex[-1]==c
+X      ));
+X    pset(p,q); prm(q);
+X    return 0;
+X   }
+X   
+X  case '^':
+X   if(!pisbol(p)) return 0;
+X   break;
+X
+X  case '$':
+X   if(!piseol(p)) return 0;
+X   break;
+X
+X  case '<':
+X   if(!pisbow(p)) return 0;
+X   break;
+X  
+X  case '>':
+X   if(!piseow(p)) return 0;
+X   break;
+X  
+X  default:
+X   d=pgetc(p);
+X   if(d!=c) { if(d!= MAXINT) prgetc(p); return 0; }
+X   }
+X  break;
+X
+X default:
+X  d=pgetc(p);
+X  if(d!=c) { if(d!= MAXINT) prgetc(p); return 0; }
+X  }
+return 1;
+}
+X
+int pimatch(regex,len,p,n)
+char *regex;
+P *p;
+{
+int c,d;
+P *q;
+while(len--)
+X switch(c=*regex++)
+X  {
+X case '\\':
+X  if(!len--) return 0;
+X  switch(c=*regex++)
+X   {
+X  case '?':
+X   d=pgetc(p);
+X   if(d==MAXINT) return 0;
+X   savec(n++,(char)d);
+X   break;
+X  
+X  case 'n':
+X   d=pgetc(p);
+X   if(d!='\n') return 0;
+X   break;
+X  
+X  case '*':
+X   q=pdup(p);
+X   do
+X    {
+X    long pb=p->byte;
+X    if(pimatch(regex,len,p,n+1))
+X     { saves(n,q,pb-q->byte); prm(q); return 1; }
+X    }
+X    while(pgetc(p)!= MAXINT);
+X   pset(p,q); prm(q);
+X   return 0;
+X
+X  case 'c':
+X   q=pdup(p);
+X   do
+X    {
+X    long pb=p->byte;
+X    if(pimatch(regex,len,p,n+1))
+X     { saves(n,q,pb-q->byte); prm(q); return 1; }
+X    }
+X    while((c=skip_special(p))!= MAXINT);
+X   pset(p,q); prm(q);
+X   return 0;
+X
+X  case '[':
+X   d=pgetc(p);
+X   if(d==MAXINT) return 0;
+X   if(!brack(&regex,&len,d)) { prgetc(p); return 0; }
+X   savec(n++,(char)d);
+X   break;
+X
+X  case '+':
+X   {
+X    char *oregex=regex;
+X    int olen=len;
+X    q=pdup(p);
+X    /* move forward */
+X    if (len--,(*regex++=='['))
+X     brack(&regex,&len,c);
+X    do
+X     {
+X      long pb=p->byte;
+X      if(pimatch(regex,len,p,n+1))
+X       { saves(n,q,pb-q->byte); prm(q); return 1; }
+X      regex=oregex;
+X      len=olen;
+X     }
+X    while(
+X     (MAXINT!=(c=pgetc(p))) &&
+X      (
+X       (len--,(*regex++=='[')) ?
+X        brack(&regex,&len,c) :
+X        toup(regex[-1])==toup(c)
+X      ));
+X    pset(p,q); prm(q);
+X    return 0;
+X   }
+X
+X  case '^':
+X   if(!pisbol(p)) return 0;
+X   break;
+X
+X  case '$':
+X   if(!piseol(p)) return 0;
+X   break;
+X
+X  case '<':
+X   if(!pisbow(p)) return 0;
+X   break;
+X  
+X  case '>':
+X   if(!piseow(p)) return 0;
+X   break;
+X  
+X  default:
+X   d=pgetc(p);
+X   if(toup(d)!=toup(c)) { if(d!=MAXINT) prgetc(p); return 0; }
+X   }
+X  break;
+X
+X default:
+X  d=pgetc(p);
+X  if(toup(d)!=toup(c)) { if(d!=MAXINT) prgetc(p); return 0; }
+X  }
+return 1;
+}
+SHAR_EOF
+chmod 0600 regex.c ||
+echo 'restore of regex.c failed'
+Wc_c="`wc -c < 'regex.c'`"
+test 8187 -eq "$Wc_c" ||
+	echo 'regex.c: original size 8187, current size' "$Wc_c"
+fi
+# ============= regex.h ==============
+if test -f 'regex.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping regex.h (File already exists)'
+else
+echo 'x - extracting regex.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'regex.h' &&
+/* Regular expression subroutines
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iregex
+#define _Iregex 1
+X
+extern char *pieces[];
+int rmatch();
+int pmatch();
+int pimatch();
+X
+#endif
+SHAR_EOF
+chmod 0600 regex.h ||
+echo 'restore of regex.h failed'
+Wc_c="`wc -c < 'regex.h'`"
+test 879 -eq "$Wc_c" ||
+	echo 'regex.h: original size 879, current size' "$Wc_c"
+fi
+# ============= scrn.c ==============
+if test -f 'scrn.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping scrn.c (File already exists)'
+else
+echo 'x - extracting scrn.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'scrn.c' &&
+/* Device independant TTY interface for JOE
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <signal.h>
+#include "blocks.h"
+#include "heap.h"
+#include "vs.h"
+#include "termcap.h"
+#include "tty.h"
+#include "zstr.h"
+#include "scrn.h"
+X
+extern int mid;
+X
+/* Table of key sequences which we will translate to single codes */
+X
+SEQ seqs[NKEYS]=
+{
+X { "kd", KEYDOWN, "DOWN" },
+X { "ku", KEYUP, "UP" },
+X { "kl", KEYLEFT, "LEFT" },
+X { "kr", KEYRIGHT, "RIGHT" },
+X { "k0", KEYF0, "F0" },
+X { "k1", KEYF1, "F1" },
+X { "k2", KEYF2, "F2" },
+X { "k3", KEYF3, "F3" },
+X { "k4", KEYF4, "F4" },
+X { "k5", KEYF5, "F5" },
+X { "k6", KEYF6, "F6" },
+X { "k7", KEYF7, "F7" },
+X { "k8", KEYF8, "F8" },
+X { "k9", KEYF9, "F9" },
+X { "kD", KEYDEL, "DEL" },
+X { "kI", KEYINS, "INS" },
+X { "kh", KEYHOME, "HOME" },
+X { "kH", KEYEND, "END" },
+X { "kN", KEYPGDN, "PGDN" },
+X { "kP", KEYPGUP, "PGUP" }
+};
+X
+/* Set attributes */
+X
+void attr(t,c)
+SCRN *t;
+int c;
+{
+int e;
+c&=~255;
+e=(t->attrib&~c);
+if(e&UNDERLINE)
+X {
+X if(t->ue) texec(t->cap,t->ue,1), e&=~UNDERLINE;
+X t->attrib&=~UNDERLINE;
+X }
+if(e&INVERSE)
+X {
+X if(t->se) texec(t->cap,t->se,1), e&=~INVERSE;
+X else if(t->me) texec(t->cap,t->me,1), e=0, t->attrib=0;
+X t->attrib&=~INVERSE;
+X }
+if(e)
+X {
+X if(t->me) texec(t->cap,t->me,1);
+X t->attrib=0;
+X }
+e=(c&~t->attrib);
+if(e&INVERSE)
+X if(t->mr) texec(t->cap,t->mr,1);
+X else if(t->so) texec(t->cap,t->so,1);
+if(e&UNDERLINE)
+X if(t->us) texec(t->cap,t->us,1);
+if(e&BLINK)
+X if(t->mb) texec(t->cap,t->mb,1);
+if(e&BOLD)
+X if(t->md) texec(t->cap,t->md,1);
+if(e&DIM)
+X if(t->mh) texec(t->cap,t->mh,1);
+t->attrib=c;
+}
+X
+/* Set scrolling region */
+X
+void setregn(t,top,bot)
+SCRN *t;
+int top,bot;
+{
+if(!t->cs)
+X {
+X t->top=top;
+X t->bot=bot;
+X return;
+X }
+if(t->top!=top || t->bot!=bot)
+X {
+X t->top=top;
+X t->bot=bot;
+X texec(t->cap,t->cs,1,top,bot-1);
+X t->x= -1; t->y= -1;
+X }
+}
+X
+/* Enter insert mode */
+X
+void setins(t,x)
+SCRN *t;
+{
+if(t->ins!=1 && t->im)
+X {
+X t->ins=1;
+X texec(t->cap,t->im,1,x);
+X }
+}
+X
+/* Exit insert mode */
+X
+void clrins(t)
+SCRN *t;
+{
+if(t->ins!=0)
+X {
+X texec(t->cap,t->ei,1);
+X t->ins=0;
+X }
+}
+X
+/* Erase from given screen coordinate to end of line */
+X
+int eraeol(t,x,y)
+SCRN *t;
+{
+int *s, *ss;
+int w=t->co-x-1;			/* Don't worry about last column */
+if(w<=0) return 0;
+s=t->scrn+y*t->co+x;
+ss=s+w;
+do if(*--ss!=' ') { ++ss; break; } while(ss!=s);
+if((ss-s>3 || s[w]!=' ') && t->ce)
+X {
+X cpos(t,x,y);
+X attr(t,0);
+X texec(t->cap,t->ce,1);
+X msetI(s,' ',w);
+X }
+else while(s!=ss) outatr(t,x,y,' '), ++x, *s++=' ';
+return 0;
+}
+X
+/* Output a character with attributes */
+X
+void outatr(t,x,y,c)
+SCRN *t;
+{
+unsigned char ch;
+if(c== -1) c=' ';
+if(t->ins) clrins(t);
+ch=c; c-=ch;
+if(t->x!=x || t->y!=y) cpos(t,x,y);
+if(c!=t->attrib) attr(t,c);
+if(t->hz && ch=='~') ch='\\';
+ttputc(ch);
+++t->x;
+}
+X
+/* As above but useable in insert mode */
+/* The cursor position must already be correct */
+X
+void outatri(t,x,y,c)
+SCRN *t;
+{
+unsigned char ch;
+if(c== -1) c=' ';
+ch=c; c-=ch;
+if(c!=t->attrib) attr(t,c);
+if(t->hz && ch=='~') ch='\\';
+ttputc(ch);
+++t->x;
+}
+X
+/* Overstrike terminal handling */
+X
+void outatr1(t,x,y,c)
+SCRN *t;
+{
+if(t->os && t->eo &&
+X   (t->scrn[x+t->co*y]!=' ' || (t->scrn[x+t->co*y]&~255)!=(c&~255)) ||
+X   t->ul && (c&255)=='_' && (!t->os || t->eo)
+X  )
+X outatr(t,x,y,' ');
+outatr(t,x,y,c);
+if(c&UNDERLINE && !t->us)
+X {
+X cpos(t,x,y), texec(t->cap,t->uc,1);
+X if(++t->x==t->co)
+X  if(t->am) t->x=0, ++t->y;
+X  else if(t->xn) t->x= -1, t->y= -1;
+X  else --t->x;
+X }
+}
+X
+void out(t,c)
+char *t;
+char c;
+{
+ttputc(c);
+}
+X
+SCRN *nopen()
+{
+SCRN *t=(SCRN *)malloc(sizeof(SCRN));
+int x,y;
+char *p;
+ttopen();
+X
+if(!(t->cap=getcap(NULL,baud,out,NULL)))
+X {
+X free(t);
+X ttclose();
+X fprintf(stdout,"Couldn't load termcap/terminfo entry\n");
+X return 0;
+X }
+X
+t->li=getnum(t->cap,"li"); if(t->li<1) t->li=24;
+t->co=getnum(t->cap,"co"); if(t->co<2) t->co=80;
+x=y=0;
+ttgtsz(&x,&y);
+if(x>7 && y>3) t->li=y, t->co=x;
+x=y=0;
+if(p=getenv("LINES")) sscanf(p,"%d",&y);
+if(p=getenv("COLUMNS")) sscanf(p,"%d",&x);
+if(x>7) t->co=x;
+if(y>3) t->li=y;
+X
+t->hz=getflag(t->cap,"hz");
+t->os=getflag(t->cap,"os");
+t->eo=getflag(t->cap,"eo");
+if(getflag(t->cap,"hc")) t->os=1;
+if(t->os || getflag(t->cap,"ul")) t->ul=1;
+else t->ul=0;
+X
+t->xn=getflag(t->cap,"xn");
+t->am=getflag(t->cap,"am");
+X
+t->ti=getstr(t->cap,"ti");
+t->cl=getstr(t->cap,"cl");
+t->cd=getstr(t->cap,"cd");
+X
+t->te=getstr(t->cap,"te");
+X
+t->mb=0; t->md=0; t->mh=0; t->mr=0; t->avattr=0;
+if(!(t->me=getstr(t->cap,"me"))) goto oops;
+if((t->mb=getstr(t->cap,"mb"))) t->avattr|=BLINK;
+if((t->md=getstr(t->cap,"md"))) t->avattr|=BOLD;
+if((t->mh=getstr(t->cap,"mh"))) t->avattr|=DIM;
+if((t->mr=getstr(t->cap,"mr"))) t->avattr|=INVERSE;
+oops:
+X
+t->so=0; t->se=0;
+if(getnum(t->cap,"sg")<=0 && !t->mr && getstr(t->cap,"se"))
+X {
+X if(t->so=getstr(t->cap,"so")) t->avattr|=INVERSE;
+X t->se=getstr(t->cap,"se");
+X }
+if(getflag(t->cap,"xs") || getflag(t->cap,"xt")) t->so=0;
+X
+t->us=0; t->ue=0;
+if(getnum(t->cap,"ug")<=0 && getstr(t->cap,"ue"))
+X {
+X if(t->us=getstr(t->cap,"us")) t->avattr|=UNDERLINE;
+X t->ue=getstr(t->cap,"ue");
+X }
+X
+if(!(t->uc=getstr(t->cap,"uc"))) if(t->ul) t->uc="_";
+if(t->uc) t->avattr|=UNDERLINE;
+X
+t->ms=getflag(t->cap,"ms");
+X
+t->da=getflag(t->cap,"da");
+t->db=getflag(t->cap,"db");
+t->cs=getstr(t->cap,"cs");
+t->rr=getflag(t->cap,"rr");
+t->sf=getstr(t->cap,"sf");
+t->sr=getstr(t->cap,"sr");
+t->SF=getstr(t->cap,"SF");
+t->SR=getstr(t->cap,"SR");
+t->al=getstr(t->cap,"al");
+t->dl=getstr(t->cap,"dl");
+t->AL=getstr(t->cap,"AL");
+t->DL=getstr(t->cap,"DL");
+if(!getflag(t->cap,"ns") && !t->sf) t->sf="\12";
+X
+if(!getflag(t->cap,"in") && baud<38400)
+X {
+X t->dc=getstr(t->cap,"dc");
+X t->DC=getstr(t->cap,"DC");
+X t->dm=getstr(t->cap,"dm");
+X t->ed=getstr(t->cap,"ed");
+X
+X t->im=getstr(t->cap,"im");
+X t->ei=getstr(t->cap,"ei");
+X t->ic=getstr(t->cap,"ic");
+X t->IC=getstr(t->cap,"IC");
+X t->ip=getstr(t->cap,"ip");
+X t->mi=getflag(t->cap,"mi");
+X }
+else
+X {
+X t->dm=0; t->dc=0; t->DC=0; t->ed=0;
+X t->im=0; t->ic=0; t->IC=0; t->ip=0; t->ei=0;
+X t->mi=1;
+X }
+X
+t->bs=0;
+if(getstr(t->cap,"bc")) t->bs=getstr(t->cap,"bc");
+else if(getstr(t->cap,"le")) t->bs=getstr(t->cap,"le");
+if(getflag(t->cap,"bs")) t->bs="\10";
+X
+t->cbs=tcost(t->cap,t->bs,1,2,2);
+X
+t->lf="\12";
+if(getstr(t->cap,"do")) t->lf=getstr(t->cap,"do");
+t->clf=tcost(t->cap,t->lf,1,2,2);
+X
+t->up=getstr(t->cap,"up");
+t->cup=tcost(t->cap,t->up,1,2,2);
+X
+t->nd=getstr(t->cap,"nd");
+X
+t->tw=8;
+if(getnum(t->cap,"it")>0) t->tw=getnum(t->cap,"it");
+else if(getnum(t->cap,"tw")>0) t->tw=getnum(t->cap,"tw");
+X
+if(!(t->ta=getstr(t->cap,"ta"))) if(getflag(t->cap,"pt")) t->ta="\11";
+t->bt=getstr(t->cap,"bt");
+if(getflag(t->cap,"xt")) t->ta=0, t->bt=0;
+X
+t->cta=tcost(t->cap,t->ta,1,2,2);
+t->cbt=tcost(t->cap,t->bt,1,2,2);
+X
+t->ho=getstr(t->cap,"ho");
+t->cho=tcost(t->cap,t->ho,1,2,2);
+t->ll=getstr(t->cap,"ll");
+t->cll=tcost(t->cap,t->ll,1,2,2);
+X
+t->cr="\15";
+if(getstr(t->cap,"cr")) t->cr=getstr(t->cap,"cr");
+if(getflag(t->cap,"nc") || getflag(t->cap,"xr")) t->cr=0;
+t->ccr=tcost(t->cap,t->cr,1,2,2);
+X
+t->cRI=tcost(t->cap,t->RI=getstr(t->cap,"RI"),1,2,2);
+t->cLE=tcost(t->cap,t->LE=getstr(t->cap,"LE"),1,2,2);
+t->cUP=tcost(t->cap,t->UP=getstr(t->cap,"UP"),1,2,2);
+t->cDO=tcost(t->cap,t->DO=getstr(t->cap,"DO"),1,2,2);
+t->cch=tcost(t->cap,t->ch=getstr(t->cap,"ch"),1,2,2);
+t->ccv=tcost(t->cap,t->cv=getstr(t->cap,"cv"),1,2,2);
+t->ccb=tcost(t->cap,t->cb=getstr(t->cap,"cb"),1,2,2);
+t->ccm=tcost(t->cap,t->cm=getstr(t->cap,"cm"),1,2,2);
+X
+t->cce=tcost(t->cap,t->ce=getstr(t->cap,"ce"),1,2,2);
+X
+x=0;
+for(y=0;y!=NKEYS;++y)
+X if(getstr(t->cap,seqs[y].seq))
+X  {
+X  char *s=tcompile(t->cap,getstr(t->cap,seqs[y].seq));
+X  if(s)
+X   {
+X   t->ktab[x].s=s;
+X   t->ktab[x].l=sLen(s);
+X   t->ktab[x].n=seqs[y].code;
+X   ++x;
+X   }
+X  }
+t->tabsize=x;
+t->kbufp=0;
+t->dumpptr= -1;
+X
+/* Make sure terminal can do absolute positioning */
+if(t->cm) goto ok;
+if(t->ch && t->cv) goto ok;
+if(t->ho && (t->lf || t->DO || t->cv)) goto ok;
+if(t->ll && (t->up || t->UP || t->cv)) goto ok;
+if(t->cr && t->cv) goto ok;
+leave=1;
+ttclose();
+signrm();
+fprintf(stderr,"Sorry, your terminal can't do absolute cursor positioning\n");
+fprintf(stderr,"It\'s broken\n");
+return 0;
+ok:
+X
+/* Determine if we can scroll */
+if((t->sr || t->SR) && (t->sf || t->SF) && t->cs ||
+X   (t->al || t->AL) && (t->dl || t->DL)) t->scroll=1;
+else t->scroll=0, mid=1;
+X
+/* Determine if we can ins/del within lines */
+if((t->im || t->ic || t->IC) && (t->dc || t->DC)) t->insdel=1;
+else t->insdel=0;
+X
+/* Adjust for high baud rates */
+if(baud>=38400) t->scroll=0, t->insdel=0, mid=0;
+X
+/* Initialize variable screen size dependant vars */
+t->scrn=0; t->sary=0; t->updtab=0; t->compose=0;
+t->ofst=0; t->ary=0;
+t->htab=(struct hentry *)malloc(256*sizeof(struct hentry));
+nresize(t,t->co,t->li);
+X
+/* Send out terminal initialization string */
+if(t->ti) texec(t->cap,t->ti,1);
+X
+return t;
+} 
+X
+/* Change size of screen */
+X
+void nresize(t,w,h)
+SCRN *t;
+{
+if(h<4) h=4;
+if(w<8) w=8;
+t->li=h;
+t->co=w;
+if(t->sary) free(t->sary);
+if(t->updtab) free(t->updtab);
+if(t->scrn) free(t->scrn);
+if(t->compose) free(t->compose);
+if(t->ofst) free(t->ofst);
+if(t->ary) free(t->ary);
+t->scrn=(int *)malloc(t->li*t->co*sizeof(int));
+t->sary=(int *)calloc(t->li,sizeof(int));
+t->updtab=(int *)malloc(t->li*sizeof(int));
+t->compose=(int *)malloc(t->co*sizeof(int));
+t->ofst=(int *)malloc(t->co*sizeof(int));
+t->ary=(struct hentry *)malloc(t->co*sizeof(struct hentry));
+nredraw(t);
+}
+X
+/* Calculate cost of positioning the cursor using only relative cursor
+X * positioning functions: t->(lf, DO, up, UP, bs, LE, RI, ta, bt) and rewriting
+X * characters (to move right)
+X *
+X * This doesn't use the am and bw capabilities although it probably could.
+X */
+X
+static int relcost(t,x,y,ox,oy)
+register SCRN *t;
+register int x,y,ox,oy;
+{
+int cost=0, c;
+X
+/* If we don't know the cursor position, force use of absolute positioning */
+if(oy== -1 || ox== -1) return 10000;
+X
+/* First adjust row */
+if(y>oy)
+X /* Have to go down */
+X if(t->lf)
+X  if(t->cDO<(c=(y-oy)*t->clf)) cost+=t->cDO;
+X  else cost+=c;
+X else if(t->DO) cost+=t->cDO;
+X else return 10000;
+else if(y<oy)
+X /* Have to go up */
+X if(t->up)
+X  if(t->cUP<(c=(oy-y)*t->cup)) cost+=t->cUP;
+X  else cost+=c;
+X else if(t->UP) cost+=t->cUP;
+X else return 10000;
+X
+/* Now adjust column */
+X
+/* Use tabs */
+if(x>ox && t->ta)
+X {
+X int ntabs=(x-ox+ox%t->tw)/t->tw;
+X int cstunder=x%t->tw+t->cta*ntabs, cstover;
+X if(x+t->tw<t->co && t->bs) cstover=t->cbs*(t->tw-x%t->tw)+t->cta*(ntabs+1);
+X else cstover=10000;
+X if(cstunder<t->cRI && cstunder<x-ox && cstover>cstunder)
+X  return cost+cstunder;
+X else if(cstover<t->cRI && cstover<x-ox) return cost+cstover;
+X }
+else if(x<ox && t->bt)
+X {
+X int ntabs=(ox-x+t->tw-ox%t->tw)/t->tw;
+X int cstunder,cstover;
+X if(t->bs) cstunder=t->cbt*ntabs+t->cbs*(t->tw-x%t->tw); else cstunder=10000;
+X if(x-t->tw>=0) cstover=t->cbt*(ntabs+1)+x%t->tw; else cstover=10000;
+X if(cstunder<t->cLE && (t->bs?cstunder<(ox-x)*t->cbs:1) && cstover>cstunder)
+X  return cost+cstunder;
+X else if(cstover<t->cRI && (t->bs?cstover<(ox-x)*t->cbs:1)) return cost+cstover;
+X }
+X
+/* Use simple motions */
+if(x<ox)
+X /* Have to go left */
+X if(t->bs) 
+X  if(t->cLE<(c=(ox-x)*t->cbs)) cost+=t->cLE;
+X  else cost+=c;
+X else if(t->LE) cost+=t->cLE;
+X else return 10000;
+else if(x>ox)
+X /* Have to go right */
+X /* Hmm.. this should take into account possible attribute changes */
+X if(t->cRI<x-ox) cost+=t->cRI;
+X else cost+=x-ox;
+X
+return cost;
+}
+X
+/* Find optimal set of cursor positioning commands to move from the current
+X * cursor row and column (either or both of which might be unknown) to the
+X * given new row and column and execute them.
+X */
+X
+static void cposs(t,x,y)
+register SCRN *t;
+register int x,y;
+{
+register int bestcost,cost;
+int bestway;
+int hy;
+int hl;
+X
+/* Home y position is usually 0, but it is 'top' if we have scrolling region
+X * relative addressing
+X */
+if(t->rr) hy=t->top, hl=t->bot-1;
+else hy=0, hl=t->li-1;
+X
+/* Assume best way is with only using relative cursor positioning */
+X
+bestcost=relcost(t,x,y,t->x,t->y); bestway=0;
+X
+/* Now check if combinations of absolute cursor positioning functions are
+X * better (or necessary in case one or both cursor positions are unknown)
+X */
+X
+if(t->ccr<bestcost)
+X {
+X cost=relcost(t,x,y,0,t->y)+t->ccr;
+X if(cost<bestcost) bestcost=cost, bestway=1;
+X }
+if(t->cho<bestcost)
+X {
+X cost=relcost(t,x,y,0,hy)+t->cho;
+X if(cost<bestcost) bestcost=cost, bestway=2;
+X }
+if(t->cll<bestcost)
+X {
+X cost=relcost(t,x,y,0,hl)+t->cll;
+X if(cost<bestcost) bestcost=cost, bestway=3;
+X }
+if(t->cch<bestcost && x!=t->x)
+X {
+X cost=relcost(t,x,y,x,t->y)+tcost(t->cap,t->ch,1,x);
+X if(cost<bestcost) bestcost=cost, bestway=4;
+X }
+if(t->ccv<bestcost && y!=t->y)
+X {
+X cost=relcost(t,x,y,t->x,y)+tcost(t->cap,t->cv,1,y);
+X if(cost<bestcost) bestcost=cost, bestway=5;
+X }
+if(t->ccb<bestcost)
+X {
+X cost=relcost(t,x,y,0,y)+tcost(t->cap,t->cb,1,y);
+X if(cost<bestcost) bestcost=cost, bestway=13;
+X }
+if(t->ccm<bestcost)
+X {
+X cost=tcost(t->cap,t->cm,1,y,x);
+X if(cost<bestcost) bestcost=cost, bestway=6;
+X }
+if(t->cch+t->ccv<bestcost && x!=t->x && y!=t->y)
+X {
+X cost=tcost(t->cap,t->cv,1,y-hy)+tcost(t->cap,t->ch,1,x);
+X if(cost<bestcost) bestcost=cost, bestway=7;
+X }
+if(t->ccv+t->ccr<bestcost && y!=t->y)
+X {
+X cost=tcost(t->cap,t->cv,1,y)+tcost(t->cap,t->cr,1)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=8;
+X }
+if(t->cll+t->cch<bestcost)
+X {
+X cost=tcost(t->cap,t->ll,1)+tcost(t->cap,t->ch,1,x)+
+X      relcost(t,x,y,x,hl);
+X if(cost<bestcost) bestcost=cost, bestway=9;
+X }
+if(t->cll+t->ccv<bestcost)
+X {
+X cost=tcost(t->cap,t->ll,1)+tcost(t->cap,t->cv,1,y)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=10;
+X }
+if(t->cho+t->cch<bestcost)
+X {
+X cost=tcost(t->cap,t->ho,1)+tcost(t->cap,t->ch,1,x)+
+X      relcost(t,x,y,x,hy);
+X if(cost<bestcost) bestcost=cost, bestway=11;
+X }
+if(t->cho+t->ccv<bestcost)
+X {
+X cost=tcost(t->cap,t->ho,1)+tcost(t->cap,t->cv,1,y)+
+X      relcost(t,x,y,0,y);
+X if(cost<bestcost) bestcost=cost, bestway=12;
+X }
+X
+/* Do absolute cursor positioning if we don't know the cursor position or
+X * if it is faster than doing only relative cursor positioning
+X */
+X
+switch(bestway)
+X {
+case 1: texec(t->cap,t->cr,1); t->x=0; break;
+case 2: texec(t->cap,t->ho,1); t->x=0; t->y=hy; break;
+case 3: texec(t->cap,t->ll,1); t->x=0; t->y=hl; break;
+case 9: texec(t->cap,t->ll,1); t->x=0; t->y=hl; goto doch;
+case 11: texec(t->cap,t->ho,1); t->x=0; t->y=hy;
+X  doch:
+case 4: texec(t->cap,t->ch,1,x); t->x=x; break;
+case 10: texec(t->cap,t->ll,1); t->x=0; t->y=hl; goto docv;
+case 12: texec(t->cap,t->ho,1); t->x=0; t->y=hy; goto docv;
+case 8: texec(t->cap,t->cr,1); t->x=0;
+X  docv:
+case 5: texec(t->cap,t->cv,1,y); t->y=y; break;
+case 6: texec(t->cap,t->cm,1,y,x); t->y=y, t->x=x; break;
+case 7: texec(t->cap,t->cv,1,y); t->y=y;
+X        texec(t->cap,t->ch,1,x); t->x=x;
+X        break;
+case 13: texec(t->cap,t->cb,1,y); t->y=y; t->x=0; break;
+X }
+X
+/* Use relative cursor position functions if we're not there yet */
+X
+/* First adjust row */
+if(y>t->y)
+X /* Have to go down */
+X if(!t->lf || t->cDO<(y-t->y)*t->clf)
+X  texec(t->cap,t->DO,1,y-t->y), t->y=y;
+X else while(y>t->y) texec(t->cap,t->lf,1), ++t->y;
+else if(y<t->y)
+X /* Have to go up */
+X if(!t->up || t->cUP<(t->y-y)*t->cup)
+X  texec(t->cap,t->UP,1,t->y-y), t->y=y;
+X else while(y<t->y) texec(t->cap,t->up,1), --t->y;
+X
+/* Use tabs */
+if(x>t->x && t->ta)
+X {
+X int ntabs=(x-t->x+t->x%t->tw)/t->tw;
+X int cstunder=x%t->tw+t->cta*ntabs, cstover;
+X if(x+t->tw<t->co && t->bs) cstover=t->cbs*(t->tw-x%t->tw)+t->cta*(ntabs+1);
+X else cstover=10000;
+X if(cstunder<t->cRI && cstunder<x-t->x && cstover>cstunder)
+X  {
+X  if(ntabs)
+X   {
+X   t->x=x-x%t->tw;
+X   do texec(t->cap,t->ta,1); while(--ntabs);
+X   }
+X  }
+X else if(cstover<t->cRI && cstover<x-t->x)
+X  {
+X  t->x=t->tw+x-x%t->tw;
+X  ++ntabs;
+X  do texec(t->cap,t->ta,1); while(--ntabs);
+X  }
+X }
+else if(x<t->x && t->bt)
+X {
+X int ntabs=((t->x+t->tw-1)-(t->x+t->tw-1)%t->tw-
+X            ((x+t->tw-1)-(x+t->tw-1)%t->tw))/t->tw;
+X int cstunder,cstover;
+X if(t->bs) cstunder=t->cbt*ntabs+t->cbs*(t->tw-x%t->tw); else cstunder=10000;
+X if(x-t->tw>=0) cstover=t->cbt*(ntabs+1)+x%t->tw; else cstover=10000;
+X if(cstunder<t->cLE && (t->bs?cstunder<(t->x-x)*t->cbs:1) && cstover>cstunder)
+X  {
+X  if(ntabs)
+X   {
+X   do texec(t->cap,t->bt,1); while(--ntabs);
+X   t->x=x+t->tw-x%t->tw;
+X   }
+X  }
+X else if(cstover<t->cRI && (t->bs?cstover<(t->x-x)*t->cbs:1))
+X  {
+X  t->x=x-x%t->tw; ++ntabs;
+X  do texec(t->cap,t->bt,1); while(--ntabs);
+X  }
+X }
+X
+/* Now adjust column */
+if(x<t->x)
+X /* Have to go left */
+X if(!t->bs || t->cLE<(t->x-x)*t->cbs)
+X  texec(t->cap,t->LE,1,t->x-x), t->x=x;
+X else while(x<t->x) texec(t->cap,t->bs,1), --t->x;
+else if(x>t->x)
+X /* Have to go right */
+X /* Hmm.. this should take into account possible attribute changes */
+X if(t->cRI<x-t->x) texec(t->cap,t->RI,1,x-t->x), t->x=x;
+X else
+X  {
+X  if(t->ins) clrins(t);
+X  while(x>t->x)
+X   {
+X   int c=t->scrn[t->x+t->y*t->co];
+X   outatr(t,t->x,y,c);
+X   }
+X  }
+}
+X
+void cpos(t,x,y)
+register SCRN *t;
+register int x,y;
+{
+if(y==t->y)
+X {
+X if(x==t->x) return;
+X if(x>t->x && x-t->x<4)
+X  {
+X  int *cs=t->scrn+t->x+t->co*t->y;
+X  if(t->ins)
+X   if(t->nd)
+X    {
+X    do texec(t->cap,t->nd,1); while(++t->x!=x);
+X    return;
+X    }
+X   else clrins(t);
+X  do { int c=*cs++; outatr(t,t->x,t->y,c); } while(x!=t->x);
+X  return;
+X  }
+X }
+if(!t->ms && t->attrib&(INVERSE|UNDERLINE))
+X attr(t,t->attrib&~(INVERSE|UNDERLINE));
+if(y<t->top || y>=t->bot) setregn(t,0,t->li);
+cposs(t,x,y);
+}
+X
+static void doinschr(t,x,y,s,n)
+SCRN *t;
+int x,y,*s,n;
+{
+int a;
+if(x<0) s-=x, x=0;
+if(x>=t->co-1 || n<=0) return;
+if(t->im || t->ic || t->IC)
+X {
+X cpos(t,x,y);
+X setins(t,x);
+X if(n==1 && t->ic || !t->IC)
+X  for(a=0;a!=n;++a)
+X   {
+X   texec(t->cap,t->ic,1,x);
+X   outatri(t,x+a,y,s[a]);
+X   texec(t->cap,t->ip,1,x);
+X   }
+X else
+X  {
+X  texec(t->cap,t->IC,1,n);
+X  for(a=0;a!=n;++a) outatri(t,x+a,y,s[a]);
+X  }
+X if(!t->mi) clrins(t);
+X }
+mmove(t->scrn+x+t->co*y+n,t->scrn+x+t->co*y,(t->co-(x+n))*sizeof(int));
+mcpy(t->scrn+x+t->co*y,s,n*sizeof(int));
+}
+X
+static void dodelchr(t,x,y,n)
+SCRN *t;
+int x,y,n;
+{
+int a;
+if(x<0) x=0;
+if(!n || x>=t->co-1) return;
+if(t->dc || t->DC)
+X {
+X cpos(t,x,y);
+X texec(t->cap,t->dm,1,x);		/* Enter delete mode */
+X if(n==1 && t->dc || !t->DC)
+X  for(a=n;a;--a) texec(t->cap,t->dc,1,x);
+X else texec(t->cap,t->DC,1,n);
+X texec(t->cap,t->ed,1,x);		/* Exit delete mode */
+X }
+mmove(t->scrn+t->co*y+t->x,t->scrn+t->co*y+t->x+n,(t->co-(x+n))*sizeof(int));
+}
+X
+/* Insert/Delete within line */
+X
+void magic(t,y,cs,s,placex)
+SCRN *t;
+int y,*cs,*s;
+{
+struct hentry *htab=t->htab;
+int *ofst=t->ofst;
+int aryx=1;
+int x;
+if(!(t->im || t->ic || t->IC) ||
+X   !(t->dc || t->DC)) return;
+mset(htab,0,256*sizeof(struct hentry));
+msetI(ofst,0,t->co);
+X
+/* Build hash table */
+for(x=0;x!=t->co-1;++x)
+X t->ary[aryx].next=htab[cs[x]&255].next,
+X t->ary[aryx].loc=x,
+X ++htab[cs[x]&255].loc,
+X htab[cs[x]&255].next=aryx++;
+X
+/* Build offset table */
+for(x=0;x<t->co-1;)
+X if(htab[s[x]&255].loc>=15) ofst[x++]= t->co-1;
+X else
+X  {
+X  int aryy;
+X  int maxaryy;
+X  int maxlen=0;
+X  int best=0;
+X  int bestback=0;
+X  int z;
+X  for(aryy=htab[s[x]&255].next;aryy;aryy=t->ary[aryy].next)
+X   {
+X   int amnt,back;
+X   int tsfo=t->ary[aryy].loc-x;
+X   int cst= -Iabs(tsfo);
+X   int pre=32;
+X   for(amnt=0;x+amnt<t->co-1 && x+tsfo+amnt<t->co-1;++amnt)
+X    {
+X    if(cs[x+tsfo+amnt]!=s[x+amnt]) break;
+X    else if(s[x+amnt]&255!=32 || pre!=32) ++cst;
+X    pre=s[x+amnt]&255;
+X    }
+X   pre=32;
+X   for(back=0;back+x>0 && back+tsfo+x>0;--back)
+X    {
+X    if(cs[x+tsfo+back-1]!=s[x+back-1]) break;
+X    else if(s[x+back-1]&255!=32 || pre!=32) ++cst;
+X    pre=s[x+back-1]&255;
+X    }
+X   if(cst>best) maxaryy=aryy, maxlen=amnt, best=cst, bestback=back;
+X   }
+X  if(!maxlen) ofst[x]=t->co-1, maxlen=1;
+X  else if(best<2) for(z=0;z!=maxlen;++z) ofst[x+z]=t->co-1;
+X  else for(z=0;z!=maxlen-bestback;++z)
+X   ofst[x+z+bestback]=t->ary[maxaryy].loc-x;
+X  x+=maxlen;
+X  }
+X
+/* Apply scrolling commands */
+X
+for(x=0;x!=t->co-1;++x)
+X {
+X int q=ofst[x];
+X if(q && q!=t->co-1)
+X  if(q>0)
+X   {
+X   int z,fu;
+X   for(z=x;z!=t->co-1 && ofst[z]==q;++z);
+X   while(s[x]==cs[x] && x<placex) ++x;
+X   dodelchr(t,x,y,q);
+X   for(fu=x;fu!=t->co-1;++fu) if(ofst[fu]!=t->co-1) ofst[fu]-=q;
+X   x=z-1;
+X   }
+X  else
+X   {
+X   int z,fu;
+X   for(z=x;z!=t->co-1 && ofst[z]==q;++z);
+X   while(s[x+q]==cs[x+q] && x-q<placex) ++x;
+X   doinschr(t,x+q,y,s+x+q,-q);
+X   for(fu=x;fu!=t->co-1;++fu) if(ofst[fu]!=t->co-1) ofst[fu]-=q;
+X   x=z-1;
+X   }
+X }
+}
+X
+static void doupscrl(t,top,bot,amnt)
+SCRN *t;
+int top,bot,amnt;
+{
+int a=amnt, x;
+if(!amnt) return;
+attr(t,0);
+if(top==0 && bot==t->li && (t->sf || t->SF))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,t->li-1);
+X if(amnt==1 && t->sf || !t->SF) while(a--) texec(t->cap,t->sf,1,t->li-1);
+X else texec(t->cap,t->SF,a,a);
+X goto done;
+X }
+if(bot==t->li && (t->dl || t->DL))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,top);
+X if(amnt==1 && t->dl || !t->DL) while(a--) texec(t->cap,t->dl,1,top);
+X else texec(t->cap,t->DL,a,a);
+X goto done;
+X }
+if(t->cs && ( t->sf || t->SF ))
+X {
+X setregn(t,top,bot);
+X cpos(t,0,bot-1);
+X if(amnt==1 && t->sf || !t->SF) while(a--) texec(t->cap,t->sf,1,bot-1);
+X else texec(t->cap,t->SF,a,a);
+X goto done;
+X }
+if((t->dl || t->DL) && (t->al || t->AL))
+X {
+X cpos(t,0,top);
+X if(amnt==1 && t->dl || !t->DL) while(a--) texec(t->cap,t->dl,1,top);
+X else texec(t->cap,t->DL,a,a);
+X a=amnt;
+X cpos(t,0,bot-amnt);
+X if(amnt==1 && t->al || !t->AL) while(a--) texec(t->cap,t->al,1,bot-amnt);
+X else texec(t->cap,t->AL,a,a);
+X goto done;
+X }
+msetI(t->updtab+top,1,bot-top);
+return;
+X
+done:
+mfwrd(t->scrn+top*t->co,t->scrn+(top+amnt)*t->co,
+X      (bot-top-amnt)*t->co*sizeof(int));
+if(bot==t->li && t->db)
+X {
+X msetI(t->scrn+(t->li-amnt)*t->co,-1,amnt*t->co);
+X msetI(t->updtab+t->li-amnt,1,amnt);
+X }
+else msetI(t->scrn+(bot-amnt)*t->co,' ',amnt*t->co);
+}
+X
+static void dodnscrl(t,top,bot,amnt)
+SCRN *t;
+int top,bot,amnt;
+{
+int a=amnt,x;
+if(!amnt) return;
+attr(t,0);
+if(top==0 && bot==t->li && (t->sr || t->SR))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,0);
+X if(amnt==1 && t->sr || !t->SR)
+X  while(a--) texec(t->cap,t->sr,1,0);
+X else texec(t->cap,t->SR,a,a);
+X goto done;
+X }
+if(bot==t->li && (t->al || t->AL))
+X {
+X setregn(t,0,t->li);
+X cpos(t,0,top);
+X if(amnt==1 && t->al || !t->AL)
+X  while(a--) texec(t->cap,t->al,1,top);
+X else texec(t->cap,t->AL,a,a);
+X goto done;
+X }
+if(t->cs && (t->sr || t->SR))
+X {
+X setregn(t,top,bot);
+X cpos(t,0,top);
+X if(amnt==1 && t->sr || !t->SR)
+X  while(a--) texec(t->cap,t->sr,1,top);
+X else texec(t->cap,t->SR,a,a);
+X goto done;
+X }
+if((t->dl || t->DL) && (t->al || t->AL))
+X {
+X cpos(t,0,bot-amnt);
+X if(amnt==1 && t->dl || !t->DL)
+X  while(a--) texec(t->cap,t->dl,1,bot-amnt);
+X else texec(t->cap,t->DL,a,a);
+X a=amnt;
+X cpos(t,0,top);
+X if(amnt==1 && t->al || !t->AL)
+X  while(a--) texec(t->cap,t->al,1,top);
+X else texec(t->cap,t->AL,a,a);
+X goto done;
+X }
+msetI(t->updtab+top,1,bot-top);
+return;
+done:
+mbkwd(t->scrn+(top+amnt)*t->co,t->scrn+top*t->co,
+X      (bot-top-amnt)*t->co*sizeof(int));
+if(!top && t->da)
+X {
+X msetI(t->scrn,-1,amnt*t->co);
+X msetI(t->updtab,1,amnt);
+X }
+else msetI(t->scrn+t->co*top,' ',amnt*t->co);
+}
+X
+void nscroll(t)
+SCRN *t;
+{
+int y,z,q,r,p;
+for(y=0;y!=t->li;++y)
+X {
+X q=t->sary[y];
+X if(have) return;
+X if(q && q!=t->li)
+X  if(q>0)
+X   {
+X   for(z=y;z!=t->li && t->sary[z]==q;++z) t->sary[z]=0;
+X   doupscrl(t,y,z+q,q), y=z-1;
+X   }
+X  else
+X   {
+X   for(r=y;r!=t->li && (t->sary[r]<0 || t->sary[r]==t->li);++r);
+X   p=r-1; do
+X    {
+X    q=t->sary[p];
+X    if(q && q!=t->li)
+X     {
+X     for(z=p;t->sary[z]=0, (z && t->sary[z-1]==q);--z);
+X     dodnscrl(t,z+q,p+1,-q);
+X     p=z+1;
+X     }
+X    }
+X    while(p--!=y);
+X   y=r-1;
+X   }
+X }
+msetI(t->sary,0,t->li);
+}
+X
+void nescape(t)
+SCRN *t;
+{
+attr(t,0);
+clrins(t,0);
+setregn(t,0,t->li);
+cpos(t,0,t->li-1);
+eraeol(t,0,t->li-1);
+if(t->te) texec(t->cap,t->te,1);
+}
+X
+void nreturn(t)
+SCRN *t;
+{
+if(t->ti) texec(t->cap,t->ti,1);
+nredraw(t);
+}
+X
+void nclose(t)
+SCRN *t;
+{
+int x;
+leave=1;
+attr(t,0);
+clrins(t);
+setregn(t,0,t->li);
+cpos(t,0,t->li-1);
+if(t->te) texec(t->cap,t->te,1);
+ttclose();
+rmcap(t->cap);
+free(t->scrn);
+free(t->sary);
+free(t->ofst);
+free(t->htab);
+free(t->ary);
+for(x=0;x!=t->tabsize;++x) vsrm(t->ktab[x].s);
+free(t);
+}
+X
+int ngetc(t)
+SCRN *t;
+{
+int c,w,h,x;
+wayup:
+if(t->dumpptr>=0)
+X {
+X c=t->kbuf[t->dumpptr++];
+X if(t->dumpptr==t->kbufp)
+X  {
+X  t->dumpptr= -1;
+X  t->kbufp=0;
+X  }
+X return c;
+X }
+up:
+c=ttgetc();
+if(t->kbufp==32) t->kbufp=0;
+t->kbuf[t->kbufp++]=c;
+w=0;
+for(h=0;h!=t->tabsize;++h)
+X {
+X for(x=0;x!=t->kbufp && x!=t->ktab[h].l;++x)
+X  if(t->ktab[h].s[x]!=t->kbuf[x]) goto nomatch;
+X if(x==t->ktab[h].l)
+X  {
+X  c=t->ktab[h].n;
+X  goto found;
+X  }
+X else if(x==t->kbufp) w=1;
+X nomatch:;
+X }
+if(w) goto up;
+/* Have to dump each char */
+t->dumpptr=0;
+goto wayup;
+found:
+t->kbufp=0;
+X
+return c;
+}
+X
+void nscrldn(t,top,bot,amnt)
+SCRN *t;
+int top,bot,amnt;
+{
+int x;
+if(!amnt || top>=bot || bot>t->li) return;
+if(amnt<bot-top && bot-top-amnt<amnt/2 || !t->scroll) amnt=bot-top;
+if(amnt<bot-top)
+X {
+X for(x=bot;x!=top+amnt;--x)
+X  t->sary[x-1]=(t->sary[x-amnt-1]==t->li?t->li:t->sary[x-amnt-1]-amnt),
+X  t->updtab[x-1]=t->updtab[x-amnt-1];
+X for(x=top;x!=top+amnt;++x) t->updtab[x]=0;
+X }
+if(amnt>bot-top) amnt=bot-top;
+msetI(t->sary+top,t->li,amnt);
+if(amnt==bot-top) msetI(t->updtab+top,1,amnt);
+}
+X
+void nscrlup(t,top,bot,amnt)
+SCRN *t;
+int top,bot,amnt;
+{
+int x;
+if(!amnt || top>=bot || bot>t->li) return;
+if(amnt<bot-top && bot-top-amnt<amnt/2 || !t->scroll) amnt=bot-top;
+if(amnt<bot-top)
+X {
+X for(x=top+amnt;x!=bot;++x)
+X  t->sary[x-amnt]=(t->sary[x]==t->li?t->li:t->sary[x]+amnt),
+X  t->updtab[x-amnt]=t->updtab[x];
+X for(x=bot-amnt;x!=bot;++x) t->updtab[x]=0;
+X }
+if(amnt>bot-top) amnt=bot-top;
+msetI(t->sary+bot-amnt,t->li,amnt);
+if(amnt==bot-top) msetI(t->updtab+bot-amnt,1,amnt);
+}
+X
+void nredraw(t)
+SCRN *t;
+{
+msetI(t->scrn,-1,t->li*t->co);
+msetI(t->sary,0,t->li);
+msetI(t->updtab,-1,t->li);
+t->x= -1;
+t->y= -1;
+t->top=t->li;
+t->bot=0;
+t->attrib= -1;
+t->ins= -1;
+attr(t,0);
+clrins(t);
+setregn(t);
+if(t->cl)
+X {
+X texec(t->cap,t->cl,1,0);
+X t->x=0; t->y=0;
+X msetI(t->scrn,' ',t->li*t->co);
+X }
+else if(t->cd)
+X {
+X cpos(t,0,0);
+X texec(t->cap,t->cd,1,0);
+X msetI(t->scrn,' ',t->li*t->co);
+X }
+}
+SHAR_EOF
+chmod 0600 scrn.c ||
+echo 'restore of scrn.c failed'
+Wc_c="`wc -c < 'scrn.c'`"
+test 26464 -eq "$Wc_c" ||
+	echo 'scrn.c: original size 26464, current size' "$Wc_c"
+fi
+# ============= scrn.h ==============
+if test -f 'scrn.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping scrn.h (File already exists)'
+else
+echo 'x - extracting scrn.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'scrn.h' &&
+/* Device independant tty interface for JOE
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iscrn
+#define _Iscrn 1
+X
+#include "config.h"
+#include "termcap.h"
+#include "tty.h"
+X
+typedef struct seq SEQ;
+typedef struct scrn SCRN;
+X
+/* Number of key sequence translation entries */
+X
+#define NKEYS 20
+X
+/* Sepecial key sequence structure */
+X
+struct seq
+X {
+X char *seq;
+X int code;
+X char *name;
+X };
+X
+extern SEQ seqs[];
+X
+struct hentry
+X {
+X int next;
+X int loc;
+X };
+X
+/* Each terminal has one of these */
+X
+struct scrn
+X {
+X CAP *cap;		/* Termcap/Terminfo data */
+X
+X int li;			/* Screen height */
+X int co;			/* Screen width */
+X
+X char *ti;			/* Initialization string */
+X char *cl;			/* Home and clear screen... really an
+X 				   init. string */
+X char *cd;			/* Clear to end of screen */
+X char *te;			/* Restoration string */
+X
+X int hz;			/* Terminal can't print ~s */
+X int os;			/* Terminal overstrikes */
+X int eo;			/* Can use blank to erase even if os */
+X int ul;			/* _ overstrikes */
+X int am;			/* Terminal has autowrap, but not magicwrap */
+X int xn;			/* Terminal has magicwrap */
+X
+X char *so;			/* Enter standout (inverse) mode */
+X char *se;			/* Exit standout mode */
+X
+X char *us;			/* Enter underline mode */
+X char *ue;			/* Exit underline mode */
+X char *uc;			/* Single time underline character */
+X
+X int ms;			/* Ok to move when in standout/underline mode */
+X
+X char *mb;			/* Enter blinking mode */
+X char *md;			/* Enter bold mode */
+X char *mh;			/* Enter dim mode */
+X char *mr;			/* Enter inverse mode */
+X char *me;			/* Exit above modes */
+X
+X int da, db;			/* Extra lines exist above, below */
+X char *al, *dl, *AL, *DL;	/* Insert/delete lines */
+X char *cs;			/* Set scrolling region */
+X int rr;			/* Set for scrolling region relative addressing */
+X char *sf, *SF, *sr, *SR;	/* Scroll */
+X
+X char *dm, *dc, *DC, *ed;	/* Delete characters */
+X char *im, *ic, *IC, *ip, *ei;	/* Insert characters */
+X int mi;			/* Set if ok to move while in insert mode */
+X
+X char *bs;			/* Move cursor left 1 */
+X int cbs;
+X char *lf;			/* Move cursor down 1 */
+X int clf;
+X char *up;			/* Move cursor up 1 */
+X int cup;
+X char *nd;			/* Move cursor right 1 */
+X
+X char *ta;			/* Move cursor to next tab stop */
+X int cta;
+X char *bt;			/* Move cursor to previous tab stop */
+X int cbt;
+X int tw;			/* Tab width */
+X
+X char *ho;			/* Home cursor to upper left */
+X int cho;
+X char *ll;			/* Home cursor to lower left */
+X int cll;
+X char *cr;			/* Move cursor to left edge */
+X int ccr;
+X char *RI;			/* Move cursor right n */
+X int cRI;
+X char *LE;			/* Move cursor left n */
+X int cLE;
+X char *UP;			/* Move cursor up n */
+X int cUP;
+X char *DO;			/* Move cursor down n */
+X int cDO;
+X char *ch;			/* Set cursor column */
+X int cch;
+X char *cv;			/* Set cursor row */
+X int ccv;
+X char *cb;			/* Goto beginning of specified line */
+X int ccb;
+X char *cm;			/* Set cursor row and column */
+X int ccm;
+X
+X char *ce;			/* Clear to end of line */
+X int cce;
+X
+X /* Basic abilities */
+X int scroll;			/* Set to use scrolling */
+X int insdel;			/* Set to use insert/delete within line */
+X
+X /* Key-sequence translation table */
+X
+X struct
+X  {
+X  char *s;			/* Key sequence string */
+X  int l;			/* Key sequence string length */
+X  int n;			/* Value which should be returned for this string */
+X  } ktab[NKEYS];
+X
+X int tabsize;			/* Number of entries in translation table */
+X
+X /* Input buffer for translations */
+X
+X char kbuf[32];			/* Keyboard buffer */
+X int kbufp;			/* Keyboard buffer index */
+X int dumpptr;			/* When we pass unmatched chars */
+X
+X /* Current state of terminal */
+X int *scrn;			/* Current contents of screen */
+X int x,y;			/* Current cursor position (-1 for unknown) */
+X int top,bot;			/* Current scrolling region */
+X int attrib;			/* Current character attributes */
+X int ins;			/* Set if we're in insert mode */
+X
+X int *updtab;			/* Dirty lines table */
+X int avattr;			/* Bits set for available attributes */
+X int *sary;			/* Scroll buffer array */
+X
+X int *compose;			/* Line compose buffer */
+X int *ofst;			/* stuff for magic */
+X struct hentry *htab;
+X struct hentry *ary;
+X };
+X
+/* SCRN *nopen(void);
+X *
+X * Open the screen (sets TTY mode so that screen may be used immediatly after
+X * the 'nopen').
+X */
+SCRN *nopen();
+X
+/* void nresize(SCRN *t,int w,int h);
+X *
+X * Change size of screen.  For example, call this when you find out that
+X * the Xterm changed size.
+X */
+void nresize();
+X
+/* void nredraw(SCRN *t);
+X *
+X * Invalidate all state variables for the terminal.  This way, everything gets
+X * redrawn.
+X */
+void nredraw();
+X
+void nescape();
+void nreturn();
+X
+/* void nclose(SCRN *t);
+X *
+X * Close the screen and restore TTY to initial state.
+X *
+X * if 'flg' is set, tclose doesn't mess with the signals.
+X */
+void nclose();
+X
+/* int ngetc(SCRN *t);
+X *
+X * Get next input character.  Arrow keys are translated into the integer codes
+X * shown below.
+X */
+int ngetc();
+X
+#define KEYUP 256	/* Arrow keys */			/* ku */
+#define KEYDOWN 257						/* kd */
+#define KEYLEFT 258						/* kl */
+#define KEYRIGHT 259						/* kr */
+#define KEYF0 260	/* Function keys (is F0 really F10?) */ /* k0 */
+#define KEYF1 261						/* k1 */
+#define KEYF2 262
+#define KEYF3 263
+#define KEYF4 270
+#define KEYF5 265
+#define KEYF6 266
+#define KEYF7 267
+#define KEYF8 268
+#define KEYF9 269						/* k9 */
+#define KEYDEL 383	/* Delete character */			/* kD */
+#define KEYINS 271	/* Insert character */			/* kI */
+#define KEYHOME 272	/* Home key */				/* kh */
+#define KEYEND 273	/* End key */				/* kH */
+#define KEYPGDN 274	/* Page down key */			/* kN */
+#define KEYPGUP 275	/* Page up key */			/* kP */
+#define KEYBACKS 264	/* Backspace key */			/* kb */
+X
+/* void cpos(SCRN *t,int x,int y);
+X *
+X * Set cursor position
+X */
+void cpos();
+X
+/* void attr(SCRN *t,int a);
+X *
+X * Set attributes
+X */
+void attr();
+X
+/* void outatr(SCRN *t,int x,int y,int c);
+X *
+X * Output a character at the given screen cooridinate.  The cursor position
+X * after this function is executed is indeterminate.
+X */
+void outatr();
+X
+/* Character attribute bits */
+X
+#define INVERSE 256
+#define UNDERLINE 512
+#define BOLD 1024
+#define BLINK 2048
+#define DIM 4096
+X
+/* int eraeol(SCRN *t,int x,int y);
+X *
+X * Erase from screen coordinate to end of line.
+X */
+int eraeol();
+X
+/* void nscrlup(SCRN *t,int top,int bot,int amnt);
+X *
+X * Buffered scroll request.  Request that some lines up.  'top' and 'bot'
+X * indicate which lines to scroll.  'bot' is the last line to scroll + 1.
+X * 'amnt' is distance in lines to scroll.
+X */
+void nscrlup();
+X
+/* void nscrldn(SCRN *t,int top,int bot,int amnt);
+X *
+X * Buffered scroll request.  Scroll some lines down.  'top' and 'bot'
+X * indicate which lines to scroll.  'bot' is the last line to scroll + 1.
+X * 'amnt' is distance in lines to scroll.
+X */
+void nscrldn();
+X
+/* void nscroll(SCRN *t);
+X *
+X * Execute buffered scroll requests
+X */
+void nscroll();
+X
+/* void magic(SCRN *t,int y,int *cur,int *new);
+X *
+X * Figure out and execute line shifting
+X */
+void magic();
+X
+#endif
+SHAR_EOF
+chmod 0600 scrn.h ||
+echo 'restore of scrn.h failed'
+Wc_c="`wc -c < 'scrn.h'`"
+test 7538 -eq "$Wc_c" ||
+	echo 'scrn.h: original size 7538, current size' "$Wc_c"
+fi
+# ============= tab.c ==============
+if test -f 'tab.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping tab.c (File already exists)'
+else
+echo 'x - extracting tab.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tab.c' &&
+/* File selection menu
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "config.h"
+#include "heap.h"
+#include "scrn.h"
+#include "kbd.h"
+#include "vs.h"
+#include "w.h"
+#include "bw.h"
+#include "zstr.h"
+#include "pathfunc.h"
+#include "va.h"
+#include "menu.h"
+#include "edfuncs.h"
+#include "tty.h"
+#include "tab.h"

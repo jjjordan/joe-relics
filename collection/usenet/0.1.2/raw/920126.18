@@ -1,0 +1,733 @@
+Xref: funic alt.binaries.pictures:2571 alt.sex.pictures:9847 alt.binaries.pictures.misc:2351 alt.sources:3068
+Newsgroups: alt.binaries.pictures,alt.sex.pictures,alt.binaries.pictures.misc,alt.sources
+Path: funic!news.funet.fi!network.jyu.fi!otto
+From: otto@jyu.fi (Otto J. Makela)
+Subject: Makepost and makemail, binary posting and mailing tools
+Message-ID: <1992Jan25.223651.15918@jyu.fi>
+Followup-To: alt.binaries.pictures.d,alt.sex.pictures.d,alt.sources.d
+Organization: The Crimson Permanent Insurance Co.
+Date: Sat, 25 Jan 1992 22:36:51 GMT
+Lines: 722
+
+Since someone posted an antique version of these tools without the man
+pages to some groups, I thought I'll have to make the latest versions
+available once again.  Here they are.
+
+Look forward to the next release, one of the regulars of these groups
+is working on a series of enhancements to include all the posting standard
+stuff here.  But for now, even this version will make autounpacker life
+easier with some of the X-headers...
+
+#!/bin/sh
+# This is a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 01/25/1992 22:31 UTC by otto@tukki
+# Source directory /home10/otto/send/x
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   2620 -rwxr-xr-x makemail
+#   1789 -rw-r--r-- makemail.l
+#   7140 -rwxr-xr-x makepost
+#   2998 -rw-r--r-- makepost.l
+#   2941 -rwxr-xr-x uusplit
+#   1371 -rw-r--r-- uusplit.l
+#
+# ============= makemail ==============
+if test -f 'makemail' -a X"$1" != X"-c"; then
+	echo 'x - skipping makemail (File already exists)'
+else
+echo 'x - extracting makemail (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'makemail' &&
+#!/bin/csh -f
+# Make a multipart mailing from file name given as argument
+# V1.2  Otto J. Makela <otto@jyu.fi> (28/03/91)
+# V1.3  Otto J. Makela <otto@jyu.fi> (28/03/91)
+# V1.4  Otto J. Makela <otto@jyu.fi> (08/01/91)
+#
+#	makepost filename recepient [lines]
+# Where:
+#	filename is the file to be posted
+#	recepient is who gets the mail
+#	lines is how many-lined postings to create
+X
+# Uses: /bin/cat, /bin/rm, mail, uusplit and the selected editor
+X
+# --- Configurable stuff ---
+# These set the temporary posting file names
+set header="/tmp/$$-header" posting="/tmp/$$-mailing."
+# What is mail ?  Add -v to make verbose output.
+set mail="/usr/ucb/mail"
+# This produces about 60k files with uuencoded stuff
+# (The first file is a bit longer than the rest (text comments and checksums),
+# the last file may be shorter, actually it might be only one line !)
+# (fixme: would be a lot neater if all the files would be about equal size)
+set lines=1000
+# What editor should be used to edit the header file, if EDITOR is not set
+if ( ! $?EDITOR ) set EDITOR="emacs"
+# --- End configuration section ---
+X
+set ourname=$0
+set ourname=${ourname:t}
+X
+if ( $#argv < 2 ) then
+X	echo "usage: ${ourname} filename recepient [lines]"
+X	exit
+endif
+X
+if ( $#argv >= 3 ) set lines=$3
+if ( $#argv >= 4 ) echo "${ourname}: warning - extra arguments ($4...) ignored"
+X
+# Verify that the given filename exists in the first place !
+if ( ! -f $1 ) then
+X	echo "${ourname}: file $1 does not exist or is not a plain file"
+X	exit
+endif
+X
+# Create header file, then edit it.
+if ( -f $1.doc ) then
+X	/bin/cp $1.doc ${header}
+else
+X	set document=$1
+X	set document=${document:r}.doc
+X	if ( -f $document ) then
+X		/bin/cp ${document} ${header}
+X	else
+X		echo "(Please edit description for file $1 in place of this line)" >! ${header}
+X	endif
+endif
+X
+$EDITOR ${header}
+X
+# Then append checksums to header and create posting files
+uusplit $1 ${header} ${posting} ${lines}
+X
+# Calculate how many files we just created
+set total=`echo ${posting}[a-z][a-z] | wc -w`
+echo -n "${total} parts:"
+# Isn't there a nicer way to do this ?
+if ( $total <= 9 ) set total="0${total}"
+X
+set number=1
+foreach part (${posting}[a-z][a-z])
+X	echo -n " $number"
+X	if ( $number <= 9 ) set number="0${number}"
+X	( /bin/cat ${header}; \
+X	echo "$1 part${number}/${total}"; \
+X	echo "BEGIN--cut here--cut here"; \
+X	/bin/cat ${part}; \
+X	echo "END--cut here--cut here"; \
+X	if ( -f ~/.signature ) then; \
+X		echo "--"; \
+X		/bin/cat ~/.signature; \
+X	endif ) | ${mail} -s "$1 (part ${number}/${total})" $2
+X
+X	/bin/rm -f ${part}
+X	/bin/cat /dev/null >! ${header}
+X	@ number++
+end
+X
+/bin/rm -f ${header}
+echo ""
+# The End.
+SHAR_EOF
+chmod 0755 makemail ||
+echo 'restore of makemail failed'
+Wc_c="`wc -c < 'makemail'`"
+test 2620 -eq "$Wc_c" ||
+	echo 'makemail: original size 2620, current size' "$Wc_c"
+fi
+# ============= makemail.l ==============
+if test -f 'makemail.l' -a X"$1" != X"-c"; then
+	echo 'x - skipping makemail.l (File already exists)'
+else
+echo 'x - extracting makemail.l (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'makemail.l' &&
+.\" Revision Level  1.4
+.\" Last Delta     08/01/92
+.TH MAKEMAIL 1
+.SH NAME
+makemail \- Mail binary file given as argument specified recepient
+.SH SYNOPSIS
+.B makemail
+.IB filename
+.IB recepient
+[
+.IB lines
+]
+.SH DESCRIPTION
+This program is used to mail a given binary file to a specified recepient.
+The given file is uuencoded, split and equipped with a checksum header.
+Then, the editor specified by the environment variable
+.B $EDITOR
+is spawned (or emacs, if
+.B $EDITOR
+is not set), for editing a file description for the mailing.
+If a file with the same name and the extension \*(lq.doc\*(rq exists,
+it is taken as the initial description file.
+After you exit the editor, the split files prepended with the
+description are mailed to the specified user using
+.BR mail(1).
+.SH OPTIONS
+.TP
+.IB lines
+This specifies the lines per mailing created from the split file.  The actual
+number of lines will be slightly larger in the first mail message due to the
+checksum header information, and less in the last created mailing.
+The default is 1000 lines, which makes for about 60k mail files.
+.SH SEE ALSO
+.BR makepost(1),
+.BR uusplit(1),
+.BR mail(1)
+.SH NOTES
+The rather strange format of created mail files emulates the one used on
+.I comp.binaries.ibm.pc
+X
+It is possible to mail the same binary to several users by giving their
+email addresses separated with commas as the second argument.
+.SH BUGS
+It is possible that a last part of a multipart mailing is very short, even
+only of the uuencode \*(lqend\*(rq line.
+X
+It is not possible to send only a part of a binary file.
+.SH FILES
+/tmp is used extensively for temporary files.
+.SH DIAGNOSTICS
+Error messages for nonexistant files and newsgroups.
+Warning messages for extra and misformed arguments.
+.SH AUTHOR
+Otto J. Makela <otto@jyu.fi>
+SHAR_EOF
+chmod 0644 makemail.l ||
+echo 'restore of makemail.l failed'
+Wc_c="`wc -c < 'makemail.l'`"
+test 1789 -eq "$Wc_c" ||
+	echo 'makemail.l: original size 1789, current size' "$Wc_c"
+fi
+# ============= makepost ==============
+if test -f 'makepost' -a X"$1" != X"-c"; then
+	echo 'x - skipping makepost (File already exists)'
+else
+echo 'x - extracting makepost (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'makepost' &&
+#!/bin/csh -f
+# Make a multipart posting from file name given as argument
+# V1.2     Otto J. Makela <otto@jyu.fi> 23/05/91
+# V1.2.1   added nntp support Stephen Woods <scw@seas.ucla.edu> 30May91
+#          changed newsgroups to alt.binaries.pictures
+# V1.3     Re-integrated Stephen's changes into our version, small fixes,
+#          Otto J. Makela <otto@jyu.fi> 31/05/91
+# V1.4     Added Stephen's patches after a long wait and added the de facto
+#          filetag header item <otto@jyu.fi> 26/08/91
+# V1.4a    Minor patch to make null filetags possible <otto@jyu.fi> 02/09/91
+# V1.4b    Just changed the default from alt.sex.pictures to alt.binaries.
+#          pictures.erotica <otto@jyu.fi> 05/11/91
+# V1.5     Made crossposting possible, made both a.s.p and a.b.p.e the
+#          default for posts <otto@jyu.fi> 05/11/91
+# V1.6     Added the new standard header items, X-File-Name, X-Part-Total and
+#          X-Part, to make life easier for automatic unpackers
+#          <otto@jyu.fi> 03/01/92
+# V1.7     Automatic inclusion of .doc files <otto@jyu.fi> 08/01/92
+# V1.7a    Added the file tag to the prototype .doc file, some fixes to the
+#          manual pages for reposting <otto@jyu.fi> 26/01/92
+#
+#	makepost [-filetag] filename [newsgroup [lines]]
+# Where:
+#	filetag is the subject tag [Female]
+#	filename is the binary file to be posted
+#	newsgroup is where it should be posted [alt.binaries.pictures]
+#	lines is into how many lines the file should be split [1000]
+set ourversion='1.7a'
+X
+# Uses: /bin/cat, /bin/rm, /bin/grep, sed, awk, uusplit and the selected editor
+X
+# --- Configurable stuff ---
+# These set the temporary posting file names
+set description="/tmp/$$-description" posting="/tmp/$$-posting."
+set header="/tmp/$$-header"
+# This produces about 60k files with uuencoded stuff
+# (The first file is a bit longer than the rest (text comments and checksums),
+# the last file may be shorter, actually it might be only one line !)
+# (fixme: would be a lot neater if all the files would be about equal size,
+# but then it would be real hard to figure out how they were split)
+set lines=1000
+# What editor should be used to edit the header file, if EDITOR is not set
+if ( ! $?EDITOR ) set EDITOR="emacs"
+# Default newsgroup(s) to go to, if none specified
+set newsgroup="alt.sex.pictures alt.binaries.pictures.erotica"
+# What default file tag will be included
+set filetag=" [Female]"
+# Where we search for existing newsgroup names OR our NNTP server name
+# (This is unfortunately [BC]news & local configuration dependent)
+#set NNTP_SERVER="lee-2.seas.ucla.edu"
+set activegroups="/usr/lib/news/active"
+#
+# --- End configuration section ---
+X
+set ourname=$0
+set ourname=${ourname:t}
+X
+if ( $#argv >= 1 && "$1" =~ -* ) then
+X	set filetag=`echo "$1" | cut -c2-`
+X	if ( "$filetag" != '' ) set filetag=" [${filetag}]"
+#	echo "filetag:${filetag}"
+X	shift
+endif
+X
+if ( ! $#argv ) then
+X	echo "usage: ${ourname} [-filetag] filename ['newsgroup...' [lines]]"
+X	exit
+endif
+X
+if ( $#argv >= 2 ) set newsgroup=`echo "$2" | sed 's/,/ /g'`
+if ( $#argv >= 3 ) set lines="$3"
+if ( $#argv >= 4 ) echo "${ourname}: warning - extra arguments ($4...) ignored"
+X
+# Verify that the given filename exists in the first place !
+if ( ! -f $1 ) then
+X	echo "${ourname}: file $1 does not exist or is not a plain file"
+X	exit
+endif
+X
+# Get some interesting things about the user
+if ( $?USER ) then
+X	set logname=$USER
+else if ( $?LOGNAME ) then
+X	set logname=$LOGNAME
+else if ( -x /usr/ucb/whoami ) then
+X	set logname=`/usr/ucb/whoami`
+else
+X	set logname=`who am i`
+X	set logname=`echo $logname[1]|sed 's/^.*[\\!:]//'`
+endif
+X
+# This won't produce results if we are working in a NIS (ex-YP) environment
+if ( ! $?FULLNAME ) then
+X    set FULLNAME=`sed </etc/passwd -e "/^$logname\:/{s/^[^\:]*\:[^\:]*\:[^\:]*\:[^\:]*\:\([^,\:;]*\).*"'$'"/\1/" -e "q" -e "}" -e "d"`
+endif
+if ( "$FULLNAME". == '.' ) then
+X	set fullname
+else
+X	set fullname="(${FULLNAME})"
+endif
+X
+# Figure out our domain
+if ( ! $?DOMAIN )then
+set DOMAIN
+X    if ( -r /etc/resolv.conf ) then
+X	set d=`fgrep domain /etc/resolv.conf`
+X	if ( $status == 0 ) then
+X	    set DOMAIN=.$d[2]
+X	endif
+X    endif
+endif
+X
+# And our site name
+set sitename=`hostname`
+if ( $sitename !~ *.* ) set sitename=${sitename}${DOMAIN}
+X
+# If running through NNTP server, get active list from there
+if ( $?NNTP_SERVER ) then
+X	echo -n "${ourname}: getting active list from server..."
+X	set activegroups="/tmp/$$-activegroups"
+X	(echo "open ${NNTP_SERVER} nntp"; sleep 5; echo "LIST"; sleep 5; \
+X	echo "QUIT") | telnet >& ${activegroups}
+X	if ( -z $activegroups ) then
+X		echo " failed"
+X		echo "${ourname}: did not get active list from ${NNTP_SERVER}"
+X		/bin/rm -f ${activegroups}
+X		exit
+X	else
+X		echo " done"
+X	endif
+endif
+X
+# Verify that the specified newsgroup exists on this system
+if ( ! -f ${activegroups} ) then
+X	echo "${ourname}: cannot find active newsgroup file (tried ${activegroups})"
+X	exit
+endif
+X
+# At least one of the specified newsgroups must exist
+# Direct followups to appropriate .d (discussion) groups, if they exist
+set nogroups followup
+foreach thisgroup ( ${newsgroup} )
+X	/bin/grep -s "^${thisgroup} " ${activegroups}
+X	if ( ! $status ) unset nogroups
+X	/bin/grep -s "^${thisgroup}.d " ${activegroups}
+X	if ( $status ) then
+X		set followup="${followup} ${thisgroup}"
+X	else
+X		set followup="${followup} ${thisgroup}.d"
+X	endif
+end
+set newsgroup=`echo "$newsgroup" | sed 's/ /,/g'`
+set followup=`echo $followup | sed 's/ /,/g'`
+X
+if ( $?NNTP_SERVER ) /bin/rm -f ${activegroups}
+X
+if( $?nogroups ) then
+X	echo "${ourname}: none of the newsgroups '${newsgroup}' exist here"
+X	exit	
+endif
+X
+# Create header file, then edit it.
+if ( -f $1.doc ) then
+X	/bin/cp $1.doc ${description}
+else
+X	set document=$1
+X	set document=${document:r}.doc
+X	if ( -f $document ) then
+X		/bin/cp ${document} ${description}
+X	else
+X		echo "(Edit description for file $1$filetag in place of this line)" >! ${description}
+X	endif
+endif
+X
+$EDITOR ${description}
+X
+if ( ! -f ${description} ) then
+X    echo "${ourname}: description file removed, exiting"
+X    exit
+endif
+X
+# Then append checksums to description and create posting files
+uusplit $1 ${description} ${posting} ${lines}
+X
+# Calculate how many files we just created
+set total=`echo ${posting}[a-z][a-z] | wc -w`
+X
+set P
+if ( $total > 1 ) set P='s'
+echo -n "${total} part${P}:"
+X
+# Isn't there a nicer way to do this ?
+if ( $total <= 9 ) set total="0${total}"
+set number=1
+foreach part (${posting}[a-z][a-z])
+X	echo -n " ${number}"
+X	if ( $number <= 9 ) set number="0${number}"
+X	@ lines = `cat ${description} ${part} | wc -l` + 3
+X	cat <<//EOF > ${header}
+Path: ${logname}
+XFrom: ${logname}@$sitename $fullname
+Newsgroups: ${newsgroup}
+Followup-to: ${followup}
+Subject: $1 (part ${number}/${total})${filetag}
+Lines: ${lines}
+XX-Posting-software: makepost ${ourversion}
+XX-File-Name: $1
+XX-Part: $number
+XX-Part-Total: $total
+X
+//EOF
+X	(/bin/cat ${header} ${description}; \
+X	echo "$1 part${number}/${total}"; \
+X	echo "BEGIN--cut here--cut here"; \
+X	/bin/cat ${part}; \
+X	echo "END--cut here--cut here") | inews -h
+X	cat /dev/null >! ${description}
+X	/bin/rm -f ${part}
+X	@ number++
+end
+X
+/bin/rm -f ${description} ${header}
+echo ""
+# The End.
+SHAR_EOF
+chmod 0755 makepost ||
+echo 'restore of makepost failed'
+Wc_c="`wc -c < 'makepost'`"
+test 7140 -eq "$Wc_c" ||
+	echo 'makepost: original size 7140, current size' "$Wc_c"
+fi
+# ============= makepost.l ==============
+if test -f 'makepost.l' -a X"$1" != X"-c"; then
+	echo 'x - skipping makepost.l (File already exists)'
+else
+echo 'x - extracting makepost.l (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'makepost.l' &&
+.\" Revision Level  1.7
+.\" Last Delta     26/01/92
+.TH MAKEPOST 1
+.SH NAME
+makepost \- Post binary file given as argument to a newsgroup
+.SH SYNOPSIS
+.B makepost
+[
+.IB -filetag
+]
+.IB filename
+[
+.IB newsgroup
+[
+.IB lines
+]
+]
+.SH DESCRIPTION
+This program is used to post a given binary file to a newsgroup or several
+newsgroups.  The given file is uuencoded, split and equipped with a checksum
+header.  Then, the editor specified by the environment variable
+.B $EDITOR
+is spawned (or emacs, if
+.B $EDITOR
+is not set), for editing a file description for the posting.  If a file with
+the same name and the extension \*(lq.doc\*(rq exists, it is taken as the
+initial description file.
+After you exit the editor, the split files prepended with the description
+are posted to the appropriate newsgroup using
+.BR inews(1).
+.SH OPTIONS
+.TP
+.IB filetag
+This specifies the filetype tag that is put into the posting
+\*(lqSubject:\*(rq header.  The (rather chauvinistic) default
+is \*(lqFemale\*(rq.
+.TP
+.IB newsgroup
+This option specifies the newsgroup(s) for the posting.  Separate the
+newsgroup names with commas.  If none is specified, the dynamic duo of
+.I alt.sex.pictures
+and
+.I alt.binaries.pictures.erotica
+is assumed.
+.TP
+.IB lines
+This specifies the lines per posting created from the split file.  The actual
+number of lines will be slightly larger in the first posting due to the
+checksum header information, and less in the last created posting.
+The default is 1000 lines, which makes for about 60k postings.
+.SH SEE ALSO
+.BR makemail(1),
+.BR uusplit(1),
+.BR inews(1)
+.SH NOTES
+The rather strange format of created postings emulates the one used on
+.I comp.binaries.ibm.pc
+except for the filetag type field insisted on originally by
+.I alt.sex.pictures
+readership.
+X
+Some news readers (notably, some versions of \*(lqnn\*(rq) seem to barf
+on the BEGIN and END (note capitalization) lines generated.  Too bad,
+I didn't invent the posting format and I'm not about to change it.
+X
+A \*(lqFollowup-to:\*(rq header is generated for the appropriate
+discussion group(s), if existant.  Thus, the default is for a
+\*(lqFollowup-to: alt.sex.pictures.d,alt.binaries.pictures.erotica.d\*(rq
+header to be inserted.
+X
+The special header fields \*(lqX-File-Name\*(rq, \*(lqX-Part\*(rq and
+\*(lqX-Part-Total\*(rq are generated to make life easier for automated
+unpackers.  None of the other special-use fields are created, though,
+because they would require lots of specialised decoding of the binary
+being posted and/or information input from the user doing the posting.
+.SH BUGS
+It is possible that a last part of a multipart posting is very short, even
+only of the uuencode \*(lqend\*(rq line.
+.SH FILES
+/tmp is used extensively for temporary files.
+.SH DIAGNOSTICS
+Error messages for nonexistant files and newsgroups.
+Warning messages for extra and misformed arguments.
+Quits if you delete the edited header file
+.SH AUTHORS
+Otto J. Makela <otto@jyu.fi>,
+Steve Woods <scw@seas.ucla.edu> NNTP support enhancements
+SHAR_EOF
+chmod 0644 makepost.l ||
+echo 'restore of makepost.l failed'
+Wc_c="`wc -c < 'makepost.l'`"
+test 2998 -eq "$Wc_c" ||
+	echo 'makepost.l: original size 2998, current size' "$Wc_c"
+fi
+# ============= uusplit ==============
+if test -f 'uusplit' -a X"$1" != X"-c"; then
+	echo 'x - skipping uusplit (File already exists)'
+else
+echo 'x - extracting uusplit (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'uusplit' &&
+#!/bin/csh -f
+# Split a large file into summary header and several uuencoded portions
+# Otto J. Makela <otto@jyu.fi> version 1.42 (14/03/91)
+#
+#	uusplit filename [headername [partname [lines]]]
+# Where:
+#	filename is the file to be uuencoded and split
+#	headername is the name of the summary header [filename.header]
+#	partname is the name of the split files [filename.uue.XX]
+#	linecount is the number of lines per file [1000]
+X
+# Uses: /bin/rm, /bin/chmod, sum, split and uuencode (the last ones without
+# /bin, since the location varies) and optionally brik (location varies also)
+X
+# --- Configurable stuff ---
+# These set the default header and part file names (set from $1 !)
+set header="$1.header" parts="$1.uue."
+# This default produces about 60k files with uuencoded stuff
+set lines=1000
+# The following line should read "sum -r" if this is a SysV environment
+set sum="sum"
+# Brik CRC for whole file wanted ?
+set dobrik=1
+# --- End configuration section ---
+X
+set ourname=$0
+set ourname=${ourname:t}
+X
+if ( ! $#argv ) then
+X	echo "usage: ${ourname} filename [headername [partname [lines]]]"
+X	exit
+endif
+X
+if ( $#argv >= 2 ) set header=$2
+if ( $#argv >= 3 ) set parts=$3
+if ( $#argv >= 4 ) set lines=$4
+if ( $#argv >= 5 ) echo "${ourname}: warning - extra arguments ($5...) ignored"
+X
+# Verify arguments
+if ( ! -f $1 ) then
+X	echo "${ourname}: file $1 does not exist or is not a plain file"
+X	exit
+endif
+X
+@ lines += 0
+if ( $status ) then
+X	echo "${ourname}: nonnumeric lines value $lines (1000 assumed)"
+X	set lines=1000
+endif
+X
+# Chmod the file to reasonable and remove possibly existing split fragments
+/bin/chmod 644 $1
+if ( -f ${parts}aa ) /bin/rm -f ${parts}[a-z][a-z]
+X
+# First uuencode the file, and split it
+# (add blank line after uuencoded stuff 'cause some uudecoders have problems
+# decoding unless there is a blank line following the "end" line)
+( uuencode $1 $1; echo "" ) | split -${lines} - ${parts}
+X
+# Calculate how many files we just created
+set total=`echo ${parts}[a-z][a-z] | wc -w`
+# Isn't there a nicer way to do this ?
+if ( $total <= 9 ) set total="0${total}"
+X
+# The header file is either created or appended !
+echo "[" >>! ${header}
+echo 'Checksums obtained with the 4.3BSD "sum" or System V "sum -r" command.' >> ${header}
+echo "" >> ${header}
+echo "Part checksums (from uuencoded stuff between BEGIN and END lines)" >> ${header}
+X
+# Then take each part and calculate the header information for it
+set number=1
+foreach part (${parts}[a-z][a-z])
+X	if ( $number <= 9 ) set number="0${number}"
+X	echo -n "part${number}	" >> ${header}
+X	${sum} ${part} >> ${header}
+X	@ number++
+end
+X
+# Then calculate original file information
+echo "" >> ${header}
+echo "Original file checksum" >> ${header}
+echo -n "$1	" >> ${header}
+${sum} $1 >> ${header}
+X
+# If required, add a Brik (binary) CRC for splitted file
+if ( $?dobrik ) then
+X	echo "" >> ${header}
+X	brik -Gb $1 >> ${header}
+endif
+X
+echo "]" >> ${header}
+echo "" >> ${header}
+X
+# The End.
+SHAR_EOF
+chmod 0755 uusplit ||
+echo 'restore of uusplit failed'
+Wc_c="`wc -c < 'uusplit'`"
+test 2941 -eq "$Wc_c" ||
+	echo 'uusplit: original size 2941, current size' "$Wc_c"
+fi
+# ============= uusplit.l ==============
+if test -f 'uusplit.l' -a X"$1" != X"-c"; then
+	echo 'x - skipping uusplit.l (File already exists)'
+else
+echo 'x - extracting uusplit.l (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'uusplit.l' &&
+.\" Revision Level  1.4
+.\" Last Delta     07/01/90
+.TH UUSPLIT 1
+.SH NAME
+uusplit \- Split binary file given as argument to multiple uuencoded files
+.SH SYNOPSIS
+.B uusplit
+.IB filename
+[
+.IB headername
+[
+.IB partname
+[
+.IB lines
+]
+]
+]
+.SH DESCRIPTION
+This program is used to split a given binary file to a series of uuencoded
+files plus a checksum header.  The checksum header contains output of
+.BR sum(1)
+for all the created uuencoded files and the original file, plus optionally a
+.BR brik(1)
+checksum.
+.SH OPTIONS
+.TP
+.IB headername
+Name of the file where the checksum header is generated.  The default is
+.IB filename \|.header
+.TP
+.IB partname
+Head name for the generated part files.  The default is
+.IB filename \|.uue.
+which forms filenames like
+.IB filename \|.uue.aa \|,
+.IB filename \|.uue.ab \|,
+.IB filename \|.uue.ac \|,
+etc.
+.TP
+.IB lines
+This specifies the lines per split file created.
+The default is 1000 lines, which makes for about 60k files.
+.SH SEE ALSO
+.BR makepost(1),
+.BR makemail(1),
+.BR sum(1),
+.BR brik(1),
+.BR split(1)
+.SH BUGS
+It is possible that a last part of a file is very short, even just the
+uuencode `end' line.
+X
+Assumes near-infinite filename length in true BSD fashion.  Pox on SysV.
+.SH DIAGNOSTICS
+Error messages for nonexistant files.
+Warning messages for extra and misformed arguments.
+.SH AUTHOR
+Otto J. Makela <otto@jyu.fi>
+SHAR_EOF
+chmod 0644 uusplit.l ||
+echo 'restore of uusplit.l failed'
+Wc_c="`wc -c < 'uusplit.l'`"
+test 1371 -eq "$Wc_c" ||
+	echo 'uusplit.l: original size 1371, current size' "$Wc_c"
+fi
+exit 0
+-- 
+   /* * * Otto J. Makela <otto@jyu.fi> * * * * * * * * * * * * * * * * * * */
+  /* Phone: +358 41 613 847, BBS: +358 41 211 562 (V.32bis/USR-HST,24h/d) */
+ /* Mail: Kauppakatu 1B18/SF-40100 Jyvaskyla/Finland, ICBM: 62.14N25.44E */
+/* * * Computers Rule 01001111 01001011 * * * * * * * * * * * * * * * * */

@@ -1,0 +1,2587 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 05/10)
+Message-ID: <1992Nov15.155156.20227@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:51:56 GMT
+Lines: 2574
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part05
+
+#!/bin/sh
+# this is tin.shar.05 (part 5 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 5; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X  #endif
+X  		switch (ch) {
+X  			case 'c':
+X***************
+X*** 202,208 ****
+X  
+X  			case 'f':	/* active (tind) / newsrc (tin) file */
+X  #ifdef INDEX_DAEMON
+X! 				my_strncpy (active_file, optarg, sizeof (active_file));
+X  #else
+X  				my_strncpy (newsrc, optarg, sizeof (newsrc));
+X  #endif
+X--- 203,209 ----
+X  
+X  			case 'f':	/* active (tind) / newsrc (tin) file */
+X  #ifdef INDEX_DAEMON
+X! 				my_strncpy (news_active_file, optarg, sizeof (news_active_file));
+X  #else
+X  				my_strncpy (newsrc, optarg, sizeof (newsrc));
+X  #endif
+X***************
+X*** 215,222 ****
+X  
+X  #if !defined(NNTP_ONLY) || !defined(NNTP_XINDEX)
+X  			case 'I':
+X! 				my_strncpy (indexdir, optarg, sizeof (indexdir));
+X! 				mkdir (indexdir, 0777);
+X  				break;
+X  #endif
+X  			case 'm':
+X--- 216,223 ----
+X  
+X  #if !defined(NNTP_ONLY) || !defined(NNTP_XINDEX)
+X  			case 'I':
+X! 				my_strncpy (index_newsdir, optarg, sizeof (index_newsdir));
+X! 				mkdir (index_newsdir, 0777);
+X  				break;
+X  #endif
+X  			case 'm':
+X***************
+X*** 229,238 ****
+X--- 230,244 ----
+X  				update = TRUE;
+X  				catchup = TRUE;
+X  				break;
+X+ 
+X  			case 'p':
+X  				my_strncpy (cmd_line_printer, optarg, sizeof (cmd_line_printer));
+X  				break;
+X  
+X+ 			case 'P':	/* stat every art for a through purge */
+X+ 				purge_index_files = TRUE;
+X+ 				break;
+X+ 
+X  			case 'q':
+X  				check_for_new_newsgroups = FALSE;
+X  				break;
+X***************
+X*** 307,312 ****
+X--- 313,321 ----
+X  				exit (1);
+X  		}
+X  	}
+X+ 	cmdargs = argv;
+X+ 	num_cmdargs = optind;
+X+ 	max_cmdargs = argc;
+X  }
+X  
+X  /*
+X***************
+X*** 332,342 ****
+X  #ifndef INDEX_DAEMON
+X  	error_message ("  -H       help information about %s", progname);
+X  #endif
+X! 	error_message ("  -I dir   index file directory [default=%s]", indexdir);
+X  #ifndef INDEX_DAEMON
+X  	error_message ("  -m dir   mailbox directory [default=%s]", default_maildir);
+X  	error_message ("  -M user  mail new news to specified user (batch mode)", "");
+X  	error_message ("  -p file  print program with options [default=%s]", DEFAULT_PRINTER);
+X  	error_message ("  -q       quick start by not checking for new newsgroups", "");
+X  #  if defined(NNTP_ABLE) && !defined(NNTP_ONLY)
+X  	if (! read_news_via_nntp) {
+X--- 341,352 ----
+X  #ifndef INDEX_DAEMON
+X  	error_message ("  -H       help information about %s", progname);
+X  #endif
+X! 	error_message ("  -I dir   news index file directory [default=%s]", index_newsdir);
+X  #ifndef INDEX_DAEMON
+X  	error_message ("  -m dir   mailbox directory [default=%s]", default_maildir);
+X  	error_message ("  -M user  mail new news to specified user (batch mode)", "");
+X  	error_message ("  -p file  print program with options [default=%s]", DEFAULT_PRINTER);
+X+ 	error_message ("  -P       purge any expired articles from index files", "");
+X  	error_message ("  -q       quick start by not checking for new newsgroups", "");
+X  #  if defined(NNTP_ABLE) && !defined(NNTP_ONLY)
+X  	if (! read_news_via_nntp) {
+X***************
+X*** 343,349 ****
+X  		error_message ("  -r       read news remotely from default NNTP server", "");
+X  	}
+X  #  endif /* NNTP_ABLE */	
+X! 	error_message ("  -R       read news saved by -S option (not yet implemented)", "");
+X  	error_message ("  -s dir   save news directory [default=%s]", default_savedir);
+X  	error_message ("  -S       save new news for later reading (batch mode)", "");
+X  #  if !defined(NNTP_ONLY) || !defined(NNTP_XINDEX)
+X--- 353,359 ----
+X  		error_message ("  -r       read news remotely from default NNTP server", "");
+X  	}
+X  #  endif /* NNTP_ABLE */	
+X! 	error_message ("  -R       read news saved by -S option", "");
+X  	error_message ("  -s dir   save news directory [default=%s]", default_savedir);
+X  	error_message ("  -S       save new news for later reading (batch mode)", "");
+X  #  if !defined(NNTP_ONLY) || !defined(NNTP_XINDEX)
+X***************
+X*** 350,355 ****
+X--- 360,367 ----
+X  	error_message ("  -u       update index files (batch mode)", "");
+X  	error_message ("  -U       update index files in the background while reading news", "");
+X  #  endif /* NNTP_XINDEX */
+X+ #else
+X+ 	error_message ("  -P       purge any expired articles from index files", "");
+X  #endif /* INDEX_DAEMON */
+X  	error_message ("  -v       verbose output for batch mode options", "");
+X  #ifndef INDEX_DAEMON
+X***************
+X*** 517,519 ****
+X--- 529,560 ----
+X  	}
+X  }
+X  
+X+ 
+X+ int read_cmd_line_groups ()
+X+ {
+X+ 	char buf[PATH_LEN];
+X+ 	int matched = FALSE;
+X+ 	int num = num_cmdargs;
+X+ 	register int i;
+X+ 		
+X+ 	if  (num < max_cmdargs) {
+X+ 		group_top = 0;	
+X+ 	
+X+ 		while (num < max_cmdargs) {
+X+ 			sprintf (buf, "Matching %s groups...", cmdargs[num]);
+X+ 			wait_message (buf);
+X+ 			
+X+ 			for (i = 0 ; i < num_active ; i++) {
+X+ 				if (wildmat (active[i].name, cmdargs[num])) {		
+X+ 					if (add_group (active[i].name, TRUE) < 0) {
+X+ 						error_message (txt_not_in_active_file, active[i].name);
+X+ 					}
+X+ 				}	
+X+ 			}	
+X+ 			num++;
+X+ 		}
+X+ 		matched = TRUE;
+X+ 	}
+X+ 	
+X+ 	return (matched);
+X+ }
+Xdiff -rcs ../1.16/memory.c ./memory.c
+X*** ../1.16/memory.c	Sun Nov 15 18:41:55 1992
+X--- ./memory.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : memory.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 31-07-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : memory.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 25-10-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 20,26 ****
+X   * num_* values are one past top of used part of array
+X   */
+X  int max_active = 0;
+X! int num_active = 0;
+X  int max_active_size = 0;
+X  int num_active_size = 0;
+X  int max_art = 0;
+X--- 20,26 ----
+X   * num_* values are one past top of used part of array
+X   */
+X  int max_active = 0;
+X! int num_active = -1;
+X  int max_active_size = 0;
+X  int num_active_size = 0;
+X  int max_art = 0;
+X***************
+X*** 282,292 ****
+X--- 282,302 ----
+X  			free ((char *) active[i].attribute.savedir);
+X  			active[i].attribute.savedir = (char *) 0;
+X  		}
+X+ 		if (active[i].attribute.organization != (char *) 0 &&
+X+ 		    active[i].attribute.organization != default_organization) {
+X+ 			free ((char *) active[i].attribute.organization);
+X+ 			active[i].attribute.organization = (char *) 0;
+X+ 		}
+X  		if (active[i].attribute.sigfile != (char *) 0 &&
+X  		    active[i].attribute.sigfile != default_sigfile) {
+X  			free ((char *) active[i].attribute.sigfile);
+X  			active[i].attribute.sigfile = (char *) 0;
+X  		}
+X+ 		if (active[i].attribute.printer != (char *) 0 &&
+X+ 		    active[i].attribute.printer != default_printer) {
+X+ 			free ((char *) active[i].attribute.printer);
+X+ 			active[i].attribute.printer = (char *) 0;
+X+ 		}
+X  		if (active[i].attribute.followup_to != (char *) 0) {
+X  			free ((char *) active[i].attribute.followup_to);
+X  			active[i].attribute.followup_to = (char *) 0;
+X***************
+X*** 314,319 ****
+X--- 324,334 ----
+X  				free ((char *) active[i].description);
+X  				active[i].description = (char *) 0;
+X  			}
+X+ 			if (active[i].type == GROUP_TYPE_MAIL &&
+X+ 			    active[i].spooldir != (char *) 0) {
+X+ 				free ((char *) active[i].spooldir);
+X+ 				active[i].spooldir = (char *) 0;
+X+ 			}
+X  		}
+X  		
+X  		free_attributes_array ();
+X***************
+X*** 323,330 ****
+X  			active = (struct group_t *) 0;
+X  		}
+X  	}
+X! 	
+X! 	num_active = 0;
+X  }
+X  
+X  
+X--- 338,344 ----
+X  			active = (struct group_t *) 0;
+X  		}
+X  	}
+X! 	num_active = -1;
+X  }
+X  
+X  
+Xdiff -rcs ../1.16/misc.c ./misc.c
+X*** ../1.16/misc.c	Sun Nov 15 18:41:56 1992
+X--- ./misc.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : misc.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 06-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : misc.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 61,73 ****
+X  
+X  	while (fgets (buf, sizeof (buf), fp_ip) != NULL) {
+X  		if (fprintf (fp_op, "%s%s", prefix, buf) == EOF) {
+X  #ifdef EPIPE
+X  			if (errno == EPIPE) {
+X  				return;
+X  			}
+X  #endif
+X! 			sprintf (msg, "Error: fprintf() failed in copy_fp(). errno=%d", errno);
+X! 			perror_message (msg, "");
+X  		}
+X  	}
+X  }
+X--- 61,78 ----
+X  
+X  	while (fgets (buf, sizeof (buf), fp_ip) != NULL) {
+X  		if (fprintf (fp_op, "%s%s", prefix, buf) == EOF) {
+X+ 			sprintf (msg, "Failed copy_fp(). errno=%d", errno);
+X+ 			perror_message (msg, "");
+X  #ifdef EPIPE
+X  			if (errno == EPIPE) {
+X  				return;
+X  			}
+X  #endif
+X! #ifdef ENOSPC
+X! 			if (errno == ENOSPC) {
+X! 				return;
+X! 			}
+X! #endif
+X  		}
+X  	}
+X  }
+X***************
+X*** 116,122 ****
+X  int invoke_ispell (nam)
+X  	char *nam;
+X  {
+X! #ifdef USE_ISPELL
+X  	char buf[PATH_LEN];
+X  	char *my_ispell;
+X  	static char ispell[PATH_LEN];
+X--- 121,127 ----
+X  int invoke_ispell (nam)
+X  	char *nam;
+X  {
+X! #ifdef HAVE_ISPELL
+X  	char buf[PATH_LEN];
+X  	char *my_ispell;
+X  	static char ispell[PATH_LEN];
+X***************
+X*** 174,179 ****
+X--- 179,186 ----
+X  	sprintf (msg, "Shell Command (%s)", p);
+X  	center_line (0, TRUE, msg);
+X  	MoveCursor (INDEX_TOP, 0);
+X+ 
+X+ 	set_alarm_clock_off ();
+X  	
+X  	EndWin ();
+X  	Raw (FALSE);
+X***************
+X*** 193,198 ****
+X--- 200,207 ----
+X  	Raw (TRUE);
+X  	InitWin ();
+X  
+X+ 	set_alarm_clock_on ();
+X+ 
+X  	mail_setup ();
+X  
+X  	continue_prompt ();
+X***************
+X*** 207,213 ****
+X  	int ret;
+X  {
+X  	extern char index_file[PATH_LEN];
+X! 	char group_path[PATH_LEN], *p;
+X  	int ask = TRUE;
+X  	register int i, j;
+X  	
+X--- 216,222 ----
+X  	int ret;
+X  {
+X  	extern char index_file[PATH_LEN];
+X! 	char group_path[PATH_LEN];
+X  	int ask = TRUE;
+X  	register int i, j;
+X  	
+X***************
+X*** 227,246 ****
+X  				}
+X  				sprintf (msg, "Catchup %s...", active[my_group[i]].name);
+X  				wait_message (msg);
+X! 				my_strncpy (group_path, active[my_group[i]].name, sizeof (group_path));
+X! 				for (p = group_path ; *p ; p++) {
+X! 					if (*p == '.') {
+X! 						*p = '/';
+X  					}
+X! 				}
+X! 				index_group (active[my_group[i]].name, group_path);
+X! 				for (j = 0; j < top; j++) {
+X! 					arts[j].unread = ART_READ;
+X  				}
+X- 				update_newsrc (active[my_group[i]].name, my_group[i], FALSE);
+X  			}
+X  		}
+X  	}
+X  	nntp_close ();			/* disconnect from NNTP server */
+X  	free_all_arrays ();		/* deallocate all arrays */
+X  	ClearScreen ();
+X--- 236,252 ----
+X  				}
+X  				sprintf (msg, "Catchup %s...", active[my_group[i]].name);
+X  				wait_message (msg);
+X! 				make_group_path (active[my_group[i]].name, group_path);
+X! 				if (index_group (active[my_group[i]].name, group_path)) {
+X! 					for (j = 0; j < top; j++) {
+X! 						arts[j].unread = ART_READ;
+X  					}
+X! 					update_newsrc (active[my_group[i]].name, my_group[i], FALSE);
+X  				}
+X  			}
+X  		}
+X  	}
+X+ 	write_mail_active_file ();
+X  	nntp_close ();			/* disconnect from NNTP server */
+X  	free_all_arrays ();		/* deallocate all arrays */
+X  	ClearScreen ();
+X***************
+X*** 590,682 ****
+X  }
+X  
+X  /*
+X!  *  Parse various From: lines into the component mail addresses and
+X!  *  real names
+X   */
+X  
+X! void parse_from (str, addr, name)
+X! 	char *str;
+X! 	char *addr;
+X! 	char *name;
+X! {
+X! 	register int c;
+X! 	register char *cp, *ncp;
+X! 	int gotlt, lastsp, level;
+X! 
+X! 	gotlt = 0;
+X! 	lastsp = 0;
+X! 	cp = addr;
+X! 	ncp = name;
+X! 	while (*str == ' ')
+X! 		++str;
+X! 	while (c = *str++)
+X! 		switch (c) {
+X! 		case '(':
+X! 			ncp = name;
+X! 			level = 1;
+X! 			while (*str != '\0' && level) {
+X! 				switch (c = *str++) {
+X! 					case '(':
+X! 						*ncp++ = c;
+X! 						level++;
+X! 						break;
+X! 					case ')':
+X! 						level--;
+X! 						if (level > 0)
+X! 							*ncp++ = c;
+X! 						break;
+X! 					default:
+X! 						if (c != '"') {	/* IL */
+X! 							*ncp++ = c;
+X! 						}	
+X! 						break;
+X! 				}
+X! 			}
+X! 			if (*str)
+X! 				str++;
+X! 			lastsp = 0;
+X! 			break;
+X! 		case ' ':
+X! 			if (str[0] == 'a' && str[1] == 't' && str[2] == ' ')
+X! 				str += 3, *cp++ = '@';
+X! 			else if (str[0] == '@' && str[1] == ' ')
+X! 				str += 2, *cp++ = '@';
+X! 			else
+X! 				lastsp = 1;
+X! 			if (ncp > name)
+X! 				*ncp++ = ' ';
+X! 			break;
+X! 		case '<':
+X! 			cp = addr;
+X! 			gotlt++;
+X! 			lastsp = 0;
+X! 			break;
+X! 		case '>':
+X! 			if (gotlt)
+X! 				goto done;
+X! 			/* FALL THROUGH CASE */
+X! 		default:
+X! 			if (lastsp) {
+X! 				lastsp = 0;
+X! 				*cp++ = ' ';
+X! 			}
+X! 			*cp++ = c;
+X! 			if (! gotlt)
+X! 				*ncp++ = c;
+X! 			break;
+X! 		}
+X! done:
+X! 	*cp = 0;
+X! 	while (ncp>name && ncp[-1]==' ')
+X! 		--ncp;
+X! 	*ncp = 0;
+X! 	if (*addr == '@') {
+X! 		char buf [512];
+X! 
+X! 		strcpy (buf, addr);
+X! 		strcpy (addr, "root");
+X! 		strcat (addr, buf);
+X! 	}
+X  }
+X  
+X  /*
+X--- 596,756 ----
+X  }
+X  
+X  /*
+X!  * Returns the user name and E-mail address of the user
+X!  *
+X!  * Written by ahd 15 July 1989
+X!  * Borrowed from UUPC/extended with some mods by nms
+X   */
+X  
+X! void parse_from (from_line, eaddr, fname)
+X! 	char*	from_line;
+X! 	char*	eaddr;
+X! 	char*	fname;
+X! {
+X! 	char	*nonblank = NULL;
+X! 	char	name[LEN];		/* User full name */
+X! 	char	*nameptr = name;
+X! 	char	addr[LEN];		/* User e-mail address */
+X!  	char	*addrptr  = addr;
+X!   	char	state = 'A';		/* State = skip whitespace */
+X!  	char	newstate = 'A';		/* Next state to process */
+X!  	int	bananas = 0;		/* No () being processed now */
+X!  
+X!  	/*
+X!  	 *   Begin loop to copy the input field into the address and the
+X!  	 *   user name.  We will begin by copying both (ignoring whitespace
+X!  	 *   for addresses) because we won't know if the input field is an
+X!  	 *   address or a name until we hit either a special character of
+X!  	 *   some sort.
+X!  	 */
+X!  
+X!  	while ((*from_line != '\0') && (state != ',')) {
+X!  
+X!  		switch (state) {
+X!  
+X!  		case 'A':
+X!  			if (isspace(*from_line)) /* Found first non-blank? */
+X!  				break;           /* No --> keep looking */
+X!  
+X!  			nonblank = from_line;
+X!  			state = 'B';
+X!  			/* ... and fall through */
+X!  
+X!  		case 'B':
+X!  		case ')':
+X!  			newstate = *from_line;
+X!  			switch (*from_line) {
+X!  
+X!  			case '(':
+X!  				bananas++;
+X!  				break;
+X!  
+X!  			case '"':
+X!  				break;
+X!  
+X!  			case '<':
+X!  				addrptr = addr;   /* Start address over */
+X!  				nameptr = name;   /* Start name over again */
+X!  				from_line  = nonblank - 1;
+X!  
+X!  				/* Re-scan in new state */
+X!  
+X!  				newstate = '>';   /* Proc all-non <> as name */
+X!  				break;            /* Begin addr over again */
+X!  
+X!  			case ',':
+X!  				break;            /* Terminates address */
+X!  
+X!  			case '>':
+X!  			case ')':
+X!  				strcpy(eaddr, "error@hell");
+X!  				*fname = '\0';
+X!  				return;
+X!  
+X!  			default:
+X!  				newstate = state; /* stay in this state */
+X!  				if (!isspace(*from_line))
+X!  					*addrptr++ = *from_line;
+X!  			}  /* switch(*from_line) */
+X!  			break;
+X!  
+X!  		case '<':   
+X!  			if (*from_line == '>')
+X!  				newstate = '>';
+X!  			else if (isspace(*from_line))
+X!  				*nameptr++ = *from_line;
+X!  			else
+X!  				*addrptr++ = *from_line;
+X!  			break;
+X!  
+X!  		case '>':   
+X!  			if (*from_line == '<')
+X!  				newstate = '<';
+X!  			else
+X!  				*nameptr++ = *from_line;
+X!  			break;
+X!  
+X!  		case '(':   
+X!  			if (*from_line == '(')
+X!  				++bananas;
+X!  			else if (*from_line == ')')
+X!  				if (--bananas == 0) {
+X!  					newstate = ')';
+X!  					break;
+X!  				}
+X!  			*nameptr++ = *from_line;
+X!  			break;
+X!  
+X!  		case '"':   
+X!  			if (*from_line == '"')
+X!  				newstate = ')';
+X!  			else
+X!  				*nameptr++ = *from_line;
+X!  			break;
+X!  
+X!  		default:    
+X!  
+X!  			/* Logic error, bad state */
+X!  
+X!  			strcpy(eaddr, "error@nowhere");
+X!  			*fname = '\0';
+X!  			return;
+X!  		}  /* switch (state) */
+X!  		state = newstate;
+X!  		from_line++;
+X!  	} /* while */
+X!  
+X!  	*addrptr = '\0';
+X!  	*nameptr = '\0';
+X!  
+X!  	if (state == 'A') {
+X!  		strcpy(eaddr, "nobody@nowhere");
+X!  		*fname = '\0';
+X!  		return;
+X!   	}
+X!   
+X!  	strcpy(eaddr, addr);         /* Return the full address */
+X!  	if (state == 'B')
+X!  		strcpy(fname, "");
+X!  	else {
+X!  		while (--nameptr >= name) {
+X!  			if (isspace(*nameptr) || (*nameptr == '"'))
+X!  				*nameptr = '\0';
+X!  			else
+X!  				break;
+X!   		}
+X!   
+X!  		/* Strip leading blanks from the address */
+X!  
+X!  		nameptr = name;
+X!  		while ( *(nameptr) != '\0') {
+X!  			if (!(isspace(*nameptr) || (*nameptr == '"')))
+X!  				break;
+X!  			else
+X!  				nameptr++;
+X!  		}
+X!  		strcpy(fname, nameptr);
+X!  	}
+X  }
+X  
+X  /*
+X***************
+X*** 881,890 ****
+X  			strcpy (str, arts[respnum].from);
+X  			break;
+X  		case SHOW_FROM_NAME:
+X! 			strcpy (str, arts[respnum].name);
+X  			break;
+X  		case SHOW_FROM_BOTH:
+X! 			if (arts[respnum].name != arts[respnum].from) { 
+X  				sprintf (str, "%s (%s)", arts[respnum].name, arts[respnum].from);
+X  			} else { 
+X  				strcpy (str, arts[respnum].from);
+X--- 955,968 ----
+X  			strcpy (str, arts[respnum].from);
+X  			break;
+X  		case SHOW_FROM_NAME:
+X! 			if (arts[respnum].name) {
+X! 				strcpy (str, arts[respnum].name);
+X! 			} else {
+X! 				strcpy (str, arts[respnum].from);
+X! 			}
+X  			break;
+X  		case SHOW_FROM_BOTH:
+X! 			if (arts[respnum].name) { 
+X  				sprintf (str, "%s (%s)", arts[respnum].name, arts[respnum].from);
+X  			} else { 
+X  				strcpy (str, arts[respnum].from);
+X***************
+X*** 973,979 ****
+X  void create_index_lock_file (lock_file)
+X  	char *lock_file;
+X  {
+X! 	char buf[32];
+X  	FILE *fp;
+X  	long epoch;
+X  	struct stat sb;
+X--- 1051,1057 ----
+X  void create_index_lock_file (lock_file)
+X  	char *lock_file;
+X  {
+X! 	char buf[64];
+X  	FILE *fp;
+X  	long epoch;
+X  	struct stat sb;
+X***************
+X*** 1000,1002 ****
+X--- 1078,1404 ----
+X  	}
+X  }
+X  
+X+ /* 
+X+  * strfquote - produce formatted quote 
+X+  */
+X+ 
+X+ int strfquote (group, respnum, s, maxsize, format)
+X+ 	char *group;
+X+ 	int respnum;
+X+ 	char *s;
+X+ 	int maxsize;
+X+ 	char *format;
+X+ {
+X+ 	extern char note_h_date[PATH_LEN];
+X+ 	extern char note_h_messageid[PATH_LEN];
+X+ 	char *endp = s + maxsize;
+X+ 	char *start = s;
+X+ 	char tbuf[PATH_LEN];
+X+ 	int i;
+X+ 
+X+ 	if (s == (char *) 0 || format == (char *) 0 || maxsize == 0) {
+X+ 		return 0;
+X+ 	}
+X+ 
+X+ 	if (strchr (format, '%') == (char *) 0 && strlen (format) + 1 >= maxsize) {
+X+ 		return 0;
+X+ 	}
+X+ 
+X+ 	for (; *format && s < endp - 1; format++) {
+X+ 		tbuf[0] = '\0';
+X+ 
+X+ 		if (*format != '\\' && *format != '%') {
+X+ 			*s++ = *format;
+X+ 			continue;
+X+ 		}
+X+ 
+X+ 		if (*format == '\\') {
+X+ 			switch (*++format) {
+X+ 				case '\0':
+X+ 					*s++ = '\\';
+X+ 					goto out;
+X+ 				case 'n':	/* linefeed */
+X+ 					strcpy (tbuf, "\n");
+X+ 					break;
+X+ 				default:
+X+ 					tbuf[0] = '%';
+X+ 					tbuf[1] = *format;
+X+ 					tbuf[2] = '\0';
+X+ 					break;
+X+ 			}
+X+ 			i = strlen(tbuf);
+X+ 			if (i) {
+X+ 				if (s + i < endp - 1) {
+X+ 					strcpy (s, tbuf);
+X+ 					s += i;
+X+ 				} else {
+X+ 					return 0;
+X+ 				}
+X+ 			}
+X+ 		}
+X+ 		if (*format == '%') {
+X+ 			switch (*++format) {
+X+ 				case '\0':
+X+ 					*s++ = '%';
+X+ 					goto out;
+X+ 				case '%':
+X+ 					*s++ = '%';
+X+ 					continue;
+X+ 				case 'A':	/* Articles Email address */
+X+ 					strcpy (tbuf, arts[respnum].from);
+X+ 					break;
+X+ 				case 'D':	/* Articles Date */
+X+ 					strcpy(tbuf, note_h_date);
+X+ 					break;
+X+ 				case 'F':	/* Articles Address+Name */
+X+ 					if (arts[respnum].name) {
+X+ 						sprintf (tbuf, "%s (%s)",
+X+ 							arts[respnum].name,
+X+ 							arts[respnum].from);
+X+ 					} else {
+X+ 						strcpy (tbuf, arts[respnum].from);
+X+ 					}
+X+ 					break;
+X+ 				case 'G':	/* Groupname of Article */
+X+ 					strcpy (tbuf, group);
+X+ 					break;
+X+ 				case 'M':	/* Articles MessageId */
+X+ 					strcpy (tbuf, note_h_messageid);
+X+ 					break;
+X+ 				case 'N':	/* Articles Name of author */
+X+ 					strcpy (tbuf, arts[respnum].name);
+X+ 					break;
+X+ 				default:
+X+ 					tbuf[0] = '%';
+X+ 					tbuf[1] = *format;
+X+ 					tbuf[2] = '\0';
+X+ 					break;
+X+ 			}
+X+ 			i = strlen(tbuf);
+X+ 			if (i) {
+X+ 				if (s + i < endp - 1) {
+X+ 					strcpy (s, tbuf);
+X+ 					s += i;
+X+ 				} else {
+X+ 					return 0;
+X+ 				}
+X+ 			}
+X+ 		}
+X+ 	}	
+X+ out:
+X+ 	if (s < endp && *format == '\0') {
+X+ 		*s = '\0';
+X+ 		return (s - start);
+X+ 	} else
+X+ 		return 0;
+X+ }
+X+ 
+X+ /*
+X+  * strfpath - produce formatted pathname expansion. Handles following forms:
+X+  *   ~/News    -> /usr/iain/News
+X+  *   ~abc/News -> /usr/abc/News
+X+  *   $var/News -> /env/var/News
+X+  *   =file     -> /usr/iain/Mail/file
+X+  *   +file     -> /usr/iain/News/group.name/file
+X+  *   ~/News/%G -> /usr/iain/News/group.name
+X+  */
+X+ 
+X+ int strfpath (format, str, maxsize, homedir, maildir, savedir, group)
+X+ 	char *format;
+X+ 	char *str;
+X+ 	int maxsize;
+X+ 	char *homedir;
+X+ 	char *maildir;
+X+ 	char *savedir;
+X+ 	char *group;
+X+ {
+X+ 	char *endp = str + maxsize;
+X+ 	char *start = str;
+X+ 	char *envptr;
+X+ 	char *startp = format;
+X+ 	char buf[PATH_LEN];
+X+ 	char tbuf[PATH_LEN];
+X+ 	int i;
+X+ 	struct passwd *pwd;
+X+ 
+X+ 	if (str == (char *) 0 || format == (char *) 0 || maxsize == 0) {
+X+ 		return 0;
+X+ 	}
+X+ 
+X+ 	if (strlen (format) + 1 >= maxsize) {
+X+ 		return 0;
+X+ 	}
+X+ 
+X+ 	for (; *format && str < endp - 1; format++) {
+X+ 		tbuf[0] = '\0';
+X+ 
+X+ 		/*
+X+ 		 * If just a normal part of the pathname copy it
+X+ 		 */
+X+ 		if (! strchr ("~$=+", *format)) {
+X+ 			*str++ = *format;
+X+ 			continue;
+X+ 		}
+X+ 
+X+ 		switch (*format) {
+X+ 			case '~':	/* Users or another users homedir */
+X+ 				switch (*++format) {
+X+ 					case '/':	/* users homedir */
+X+ 						sprintf (tbuf, "%s/", homedir);
+X+ 						break;
+X+ 					default:	/* some other users homedir */
+X+ 						i = 0;
+X+ 						while (*format && *format != '/') {
+X+ 							tbuf[i++] = *format++;
+X+ 						}
+X+ 						tbuf[i] = '\0';
+X+ 						/*
+X+ 						 * OK lookup the username in/etc/passwd 
+X+ 						 */
+X+ 						pwd = getpwnam (tbuf);
+X+ 						if (pwd == (struct passwd *) 0) {
+X+ 							str[0] = '\0';
+X+ 							return 0;
+X+ 						} else {
+X+ 							sprintf (tbuf, "%s/", pwd->pw_dir);
+X+ 						}
+X+ 						break;
+X+ 				}
+X+ 				i = strlen (tbuf);
+X+ 				if (i) {
+X+ 					if (str + i < endp - 1) {
+X+ 						strcpy (str, tbuf);
+X+ 						str += i;
+X+ 					} else {
+X+ 						str[0] = '\0';
+X+ 						return 0;
+X+ 					}
+X+ 				}
+X+ 				break;
+X+ 			case '$':	/* Read the envvar and use its value */
+X+ 				i = 0;
+X+ 				format++;
+X+ 				while (*format && *format != '/') {
+X+ 					tbuf[i++] = *format++;
+X+ 				}
+X+ 				tbuf[i] = '\0';
+X+ 				/*
+X+ 				 * OK lookup the variable in the shells environment
+X+ 				 */
+X+ 				envptr = (char *) getenv (tbuf);
+X+ 				if (envptr == (char *) 0) {
+X+ 					str[0] = '\0';
+X+ 					return 0;
+X+ 				} else {
+X+ 					sprintf (tbuf, "%s/", envptr);
+X+ 				}
+X+ 				i = strlen (tbuf);
+X+ 				if (i) {
+X+ 					if (str + i < endp - 1) {
+X+ 						strcpy (str, tbuf);
+X+ 						str += i;
+X+ 					} else {
+X+ 						str[0] = '\0';
+X+ 						return 0;
+X+ 					}
+X+ 				}
+X+ 				break;
+X+ 			case '=':	
+X+ 				/* 
+X+ 				 * Shorthand for group maildir 
+X+ 				 * Only convert if 1st char in format
+X+ 				 */
+X+ 				if (startp == format && maildir != (char *) 0) {
+X+ 					sprintf (tbuf, "%s/", maildir);					
+X+ 					i = strlen (tbuf);
+X+ 					if (i) {
+X+ 						if (str + i < endp - 1) {
+X+ 							strcpy (str, tbuf);
+X+ 							str += i;
+X+ 						} else {
+X+ 							str[0] = '\0';
+X+ 							return 0;
+X+ 						}
+X+ 					}
+X+ 				} else {
+X+ 					*str++ = *format;
+X+ 				}
+X+ 				break;
+X+ 			case '+':
+X+ 				/* 
+X+ 				 * Shorthand for saving to savedir/groupname/file
+X+ 				 * Only convert if 1st char in format
+X+ 				 */
+X+ 				if (startp == format && savedir != (char *) 0) {
+X+ 					if (strfpath (savedir, buf, sizeof (buf), homedir,
+X+ 					    (char *) 0, (char *) 0, (char *) 0)) {
+X+ 						sprintf (tbuf, "%s/%s/", buf, group);
+X+ 						i = strlen (tbuf);
+X+ 						if (i) {
+X+ 							if (str + i < endp - 1) {
+X+ 								strcpy (str, tbuf);
+X+ 								str += i;
+X+ 							} else {
+X+ 								str[0] = '\0';
+X+ 								return 0;
+X+ 							}
+X+ 						}
+X+ 					} else {
+X+ 						str[0] = '\0';
+X+ 						return 0;
+X+ 					}
+X+ 				} else {
+X+ 					*str++ = *format;
+X+ 				}
+X+ 				break;
+X+ 			case '%':	/* Different forms of parsing cmds */
+X+ 				break;
+X+ 			default:
+X+ 				break;
+X+ 		}
+X+ 	}	
+X+ 
+X+ 	if (str < endp && *format == '\0') {
+X+ 		*str = '\0';
+X+ /*
+X+ clear_message ();
+X+ printf ("!!! format=[%s]  path=[%s]", startp, start);
+X+ fflush (stdout);
+X+ sleep (2);
+X+ */
+X+ 		return (str - start);
+X+ 	} else {
+X+ 		str[0] = '\0';
+X+ 		return 0;
+X+ 	}
+X+ }
+X+ 
+X+ 
+X+ void get_cwd (buf)
+X+ 	char *buf;
+X+ {
+X+ #ifdef DONT_HAVE_GETCWD
+X+ 	getwd (buf);
+X+ #else
+X+ 	getcwd (buf, PATH_LEN);
+X+ #endif
+X+ }
+X+ 
+X+ 
+X+ void make_group_path (name, path)
+X+ 	char *name;
+X+ 	char *path;
+X+ {
+X+ 	char *ptr;
+X+ 	
+X+ 	strcpy (path, name);
+X+ 	
+X+ 	ptr = path;
+X+ 	
+X+ 	while (*ptr) {
+X+ 		if (*ptr == '.') {
+X+ 			*ptr = '/';
+X+ 		}
+X+ 		ptr++;
+X+ 	}
+X+ }
+Xdiff -rcs ../1.16/newsrc.c ./newsrc.c
+X*** ../1.16/newsrc.c	Sun Nov 15 18:41:57 1992
+X--- ./newsrc.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : newsrc.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 23-08-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : newsrc.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 02-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 14,20 ****
+X  
+X  #include	"tin.h"
+X  
+X- 
+X  /*
+X   * Automatically subscribe user to newsgroups specified in
+X   * /usr/lib/news/subscribe (locally) or same file but from
+X--- 14,19 ----
+X***************
+X*** 55,61 ****
+X  
+X  void backup_newsrc ()
+X  {
+X! 	char buf[8192];
+X  	FILE *fp_newsrc, *fp_backup;
+X  	
+X  	if ((fp_newsrc = fopen (newsrc, "r")) != NULL) {
+X--- 54,60 ----
+X  
+X  void backup_newsrc ()
+X  {
+X! 	char buf[NEWSRC_LINE];
+X  	FILE *fp_newsrc, *fp_backup;
+X  	
+X  	if ((fp_newsrc = fopen (newsrc, "r")) != NULL) {
+X***************
+X*** 80,87 ****
+X  void read_newsrc (sub_only)
+X  	int sub_only;		/* TRUE=subscribed groups only, FALSE=all groups */
+X  {
+X! 	char c, *p, buf[8192];
+X! 	char old_groups[LEN];
+X  	FILE *fp = (FILE *) 0;
+X  	FILE *fp_old = (FILE *) 0;
+X  	int i;
+X--- 79,86 ----
+X  void read_newsrc (sub_only)
+X  	int sub_only;		/* TRUE=subscribed groups only, FALSE=all groups */
+X  {
+X! 	char c, *p, buf[NEWSRC_LINE];
+X! 	char old_groups[PATH_LEN];
+X  	FILE *fp = (FILE *) 0;
+X  	FILE *fp_old = (FILE *) 0;
+X  	int i;
+X***************
+X*** 92,98 ****
+X  reread_newsrc:
+X  
+X  	/* 
+X! 	 * make a .newsrc if one does not exist & auto subscribe to set groups
+X  	 */
+X  	if ((fp = fopen (newsrc, "r")) == NULL) {
+X  		if (auto_subscribe_groups ()) {
+X--- 91,97 ----
+X  reread_newsrc:
+X  
+X  	/* 
+X! 	 * make a .newsrc if one does'nt exist & auto subscribe to set groups
+X  	 */
+X  	if ((fp = fopen (newsrc, "r")) == NULL) {
+X  		if (auto_subscribe_groups ()) {
+X***************
+X*** 131,142 ****
+X  			if (! remove_old_groups) {
+X  				if ((fp_old = fopen (old_groups, "w")) == NULL) {
+X  					perror_message (txt_cannot_open, old_groups);
+X! 				    continue;
+X  				}
+X  				remove_old_groups = TRUE;
+X  			}
+X! 		    fprintf (fp_old, "%s\n", buf);
+X! 		    continue;
+X  		}
+X  
+X  		if (c != '!') {		/* if we're subscribed to it */
+X--- 130,141 ----
+X  			if (! remove_old_groups) {
+X  				if ((fp_old = fopen (old_groups, "w")) == NULL) {
+X  					perror_message (txt_cannot_open, old_groups);
+X! 					continue;
+X  				}
+X  				remove_old_groups = TRUE;
+X  			}
+X! 			fprintf (fp_old, "%s\n", buf);
+X! 			continue;
+X  		}
+X  
+X  		if (c != '!') {		/* if we're subscribed to it */
+X***************
+X*** 153,158 ****
+X--- 152,158 ----
+X  	if (remove_old_groups) {
+X  		fclose (fp_old);
+X  		rewrite_newsrc ();
+X+ 		unlink (old_groups);
+X  	}
+X  }
+X  
+X***************
+X*** 168,174 ****
+X  	FILE *fp;
+X  	int i;
+X  
+X! 	if ((fp = fopen (newsrc, "w")) == NULL) {
+X  		return;
+X  	}
+X  
+X--- 168,174 ----
+X  	FILE *fp;
+X  	int i;
+X  
+X! 	if ((fp = fopen (newsrc, "w")) == (FILE *) 0) {
+X  		return;
+X  	}
+X  
+X***************
+X*** 175,181 ****
+X  	wait_message (txt_creating_newsrc);
+X  
+X  	for (i=0 ; i < num_active ; i++) {
+X! 		fprintf (fp, "%s! \n", active[i].name);
+X  	}
+X  
+X  	fclose (fp);
+X--- 175,181 ----
+X  	wait_message (txt_creating_newsrc);
+X  
+X  	for (i=0 ; i < num_active ; i++) {
+X! 		fprintf (fp, "%s:\n", active[i].name);
+X  	}
+X  
+X  	fclose (fp);
+X***************
+X*** 187,194 ****
+X  
+X  void rewrite_newsrc ()
+X  {
+X! 	char buf[8192], old[LEN];
+X! 	char old_groups[LEN];
+X  	FILE *fp, *fp_old, *fp_new;
+X  	int found_old_group, len;	
+X  
+X--- 187,195 ----
+X  
+X  void rewrite_newsrc ()
+X  {
+X! 	char buf[NEWSRC_LINE];
+X! 	char old[NEWSRC_LINE];
+X! 	char old_groups[PATH_LEN];
+X  	FILE *fp, *fp_old, *fp_new;
+X  	int found_old_group, len;	
+X  
+X***************
+X*** 244,254 ****
+X  	char *group;
+X  {
+X  	FILE *fp;
+X! 	char buf[8192];
+X  	char *p;
+X  
+X! 	if ((fp = fopen (newsrc, "r")) == NULL)
+X  		return;
+X  
+X  	while (fgets (buf, sizeof buf, fp) != NULL) {
+X  		p = buf;
+X--- 245,256 ----
+X  	char *group;
+X  {
+X  	FILE *fp;
+X! 	char buf[NEWSRC_LINE];
+X  	char *p;
+X  
+X! 	if ((fp = fopen (newsrc, "r")) == NULL) {
+X  		return;
+X+ 	}
+X  
+X  	while (fgets (buf, sizeof buf, fp) != NULL) {
+X  		p = buf;
+X***************
+X*** 273,283 ****
+X  	int groupnum;			/* index into active[] for this group */
+X  	int mark_unread;
+X  {
+X  	FILE *fp;
+X  	FILE *newfp;
+X- 	char buf[8192];
+X- 	char *p;
+X- 	char c;
+X  
+X  	if ((newfp = fopen (newnewsrc, "w")) == NULL) {
+X  		goto update_done;
+X--- 275,284 ----
+X  	int groupnum;			/* index into active[] for this group */
+X  	int mark_unread;
+X  {
+X+ 	char buf[NEWSRC_LINE];
+X+ 	char c, *p;
+X  	FILE *fp;
+X  	FILE *newfp;
+X  
+X  	if ((newfp = fopen (newnewsrc, "w")) == NULL) {
+X  		goto update_done;
+X***************
+X*** 334,344 ****
+X  	int num;
+X  	int out_seq;				/* output sequencer info? */
+X  {
+X  	FILE *fp;
+X  	FILE *newfp;
+X- 	char buf[8192];
+X- 	char *p;
+X- 	char c;
+X  	int gotit = FALSE;
+X  
+X  	if (ch == '!') {
+X--- 335,344 ----
+X  	int num;
+X  	int out_seq;				/* output sequencer info? */
+X  {
+X+ 	char buf[NEWSRC_LINE];
+X+ 	char c, *p;
+X  	FILE *fp;
+X  	FILE *newfp;
+X  	int gotit = FALSE;
+X  
+X  	if (ch == '!') {
+X***************
+X*** 402,412 ****
+X  
+X  void reset_newsrc ()
+X  {
+X  	FILE *fp;
+X  	FILE *newfp;
+X- 	char buf[8192];
+X- 	char *p;
+X- 	char c;
+X  	int i;
+X  
+X  	if ((newfp = fopen (newnewsrc, "w")) == NULL)
+X--- 402,411 ----
+X  
+X  void reset_newsrc ()
+X  {
+X+ 	char buf[NEWSRC_LINE];
+X+ 	char c, *p;
+X  	FILE *fp;
+X  	FILE *newfp;
+X  	int i;
+X  
+X  	if ((newfp = fopen (newnewsrc, "w")) == NULL)
+X***************
+X*** 454,464 ****
+X  	int gotit = FALSE;
+X  	FILE *del;
+X  
+X! 	if ((newfp = fopen (newnewsrc, "w")) == NULL)
+X  		goto del_done;
+X  
+X! 	if ((del = fopen (delgroups, "a+")) == NULL)
+X  		goto del_done;
+X  
+X  	if ((fp = fopen (newsrc, "r")) != NULL) {
+X  		while (fgets (buf, sizeof (buf), fp) != NULL) {
+X--- 453,466 ----
+X  	int gotit = FALSE;
+X  	FILE *del;
+X  
+X! 	if ((newfp = fopen (newnewsrc, "w")) == NULL) {
+X  		goto del_done;
+X+ 	}
+X  
+X! 	if ((del = fopen (delgroups, "a+")) == NULL) {
+X! 		fclose (newfp);
+X  		goto del_done;
+X+ 	}
+X  
+X  	if ((fp = fopen (newsrc, "r")) != NULL) {
+X  		while (fgets (buf, sizeof (buf), fp) != NULL) {
+X***************
+X*** 483,494 ****
+X  				fprintf (newfp, "%s%c%s\n", buf, c, p);
+X  		}
+X  		fclose (fp);
+X  	}
+X  
+X- 	fclose (newfp);
+X- 
+X  	if (! gotit)
+X! 		fprintf (del, "%s! \n", group);
+X  
+X  	fclose (del);
+X  	rename_file (newnewsrc, newsrc);
+X--- 485,495 ----
+X  				fprintf (newfp, "%s%c%s\n", buf, c, p);
+X  		}
+X  		fclose (fp);
+X+ 		fclose (newfp);
+X  	}
+X  
+X  	if (! gotit)
+X! 		fprintf (del, "%s!\n", group);
+X  
+X  	fclose (del);
+X  	rename_file (newnewsrc, newsrc);
+X***************
+X*** 500,514 ****
+X  
+X  int undel_group ()
+X  {
+X  	FILE *del;
+X  	FILE *newfp;
+X  	FILE *fp;
+X! 	char buf[2][8192];
+X! 	char *p;
+X  	int which = 0;
+X  	long h;
+X- 	int i, j;
+X- 	char c;
+X  
+X  	if ((del = fopen (delgroups, "r")) == NULL) {
+X  		return FALSE;
+X--- 501,514 ----
+X  
+X  int undel_group ()
+X  {
+X+ 	char buf[2][NEWSRC_LINE];
+X+ 	char c, *p;
+X  	FILE *del;
+X  	FILE *newfp;
+X  	FILE *fp;
+X! 	int i, j;
+X  	int which = 0;
+X  	long h;
+X  
+X  	if ((del = fopen (delgroups, "r")) == NULL) {
+X  		return FALSE;
+X***************
+X*** 630,640 ****
+X  	char *group;
+X  	int groupnum;			/* index into active[] for this group */
+X  {
+X  	FILE *fp;
+X  	FILE *newfp;
+X- 	char buf[8192];
+X- 	char *p;
+X- 	char c;
+X  
+X  	if (active[groupnum].max < 2)
+X  		return;
+X--- 630,639 ----
+X  	char *group;
+X  	int groupnum;			/* index into active[] for this group */
+X  {
+X+ 	char buf[NEWSRC_LINE];
+X+ 	char c, *p;
+X  	FILE *fp;
+X  	FILE *newfp;
+X  
+X  	if (active[groupnum].max < 2)
+X  		return;
+X***************
+X*** 715,725 ****
+X  	char *s;
+X  	int groupnum;			/* index for group in active[] */
+X  {
+X  	long low, high;
+X  	long last_high;
+X- 	int sum = 0;
+X- 	int gotone = FALSE;
+X- 	int n;
+X  
+X  	high = 0;
+X  
+X--- 714,723 ----
+X  	char *s;
+X  	int groupnum;			/* index for group in active[] */
+X  {
+X+ 	int n, sum = 0;
+X+ 	int gotone = FALSE;
+X  	long low, high;
+X  	long last_high;
+X  
+X  	high = 0;
+X  
+X***************
+X*** 727,735 ****
+X  		while (*s && (*s < '0' || *s > '9')) {
+X  			s++;
+X  		}	
+X! 
+X  		if (*s && *s >= '0' && *s <= '9') {
+X  			low = (long) atol (s);
+X  			while (*s && *s >= '0' && *s <= '9')
+X  				s++;
+X  			if (*s == '-') {
+X--- 725,736 ----
+X  		while (*s && (*s < '0' || *s > '9')) {
+X  			s++;
+X  		}	
+X! #if 0
+X  		if (*s && *s >= '0' && *s <= '9') {
+X  			low = (long) atol (s);
+X+ #endif
+X+ 		if (!*s || *s >= '0' && *s <= '9') {
+X+ 			low = *s ? (long) atol (s) : 0L;
+X  			while (*s && *s >= '0' && *s <= '9')
+X  				s++;
+X  			if (*s == '-') {
+X***************
+X*** 790,802 ****
+X  }
+X  
+X  
+X! int get_line_unread(group, groupnum)
+X  	char *group;
+X  	int groupnum;				/* index for group in active[] */
+X  {
+X  	FILE *fp;
+X- 	char buf[8192];
+X- 	char *p;
+X  	int ret = -1;
+X  
+X  	if ((fp = fopen(newsrc, "r")) == NULL)
+X--- 791,802 ----
+X  }
+X  
+X  
+X! int get_line_unread (group, groupnum)
+X  	char *group;
+X  	int groupnum;				/* index for group in active[] */
+X  {
+X+ 	char *p, buf[NEWSRC_LINE];
+X  	FILE *fp;
+X  	int ret = -1;
+X  
+X  	if ((fp = fopen(newsrc, "r")) == NULL)
+X***************
+X*** 825,832 ****
+X  	int groupnum;			/* index into active[] for this group */
+X  {
+X  	long int artnum, last_read, artmax;
+X! 	int i;
+X! 	int flag = FALSE;
+X  	
+X  	assert(top >= 0);
+X  
+X--- 825,831 ----
+X  	int groupnum;			/* index into active[] for this group */
+X  {
+X  	long int artnum, last_read, artmax;
+X! 	int i, flag = FALSE;
+X  	
+X  	assert(top >= 0);
+X  
+X***************
+X*** 903,912 ****
+X  	char *group;
+X  	int pos;
+X  {
+X! 	char sub[1024];
+X! 	char unsub[1024];
+X! 	char buf[1024];
+X! 	char newsgroup[1024];
+X  	FILE *fp_in, *fp_out;
+X  	FILE *fp_sub, *fp_unsub;
+X  	int repositioned = FALSE;
+X--- 902,911 ----
+X  	char *group;
+X  	int pos;
+X  {
+X! 	char buf[NEWSRC_LINE];
+X! 	char newsgroup[NEWSRC_LINE];
+X! 	char sub[PATH_LEN];
+X! 	char unsub[PATH_LEN];
+X  	FILE *fp_in, *fp_out;
+X  	FILE *fp_sub, *fp_unsub;
+X  	int repositioned = FALSE;
+X***************
+X*** 922,929 ****
+X  		goto rewrite_group_done;
+X  	}
+X  
+X! 	sprintf (sub, "/tmp/.subrc.%d", process_id);
+X! 	sprintf (unsub, "/tmp/.unsubrc.%d", process_id);
+X  
+X  	if ((fp_sub = fopen (sub, "w")) == NULL) {
+X  		goto rewrite_group_done;
+X--- 921,931 ----
+X  		goto rewrite_group_done;
+X  	}
+X  
+X! 	joinpath (buf, TMPDIR, ".subrc");
+X! 	sprintf (sub, "%s.%d", buf, process_id);
+X! 
+X! 	joinpath (buf, TMPDIR, ".unsubrc");
+X! 	sprintf (unsub, "%s.%d", buf, process_id);
+X  
+X  	if ((fp_sub = fopen (sub, "w")) == NULL) {
+X  		goto rewrite_group_done;
+Xdiff -rcs ../1.16/nntplib.c ./nntplib.c
+X*** ../1.16/nntplib.c	Sun Nov 15 18:41:58 1992
+X--- ./nntplib.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,11 ****
+X   *  Module    : nntplib.c
+X   *  Author    : S.Barber & I.Lea
+X   *  Created   : 12-01-91
+X!  *  Updated   : 01-07-92
+X!  *  Notes     : NNTP client routines taken from clientlib.c v1.6
+X!  *              1.5.11 (10 February 1991)
+X   *  Copyright : (c) Copyright 1991-92 by Stan Barber & Iain Lea
+X   *              Permission is hereby granted to copy, reproduce, redistribute
+X   *              or otherwise use this software  as long as: there is no
+X--- 3,10 ----
+X   *  Module    : nntplib.c
+X   *  Author    : S.Barber & I.Lea
+X   *  Created   : 12-01-91
+X!  *  Updated   : 07-11-92
+X!  *  Notes     : NNTP client routines taken from clientlib.c 1.5.11 (10-02-91)
+X   *  Copyright : (c) Copyright 1991-92 by Stan Barber & Iain Lea
+X   *              Permission is hereby granted to copy, reproduce, redistribute
+X   *              or otherwise use this software  as long as: there is no
+X***************
+X*** 25,32 ****
+X  
+X  #ifndef CDROM_ABLE
+X  
+X! FILE	*ser_rd_fp = NULL;
+X! FILE	*ser_wr_fp = NULL;
+X  
+X  extern	int errno;
+X  
+X--- 24,31 ----
+X  
+X  #ifndef CDROM_ABLE
+X  
+X! FILE	*nntp_rd_fp = NULL;
+X! FILE	*nntp_wr_fp = NULL;
+X  
+X  extern	int errno;
+X  
+X***************
+X*** 64,70 ****
+X  #	endif
+X  
+X  #	ifdef EXCELAN
+X- #		define	IPPORT_NNTP	((unsigned short) 119)
+X  #		if __STDC__
+X  			int connect (int, struct sockaddr *);
+X  			unsigned short htons (unsigned short);
+X--- 63,68 ----
+X***************
+X*** 99,105 ****
+X  	char	*file;
+X  {
+X  #ifdef NNTP_ABLE
+X- 	extern int debug;
+X  	register FILE	*fp;
+X  	register char	*cp;
+X  	static char	buf[256];
+X--- 97,102 ----
+X***************
+X*** 133,152 ****
+X  }
+X  
+X  /*
+X!  * server_init  Get a connection to the remote news server.
+X   *
+X   *	Parameters:	"machine" is the machine to connect to.
+X   *
+X   *	Returns:	-1 on error
+X   *			server's initial response code on success.
+X   *
+X   *	Side effects:	Connects to server.
+X!  *			"ser_rd_fp" and "ser_wr_fp" are fp's
+X   *			for reading and writing to server.
+X   */
+X  
+X! int server_init (machine)
+X  	char	*machine;
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	sockt_rd, sockt_wr;
+X--- 130,153 ----
+X  }
+X  
+X  /*
+X!  * server_init  Get a connection to the remote server.
+X   *
+X   *	Parameters:	"machine" is the machine to connect to.
+X+  *			"service" is the service to connect to on the machine.
+X+  *			"port" is the servive port to connect to.
+X   *
+X   *	Returns:	-1 on error
+X   *			server's initial response code on success.
+X   *
+X   *	Side effects:	Connects to server.
+X!  *			"nntp_rd_fp" and "nntp_wr_fp" are fp's
+X   *			for reading and writing to server.
+X   */
+X  
+X! int server_init (machine, service, port)
+X  	char	*machine;
+X+ 	char	*service;
+X+ 	unsigned short port;
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	sockt_rd, sockt_wr;
+X***************
+X*** 158,169 ****
+X  
+X  	if (cp && cp[1] == ':') {
+X  		*cp = '\0';
+X! 		sockt_rd = get_dnet_socket (machine);
+X  	} else {
+X! 		sockt_rd = get_tcp_socket (machine);
+X  	}
+X  #else
+X! 	sockt_rd = get_tcp_socket (machine);
+X  #endif
+X  
+X  	if (sockt_rd < 0)
+X--- 159,170 ----
+X  
+X  	if (cp && cp[1] == ':') {
+X  		*cp = '\0';
+X! 		sockt_rd = get_dnet_socket (machine, service);
+X  	} else {
+X! 		sockt_rd = get_tcp_socket (machine, service, port);
+X  	}
+X  #else
+X! 	sockt_rd = get_tcp_socket (machine, service, port);
+X  #endif
+X  
+X  	if (sockt_rd < 0)
+X***************
+X*** 176,182 ****
+X  	 * up two separate fp's, one for reading, one for writing.
+X  	 */
+X  
+X! 	if ((ser_rd_fp = (FILE *) fdopen (sockt_rd, "r")) == NULL) {
+X  		perror ("server_init: fdopen #1");
+X  		return (-1);
+X  	}
+X--- 177,183 ----
+X  	 * up two separate fp's, one for reading, one for writing.
+X  	 */
+X  
+X! 	if ((nntp_rd_fp = (FILE *) fdopen (sockt_rd, "r")) == NULL) {
+X  		perror ("server_init: fdopen #1");
+X  		return (-1);
+X  	}
+X***************
+X*** 185,197 ****
+X  #ifdef TLI
+X  	if (t_sync (sockt_rd) < 0) {	/* Sync up new fd with TLI */
+X      		t_error ("server_init: t_sync");
+X! 		ser_rd_fp = NULL;		/* from above */
+X  		return (-1);
+X  	}
+X  #endif
+X! 	if ((ser_wr_fp = (FILE *) fdopen (sockt_wr, "w")) == NULL) {
+X  		perror ("server_init: fdopen #2");
+X! 		ser_rd_fp = NULL;		/* from above */
+X  		return (-1);
+X  	}
+X  
+X--- 186,198 ----
+X  #ifdef TLI
+X  	if (t_sync (sockt_rd) < 0) {	/* Sync up new fd with TLI */
+X      		t_error ("server_init: t_sync");
+X! 		nntp_rd_fp = NULL;		/* from above */
+X  		return (-1);
+X  	}
+X  #endif
+X! 	if ((nntp_wr_fp = (FILE *) fdopen (sockt_wr, "w")) == NULL) {
+X  		perror ("server_init: fdopen #2");
+X! 		nntp_rd_fp = NULL;		/* from above */
+X  		return (-1);
+X  	}
+X  
+X***************
+X*** 207,217 ****
+X  }
+X  
+X  /*
+X!  * get_tcp_socket -- get us a socket connected to the news server.
+X   *
+X   *	Parameters:	"machine" is the machine the server is running on.
+X   *
+X!  *	Returns:	Socket connected to the news server if
+X   *			all is ok, else -1 on error.
+X   *
+X   *	Side effects:	Connects to server.
+X--- 208,220 ----
+X  }
+X  
+X  /*
+X!  * get_tcp_socket -- get us a socket connected to the specified server.
+X   *
+X   *	Parameters:	"machine" is the machine the server is running on.
+X+  *			"service" is the service to connect to on the server.
+X+  *			"port" is the port to connect to on the server.
+X   *
+X!  *	Returns:	Socket connected to the server if
+X   *			all is ok, else -1 on error.
+X   *
+X   *	Side effects:	Connects to server.
+X***************
+X*** 219,226 ****
+X   *	Errors:		Printed via perror.
+X   */
+X  
+X! int get_tcp_socket (machine)
+X  	char	*machine;	/* remote host */
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	s = -1;
+X--- 222,231 ----
+X   *	Errors:		Printed via perror.
+X   */
+X  
+X! int get_tcp_socket (machine, service, port)
+X  	char	*machine;	/* remote host */
+X+ 	char	*service;	/* nttp/smtp etc. */
+X+ 	unsigned short port;	/* tcp port number */
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	s = -1;
+X***************
+X*** 243,249 ****
+X  	}
+X  	bzero((char *) &sin, sizeof (sin));	
+X  	sin.sin_family = AF_INET;
+X! 	sin.sin_port = htons (IPPORT_NNTP);
+X  	if (!isdigit(*machine) ||
+X  	    (long)(sin.sin_addr.s_addr = inet_addr (machine)) == -1) {
+X  		if((hp = gethostbyname (machine)) == NULL) {
+X--- 248,254 ----
+X  	}
+X  	bzero((char *) &sin, sizeof (sin));	
+X  	sin.sin_family = AF_INET;
+X! 	sin.sin_port = htons (port);
+X  	if (!isdigit(*machine) ||
+X  	    (long)(sin.sin_addr.s_addr = inet_addr (machine)) == -1) {
+X  		if((hp = gethostbyname (machine)) == NULL) {
+X***************
+X*** 311,318 ****
+X  	static struct in_addr defaddr;
+X  	static char namebuf[256];
+X  
+X! 	if ((sp = getservbyname ("nntp", "tcp")) ==  NULL) {
+X! 		fprintf (stderr, "nntp/tcp: Unknown service.\n");
+X  		return (-1);
+X  	}
+X  	/* If not a raw ip address, try nameserver */
+X--- 316,323 ----
+X  	static struct in_addr defaddr;
+X  	static char namebuf[256];
+X  
+X! 	if ((sp = getservbyname (service, "tcp")) ==  NULL) {
+X! 		fprintf (stderr, "%s/tcp: Unknown service.\n", service);
+X  		return (-1);
+X  	}
+X  	/* If not a raw ip address, try nameserver */
+X***************
+X*** 432,440 ****
+X  
+X  #ifdef DECNET
+X  /*
+X!  * get_dnet_socket -- get us a socket connected to the news server.
+X   *
+X   *	Parameters:	"machine" is the machine the server is running on.
+X   *
+X   *	Returns:	Socket connected to the news server if
+X   *			all is ok, else -1 on error.
+X--- 437,446 ----
+X  
+X  #ifdef DECNET
+X  /*
+X!  * get_dnet_socket -- get us a socket connected to the server.
+X   *
+X   *	Parameters:	"machine" is the machine the server is running on.
+X+  *			"service" is the name of the service to connect to.
+X   *
+X   *	Returns:	Socket connected to the news server if
+X   *			all is ok, else -1 on error.
+X***************
+X*** 444,451 ****
+X   *	Errors:		Printed via nerror.
+X   */
+X  
+X! int get_dnet_socket (machine)
+X  	char	*machine;
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	s, area, node;
+X--- 450,458 ----
+X   *	Errors:		Printed via nerror.
+X   */
+X  
+X! int get_dnet_socket (machine, service)
+X  	char	*machine;
+X+ 	char	*service;
+X  {
+X  #ifdef NNTP_ABLE
+X  	int	s, area, node;
+X***************
+X*** 573,580 ****
+X  	char *string;
+X  {
+X  #ifdef NNTP_ABLE
+X! 	fprintf (ser_wr_fp, "%s\r\n", string);
+X! 	(void) fflush (ser_wr_fp);
+X  #endif /* NNTP_ABLE */
+X  }
+X  
+X--- 580,587 ----
+X  	char *string;
+X  {
+X  #ifdef NNTP_ABLE
+X! 	fprintf (nntp_wr_fp, "%s\r\n", string);
+X! 	(void) fflush (nntp_wr_fp);
+X  #endif /* NNTP_ABLE */
+X  }
+X  
+X***************
+X*** 598,604 ****
+X  #ifdef NNTP_ABLE
+X  	register char *cp;
+X  
+X! 	while (fgets (string, size, ser_rd_fp) == NULL) {
+X  		if (errno != EINTR) {
+X  			return (-1);
+X  		}	
+X--- 605,611 ----
+X  #ifdef NNTP_ABLE
+X  	register char *cp;
+X  
+X! 	while (fgets (string, size, nntp_rd_fp) == NULL) {
+X  		if (errno != EINTR) {
+X  			return (-1);
+X  		}	
+X***************
+X*** 634,647 ****
+X  #ifdef NNTP_ABLE
+X  	char	ser_line[256];
+X  
+X! 	if (ser_wr_fp == NULL || ser_rd_fp == NULL)
+X  		return;
+X  
+X  	put_server ("QUIT");
+X  	(void) get_server (ser_line, sizeof (ser_line));
+X  
+X! 	(void) fclose (ser_wr_fp);
+X! 	(void) fclose (ser_rd_fp);
+X  #endif /* NNTP_ABLE */
+X  }
+X  
+X--- 641,654 ----
+X  #ifdef NNTP_ABLE
+X  	char	ser_line[256];
+X  
+X! 	if (nntp_wr_fp == NULL || nntp_rd_fp == NULL)
+X  		return;
+X  
+X  	put_server ("QUIT");
+X  	(void) get_server (ser_line, sizeof (ser_line));
+X  
+X! 	(void) fclose (nntp_wr_fp);
+X! 	(void) fclose (nntp_rd_fp);
+X  #endif /* NNTP_ABLE */
+X  }
+X  
+Xdiff -rcs ../1.16/nntplib.h ./nntplib.h
+X*** ../1.16/nntplib.h	Sun Nov 15 18:41:41 1992
+X--- ./nntplib.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : nntplib.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 03-06-92
+X   *  Notes     : nntp.h 1.5.11/1.6 with extensions for tin & CD-ROM
+X   *  Copyright : You may  freely  copy or  redistribute  this software,
+X   *              so  long as there is no profit made from its use, sale
+X--- 3,9 ----
+X   *  Module    : nntplib.h
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 25-09-92
+X   *  Notes     : nntp.h 1.5.11/1.6 with extensions for tin & CD-ROM
+X   *  Copyright : You may  freely  copy or  redistribute  this software,
+X   *              so  long as there is no profit made from its use, sale
+X***************
+X*** 15,26 ****
+X  #	define	NNTP_SERVER_FILE	"/etc/nntpserver"
+X  #endif
+X  
+X  /*
+X   *  External routine declarations
+X   */
+X  
+X  extern char *getserverbyfile();
+X! extern int server_init();
+X  extern int get_tcp_socket();
+X  extern int handle_server_response();
+X  extern void put_server();
+X--- 15,36 ----
+X  #	define	NNTP_SERVER_FILE	"/etc/nntpserver"
+X  #endif
+X  
+X+ #define	NNTP_TCP_NAME	"nntp"
+X+ #define	NNTP_TCP_PORT	((unsigned short) 119)
+X+ 
+X+ #ifndef	SMTP_SERVER_FILE
+X+ #	define	SMTP_SERVER_FILE	"/etc/smtpserver"
+X+ #endif
+X+ 
+X+ #define	SMTP_TCP_NAME	"smtp"
+X+ #define	SMTP_TCP_PORT	((unsigned short) 25)
+X+ 
+X  /*
+X   *  External routine declarations
+X   */
+X  
+X  extern char *getserverbyfile();
+X! /* extern int server_init(); */
+X  extern int get_tcp_socket();
+X  extern int handle_server_response();
+X  extern void put_server();
+X***************
+X*** 31,37 ****
+X   *  External file descriptors for the server connection
+X   */
+X  
+X! extern FILE *ser_wr_fp;
+X  
+X  /*
+X   * Response codes for NNTP server
+X--- 41,47 ----
+X   *  External file descriptors for the server connection
+X   */
+X  
+X! extern FILE *nntp_wr_fp;
+X  
+X  /*
+X   * Response codes for NNTP server
+X***************
+X*** 74,79 ****
+X--- 84,90 ----
+X  #define	OK_GROUP		211	/* Group selected */
+X  #define	OK_GROUPS		215	/* Newsgroups follow */
+X  
+X+ #define OK_XMOTD		217	/* News motd follows */
+X  #define OK_XINDEX		218	/* Tin index follows */
+X  
+X  #define	OK_ARTICLE		220	/* Article (head & body) follows */
+X***************
+X*** 103,108 ****
+X--- 114,120 ----
+X  #define	ERR_NOGROUP		411	/* No such newsgroup */
+X  #define	ERR_NCING		412	/* Not currently in newsgroup */
+X  
+X+ #define ERR_XMOTD		417	/* No news motd file */
+X  #define ERR_XINDEX		418	/* No tin index for this group */
+X  
+X  #define	ERR_NOCRNT		420	/* No current article selected */
+X***************
+X*** 132,135 ****
+X   */
+X  
+X  #define	NNTP_STRLEN		512
+X- 
+X--- 144,146 ----
+Xdiff -rcs ../1.16/open.c ./open.c
+X*** ../1.16/open.c	Sun Nov 15 18:41:59 1992
+X--- ./open.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,10 ****
+X   *  Module    : open.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 27-08-92
+X!  *  Notes     : reads news locally (ie. /usr/spool/news) or via NNTP
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X   *              so  long as there is no profit made from its use, sale
+X--- 3,11 ----
+X   *  Module    : open.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 14-11-92
+X!  *  Notes     : Routines to make reading news locally (ie. /usr/spool/news) 
+X!  *              or via NNTP transparent
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X   *              so  long as there is no profit made from its use, sale
+X***************
+X*** 14,54 ****
+X  
+X  #include	"tin.h"
+X  
+X- /*
+X-  * Directory handling code - Hopefully one of these is right for you. 
+X-  */
+X- #ifdef BSD
+X- #	ifdef sinix
+X- #		include <dir.h>
+X- #	else
+X- #		ifdef __arm
+X- #			include <dirent.h>
+X- #			define	DIR_BUF	struct dirent
+X- #		else
+X- #			include <sys/dir.h>
+X- #		endif
+X- #	endif
+X- #	ifndef DIR_BUF
+X- #		define	DIR_BUF		struct direct
+X- #	endif
+X- #	define		D_LENGTH	d_namlen
+X- #endif
+X- #ifdef M_XENIX
+X- #	include <sys/ndir.h>
+X- #	define		DIR_BUF		struct direct
+X- #	define		D_LENGTH	d_namlen
+X- #endif
+X- #ifdef AMIGA
+X- #	include	<amiga.h>
+X- #	define		DIR_BUF		struct dirent
+X- #	define		D_LENGTH	d_reclen
+X- #endif
+X- #ifndef DIR_BUF
+X- #	include	<dirent.h>
+X- #	define		DIR_BUF		struct dirent
+X- #	define		D_LENGTH	d_reclen
+X- #endif
+X- 
+X  int nntp_codeno = 0;
+X  
+X  #ifdef NNTP_ABLE
+X--- 15,20 ----
+X***************
+X*** 88,94 ****
+X  		
+X  		debug_nntp ("nntp_open", nntp_server);
+X  
+X! 		ret = server_init (nntp_server);
+X  		if (update == FALSE && ret != -1) {
+X  			fputc ('\n', stdout);
+X  		}
+X--- 54,60 ----
+X  		
+X  		debug_nntp ("nntp_open", nntp_server);
+X  
+X! 		ret = server_init (nntp_server, NNTP_TCP_NAME, NNTP_TCP_PORT);
+X  		if (update == FALSE && ret != -1) {
+X  			fputc ('\n', stdout);
+X  		}
+X***************
+X*** 117,125 ****
+X  		}
+X  
+X  		/*
+X! 		 * Find out if NNTP supports my XINDEX & XUSER commands
+X  		 */
+X! #ifndef NO_NNTP_EXTS	 
+X  		debug_nntp ("nntp_open", "xindex");
+X  		put_server ("xindex");	
+X  		if (get_respcode () != ERR_COMMAND) {
+X--- 83,91 ----
+X  		}
+X  
+X  		/*
+X! 		 * Check if NNTP supports my XINDEX & XUSER commands
+X  		 */
+X! #ifndef DONT_HAVE_NNTP_EXTS	 
+X  		debug_nntp ("nntp_open", "xindex");
+X  		put_server ("xindex");	
+X  		if (get_respcode () != ERR_COMMAND) {
+X***************
+X*** 130,138 ****
+X  		if (get_respcode () != ERR_COMMAND) {
+X  			xuser_supported = TRUE;
+X  		}
+X! #endif	/* NO_NNTP_EXTS */		
+X  		
+X  		/*
+X  		 * If INN NNTP & XINDEX not supported switch to mode reader
+X  		 */
+X  		if (! xindex_supported) {
+X--- 96,109 ----
+X  		if (get_respcode () != ERR_COMMAND) {
+X  			xuser_supported = TRUE;
+X  		}
+X! #endif	/* DONT_HAVE_NNTP_EXTS */		
+X  		
+X  		/*
+X+ 		 * Check if NNTP server expects user authorization
+X+ 		 */
+X+ 		authorization (nntp_server, userid);
+X+ 		 
+X+ 		/*
+X  		 * If INN NNTP & XINDEX not supported switch to mode reader
+X  		 */
+X  		if (! xindex_supported) {
+X***************
+X*** 143,154 ****
+X  			}
+X  		}
+X  	}
+X! #ifndef NO_NNTP_EXTS
+X  	/*
+X  	 * Find out if NNTP supports SPOOLDIR command
+X  	 */
+X  	get_spooldir ();
+X! #endif	/* NO_NNTP_EXTS */		
+X  
+X  #endif	
+X  }
+X--- 114,125 ----
+X  			}
+X  		}
+X  	}
+X! #ifndef DONT_HAVE_NNTP_EXTS
+X  	/*
+X  	 * Find out if NNTP supports SPOOLDIR command
+X  	 */
+X  	get_spooldir ();
+X! #endif	/* DONT_HAVE_NNTP_EXTS */		
+X  
+X  #endif	
+X  }
+X***************
+X*** 164,171 ****
+X  #endif	
+X  }
+X  
+X  
+X! FILE *open_active_fp ()
+X  {
+X  	int respcode;
+X  	
+X--- 135,155 ----
+X  #endif	
+X  }
+X  
+X+ /*
+X+  * Open the mail active file locally
+X+  */
+X+ 
+X+ FILE *open_mail_active_fp (mode)
+X+ 	char *mode;
+X+ {
+X+ 	return fopen (mail_active_file, mode);
+X+ }
+X+ 
+X+ /*
+X+  * Open the news active file locally or send the LIST command via NNTP
+X+  */
+X  
+X! FILE *open_news_active_fp ()
+X  {
+X  	int respcode;
+X  	
+X***************
+X*** 173,192 ****
+X  #ifdef NNTP_ABLE
+X  		put_server ("list");
+X  		if ((respcode = get_respcode ()) != OK_GROUPS) {
+X! 			debug_nntp ("open_active_fp", "NOT_OK");
+X  			error_message ("%s", nntp_respcode (respcode));
+X  			return (FILE *) 0;
+X  		}
+X! 		debug_nntp ("open_active_fp", "OK");
+X  		return nntp_to_fp ();
+X  #else
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		return fopen (active_file, "r");
+X  	}
+X  }
+X  
+X  
+X  FILE *open_newgroups_fp (index)
+X  	int index;
+X--- 157,181 ----
+X  #ifdef NNTP_ABLE
+X  		put_server ("list");
+X  		if ((respcode = get_respcode ()) != OK_GROUPS) {
+X! 			debug_nntp ("open_news_active_fp", "NOT_OK");
+X  			error_message ("%s", nntp_respcode (respcode));
+X  			return (FILE *) 0;
+X  		}
+X! 		debug_nntp ("open_news_active_fp", "OK");
+X  		return nntp_to_fp ();
+X  #else
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		return fopen (news_active_file, "r");
+X  	}
+X  }
+X  
+X+ /*
+X+  * Open the ~/.tin/active file locally or send the NEWGROUPS command via NNTP
+X+  *
+X+  * NEWGROUPS 311299 235959
+X+  */
+X  
+X  FILE *open_newgroups_fp (index)
+X  	int index;
+X***************
+X*** 211,221 ****
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		sprintf (line, "%s/%s", rcdir, ACTIVE);
+X  		return fopen (line, "r");
+X  	}
+X  }
+X  
+X  
+X  FILE *open_subscription_fp ()
+X  {
+X--- 200,240 ----
+X  		return (FILE *) 0;
+X  #endif		
+X  	} else {
+X! 		joinpath (line, rcdir, ACTIVE);
+X  		return fopen (line, "r");
+X  	}
+X  }
+X  
+X+ /*
+X+  * Open the news motd file locally or on the NNTP server
+X+  *
+X+  * XMOTD 311299 235959 [GMT]
+X+  */
+X+  
+X+ FILE *open_motd_fp (motd_file_date)
+X+ 	char *motd_file_date; 
+X+ {
+X+ 	char line[NNTP_STRLEN];
+X+ 	
+X+ 	if (read_news_via_nntp) {
+X+ #if defined(NNTP_ABLE) && !defined(DONT_HAVE_NNTP_EXTS)
+X+ 		sprintf (line, "xmotd %s", motd_file_date);
+X+ 		debug_nntp ("open_motd_fp", line);
+X+ 		put_server (line);
+X+ 		if (get_respcode () != OK_XMOTD) {
+X+ 			debug_nntp ("open_motd_fp", "NOT_OK");
+X+ 			return (FILE *) 0;
+X+ 		}
+X+ 		debug_nntp ("open_motd_fp", "OK");
+X+ 		return nntp_to_fp ();
+X+ #else
+X+ 		return (FILE *) 0;
+X+ #endif		
+X+ 	} else {
+X+ 		return fopen (motd_file, "r");
+X+ 	}
+X+ }
+X+ 
+X  
+X  FILE *open_subscription_fp ()
+X  {
+X***************
+X*** 237,242 ****
+X--- 256,271 ----
+X  }
+X  
+X  /*
+X+  *  Open mail groups description file.
+X+  */
+X+  
+X+ FILE *open_mailgroups_fp ()
+X+ {
+X+ 	return fopen (mailgroups_file, "r");
+X+ }
+X+ 
+X+ 
+X+ /*
+X   * If reading via NNTP the newsgroups file will be saved to ~/.tin/newsgroups
+X   * so that any subsequent rereads on the active file will not have to waste
+X   * net bandwidth and the local copy of the newsgroups file can be accessed.
+X***************
+X*** 266,281 ****
+X  	}
+X  }
+X  
+X! 
+X  FILE *open_index_fp (group_name)
+X  	char *group_name;
+X  {
+X- 	char line[NNTP_STRLEN];
+X  	extern char index_file[PATH_LEN];
+X  
+X! 	find_index_file (group_name);
+X  	
+X! 	if (read_news_via_nntp && xindex_supported) {
+X  		sprintf (line, "xindex %s", group_name);
+X  		debug_nntp ("open_index_fp", line);
+X  		put_server (line);
+X--- 295,323 ----
+X  	}
+X  }
+X  
+X! /*
+X!  * Open a group index file
+X!  */
+X!  
+X  FILE *open_index_fp (group_name)
+X  	char *group_name;
+X  {
+X  	extern char index_file[PATH_LEN];
+X+ 	char line[NNTP_STRLEN];
+X+ 	int group_type;
+X+ 	
+X+ 	group_type = find_index_file (group_name);
+X+ 	if (group_type == -1) {
+X+ 		return (FILE *) 0;
+X+ 	}
+X  
+X! 	if (debug == 2) {
+X! 		error_message ("INDEX file=[%s]", index_file);
+X! 	}
+X  	
+X! 	if (read_news_via_nntp && xindex_supported && 
+X! 	    group_type == GROUP_TYPE_NEWS) {
+X! #ifdef NNTP_ABLE
+X  		sprintf (line, "xindex %s", group_name);
+X  		debug_nntp ("open_index_fp", line);
+X  		put_server (line);
+X***************
+X*** 285,313 ****
+X  		}
+X  		debug_nntp ("open_index_fp", "OK");
+X  		return nntp_to_fp ();
+X  	} else {
+X  		return fopen (index_file, "r");
+X  	}
+X  }
+X  
+X  
+X  FILE *open_art_fp (group_path, art)
+X  	char *group_path;
+X  	long art;
+X  {
+X  	char buf[NNTP_STRLEN];
+X! 	int respcode;
+X  	struct stat sb;
+X  	extern long note_size;
+X  
+X! 	if (read_news_via_nntp) {
+X  #ifdef NNTP_ABLE
+X  		sprintf (buf, "article %ld", art);
+X  		debug_nntp ("open_art_fp", buf);
+X  		put_server (buf);
+X  		if ((respcode = get_respcode ()) != OK_ARTICLE) {
+X! 			error_message ("%s", nntp_respcode (respcode));
+X! 			debug_nntp ("open_art_fp", buf);
+X  			return (FILE *) 0;
+X  		}
+X  
+X--- 327,401 ----
+X  		}
+X  		debug_nntp ("open_index_fp", "OK");
+X  		return nntp_to_fp ();
+X+ #else
+X+ 		return (FILE *) 0;
+X+ #endif
+X  	} else {
+X  		return fopen (index_file, "r");
+X  	}
+X  }
+X  
+X+ /*
+X+  * Stat a mail/news article to see if it still exists
+X+  */
+X+  
+X+ int stat_article (art, group_path)
+X+ 	long art;
+X+ 	char *group_path;
+X+ {
+X+ 	char buf[NNTP_STRLEN];
+X+ 	int i, respcode;
+X+ 	int art_exists = TRUE;
+X+ 	struct stat sb;
+X+ 
+X+ 	i = my_group[cur_groupnum];
+X+ 	
+X+ 	if (read_news_via_nntp && active[i].type == GROUP_TYPE_NEWS) {
+X+ #ifdef NNTP_ABLE
+X+ 		sprintf (buf, "stat %ld", art);
+X+ 		debug_nntp ("stat_article", buf);
+X+ 		put_server (buf);
+X+ 		if ((respcode = get_respcode ()) != OK_NOTEXT) {
+X+ 			art_exists = FALSE;
+X+ 		}
+X+ #endif
+X+ 	} else {
+X+ 		joinpath (buf, active[i].spooldir, group_path);
+X+ 		sprintf (&buf[strlen (buf)], "/%ld", art);
+X+ 
+X+ 		if (stat (buf, &sb) == -1) {
+X+ 			art_exists = FALSE;
+X+ 		}
+X+ 	}
+X+ 
+X+ 	return art_exists;
+X+ }
+X  
+X+ /*
+X+  * Open a mail/news article
+X+  */
+X+  
+X  FILE *open_art_fp (group_path, art)
+X  	char *group_path;
+X  	long art;
+X  {
+X  	char buf[NNTP_STRLEN];
+X! 	int i, respcode;
+X  	struct stat sb;
+X  	extern long note_size;
+X  
+X! 	i = my_group[cur_groupnum];
+X! 	
+X! 	if (read_news_via_nntp && active[i].type == GROUP_TYPE_NEWS) {
+X  #ifdef NNTP_ABLE
+X  		sprintf (buf, "article %ld", art);
+X  		debug_nntp ("open_art_fp", buf);
+X  		put_server (buf);
+X  		if ((respcode = get_respcode ()) != OK_ARTICLE) {
+X! 			if (debug == 2) {
+X! 				error_message ("%s", nntp_respcode (respcode));
+X! 			}
+X! 			debug_nntp ("open_art_fp", "NOT OK");
+X  			return (FILE *) 0;
+X  		}
+X  
+X***************
+X*** 318,327 ****
+X  		return (FILE *) 0;
+X  #endif
+X  	} else {
+X! 		joinpath (buf, spooldir, group_path);
+X! 		sprintf (&buf[strlen(buf)], "/%ld", art);
+X  
+X! 		if (stat (buf, &sb) < 0) {
+X  			note_size = 0;
+X  		} else {
+X  			note_size = sb.st_size;
+X--- 406,419 ----
+X  		return (FILE *) 0;
+X  #endif
+X  	} else {
+X! 		joinpath (buf, active[i].spooldir, group_path);
+X! 		sprintf (&buf[strlen (buf)], "/%ld", art);
+X! 
+X! 		if (debug == 2) {
+X! 			error_message ("ART=[%s]", buf);
+X! 		}
+X  
+X! 		if (stat (buf, &sb) == -1) {
+X  			note_size = 0;
+X  		} else {
+X  			note_size = sb.st_size;
+X***************
+X*** 331,343 ****
+X  }
+X  
+X  
+X! FILE *open_header_fp (group_path, art)
+X! 	char *group_path;
+X  	long art;
+X  {
+X  	char buf[NNTP_STRLEN];
+X! 	
+X! 	if (read_news_via_nntp) {
+X  #ifdef NNTP_ABLE	
+X  		sprintf(buf, "head %ld", art);
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 5'
+echo 'File tin-1.17.patch is continued in part 6'
+echo 6 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

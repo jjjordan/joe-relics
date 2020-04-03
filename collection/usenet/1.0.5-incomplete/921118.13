@@ -1,0 +1,1079 @@
+Xref: funic comp.unix.bsd:8293 alt.sources:4909
+Path: funic!news.funet.fi!fuug!mcsun!Germany.EU.net!news.netmbx.de!mailgzrz.TU-Berlin.DE!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!think.com!ames!sun-barr!news2me.EBay.Sun.COM!exodus.Eng.Sun.COM!sun!amdahl!paulp
+From: paulp@uts.amdahl.com (Paul Popelka)
+Newsgroups: comp.unix.bsd,alt.sources
+Subject: [386bsd] mountable DOS filesystem code, Part 1/5
+Message-ID: <ba3w03h7bbR300@amdahl.uts.amdahl.com>
+Date: 17 Nov 92 17:25:12 GMT
+Followup-To: comp.unix.bsd
+Organization: Amdahl Corporation, Sunnyvale CA
+Lines: 1068
+
+
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	/sys/pcfs
+#	/sys/pcfs/INSTALL
+#	/sys/pcfs/README
+#	/sys/pcfs/pcfs.8
+#	/sys/pcfs/pcfs.cdiff
+#	/sys/pcfs/fat.h
+#	/sys/pcfs/direntry.h
+#	/sys/pcfs/denode.h
+#	/sys/pcfs/bpb.h
+#	/sys/pcfs/bootsect.h
+#	/sys/pcfs/pcfsmount.h
+#	/usr/src/sbin/mount_pcfs
+#	/usr/src/sbin/mount_pcfs/mount_pcfs.c
+#	/usr/src/sbin/mount_pcfs/Makefile
+#
+echo c - /sys/pcfs
+mkdir /sys/pcfs > /dev/null 2>&1
+echo x - /sys/pcfs/INSTALL
+sed 's/^X//' >/sys/pcfs/INSTALL << 'END-of-/sys/pcfs/INSTALL'
+XThis note describes the installation of the pcfs filesystem into
+Xa 386bsd 0.1 system.
+X
+XFirst unshar the shar files.  They are made with absolute pathnames.
+XThey do not overwrite anything that is part of a standard system.
+XThey deposit files into the /usr/src/sbin/mount_pcfs and /sys/pcfs
+Xdirectories.
+X
+XIn the /sys/pcfs directory is a context diff file pcfs.cdiff.  It
+Xcontains context diffs to the following files:
+X	/sys/sys/vnode.h
+X	/sys/sys/mount.h
+X	/sys/sys/malloc.h
+X	/sys/conf/files
+X	/sys/kern/vfs_conf.c
+X
+XApply them with the following command:
+X	patch -p <pcfs.cdiff
+X
+XNext go to the /usr/src/sbin/mount_pcfs directory and build and install
+Xthe mount_pcfs command:
+X	cd /usr/src/sbin/mount_pcfs
+X	make install
+X
+XTo configure pcfs into your kernel goto to your configuration file
+Xin the /sys/i386/conf directory and add the following statement:
+X	options PCFS
+X
+XThen run the config command.
+X	config WHATEVER_YOU_CALL_IT
+X
+XThen goto the your kernel build directory in /sys/compile/WHATEVER_YOU_CALL_IT
+Xand do a "make depend" and then do a make.
+X	make depend
+X	make
+X
+XThen copy the kernel into the root directory and reboot your system.
+X	cp 386bsd /
+X
+XTo mount a pcfs filesystem:
+X	mount -t pcfs /dev/fd0a /mnt
+X
+XTo unmount a pcfs filesystem:
+X	umount /mnt
+END-of-/sys/pcfs/INSTALL
+echo x - /sys/pcfs/README
+sed 's/^X//' >/sys/pcfs/README << 'END-of-/sys/pcfs/README'
+XThis is version 0.0 of the code to allow mountable DOS filesystems
+Xunder 386bsd 0.1.  It is refered as pcfs from now on.  No, this is
+Xnot related to sun's pcfs, although they essentially do the same
+Xthing.
+X
+XThis package has been installed on a 386bsd 0.1 system that has NOT
+Xhad the patchkit installed.
+X
+XUnshar each of the following 4 shar files.  They create files in
+X/sys/pcfs and /usr/src/sbin/mount_pcfs.  They do not overwrite any
+Xexisting files.  Once you have them unshared read the /sys/pcfs/INSTALL
+Xfile to find out how to install it and mount pc filesystems.  Then look
+Xat the /sys/pcfs/pcfs.8 file for a list of the filesystem's quirks.
+X
+XIf you have problems send me some email and I'll see what I can do.
+XIf you add things please send me the mods and I will try to incorporate
+Xthem for the next release.
+X
+XHave fun,
+XPaul
+Xpaulp@sde.uts.amdahl.com
+END-of-/sys/pcfs/README
+echo x - /sys/pcfs/pcfs.8
+sed 's/^X//' >/sys/pcfs/pcfs.8 << 'END-of-/sys/pcfs/pcfs.8'
+XPCFS quirks file
+X
+XPCFS filesystems on floppy disks only are supported in this release.
+XAnd, only high density floppy disks are supported.  This is because
+Xthe floppy disk driver only supports high density disks.  PCFS
+Xfilesystems on hard disks are not supported yet.  This is because
+Xadditions to the disk drivers to make them better utilize dos
+Xpartition information are required.
+X
+XCreated files use only the user permissions bits.  And of these
+Xonly the write bit is meaningful.  DOS files always have the
+Xexecute and read bits on.
+X
+XPCFS does not turn on or off the DOS archive attribute bit.
+X
+XThe timestamp on dos files is updated when ever the file is modified.
+XThere is no inode time or create time stamp.
+X
+XThe timestamp placed on a dos file does not have corrections for
+Xdaylight savings time included.  It does have the correction for
+Xtimezone though.
+X
+XUnix times before 1980 will have their year set to 1980 in dos file
+Xtimestamps.  This is because dos's idea of time starts in 1980.
+X
+XPCFS filesystems do not support sparse files.  Any attempt to seek
+Xpast the end of a file results in the blocks being allocated and
+Xcleared.
+X
+XWhen read() is used to examine pcfs directories you will get dos
+Xdirectory contents.  Note that the root directory does not contain
+Xa "." or ".." entry.  Only the readdir() system call simulates these
+Xentries in the root directory of a dos filesystem.  readdir() returns
+Xdirectory entries as described in getdirentries(2).
+X
+XUsing read() and write() to manipulate the contents of dos directories
+Xis unwise on an active dos filesystem since a more up to date copy of
+Xtheir contents may reside in data structures in the kernel.  It is
+Xprobably safe to examine the filename field of dos directory entries.
+XThe filesystem code keeps this up to date at all times.
+X
+XThe cluster allocation algorithm is very simplistic.  It starts at
+Xcluster 2 and searchs until the last cluster of the filesystem and
+Xtakes the first available cluster.
+X
+XThe fsync() system call does not work on file descriptors open on
+Xdirectories.  This isn't a terrible thing since very few programs
+Xopen directories for writing.
+X
+XThe pcfs filesystem truncates filenames quietly.  If a filename has
+Xmore than 8 characters before the 1st period only the 1st eigth are
+Xused.  It only uses the 1st three characters after the period if
+Xthey exist.  The filenames "abc" and "abc." are the same to pcfs.
+XFilenames that begin with a "." are considered to be dos filenames
+Xwith an extension only and so are limited to 3 characters after the
+Xleading ".".  For example ".imlost" would be seen as ".iml" by pcfs.
+XPCFS folds filenames to upper case before writing them to disk or
+Xlooking up filenames, and folds them to lower case when reading them
+Xfrom disk for presentation to the user (for example by readdir()).
+X
+XDirectory entries for the DOS filesystem label are quietly ignored.
+X
+XThis is probably going to be a problem.  This implementation expects
+Xthe length of the root directory to be a multiple of the size of
+Xa cluster.  If this is not true a warning message is printed when
+Xthe filesystem is mounted.
+X
+XPCFS supports DOS filesystems with 12 bit or 16 bit FATs.  It supports
+Xboth regular and huge filesystems ( > 32 megabytes).  It supports
+Xboth version 3.3 and 5.0 BPB's.  Don't know about version 4.x and
+Xless than 3.3.  It has not been tested with 16 bit fats or huge
+Xfilesystems. This is because the hard disk drivers need to support
+Xdos partitions to do these things. 
+X
+XPCFS does not support symbolic links or hard links.  It does not
+Xsupport quotas.  How could it, pcfs files have no owners.  PCFS
+Xfiles have a simulated owner and group of 0.  PCFS does not support
+Xfile locking.  Though it may in the future.  PCFS filesystems are
+Xnot remote mountable, but they will be in the future.
+X
+XThis is the first release and as such has performance problems.
+XReading large files is very slow because the read ahead code in pcfs_read()
+Xdoesn't read far enough ahead for filesystems with small blocksizes.
+XPerformance and dos hard disk paritions are the next areas to be
+Xworked on.  Unless someone else does it.
+X
+X
+XOperational Details
+X-------------------
+X
+XTo mount a pcfs filesystem:
+X	mount -t pcfs /dev/fd0a /mnt
+X
+XTo unmount a pcfs filesystem:
+X	umount /mnt
+X
+XIf you want to be sure the fat is ALWAYS up to date, mount the
+Xfilesystem with the synchronous option:
+X	mount -t pcfs -o synchronous /dev/fd0a /mnt
+XThis reasults in very slow file write performance because it turns
+Xoff write behind of fst disk blocks.
+X
+X
+XConfiguring PCFS into your kernel
+X---------------------------------
+X
+XAdd the following statements to your configuration file in /sys/i386/conf/BLOT.
+XOr whatever you call your config file.
+X
+X	options PCFS
+X
+XThen do a "config BLOT" in /sys/i386/conf.
+X
+XThen do a "make depend" in /sys/compile/BLOT.
+X
+XAnd then do a "make" in /sys/compile/BLOT.
+X
+XCopy the kernel to / and boot your system.
+X
+XPCFS consumes approximately 24000 bytes of kernel code space and
+Xapproximately 4000 bytes of bss.
+X
+XPCFS has some debug printf's that can be turned on by defining PCFSDEBUG.
+XIt produces lots of output.  If you use it be sure to kill syslogd before
+Xusing a PCFS filesystem with debug.
+END-of-/sys/pcfs/pcfs.8
+echo x - /sys/pcfs/pcfs.cdiff
+sed 's/^X//' >/sys/pcfs/pcfs.cdiff << 'END-of-/sys/pcfs/pcfs.cdiff'
+X*** /sys/sys/vnode.h	Tue Dec 24 14:24:19 1991
+X--- /sys/sys/NEWvnode.h	Thu Oct 22 21:44:42 1992
+X***************
+X*** 53,59 ****
+X   * These are for the benefit of external programs only (e.g., pstat)
+X   * and should NEVER be inspected inside the kernel.
+X   */
+X! enum vtagtype	{ VT_NON, VT_UFS, VT_NFS, VT_MFS };
+X  
+X  /*
+X   * This defines the maximum size of the private data area
+X--- 53,59 ----
+X   * These are for the benefit of external programs only (e.g., pstat)
+X   * and should NEVER be inspected inside the kernel.
+X   */
+X! enum vtagtype	{ VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PCFS };
+X  
+X  /*
+X   * This defines the maximum size of the private data area
+X*** /sys/sys/mount.h	Sun May 24 18:36:01 1992
+X--- /sys/sys/NEWmount.h	Thu Oct 22 21:45:47 1992
+X***************
+X*** 76,82 ****
+X  #define	MOUNT_UFS	1		/* UNIX "Fast" Filesystem */
+X  #define	MOUNT_NFS	2		/* Network Filesystem */
+X  #define	MOUNT_MFS	3		/* Memory Filesystem */
+X! #define	MOUNT_MSDOS	4		/* MSDOS Filesystem */
+X  #define MOUNT_ISOFS	5		/* iso9660 cdrom */
+X  #define	MOUNT_MAXTYPE	5
+X  
+X--- 76,82 ----
+X  #define	MOUNT_UFS	1		/* UNIX "Fast" Filesystem */
+X  #define	MOUNT_NFS	2		/* Network Filesystem */
+X  #define	MOUNT_MFS	3		/* Memory Filesystem */
+X! #define	MOUNT_PCFS	4		/* MSDOS Filesystem */
+X  #define MOUNT_ISOFS	5		/* iso9660 cdrom */
+X  #define	MOUNT_MAXTYPE	5
+X  
+X***************
+X*** 260,265 ****
+X--- 260,276 ----
+X  #define	NFSMNT_COMPRESS	0x0800	/* Compress nfs rpc xdr */
+X  #define	NFSMNT_LOCKBITS	(NFSMNT_SCKLOCK | NFSMNT_WANTSCK)
+X  #endif NFS
+X+ 
+X+ #ifdef PCFS
+X+ /*
+X+  *  Arguments to mount MSDOS filesystems.
+X+  */
+X+ struct pcfs_args {
+X+ 	char *fspec;		/* blocks special holding the fs to mount */
+X+ 	int exflags;		/* mount flags				*/
+X+ 	uid_t exroot;		/* mapping for root uid			*/
+X+ };
+X+ #endif /* PCFS */
+X  
+X  #ifdef KERNEL
+X  /*
+X*** /sys/sys/malloc.h	Tue Dec 24 14:24:17 1991
+X--- /sys/sys/NEWmalloc.h	Thu Oct 22 21:46:27 1992
+X***************
+X*** 91,97 ****
+X  #define	M_PROC		41	/* Proc structures */
+X  #define	M_SUBPROC	42	/* Proc sub-structures */
+X  #define	M_TEMP		49	/* misc temporary data buffers */
+X! #define	M_LAST		50
+X  
+X  #define INITKMEMNAMES { \
+X  	"free",		/* 0 M_FREE */ \
+X--- 91,99 ----
+X  #define	M_PROC		41	/* Proc structures */
+X  #define	M_SUBPROC	42	/* Proc sub-structures */
+X  #define	M_TEMP		49	/* misc temporary data buffers */
+X! #define	M_PCFSMNT	50	/* PCFS mount structure */
+X! #define	M_PCFSFAT	51	/* PCFS fat table */
+X! #define	M_LAST		52
+X  
+X  #define INITKMEMNAMES { \
+X  	"free",		/* 0 M_FREE */ \
+X***************
+X*** 139,144 ****
+X--- 141,148 ----
+X  	"subproc",	/* 42 M_PROC */ \
+X  	0, 0, 0, 0, 0, 0, \
+X  	"temp",		/* 49 M_TEMP */ \
+X+ 	"PCFS mount",	/* 50 M_PCFSMNT */ \
+X+ 	"PCFS fat",	/* 51 M_PCFSFAT */ \
+X  }
+X  
+X  struct kmemstats {
+X*** /sys/conf/files	Mon May 25 12:26:27 1992
+X--- /sys/conf/NEWfiles	Thu Oct 22 21:48:05 1992
+X***************
+X*** 214,216 ****
+X--- 214,222 ----
+X  ddb/db_variables.c	optional ddb
+X  ddb/db_watch.c		optional ddb
+X  ddb/db_write_cmd.c	optional ddb
+X+ pcfs/pcfs_fat.c		optional pcfs
+X+ pcfs/pcfs_conv.c	optional pcfs
+X+ pcfs/pcfs_denode.c	optional pcfs
+X+ pcfs/pcfs_lookup.c	optional pcfs
+X+ pcfs/pcfs_vfsops.c	optional pcfs
+X+ pcfs/pcfs_vnops.c	optional pcfs
+X*** /sys/kern/vfs_conf.c	Mon May 25 02:43:56 1992
+X--- /sys/kern/NEWvfs_conf.c	Thu Oct 22 21:48:58 1992
+X***************
+X*** 63,68 ****
+X--- 63,72 ----
+X  extern	struct vfsops mfs_vfsops;
+X  #endif
+X  
+X+ #ifdef PCFS
+X+ extern	struct vfsops pcfs_vfsops;
+X+ #endif
+X+ 
+X  #ifdef ISOFS
+X  extern	struct vfsops isofs_vfsops;
+X  #endif
+X***************
+X*** 80,86 ****
+X  #else
+X  	(struct vfsops *)0,
+X  #endif
+X! 	(struct vfsops *)0,	/* 4 = MOUNT_MSDOS */
+X  #ifdef ISOFS
+X  	&isofs_vfsops,		/* 5 = MOUNT_ISOFS */
+X  #else
+X--- 84,94 ----
+X  #else
+X  	(struct vfsops *)0,
+X  #endif
+X! #ifdef PCFS
+X! 	&pcfs_vfsops,		/* 4 = MOUNT_PCFS */
+X! #else
+X! 	(struct vfsops *)0,
+X! #endif
+X  #ifdef ISOFS
+X  	&isofs_vfsops,		/* 5 = MOUNT_ISOFS */
+X  #else
+END-of-/sys/pcfs/pcfs.cdiff
+echo x - /sys/pcfs/fat.h
+sed 's/^X//' >/sys/pcfs/fat.h << 'END-of-/sys/pcfs/fat.h'
+X/*
+X *  Some useful cluster numbers.
+X */
+X#define	PCFSROOT	0	/* cluster 0 means the root dir		*/
+X#define	CLUST_FREE	0	/* cluster 0 also means a free cluster	*/
+X#define	PCFSFREE	CLUST_FREE
+X#define	CLUST_FIRST	2	/* first legal cluster number		*/
+X#define	CLUST_RSRVS	0xfff0	/* start of reserved cluster range	*/
+X#define	CLUST_RSRVE	0xfff6	/* end of reserved cluster range	*/
+X#define	CLUST_BAD	0xfff7	/* a cluster with a defect		*/
+X#define	CLUST_EOFS	0xfff8	/* start of eof cluster range		*/
+X#define	CLUST_EOFE	0xffff	/* end of eof cluster range		*/
+X
+X#define	FAT12_MASK	0x0fff	/* mask for 12 bit cluster numbers	*/
+X#define	FAT16_MASK	0xffff	/* mask for 16 bit cluster numbers	*/
+X
+X/*
+X *  Return true if filesystem uses 12 bit fats.
+X *  Microsoft Programmer's Reference says if the
+X *  maximum cluster number in a filesystem is greater
+X *  than 4086 then we've got a 16 bit fat filesystem.
+X */
+X#define	FAT12(pmp)	(pmp->pm_maxcluster <= 4086)
+X#define	FAT16(pmp)	(pmp->pm_maxcluster >  4086)
+X
+X#define	PCFSEOF(cn)	(((cn) & 0xfff8) == 0xfff8)
+X
+X/*
+X *  These are the values for the function argument to
+X *  the function fatentry().
+X */
+X#define	FAT_GET		0x0001		/* get a fat entry		*/
+X#define	FAT_SET		0x0002		/* set a fat entry		*/
+X#define	FAT_GET_AND_SET	(FAT_GET | FAT_SET)
+X
+X/*
+X *  This union is useful for manipulating entries
+X *  in 12 bit fats.
+X */
+Xunion fattwiddle {
+X	unsigned short word;
+X	unsigned char  byte[2];
+X};
+X
+X#if defined(KERNEL)
+Xint pcbmap __P((struct denode *dep,
+X		unsigned long findcn,
+X		daddr_t *bnp,
+X		unsigned long *cnp));
+Xint clusterfree __P((struct pcfsmount *pmp, unsigned long cn));
+Xint clusteralloc __P((struct pcfsmount *pmp, unsigned long *retcluster,
+X	unsigned long fillwith));
+Xint fatentry __P((int function, struct pcfsmount *pmp,
+X	unsigned long cluster,
+X	unsigned long *oldcontents,
+X	unsigned long newcontents));
+Xint freeclusterchain __P((struct pcfsmount *pmp, unsigned long startchain));
+X#endif /* defined(KERNEL) */
+END-of-/sys/pcfs/fat.h
+echo x - /sys/pcfs/direntry.h
+sed 's/^X//' >/sys/pcfs/direntry.h << 'END-of-/sys/pcfs/direntry.h'
+X/*
+X *  Structure of a dos directory entry.
+X */
+Xstruct direntry {
+X	unsigned char deName[8];	/* filename, blank filled	*/
+X#define	SLOT_EMPTY	0x00		/* slot has never been used	*/
+X#define	SLOT_E5		0x05		/* the real value is 0xe5	*/
+X#define	SLOT_DELETED	0xe5		/* file in this slot deleted	*/
+X	unsigned char deExtension[3];	/* extension, blank filled	*/
+X	unsigned char deAttributes;	/* file attributes		*/
+X#define	ATTR_NORMAL	0x00		/* normal file			*/
+X#define	ATTR_READONLY	0x01		/* file is readonly		*/
+X#define	ATTR_HIDDEN	0x02		/* file is hidden		*/
+X#define	ATTR_SYSTEM	0x04		/* file is a system file	*/
+X#define	ATTR_VOLUME	0x08		/* entry is a volume label	*/
+X#define	ATTR_DIRECTORY	0x10		/* entry is a directory name	*/
+X#define	ATTR_ARCHIVE	0x20		/* file is new or modified	*/
+X	char deReserved[10];		/* reserved			*/
+X	unsigned short deTime;		/* create/last update time	*/
+X	unsigned short deDate;		/* create/last update date	*/
+X	unsigned short deStartCluster;	/* starting cluster of file	*/
+X	unsigned long deFileSize;	/* size of file in bytes	*/
+X};
+X
+X/*
+X *  This is the format of the contents of the deTime
+X *  field in the direntry structure.
+X */
+Xstruct DOStime {
+X	unsigned short
+X			dt_2seconds:5,	/* seconds divided by 2		*/
+X			dt_minutes:6,	/* minutes			*/
+X			dt_hours:5;	/* hours			*/
+X};
+X
+X/*
+X *  This is the format of the contents of the deDate
+X *  field in the direntry structure.
+X */
+Xstruct DOSdate {
+X	unsigned short
+X			dd_day:5,	/* day of month			*/
+X			dd_month:4,	/* month			*/
+X			dd_year:7;	/* years since 1980		*/
+X};
+X
+Xunion dostime {
+X	struct DOStime dts;
+X	unsigned short dti;
+X};
+X
+Xunion dosdate {
+X	struct DOSdate dds;
+X	unsigned short ddi;
+X};
+X
+X/*
+X *  The following defines are used to rename fields in
+X *  the ufs_specific structure in the nameidata structure
+X *  in namei.h
+X */
+X#define	ni_pcfs		ni_ufs
+X#define	pcfs_count	ufs_count
+X#define	pcfs_offset	ufs_offset
+X#define	pcfs_cluster	ufs_ino
+X
+X#if defined(KERNEL)
+Xvoid unix2dostime __P((struct timeval *tvp,
+X			union dosdate *ddp,
+X			union dostime *dtp));
+Xvoid dos2unixtime __P((union dosdate *ddp,
+X			union dostime *dtp,
+X			struct timeval *tvp));
+Xint  dos2unixfn __P((unsigned char dn[11], unsigned char *un));
+Xvoid unix2dosfn __P((unsigned char *un, unsigned char dn[11], int unlen));
+X#endif /* defined(KERNEL) */
+END-of-/sys/pcfs/direntry.h
+echo x - /sys/pcfs/denode.h
+sed 's/^X//' >/sys/pcfs/denode.h << 'END-of-/sys/pcfs/denode.h'
+X/*
+X *  Written by Paul Popelka (paulp@uts.amdahl.com)
+X *
+X *  You can do anything you want with this software,
+X *    just don't say you wrote it,
+X *    and don't remove this notice.
+X *
+X *  This software is provided "as is".
+X *
+X *  The author supplies this software to be publicly
+X *  redistributed on the understanding that the author
+X *  is not responsible for the correct functioning of
+X *  this software in any circumstances and is not liable
+X *  for any damages caused by this software.
+X *
+X *  October 1992
+X */
+X/*
+X *  This is the pc filesystem specific portion of the
+X *  vnode structure.
+X *  To describe a file uniquely the de_dirclust, de_diroffset,
+X *  and de_de.deStartCluster fields are used.  de_dirclust
+X *  contains the cluster number of the directory cluster containing
+X *  the entry for a file or directory.  de_diroffset is the
+X *  index into the cluster for the entry describing a file
+X *  or directory.  de_de.deStartCluster is the number of the
+X *  first cluster of the file or directory.  Now to describe the
+X *  quirks of the pc filesystem.
+X *  - Clusters 0 and 1 are reserved.
+X *  - The first allocatable cluster is 2.
+X *  - The root directory is of fixed size and all blocks that
+X *    make it up are contiguous.
+X *  - Cluster 0 refers to the root directory when it is found
+X *    in the startcluster field of a directory entry that points
+X *    to another directory.
+X *  - Cluster 0 implies a 0 length file when found in the start
+X *    cluster field of a directory entry that points to a file.
+X *  - You can't use the cluster number 0 to derive
+X *    the address of the root directory.
+X *  - Multiple directory entries can point to a directory.
+X *    The entry in the parent directory points to a child
+X *    directory.  Any directories in the child directory contain
+X *    a ".." entry that points back to the child.  The child
+X *    directory itself contains a "." entry that points to
+X *    itself.
+X *  - The root directory does not contain a "." or ".." entry.
+X *  - Directory entries for directories are never changed once
+X *    they are created (except when removed).  The size stays
+X *    0, and the last modification time is never changed.  This
+X *    is because so many directory entries can point to the physical
+X *    clusters that make up a directory.  It would lead to an update
+X *    nightmare.
+X *  - The length field in a directory entry pointing to a directory
+X *    contains 0 (always).  The only way to find the end of a directory
+X *    is to follow the cluster chain until the "last cluster"
+X *    marker is found.
+X *  My extensions to make this house of cards work.  These apply
+X *  only to the in memory copy of the directory entry.
+X *  - A reference count for each denode will be kept since dos doesn't
+X *    keep such things.
+X */
+X
+X/*
+X *  The fat cache structure.
+X *  fc_fsrcn is the filesystem relative cluster number
+X *  that corresponds to the file relative cluster number
+X *  in this structure (fc_frcn).
+X */
+Xstruct fatcache {
+X	unsigned short fc_frcn;		/* file relative cluster number	*/
+X	unsigned short fc_fsrcn;	/* filesystem relative cluster number */
+X};
+X
+X/*
+X *  The fat entry cache as it stands helps make extending
+X *  files a "quick" operation by avoiding having to scan
+X *  the fat to discover the last cluster of the file.
+X *  The cache also helps sequential reads by remembering
+X *  the last cluster read from the file.  This also prevents
+X *  us from having to rescan the fat to find the next cluster
+X *  to read.  This cache is probably pretty worthless if a
+X *  file is opened by multiple processes.
+X */
+X#define	FC_SIZE		2	/* number of entries in the cache	*/
+X#define	FC_LASTMAP	0	/* entry the last call to pcbmap() resolved to */
+X#define	FC_LASTFC	1	/* entry for the last cluster in the file */
+X
+X#define	FCE_EMPTY	0xffff	/* doesn't represent an actual cluster # */
+X
+X/*
+X *  Set a slot in the fat cache.
+X */
+X#define	fc_setcache(dep, slot, frcn, fsrcn) \
+X	(dep)->de_fc[slot].fc_frcn = frcn; \
+X	(dep)->de_fc[slot].fc_fsrcn = fsrcn;
+X
+X/*
+X *  This is the in memory variant of a dos directory
+X *  entry.  It is usually contained within a vnode.
+X */
+Xstruct denode {
+X	struct denode *de_chain[2];	/* hash chain ptrs		*/
+X	struct vnode *de_vnode;		/* addr of vnode we are part of	*/
+X	struct vnode *de_devvp;		/* vnode of blk dev we live on	*/
+X	u_long de_flag;			/* flag bits			*/
+X	dev_t de_dev;			/* device where direntry lives	*/
+X	u_long de_dirclust;		/* cluster of the directory file
+X					 *  containing this entry	*/
+X	u_long de_diroffset;		/* ordinal of this entry in the
+X					 *  directory			*/
+X	long de_refcnt;			/* reference count		*/
+X	struct pcfsmount *de_pmp;	/* addr of our mount struct	*/
+X	struct lockf *de_lockf;		/* byte level lock list		*/
+X	long de_spare0;			/* current lock holder		*/
+X	long de_spare1;			/* lock wanter			*/
+X	struct direntry de_de;		/* the actual directory entry	*/
+X	struct fatcache de_fc[FC_SIZE];	/* fat cache			*/
+X};
+X
+X/*
+X *  Values for the de_flag field of the denode.
+X */
+X#define	DELOCKED	0x0001		/* directory entry is locked	*/
+X#define	DEWANT		0x0002		/* someone wants this de	*/
+X#define	DERENAME	0x0004		/* de is being renamed		*/
+X#define	DEUPD		0x0008		/* file has been modified	*/
+X#define	DESHLOCK	0x0010		/* file has shared lock		*/
+X#define	DEEXLOCK	0x0020		/* file has exclusive lock	*/
+X#define	DELWAIT		0x0040		/* someone waiting on file lock	*/
+X#define	DEMOD		0x0080		/* denode wants to be written back
+X					 *  to disk			*/
+X
+X/*
+X *  Shorthand macros used to reference fields in the direntry
+X *  contained in the denode structure.
+X */
+X#define	de_Name		de_de.deName
+X#define	de_Extension	de_de.deExtension
+X#define	de_Attributes	de_de.deAttributes
+X#define	de_Reserved	de_de.deReserved
+X#define	de_Time		de_de.deTime
+X#define	de_Date		de_de.deDate
+X#define	de_StartCluster	de_de.deStartCluster
+X#define	de_FileSize	de_de.deFileSize
+X#define	de_forw		de_chain[0]
+X#define	de_back		de_chain[1]
+X
+X#if defined(KERNEL)
+X
+X#define	VTODE(vp)	((struct denode *)(vp)->v_data)
+X#define	DETOV(de)	((de)->de_vnode)
+X
+X#define	DELOCK(de)	delock(de)
+X#define	DEUNLOCK(de)	deunlock(de)
+X
+X#define	DEUPDAT(dep, t, waitfor) \
+X	if (dep->de_flag & DEUPD) \
+X		(void) deupdat(dep, t, waitfor);
+X
+X#define	DETIMES(dep, t) \
+X	if (dep->de_flag & DEUPD) { \
+X		(dep)->de_flag |= DEMOD; \
+X		unix2dostime(t, (union dosdate *)&dep->de_Date, \
+X			(union dostime *)&dep->de_Time); \
+X		(dep)->de_flag &= ~DEUPD; \
+X	}
+X
+X/*
+X * Prototypes for PCFS vnode operations
+X */
+Xint pcfs_lookup __P((struct vnode *vp, struct nameidata *ndp, struct proc *p));
+Xint pcfs_create __P((struct nameidata *ndp, struct vattr *vap, struct proc *p));
+Xint pcfs_mknod __P((struct nameidata *ndp, struct vattr *vap, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_open __P((struct vnode *vp, int mode, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_close __P((struct vnode *vp, int fflag, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_access __P((struct vnode *vp, int mode, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_getattr __P((struct vnode *vp, struct vattr *vap, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_setattr __P((struct vnode *vp, struct vattr *vap, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_read __P((struct vnode *vp, struct uio *uio, int ioflag,
+X	struct ucred *cred));
+Xint pcfs_write __P((struct vnode *vp, struct uio *uio, int ioflag,
+X	struct ucred *cred));
+Xint pcfs_ioctl __P((struct vnode *vp, int command, caddr_t data, int fflag,
+X	struct ucred *cred, struct proc *p));
+Xint pcfs_select __P((struct vnode *vp, int which, int fflags, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_mmap __P((struct vnode *vp, int fflags, struct ucred *cred,
+X	struct proc *p));
+Xint pcfs_fsync __P((struct vnode *vp, int fflags, struct ucred *cred,
+X	int waitfor, struct proc *p));
+Xint pcfs_seek __P((struct vnode *vp, off_t oldoff, off_t newoff,
+X	struct ucred *cred));
+Xint pcfs_remove __P((struct nameidata *ndp, struct proc *p));
+Xint pcfs_link __P((struct vnode *vp, struct nameidata *ndp, struct proc *p));
+Xint pcfs_rename __P((struct nameidata *fndp, struct nameidata *tdnp,
+X	struct proc *p));
+Xint pcfs_mkdir __P((struct nameidata *ndp, struct vattr *vap, struct proc *p));
+Xint pcfs_rmdir __P((struct nameidata *ndp, struct proc *p));
+Xint pcfs_symlink __P((struct nameidata *ndp, struct vattr *vap, char *target,
+X	struct proc *p));
+Xint pcfs_readdir __P((struct vnode *vp, struct uio *uio, struct ucred *cred,
+X	int *eofflagp));
+Xint pcfs_readlink __P((struct vnode *vp, struct uio *uio, struct ucred *cred));
+Xint pcfs_abortop __P((struct nameidata *ndp));
+Xint pcfs_inactive __P((struct vnode *vp, struct proc *p));
+Xint pcfs_reclaim __P((struct vnode *vp));
+Xint pcfs_lock __P((struct vnode *vp));
+Xint pcfs_unlock __P((struct vnode *vp));
+Xint pcfs_bmap __P((struct vnode *vp, daddr_t bn, struct vnode **vpp,
+X	daddr_t *bnp));
+Xint pcfs_strategy __P((struct buf *bp));
+Xint pcfs_print __P((struct vnode *vp));
+Xint pcfs_islocked __P((struct vnode *vp));
+Xint pcfs_advlock __P((struct vnode *vp, caddr_t id, int op, struct flock *fl,
+X	int flags));
+X
+X/*
+X *  Internal service routine prototypes.
+X */
+Xint deget __P((struct pcfsmount *pmp, int isadir, unsigned long dirclust,
+X	unsigned long diroffset, unsigned long startclust,
+X	struct buf *bp, struct denode **depp));
+X#endif /* defined(KERNEL) */
+END-of-/sys/pcfs/denode.h
+echo x - /sys/pcfs/bpb.h
+sed 's/^X//' >/sys/pcfs/bpb.h << 'END-of-/sys/pcfs/bpb.h'
+X/*
+X *  BIOS Parameter Block (BPB) for DOS 3.3
+X */
+Xstruct bpb33 {
+X	u_short bpbBytesPerSec;	/* bytes per sector			*/
+X	u_char bpbSecPerClust;	/* sectors per cluster			*/
+X	u_short bpbResSectors;	/* number of reserved sectors		*/
+X	u_char bpbFATs;		/* number of FATs			*/
+X	u_short bpbRootDirEnts;	/* number of root directory entries	*/
+X	u_short bpbSectors;	/* total number of sectors		*/
+X	u_char bpbMedia;	/* media descriptor			*/
+X	u_short bpbFATsecs;	/* number of sectors per FAT		*/
+X	u_short bpbSecPerTrack;	/* sectors per track			*/
+X	u_short bpbHeads;	/* number of heads			*/
+X	u_short bpbHiddenSecs;	/* number of hidden sectors		*/
+X};
+X
+X/*
+X *  BPB for DOS 5.0
+X *  The difference is bpbHiddenSecs is a short for DOS 3.3,
+X *  and bpbHugeSectors is not in the 3.3 bpb.
+X */
+Xstruct bpb50 {
+X	u_short bpbBytesPerSec;	/* bytes per sector			*/
+X	u_char bpbSecPerClust;	/* sectors per cluster			*/
+X	u_short bpbResSectors;	/* number of reserved sectors		*/
+X	u_char bpbFATs;		/* number of FATs			*/
+X	u_short bpbRootDirEnts;	/* number of root directory entries	*/
+X	u_short bpbSectors;	/* total number of sectors		*/
+X	u_char bpbMedia;	/* media descriptor			*/
+X	u_short bpbFATsecs;	/* number of sectors per FAT		*/
+X	u_short bpbSecPerTrack;	/* sectors per track			*/
+X	u_short bpbHeads;	/* number of heads			*/
+X	u_long bpbHiddenSecs;	/* number of hidden sectors		*/
+X	u_long bpbHugeSectors;	/* number of sectrs if bpbSectors == 0	*/
+X};
+X
+X/*
+X *  The following structures represent how the bpb's look
+X *  on disk.  shorts and longs are just character arrays
+X *  of the appropriate length.  This is because the compiler
+X *  forces shorts and longs to align on word or halfword
+X *  boundaries.
+X */
+X#define	getushort(x)	*((unsigned short *)(x))
+X#define	getulong(x)	*((unsigned long *)(x))
+X
+X/*
+X *  BIOS Parameter Block (BPB) for DOS 3.3
+X */
+Xstruct byte_bpb33 {
+X	char bpbBytesPerSec[2];	/* bytes per sector			*/
+X	char bpbSecPerClust;	/* sectors per cluster			*/
+X	char bpbResSectors[2];	/* number of reserved sectors		*/
+X	char bpbFATs;		/* number of FATs			*/
+X	char bpbRootDirEnts[2];	/* number of root directory entries	*/
+X	char bpbSectors[2];	/* total number of sectors		*/
+X	char bpbMedia;		/* media descriptor			*/
+X	char bpbFATsecs[2];	/* number of sectors per FAT		*/
+X	char bpbSecPerTrack[2];	/* sectors per track			*/
+X	char bpbHeads[2];	/* number of heads			*/
+X	char bpbHiddenSecs[2];	/* number of hidden sectors		*/
+X};
+X
+X/*
+X *  BPB for DOS 5.0
+X *  The difference is bpbHiddenSecs is a short for DOS 3.3,
+X *  and bpbHugeSectors is not in the 3.3 bpb.
+X */
+Xstruct byte_bpb50 {
+X	char bpbBytesPerSec[2];	/* bytes per sector			*/
+X	char bpbSecPerClust;	/* sectors per cluster			*/
+X	char bpbResSectors[2];	/* number of reserved sectors		*/
+X	char bpbFATs;		/* number of FATs			*/
+X	char bpbRootDirEnts[2];	/* number of root directory entries	*/
+X	char bpbSectors[2];	/* total number of sectors		*/
+X	char bpbMedia;		/* media descriptor			*/
+X	char bpbFATsecs[2];	/* number of sectors per FAT		*/
+X	char bpbSecPerTrack[2];	/* sectors per track			*/
+X	char bpbHeads[2];	/* number of heads			*/
+X	char bpbHiddenSecs[4];	/* number of hidden sectors		*/
+X	char bpbHugeSectors[4];	/* number of sectrs if bpbSectors == 0	*/
+X};
+END-of-/sys/pcfs/bpb.h
+echo x - /sys/pcfs/bootsect.h
+sed 's/^X//' >/sys/pcfs/bootsect.h << 'END-of-/sys/pcfs/bootsect.h'
+X/*
+X *  Format of a boot sector.  This is the first sector
+X *  on a DOS floppy disk or the fist sector of a partition
+X *  on a hard disk.  But, it is not the first sector of
+X *  a partitioned hard disk.
+X */
+Xstruct bootsector33 {
+X	char bsJump[3];		/* jump instruction E9xxxx or EBxx90	*/
+X	char bsOemName[8];	/* OEM name and version			*/
+X	char bsBPB[19];		/* BIOS parameter block			*/
+X	char bsDriveNumber;	/* drive number (0x80)			*/
+X	char bsBootCode[474];	/* pad so structure is 512 bytes long	*/
+X	unsigned short bsBootSectSig;
+X#define	BOOTSIG	0xaa55
+X};
+X
+Xstruct bootsector50 {
+X	char bsJump[3];		/* jump instruction E9xxxx or EBxx90	*/
+X	char bsOemName[8];	/* OEM name and version			*/
+X	char bsBPB[25];		/* BIOS parameter block			*/
+X	char bsDriveNumber;	/* drive number (0x80)			*/
+X	char bsReserved1;	/* reserved				*/
+X	char bsBootSignature;	/* extended boot signature (0x29)	*/
+X#define	EXBOOTSIG	0x29
+X	char bsVolumeID[4];	/* volume ID number			*/
+X	char bsVolumeLabel[11];	/* volume label				*/
+X	char bsFileSysType[8];	/* file system type (FAT12 or FAT16)	*/
+X	char bsBootCode[448];	/* pad so structure is 512 bytes long	*/
+X	unsigned short bsBootSectSig;
+X#define	BOOTSIG	0xaa55
+X};
+X
+Xunion bootsector {
+X	struct bootsector33 bs33;
+X	struct bootsector50 bs50;
+X};
+X
+X/*
+X *  Shorthand for fields in the bpb.
+X */
+X#define	bsBytesPerSec	bsBPB.bpbBytesPerSec
+X#define	bsSectPerClust	bsBPB.bpbSectPerClust
+X#define	bsResSectors	bsBPB.bpbResSectors
+X#define	bsFATS		bsBPB.bpbFATS
+X#define	bsRootDirEnts	bsBPB.bpbRootDirEnts
+X#define	bsSectors	bsBPB.bpbSectors
+X#define	bsMedia		bsBPB.bpbMedia
+X#define	bsFATsecs	bsBPB.bpbFATsecs
+X#define	bsSectPerTrack	bsBPB.bpbSectPerTrack
+X#define	bsHeads		bsBPB.bpbHeads
+X#define	bsHiddenSecs	bsBPB.bpbHiddenSecs
+X#define	bsHugeSectors	bsBPB.bpbHugeSectors
+END-of-/sys/pcfs/bootsect.h
+echo x - /sys/pcfs/pcfsmount.h
+sed 's/^X//' >/sys/pcfs/pcfsmount.h << 'END-of-/sys/pcfs/pcfsmount.h'
+X/*
+X *  Written by Paul Popelka (paulp@uts.amdahl.com)
+X *
+X *  You can do anything you want with this software,
+X *    just don't say you wrote it,
+X *    and don't remove this notice.
+X *
+X *  This software is provided "as is".
+X *
+X *  The author supplies this software to be publicly
+X *  redistributed on the understanding that the author
+X *  is not responsible for the correct functioning of
+X *  this software in any circumstances and is not liable
+X *  for any damages caused by this software.
+X *
+X *  October 1992
+X */
+X
+X/*
+X *  Layout of the mount control block for a msdos
+X *  file system.
+X */
+Xstruct pcfsmount {
+X	struct mount *pm_mountp;	/* vfs mount struct for this fs	*/
+X	dev_t pm_dev;			/* block special device mounted	*/
+X	struct vnode *pm_devvp;		/* vnode for block device mntd	*/
+X	struct bpb50 pm_bpb;		/* BIOS parameter blk for this fs */
+X	long pm_fatblk;			/* block # of first FAT		*/
+X	long pm_rootdirblk;		/* block # of root directory	*/
+X	long pm_rootdirsize;		/* size in blocks (not clusters) */
+X	long pm_firstcluster;		/* block number of first cluster */
+X	long pm_nmbrofclusters;		/* # of clusters in filesystem	*/
+X	long pm_maxcluster;		/* maximum cluster number	*/
+X	long pm_freeclustercount;	/* number of free clusters	*/
+X	long pm_lookhere;		/* start free cluster search here */
+X	long pm_bnshift;		/* shift file offset right this
+X					 *  amount to get a block number */
+X	long pm_brbomask;		/* and a file offset with this
+X					 *  mask to get block rel offset */
+X	long pm_cnshift;		/* shift file offset right this
+X					 *  amount to get a cluster number */
+X	long pm_crbomask;		/* and a file offset with this
+X					 *  mask to get cluster rel offset */
+X	long pm_bpcluster;		/* bytes per cluster		*/
+X	long pm_depclust;		/* directory entries per cluster */
+X	long pm_fmod;			/* ~0 if fs is modified, this can
+X					 * rollover to 0		*/
+X	char pm_ronly;			/* read only if non-zero	*/
+X	char pm_waitonfat;		/* wait for writes of the fat to complt,
+X					 * when 0 use bdwrite, else use bwrite */
+X	unsigned char *pm_inusemap;	/* ptr to bitmap of in-use clusters */
+X};
+X/*
+X *  How to compute pm_cnshift and pm_crbomask.
+X *
+X *  pm_crbomask = (pm_SectPerClust * pm_BytesPerSect) - 1
+X *  if (bytesperclust == 0) return EBADBLKSZ;
+X *  bit = 1;
+X *  for (i = 0; i < 32; i++) {
+X *    if (bit & bytesperclust) {
+X *      if (bit ^ bytesperclust) return EBADBLKSZ;
+X *      pm_cnshift = i;
+X *      break;
+X *    }
+X *    bit <<= 1;
+X * }
+X */
+X
+X/*
+X *  Shorthand for fields in the bpb contained in
+X *  the pcfsmount structure.
+X */
+X#define	pm_BytesPerSec	pm_bpb.bpbBytesPerSec
+X#define	pm_SectPerClust	pm_bpb.bpbSecPerClust
+X#define	pm_ResSectors	pm_bpb.bpbResSectors
+X#define	pm_FATs		pm_bpb.bpbFATs
+X#define	pm_RootDirEnts	pm_bpb.bpbRootDirEnts
+X#define	pm_Sectors	pm_bpb.bpbSectors
+X#define	pm_Media	pm_bpb.bpbMedia
+X#define	pm_FATsecs	pm_bpb.bpbFATsecs
+X#define	pm_SecPerTrack	pm_bpb.bpbSecPerTrack
+X#define	pm_Heads	pm_bpb.bpbHeads
+X#define	pm_HiddenSects	pm_bpb.bpbHiddenSecs
+X#define	pm_HugeSectors	pm_bpb.bpbHugeSectors
+X
+X/*
+X *  Map a cluster number into a filesystem relative
+X *  block number.
+X */
+X#define	cntobn(pmp, cn) \
+X	((((cn)-CLUST_FIRST) * (pmp)->pm_SectPerClust) + (pmp)->pm_firstcluster)
+X
+X/*
+X *  Map a filesystem relative block number back into
+X *  a cluster number.
+X */
+X#define	bntocn(pmp, bn) \
+X	((((bn) - pmp->pm_firstcluster)/ (pmp)->pm_SectPerClust) + CLUST_FIRST)
+X
+X/*
+X * Prototypes for PCFS virtual filesystem operations
+X */
+Xint pcfs_mount __P((struct mount *mp, char *path, caddr_t data,
+X	struct nameidata *ndp, struct proc *p));
+Xint pcfs_start __P((struct mount *mp, int flags, struct proc *p));
+Xint pcfs_unmount __P((struct mount *mp, int mntflags, struct proc *p));
+Xint pcfs_root __P((struct mount *mp, struct vnode **vpp));
+Xint pcfs_quotactl __P((struct mount *mp, int cmds, int uid, /* should be uid_t */
+X	caddr_t arg, struct proc *p));
+Xint pcfs_statfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
+Xint pcfs_sync __P((struct mount *mp, int waitfor));
+Xint pcfs_fhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
+Xint pcfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+Xint pcfs_init __P(());
+END-of-/sys/pcfs/pcfsmount.h
+echo c - /usr/src/sbin/mount_pcfs
+mkdir /usr/src/sbin/mount_pcfs > /dev/null 2>&1
+echo x - /usr/src/sbin/mount_pcfs/mount_pcfs.c
+sed 's/^X//' >/usr/src/sbin/mount_pcfs/mount_pcfs.c << 'END-of-/usr/src/sbin/mount_pcfs/mount_pcfs.c'
+X#include <stdio.h>
+X#include <sys/types.h>
+X#include <sys/mount.h>
+X
+Xchar *progname;
+X
+Xvoid
+Xusage ()
+X{
+X	fprintf (stderr, "usage: %s bdev dir\n", progname);
+X	exit (1);
+X}
+X		
+Xint
+Xmain (argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X	char *dev;
+X	char *dir;
+X	struct pcfs_args args;
+X	int c;
+X	extern char *optarg;
+X	extern int optind;
+X	int opts;
+X
+X	progname = argv[0];
+X
+X	opts = 0;
+X
+X	while ((c = getopt (argc, argv, "F:")) != EOF) {
+X		switch (c) {
+X		case 'F':
+X			opts |= atoi (optarg);
+X			break;
+X		default:
+X			usage ();
+X		}
+X	}
+X
+X	if (optind + 2 != argc)
+X		usage ();
+X
+X	dev = argv[optind];
+X	dir = argv[optind + 1];
+X
+X	args.fspec = dev;
+X	args.exflags = 0;
+X	args.exroot = 0;
+X
+X	if (mount (MOUNT_PCFS, dir, opts, &args) < 0) {
+X		perror ("mount");
+X		exit (1);
+X	}
+X
+X	exit (0);
+X}
+END-of-/usr/src/sbin/mount_pcfs/mount_pcfs.c
+echo x - /usr/src/sbin/mount_pcfs/Makefile
+sed 's/^X//' >/usr/src/sbin/mount_pcfs/Makefile << 'END-of-/usr/src/sbin/mount_pcfs/Makefile'
+XPROG = mount_pcfs
+XCFLAGS += -DPCFS
+XNOMAN = noman
+X
+X.include <bsd.prog.mk>
+END-of-/usr/src/sbin/mount_pcfs/Makefile
+exit

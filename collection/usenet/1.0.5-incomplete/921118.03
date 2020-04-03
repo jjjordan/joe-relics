@@ -1,0 +1,2070 @@
+Path: funic!fuug!mcsun!Germany.EU.net!rrz.uni-koeln.de!unidui!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!spool.mu.edu!umn.edu!csus.edu!netcom.com!netcomsv!spud.Hyperion.COM!spud.Hyperion.COM!not-for-mail
+From: koreth@spud.Hyperion.COM (Steven Grimm)
+Newsgroups: alt.sources
+Subject: WorkMan (X CD player program for Suns) beta 3.0 part01/06
+Date: 15 Nov 1992 14:34:21 -0800
+Organization: Hyperion, Mountain View, CA, USA
+Lines: 2060
+Message-ID: <1e6j9dINNiq0@spud.Hyperion.COM>
+NNTP-Posting-Host: spud.hyperion.com
+
+Archive-name: workman-b3.0/part01
+Submitted-by: koreth@hyperion.com
+
+Here's release beta-3.0 of WorkMan, my X CD player program.  It requires XView
+3.0 or higher (XView source is available with the X11R5 distribution) and runs
+under both SunOS 4.x and Solaris 2.
+
+The major new feature (see CHANGELOG for other stuff):
+
+Tracks may now be split into sections at arbitrary locations.  The Goodies
+popup contains three new buttons: "Split", "Delete", and "Scan for index
+marks".  The Split button divides the current track (as selected from the
+main window) into two sections.  Use the track position slider on the main
+window to control the split point, or use the "Scan for index marks" button
+to search the CD for index marks (which are most often found on high-end
+classical CDs).  You may split a track while the CD is playing, useful for
+marking off particular sections of a song.  Sections may be named and
+selected just like tracks.
+
+Enjoy.
+
+-Steve
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 6)."
+# Contents:  ANSWERS INSTALLATION Makefile README bitmaps
+#   bitmaps/eject.button bitmaps/ff.button bitmaps/icon
+#   bitmaps/iconmask bitmaps/loud.icon bitmaps/loud0.icon
+#   bitmaps/loud1.icon bitmaps/loud2.icon bitmaps/loud3.icon
+#   bitmaps/loud4.icon bitmaps/loud5.icon bitmaps/loud6.icon
+#   bitmaps/pause.button bitmaps/phones bitmaps/phones0
+#   bitmaps/phonesl1 bitmaps/phonesl2 bitmaps/phonesl3
+#   bitmaps/phonesr1 bitmaps/phonesr2 bitmaps/phonesr3
+#   bitmaps/play.button bitmaps/rew.button bitmaps/sink0 bitmaps/sink1
+#   bitmaps/sink2 bitmaps/sink3 bitmaps/sink4 bitmaps/sink5
+#   bitmaps/sink6 bitmaps/sink7 bitmaps/stop.button struct.h
+#   workman_ui.h
+# Wrapped by koreth@gerbilmeister on Sun Nov 15 14:20:17 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'ANSWERS' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'ANSWERS'\"
+else
+echo shar: Extracting \"'ANSWERS'\" \(4043 characters\)
+sed "s/^X//" >'ANSWERS' <<'END_OF_FILE'
+X- @(#)ANSWERS	1.2 8/31/92 -
+X
+XCOMMON "WORKMAN" QUESTIONS (with answers!)
+X
+X1. Why doesn't it play through the workstation's speaker?
+X2. How do I label several tracks in a row as part of the same song?
+X3. Can different tracks be by different artists?
+X4. Why does it eat more and more memory as it runs?
+X
+X---
+X1. Why doesn't it play through the workstation's speaker?
+X
+XThe short answer: Because it can't.  The CD-ROM drive provides no way to read
+Xthe audio data from the CD to the computer.  This is a limitation in the
+Xhardware.  The workaround is to run an audio patch cable (available at any
+Xdecent stereo store) from the drive's headphone jack to the workstation's
+Xaudio input; then run "cat /dev/audio > /dev/audio".
+X
+X---
+X2. How do I label several tracks in a row as part of the same song?
+X
+XThere are several special symbols you can put into a track title to alter
+Xaspects of the main window's display.  The most important is "//" (two
+Xforward slashes in a row.)  This splits the title up into segments.  Usually,
+Xeach segment is displayed on its own line in the main window; a common use
+Xis to enter titles that are too big to fit on one line.  For instance,
+Xyou might enter a title like:
+X
+XThe really really really really really//really really really long song
+X
+XThat would add a second line of track title information to the main window,
+Xwith the text after the "//"; the text before "//" would go on the first
+Xline of the window.  The "//" itself is never displayed.
+X
+XIf a segment starts with "+", the rest of the text in the segment is displayed
+Xin place of the disc name on the main window.  This is most often used when
+Xseveral tracks are related in some way (such as movements of a symphony.)
+XFor example, you might enter:
+X
+X+Symphony No. 2, op. 40//Allegro assai
+X
+XThat title line has two segments.  The second segment is displayed as the
+Xtrack title.  Since the first segment begins with "+", the CD's title is
+Xreplaced with "Symphony No. 2, op. 40" while the track in question is
+Xplaying.
+X
+XAs a shortcut, if a segment contains only a "+" character and nothing
+Xelse, the "+" segment from the previous track is used.  So you might
+Xhave a group of tracks labeled:
+X
+X+Piano concerto in G//Allegro
+X+//Andante
+XPresto//+
+X+//Allegro assai - Andante -//Moderato marcato
+X
+XThe third line is to demonstrate that the order of segments isn't important;
+X"+" can come anywhere.  The fourth track has the "Piano concerto in G"
+Xtitle, as well as a two-line track title.
+X
+XIf you're not sure what the result will look like when you enter a
+Xtitle with several segments, just click on the track's selector button
+Xon the main window and the title will be displayed, even if the CD isn't
+Xplaying.
+X
+X---
+X3. Can different tracks be by different artists?
+X
+XYes, using the same facilities described in answer #2.  There is a second
+Xspecial character that can come at the front of a segment, "@".  It causes
+Xthe artist name on the main window display to be replaced with the rest of
+Xthe text in the segment while the track in question is playing.
+X
+X"@" behaves in much the same way as "+" (e.g. if it's alone in a segment,
+Xthe previous track's "@" segment is used.)
+X
+XA compilation CD's track titles might look like this:
+X
+X@Charles Gounod//+Ballet music from "Faust"//Allegretto
+X@//+//Adagio
+X@//+//Allegretto
+X@//+//Moderato maestoso
+X@//+//Moderato con moto
+X@//+//Allegretto
+X@//+//Allegro vivo
+X@Friedrich Smetana//Symphonic poem "The Moldau"
+X@Anton Dvorak//Slavonic Dance No. 2 in E minor
+X@Adolphe Adam//Overture from "If I were King"
+X
+X---
+X4. Why does it eat more and more memory as it runs?
+X
+XThere is a bug in XView 3.0 (fixed in 3.0.1 and higher) that causes the
+Xlibrary to lose a little bit of memory whenever an image is destroyed.
+XUnfortunately, this happens twice a second while the About popup is
+Xdisplayed.  If the About popup is left up overnight, the program can get
+Xbigger than you might expect.  WorkMan doesn't update the About popup
+Xunless it's actually displayed onscreen, so unpin (dismiss) it when
+Xyou're not using it and the program will stop growing.
+X
+END_OF_FILE
+if test 4043 -ne `wc -c <'ANSWERS'`; then
+    echo shar: \"'ANSWERS'\" unpacked with wrong size!
+fi
+# end of 'ANSWERS'
+fi
+if test -f 'INSTALLATION' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'INSTALLATION'\"
+else
+echo shar: Extracting \"'INSTALLATION'\" \(1324 characters\)
+sed "s/^X//" >'INSTALLATION' <<'END_OF_FILE'
+XTo build workman, most people (OpenWindows users running SunOS 4.x)
+Xcan just type "make".
+X
+XThe Makefile assumes that OPENWINHOME is set to the OpenWindows 3.x home
+Xdirectory.  Some tweaking will probably be required if you're not using
+XOpenWindows; OPENWINHOME is used to locate the XView include files and
+Xlibraries.
+X
+XIf you're compiling on Solaris 2, you'll want to uncomment the -DSYSV
+Xline at the top of the Makefile.  The biggest thing this does is enable
+Xa background process that is necessary if you don't want the CD to stop
+Xplaying when you start workman.  (Use the "-o" option to prevent the
+Xbackground process from being spawned, even if you've compiled with
+X-DSYSV.)
+X
+XOnce the executable is built, install it in your favorite directory
+Xfor such things.  The file "workman.info" should be placed in the XView
+Xhelp directory, usually $OPENWINHOME/lib/help.  If you put it somewhere
+Xelse, be sure to set your HELPPATH environment variable to point to that
+Xdirectory.  This is necessary if you want to use the Help key to see
+Xthe controls' descriptions.  Run "make install" to install everything
+Xunder $OPENWINHOME.  You will probably need to be root to do this.
+X
+XOnce all that's done, you're ready to rock and roll (or jazz, or...)
+X
+XSunOS 4.x users may want to use the "-e" option; see the manual page for
+Xdetails.
+END_OF_FILE
+if test 1324 -ne `wc -c <'INSTALLATION'`; then
+    echo shar: \"'INSTALLATION'\" unpacked with wrong size!
+fi
+# end of 'INSTALLATION'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(3672 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+X# @(#)Makefile	1.32 11/8/92
+X
+X# Uncomment the following if you're compiling on Solaris 2.  It adds an option
+X# (-o) and changes the default device name of the CD-ROM.
+X#SOL2 = -DSYSV
+X
+X# Set these to the locations of your XView include files and libraries.
+XINCDIR = $(OPENWINHOME)/include
+XLIBDIR = $(OPENWINHOME)/lib
+X
+X# If your linker supports the -R flag to set a default location for
+X# shared libraries, uncomment this line.
+X#LIBLOC = -R$(LIBDIR)
+X
+X# Set these to the directory names in which to install the software and
+X# help files.
+XBINDIR = $(OPENWINHOME)/bin
+XHLPDIR = $(OPENWINHOME)/lib/help
+X
+X# And don't worry about anything from this line on.
+X
+X############################################################################
+X# Parameters.
+X
+XPROGRAM = workman
+XSOURCES.c = workman_stubs.c database.c hardware.c cdinfo.c display.c setup.c
+XSOURCES.h = struct.h workman_ui.h
+X
+XOBJECTS = \
+X	$(SOURCES.c:%.c=%.o)
+X
+X# Compiler flags.
+X
+XCFLAGS = -O
+XCPPFLAGS = -I$(INCDIR) $(SOL2)
+XLDFLAGS = -L$(LIBDIR) $(LIBLOC)
+XLDLIBS = -lxview -lolgx -lX11 -ldl
+XCC = cc
+X
+X# Standard targets.
+X
+Xall:	 $(PROGRAM) $(PROGRAM).man workmandb.man
+X
+X$(PROGRAM): $(SOURCES.c) $(OBJECTS)
+X	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
+X
+Xclean:
+X	$(RM) $(OBJECTS) *.BAK *.delta core
+X
+Xinstall: $(PROGRAM)
+X	cp $(PROGRAM) $(BINDIR)
+X	chmod 755 $(BINDIR)/$(PROGRAM)
+X	cp $(PROGRAM).info $(HLPDIR)
+X	chmod 644 $(HLPDIR)/$(PROGRAM).info
+X
+Xdisplay.o: display.c workman_ui.h
+X# This next one isn't completely true, but close enough
+X$(OBJECTS): struct.h
+X
+X$(PROGRAM).man: $(PROGRAM).1
+X	nroff -man $(PROGRAM).1 > $(PROGRAM).man
+Xworkmandb.man: workmandb.4
+X	nroff -man workmandb.4 > workmandb.man
+X
+X#
+X# These targets are for building the shar distribution.
+X#
+Xshar: part01
+X
+XALLFILES= README ANSWERS INSTALLATION $(PROGRAM)_ui.h \
+X	$(PROGRAM).man $(PROGRAM).1 $(SOURCES.c) workmandb.man workmandb.4 \
+X	CHANGELOG struct.h bitmaps bitmaps/loud.icon bitmaps/loud0.icon \
+X	bitmaps/loud1.icon bitmaps/loud2.icon bitmaps/loud3.icon \
+X	bitmaps/loud4.icon bitmaps/loud5.icon bitmaps/loud6.icon \
+X	bitmaps/phones bitmaps/phones0 bitmaps/phonesl1 bitmaps/phonesl2 \
+X	bitmaps/phonesl3 bitmaps/phonesr1 bitmaps/phonesr2 bitmaps/phonesr3 \
+X	bitmaps/sink0 bitmaps/sink1 bitmaps/sink2 bitmaps/sink3 \
+X	bitmaps/sink4 bitmaps/sink5 bitmaps/sink6 bitmaps/sink7 \
+X	bitmaps/eject.button bitmaps/ff.button \
+X	bitmaps/icon bitmaps/iconmask bitmaps/pause.button \
+X	bitmaps/play.button bitmaps/rew.button bitmaps/stop.button \
+X	$(PROGRAM).info Makefile
+X
+Xpart01: $(ALLFILES)
+X	makekit -n part $(ALLFILES)
+X
+X#
+X# The following builds a compressed tarfile for binary distribution.
+X# It will require a little hacking to use on machines other than mine.
+X#
+XAUXDIR = /tmp
+X
+XAUXSTUFF = $(AUXDIR)/$(PROGRAM) $(AUXDIR)/ANSWERS \
+X	$(AUXDIR)/$(PROGRAM).info $(AUXDIR)/CHANGELOG $(AUXDIR)/$(PROGRAM).1 \
+X	$(AUXDIR)/$(PROGRAM).man $(AUXDIR)/workmandb.man $(AUXDIR)/workmandb.4
+X
+Xtarfile: $(AUXDIR)/$(PROGRAM).tar.Z
+X
+X$(AUXDIR)/$(PROGRAM).tar.Z: $(AUXSTUFF)
+X	cd $(AUXDIR); tar cf - $(PROGRAM) \
+X		$(PROGRAM).info CHANGELOG $(PROGRAM).man $(PROGRAM).1 \
+X		workmandb.man workmandb.4 ANSWERS | \
+X		compress > $@
+X	chmod 644 $@
+X
+X$(AUXDIR)/$(PROGRAM): $(PROGRAM)
+X	cp $(PROGRAM) $@
+X	chmod 755 $@
+X$(AUXDIR)/$(PROGRAM).info: $(PROGRAM).info
+X	cp $(PROGRAM).info $(AUXDIR)
+X	chmod 644 $@
+X$(AUXDIR)/ANSWERS: ANSWERS
+X	cp ANSWERS $@
+X	chmod 644 $@
+X$(AUXDIR)/CHANGELOG: CHANGELOG
+X	cp CHANGELOG $@
+X	chmod 644 $@
+X$(AUXDIR)/workmandb.man: workmandb.man
+X	cp workmandb.man $@
+X	chmod 644 $@
+X$(AUXDIR)/workmandb.4: workmandb.4
+X	cp workmandb.4 $@
+X	chmod 644 $@
+X$(AUXDIR)/$(PROGRAM).man: $(PROGRAM).man
+X	cp $(PROGRAM).man $@
+X	chmod 644 $@
+X$(AUXDIR)/$(PROGRAM).1: $(PROGRAM).1
+X	cp $(PROGRAM).1 $@
+X	chmod 644 $@
+END_OF_FILE
+if test 3672 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(1924 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+XWorkMan is a graphical tool for playing audio compact discs on a SunCD
+Xdrive or other compatible unit.  It has most of the features available
+Xon standalone CD players, such as a shuffle mode, programmable
+Xplaylists, and elapsed/remaining timers.  But it also has extra
+Xfeatures, foremost of which is the ability to store information about
+XCDs in a database, then automatically extract that information when the
+XCD is inserted later.  WorkMan stores the artist's name, the disc
+Xtitle, the names of individual tracks, and even remembers which tracks
+Xyou don't want to hear!  All in an easy-to-use, attractive OPEN LOOK
+Xgraphical interface.
+X
+XDisc databases may be shared among any number of users on the network.
+XWorkMan keeps separate databases for your private information about
+XCDs (e.g. which order you like the tracks to play) and the discs' public
+Xinformation.  During WorkMan's alpha test, several users shared my
+Xdatabase, which now contains over 750 CDs.  That database is available
+Xvia anonymous ftp from ftp.ucsc.edu, in the "incoming" directory.
+X
+XTo build WorkMan, most people should be able to type "make" and sit
+Xback.  See the file INSTALLATION for more details.  WorkMan requires
+XXView 3.0 or higher (which comes with the OpenWindows distribution,
+Xand is also available as part of X11R5.)
+X
+XThe manual page (workman.man) contains a brief description of the user
+Xinterface, though for the most part you should be able to start using
+Xthe tool right away without reading the docs.  If you're curious about
+Xthe program's innards, the workmandb.man manual page describes the
+Xdatabase file format.
+X
+XIf you enjoy WorkMan, drop me a picture postcard!  My address is
+X
+XSteven Grimm
+X173 Sherland Ave.
+XMountain View, CA 94043
+XUSA
+X
+XComments, questions, and suggestions should be mailed to me at
+Xkoreth@hyperion.com.  Check the BUGS section of the manual page, as well
+Xas the ANSWERS file, before you mail me.
+X
+XEnjoy!
+X
+X-Steve
+END_OF_FILE
+if test 1924 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test ! -d 'bitmaps' ; then
+    echo shar: Creating directory \"'bitmaps'\"
+    mkdir 'bitmaps'
+fi
+if test -f 'bitmaps/eject.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/eject.button'\"
+else
+echo shar: Extracting \"'bitmaps/eject.button'\" \(333 characters\)
+sed "s/^X//" >'bitmaps/eject.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,0x0000,
+X	0x0001,0x8000,
+X	0x0003,0xC000,
+X	0x0007,0xE000,
+X	0x000F,0xF000,
+X	0x001F,0xF800,
+X	0x003F,0xFC00,
+X	0x007F,0xFE00,
+X	0x00FF,0xFF00,
+X	0x00FF,0xFF00,
+X	0x0000,0x0000,
+X	0x0000,0x0000,
+X	0x00FF,0xFF00,
+X	0x00FF,0xFF00,
+X	0x00FF,0xFF00,
+X	0x0000,0x0000
+END_OF_FILE
+if test 333 -ne `wc -c <'bitmaps/eject.button'`; then
+    echo shar: \"'bitmaps/eject.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/eject.button'
+fi
+if test -f 'bitmaps/ff.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/ff.button'\"
+else
+echo shar: Extracting \"'bitmaps/ff.button'\" \(350 characters\)
+sed "s/^X//" >'bitmaps/ff.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x00C0,	0xC0C0,
+X	0x00F0,	0xF0C0,
+X	0x00FC,	0xFCC0,
+X	0x00FF,	0xFFC0,
+X	0x00FF,	0xFFC0,
+X	0x00FC,	0xFCC0,
+X	0x00F0,	0xF0C0,
+X	0x00C0,	0xC0C0,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+END_OF_FILE
+if test 350 -ne `wc -c <'bitmaps/ff.button'`; then
+    echo shar: \"'bitmaps/ff.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/ff.button'
+fi
+if test -f 'bitmaps/icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/icon'\"
+else
+echo shar: Extracting \"'bitmaps/icon'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0400,	0x0000,	0x0C00,
+X	0x0000,	0x0700,	0x0000,	0x0F00,
+X	0x0700,	0x0780,	0x0000,	0x0FC0,
+X	0x07E0,	0x0480,	0x0000,	0x09C0,
+X	0x07E0,	0x0400,	0x0000,	0x0C40,
+X	0x0460,	0x0400,	0x0000,	0x0F40,
+X	0x0420,	0x0400,	0x0000,	0x0BC0,
+X	0x0420,	0x1C00,	0x0000,	0x38C0,
+X	0x0420,	0x3C00,	0x0000,	0x7840,
+X	0x1C20,	0x3C00,	0x0000,	0x79C0,
+X	0x3CE0,	0x1800,	0x0000,	0x33C0,
+X	0x3DE0,	0x0000,	0x0000,	0x03C0,
+X	0x19E0,	0x01FF,	0xFE00,	0x0180,
+X	0x00C1,	0xFFFF,	0xFFFE,	0x0000,
+X	0x001F,	0xFFFF,	0xFFFF,	0xE000,
+X	0x00FF,	0xFFFF,	0xFFFF,	0xFC00,
+X	0x03FF,	0xFFFF,	0xFFFF,	0xFF00,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFC0,
+X	0x1FFF,	0xFFFF,	0xFFFF,	0xFFE0,
+X	0x3FFF,	0xFFE0,	0x1FFF,	0xFFF0,
+X	0x3FFF,	0xFFC0,	0x0FFF,	0xFFF0,
+X	0x3FFF,	0xFFE0,	0x1FFF,	0xFFF0,
+X	0x3FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x1FFF,	0xFFFF,	0xFFFF,	0xFFE0,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFC0,
+X	0x03FF,	0xFFFF,	0xFFFF,	0xFF00,
+X	0x00FF,	0xFFFF,	0xFFFF,	0xFC00,
+X	0x001F,	0xFFFF,	0xFFFF,	0xE000,
+X	0x0003,	0xFFFF,	0xFFFF,	0x0000,
+X	0x0000,	0x03FF,	0xFF00,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x000E,	0x0000,	0x0000,
+X	0x0000,	0x0004,	0x0000,	0x0000,
+X	0x0000,	0x0004,	0x0000,	0x0000,
+X	0x0393,	0x3969,	0xF663,	0xFB80,
+X	0x0291,	0x478A,	0x2BA4,	0x9480,
+X	0x0111,	0x850C,	0x3324,	0x9880,
+X	0x0132,	0x890C,	0x2249,	0x1100,
+X	0x0122,	0x890A,	0x2649,	0x1100,
+X	0x0174,	0x9112,	0x244B,	0x7280,
+X	0x0198,	0xE211,	0xC44D,	0xA300,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/icon'`; then
+    echo shar: \"'bitmaps/icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/icon'
+fi
+if test -f 'bitmaps/iconmask' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/iconmask'\"
+else
+echo shar: Extracting \"'bitmaps/iconmask'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/iconmask' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0400,	0x0000,	0x0C00,
+X	0x0000,	0x0700,	0x0000,	0x0F00,
+X	0x0700,	0x0780,	0x0000,	0x0FC0,
+X	0x07E0,	0x0480,	0x0000,	0x09C0,
+X	0x07E0,	0x0400,	0x0000,	0x0C40,
+X	0x0460,	0x0400,	0x0000,	0x0F40,
+X	0x0420,	0x0400,	0x0000,	0x0BC0,
+X	0x0420,	0x1C00,	0x0000,	0x38C0,
+X	0x0420,	0x3C00,	0x0000,	0x7840,
+X	0x1C20,	0x3C00,	0x0000,	0x79C0,
+X	0x3CE0,	0x1800,	0x0000,	0x33C0,
+X	0x3DE0,	0x0000,	0x0000,	0x03C0,
+X	0x19E0,	0x01FF,	0xFE00,	0x0180,
+X	0x00C1,	0xFFFF,	0xFFFE,	0x0000,
+X	0x001F,	0xFFFF,	0xFFFF,	0xE000,
+X	0x00FF,	0xFFFF,	0xFFFF,	0xFC00,
+X	0x03FF,	0xFFFF,	0xFFFF,	0xFF00,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFC0,
+X	0x1FFF,	0xFFFF,	0xFFFF,	0xFFE0,
+X	0x3FFF,	0xFFE0,	0x1FFF,	0xFFF0,
+X	0x3FFF,	0xFFC0,	0x0FFF,	0xFFF0,
+X	0x3FFF,	0xFFE0,	0x1FFF,	0xFFF0,
+X	0x3FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x1FFF,	0xFFFF,	0xFFFF,	0xFFE0,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFC0,
+X	0x03FF,	0xFFFF,	0xFFFF,	0xFF00,
+X	0x00FF,	0xFFFF,	0xFFFF,	0xFC00,
+X	0x001F,	0xFFFF,	0xFFFF,	0xE000,
+X	0x0003,	0xFFFF,	0xFFFF,	0x0000,
+X	0x0000,	0x03FF,	0xFF00,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x000E,	0x0000,	0x0000,
+X	0x0000,	0x0004,	0x0000,	0x0000,
+X	0x0000,	0x0004,	0x0000,	0x0000,
+X	0x0393,	0x3969,	0xF663,	0xFB80,
+X	0x0291,	0x478A,	0x2BA4,	0x9480,
+X	0x0111,	0x850C,	0x3324,	0x9880,
+X	0x0132,	0x890C,	0x2249,	0x1100,
+X	0x0122,	0x890A,	0x2649,	0x1100,
+X	0x0174,	0x9112,	0x244B,	0x7280,
+X	0x0198,	0xE211,	0xC44D,	0xA300,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/iconmask'`; then
+    echo shar: \"'bitmaps/iconmask'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/iconmask'
+fi
+if test -f 'bitmaps/loud.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0080,
+X	0x0040,
+X	0x0320,
+X	0x08A0,
+X	0x1A90,
+X	0x3A50,
+X	0xF950,
+X	0xFD48,
+X	0xF950,
+X	0x3A50,
+X	0x1A90,
+X	0x08A0,
+X	0x0320,
+X	0x0040,
+X	0x0080,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud.icon'`; then
+    echo shar: \"'bitmaps/loud.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud.icon'
+fi
+if test -f 'bitmaps/loud0.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud0.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud0.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud0.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0800,
+X	0x1800,
+X	0x3800,
+X	0xF800,
+X	0xF800,
+X	0xF800,
+X	0x3800,
+X	0x1800,
+X	0x0800,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud0.icon'`; then
+    echo shar: \"'bitmaps/loud0.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud0.icon'
+fi
+if test -f 'bitmaps/loud1.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud1.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud1.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud1.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0800,
+X	0x1800,
+X	0x3800,
+X	0xFC00,
+X	0xFA00,
+X	0xFC00,
+X	0x3800,
+X	0x1800,
+X	0x0800,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud1.icon'`; then
+    echo shar: \"'bitmaps/loud1.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud1.icon'
+fi
+if test -f 'bitmaps/loud2.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud2.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud2.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud2.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0800,
+X	0x1800,
+X	0x3C00,
+X	0xFA00,
+X	0xFA00,
+X	0xFA00,
+X	0x3C00,
+X	0x1800,
+X	0x0800,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud2.icon'`; then
+    echo shar: \"'bitmaps/loud2.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud2.icon'
+fi
+if test -f 'bitmaps/loud3.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud3.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud3.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud3.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0800,
+X	0x1A00,
+X	0x3A00,
+X	0xF900,
+X	0xFD00,
+X	0xF900,
+X	0x3A00,
+X	0x1A00,
+X	0x0800,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud3.icon'`; then
+    echo shar: \"'bitmaps/loud3.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud3.icon'
+fi
+if test -f 'bitmaps/loud4.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud4.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud4.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud4.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0A00,
+X	0x1900,
+X	0x3C80,
+X	0xFA80,
+X	0xFA40,
+X	0xFA80,
+X	0x3C80,
+X	0x1900,
+X	0x0A00,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud4.icon'`; then
+    echo shar: \"'bitmaps/loud4.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud4.icon'
+fi
+if test -f 'bitmaps/loud5.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud5.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud5.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud5.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0000,
+X	0x0300,
+X	0x0880,
+X	0x1A80,
+X	0x3A40,
+X	0xF940,
+X	0xFD40,
+X	0xF940,
+X	0x3A40,
+X	0x1A80,
+X	0x0880,
+X	0x0300,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud5.icon'`; then
+    echo shar: \"'bitmaps/loud5.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud5.icon'
+fi
+if test -f 'bitmaps/loud6.icon' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/loud6.icon'\"
+else
+echo shar: Extracting \"'bitmaps/loud6.icon'\" \(213 characters\)
+sed "s/^X//" >'bitmaps/loud6.icon' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=15, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,
+X	0x0100,
+X	0x0080,
+X	0x0A40,
+X	0x1940,
+X	0x3D20,
+X	0xFAA0,
+X	0xFAA0,
+X	0xFAA0,
+X	0x3D20,
+X	0x1940,
+X	0x0A40,
+X	0x0080,
+X	0x0100,
+X	0x0000,
+END_OF_FILE
+if test 213 -ne `wc -c <'bitmaps/loud6.icon'`; then
+    echo shar: \"'bitmaps/loud6.icon'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/loud6.icon'
+fi
+if test -f 'bitmaps/pause.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/pause.button'\"
+else
+echo shar: Extracting \"'bitmaps/pause.button'\" \(333 characters\)
+sed "s/^X//" >'bitmaps/pause.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,0x0000,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x003C,0x3C00,
+X	0x0000,0x0000
+END_OF_FILE
+if test 333 -ne `wc -c <'bitmaps/pause.button'`; then
+    echo shar: \"'bitmaps/pause.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/pause.button'
+fi
+if test -f 'bitmaps/phones' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phones'\"
+else
+echo shar: Extracting \"'bitmaps/phones'\" \(622 characters\)
+sed "s/^X//" >'bitmaps/phones' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=32, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0001,	0x8000,
+X	0x0006,	0x6000,
+X	0x0008,	0x1000,
+X	0x0010,	0x0800,
+X	0x0010,	0x0800,
+X	0x0020,	0x0400,
+X	0x0020,	0x0400,
+X	0x0020,	0x0400,
+X	0x0040,	0x0200,
+X	0x0040,	0x0200,
+X	0x0040,	0x0200,
+X	0x00E0,	0x0700,
+X	0x00E0,	0x0700,
+X	0x00E0,	0x0700,
+X	0x00E0,	0x0700,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+END_OF_FILE
+if test 622 -ne `wc -c <'bitmaps/phones'`; then
+    echo shar: \"'bitmaps/phones'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phones'
+fi
+if test -f 'bitmaps/phones0' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phones0'\"
+else
+echo shar: Extracting \"'bitmaps/phones0'\" \(276 characters\)
+sed "s/^X//" >'bitmaps/phones0' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=22, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,
+X	0x0660,
+X	0x0810,
+X	0x1008,
+X	0x1008,
+X	0x2004,
+X	0x2004,
+X	0x2004,
+X	0x4002,
+X	0x4002,
+X	0x4002,
+X	0xE007,
+X	0xFFFF,
+X	0xE007,
+X	0xE007,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 276 -ne `wc -c <'bitmaps/phones0'`; then
+    echo shar: \"'bitmaps/phones0'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phones0'
+fi
+if test -f 'bitmaps/phonesl1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesl1'\"
+else
+echo shar: Extracting \"'bitmaps/phonesl1'\" \(292 characters\)
+sed "s/^X//" >'bitmaps/phonesl1' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=22, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2004,	
+X	0x2004,	
+X	0x4002,	
+X	0x4002,	
+X	0x5002,	
+X	0xE807,	
+X	0xE407,	
+X	0xE407,	
+X	0xE807,	
+X	0x1000,	
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 292 -ne `wc -c <'bitmaps/phonesl1'`; then
+    echo shar: \"'bitmaps/phonesl1'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesl1'
+fi
+if test -f 'bitmaps/phonesl2' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesl2'\"
+else
+echo shar: Extracting \"'bitmaps/phonesl2'\" \(294 characters\)
+sed "s/^X//" >'bitmaps/phonesl2' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=22, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2004,	
+X	0x2004,	
+X	0x4802,	
+X	0x4402,	
+X	0x5202,	
+X	0xEA07,	
+X	0xE507,	
+X	0xE507,	
+X	0xEA07,	
+X	0x1200,	
+X	0x0400,	
+X	0x0800,	
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 294 -ne `wc -c <'bitmaps/phonesl2'`; then
+    echo shar: \"'bitmaps/phonesl2'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesl2'
+fi
+if test -f 'bitmaps/phonesl3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesl3'\"
+else
+echo shar: Extracting \"'bitmaps/phonesl3'\" \(278 characters\)
+sed "s/^X//" >'bitmaps/phonesl3' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=20, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2404,	
+X	0x2204,	
+X	0x4902,	
+X	0x4482,	
+X	0x5282,	
+X	0xEA47,	
+X	0xE547,	
+X	0xE547,	
+X	0xEA47,	
+X	0x1280,	
+X	0x0480,	
+X	0x0900,	
+X	0x0200,	
+X	0x0400,	
+END_OF_FILE
+if test 278 -ne `wc -c <'bitmaps/phonesl3'`; then
+    echo shar: \"'bitmaps/phonesl3'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesl3'
+fi
+if test -f 'bitmaps/phonesr1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesr1'\"
+else
+echo shar: Extracting \"'bitmaps/phonesr1'\" \(292 characters\)
+sed "s/^X//" >'bitmaps/phonesr1' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=22, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2004,	
+X	0x2004,	
+X	0x4002,	
+X	0x4002,	
+X	0x400A,	
+X	0xE017,	
+X	0xE027,	
+X	0xE027,	
+X	0xE017,	
+X	0x0008,	
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 292 -ne `wc -c <'bitmaps/phonesr1'`; then
+    echo shar: \"'bitmaps/phonesr1'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesr1'
+fi
+if test -f 'bitmaps/phonesr2' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesr2'\"
+else
+echo shar: Extracting \"'bitmaps/phonesr2'\" \(294 characters\)
+sed "s/^X//" >'bitmaps/phonesr2' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=22, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2004,	
+X	0x2004,	
+X	0x4012,	
+X	0x4022,	
+X	0x404A,	
+X	0xE057,	
+X	0xE0A7,	
+X	0xE0A7,	
+X	0xE057,	
+X	0x0048,	
+X	0x0020,	
+X	0x0010,	
+X	0x0000,
+X	0x0000,
+X	0x0000,
+X	0x0000,
+END_OF_FILE
+if test 294 -ne `wc -c <'bitmaps/phonesr2'`; then
+    echo shar: \"'bitmaps/phonesr2'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesr2'
+fi
+if test -f 'bitmaps/phonesr3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/phonesr3'\"
+else
+echo shar: Extracting \"'bitmaps/phonesr3'\" \(278 characters\)
+sed "s/^X//" >'bitmaps/phonesr3' <<'END_OF_FILE'
+X/* Format_version=1, Width=16, Height=20, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0180,	
+X	0x0660,	
+X	0x0810,	
+X	0x1008,	
+X	0x1008,	
+X	0x2004,	
+X	0x2024,	
+X	0x2044,	
+X	0x4092,	
+X	0x4122,	
+X	0x414A,	
+X	0xE257,	
+X	0xE2A7,	
+X	0xE2A7,	
+X	0xE257,	
+X	0x0148,	
+X	0x0120,	
+X	0x0090,	
+X	0x0040,	
+X	0x0020,	
+END_OF_FILE
+if test 278 -ne `wc -c <'bitmaps/phonesr3'`; then
+    echo shar: \"'bitmaps/phonesr3'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/phonesr3'
+fi
+if test -f 'bitmaps/play.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/play.button'\"
+else
+echo shar: Extracting \"'bitmaps/play.button'\" \(333 characters\)
+sed "s/^X//" >'bitmaps/play.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,0x0000,
+X	0x001E,0x0000,
+X	0x001F,0x0000,
+X	0x001F,0x8000,
+X	0x001F,0xC000,
+X	0x001F,0xE000,
+X	0x001F,0xF000,
+X	0x001F,0xF800,
+X	0x001F,0xF800,
+X	0x001F,0xF000,
+X	0x001F,0xE000,
+X	0x001F,0xC000,
+X	0x001F,0x8000,
+X	0x001F,0x0000,
+X	0x001E,0x0000,
+X	0x0000,0x0000
+END_OF_FILE
+if test 333 -ne `wc -c <'bitmaps/play.button'`; then
+    echo shar: \"'bitmaps/play.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/play.button'
+fi
+if test -f 'bitmaps/rew.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/rew.button'\"
+else
+echo shar: Extracting \"'bitmaps/rew.button'\" \(350 characters\)
+sed "s/^X//" >'bitmaps/rew.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0303,	0x0300,
+X	0x030F,	0x0F00,
+X	0x033F,	0x3F00,
+X	0x03FF,	0xFF00,
+X	0x03FF,	0xFF00,
+X	0x033F,	0x3F00,
+X	0x030F,	0x0F00,
+X	0x0303,	0x0300,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+X	0x0000,	0x0000,
+END_OF_FILE
+if test 350 -ne `wc -c <'bitmaps/rew.button'`; then
+    echo shar: \"'bitmaps/rew.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/rew.button'
+fi
+if test -f 'bitmaps/sink0' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink0'\"
+else
+echo shar: Extracting \"'bitmaps/sink0'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink0' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8000,	0x0001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8000,	0x0001,	0x0400,
+X	0x0020,	0x8000,	0x0000,	0x8400,
+X	0x0021,	0x0000,	0x0000,	0x8400,
+X	0x0041,	0x0000,	0x0000,	0x8200,
+X	0x0042,	0x0000,	0x0000,	0x4200,
+X	0x0082,	0x0000,	0x0000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink0'`; then
+    echo shar: \"'bitmaps/sink0'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink0'
+fi
+if test -f 'bitmaps/sink1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink1'\"
+else
+echo shar: Extracting \"'bitmaps/sink1'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink1' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8001,	0x8001,	0x0800,
+X	0x0010,	0xFFFE,	0x7FFF,	0x0800,
+X	0x0020,	0x8001,	0x8001,	0x0400,
+X	0x0020,	0x8000,	0x0000,	0x8400,
+X	0x0021,	0x0000,	0x0000,	0x8400,
+X	0x0041,	0x0000,	0x0000,	0x8200,
+X	0x0042,	0x0000,	0x0000,	0x4200,
+X	0x0082,	0x0000,	0x0000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink1'`; then
+    echo shar: \"'bitmaps/sink1'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink1'
+fi
+if test -f 'bitmaps/sink2' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink2'\"
+else
+echo shar: Extracting \"'bitmaps/sink2'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink2' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8001,	0x8001,	0x0800,
+X	0x0010,	0xFFFE,	0x7FFF,	0x0800,
+X	0x0020,	0x8002,	0x4001,	0x0400,
+X	0x0020,	0x8001,	0x8000,	0x8400,
+X	0x0021,	0x0000,	0x0000,	0x8400,
+X	0x0041,	0x0000,	0x0000,	0x8200,
+X	0x0042,	0x0000,	0x0000,	0x4200,
+X	0x0082,	0x0000,	0x0000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink2'`; then
+    echo shar: \"'bitmaps/sink2'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink2'
+fi
+if test -f 'bitmaps/sink3' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink3'\"
+else
+echo shar: Extracting \"'bitmaps/sink3'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink3' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8001,	0x8001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8001,	0x8001,	0x0400,
+X	0x0020,	0x8002,	0x4000,	0x8400,
+X	0x0021,	0x0002,	0x4000,	0x8400,
+X	0x0041,	0x0001,	0x8000,	0x8200,
+X	0x0042,	0x0000,	0x0000,	0x4200,
+X	0x0082,	0x0000,	0x0000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink3'`; then
+    echo shar: \"'bitmaps/sink3'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink3'
+fi
+if test -f 'bitmaps/sink4' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink4'\"
+else
+echo shar: Extracting \"'bitmaps/sink4'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink4' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8000,	0x0001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8001,	0x8001,	0x0400,
+X	0x0020,	0x8001,	0x8000,	0x8400,
+X	0x0021,	0x0001,	0x8000,	0x8400,
+X	0x0041,	0x0002,	0x4000,	0x8200,
+X	0x0042,	0x0002,	0x4000,	0x4200,
+X	0x0082,	0x0001,	0x8000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink4'`; then
+    echo shar: \"'bitmaps/sink4'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink4'
+fi
+if test -f 'bitmaps/sink5' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink5'\"
+else
+echo shar: Extracting \"'bitmaps/sink5'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink5' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8000,	0x0001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8000,	0x0001,	0x0400,
+X	0x0020,	0x8000,	0x0000,	0x8400,
+X	0x0021,	0x0001,	0x8000,	0x8400,
+X	0x0041,	0x0001,	0x8000,	0x8200,
+X	0x0042,	0x0001,	0x8000,	0x4200,
+X	0x0082,	0x0002,	0x4000,	0x4100,
+X	0x0082,	0x0006,	0x6000,	0x2100,
+X	0x0104,	0x0009,	0x9000,	0x2080,
+X	0x0104,	0x0008,	0x1000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink5'`; then
+    echo shar: \"'bitmaps/sink5'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink5'
+fi
+if test -f 'bitmaps/sink6' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink6'\"
+else
+echo shar: Extracting \"'bitmaps/sink6'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink6' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8000,	0x0001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8000,	0x0001,	0x0400,
+X	0x0020,	0x8000,	0x0000,	0x8400,
+X	0x0021,	0x0000,	0x0000,	0x8400,
+X	0x0041,	0x0000,	0x0000,	0x8200,
+X	0x0042,	0x0001,	0x8000,	0x4200,
+X	0x0082,	0x0001,	0x8000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x000A,	0x5000,	0x2080,
+X	0x0104,	0x000A,	0x5000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink6'`; then
+    echo shar: \"'bitmaps/sink6'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink6'
+fi
+if test -f 'bitmaps/sink7' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/sink7'\"
+else
+echo shar: Extracting \"'bitmaps/sink7'\" \(2190 characters\)
+sed "s/^X//" >'bitmaps/sink7' <<'END_OF_FILE'
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x01C1,	0x8380,	0x0000,
+X	0x0000,	0x0222,	0x4440,	0x0000,
+X	0x0000,	0x0364,	0x26C0,	0x0000,
+X	0x0000,	0x0144,	0x2280,	0x0000,
+X	0x0000,	0x0148,	0x1280,	0x0000,
+X	0x0000,	0x014E,	0x7280,	0x0000,
+X	0x0000,	0x0002,	0x4000,	0x0000,
+X	0x0000,	0xFFFE,	0x7FFF,	0x0000,
+X	0x0000,	0x8004,	0x2001,	0x0038,
+X	0x0001,	0x8004,	0x2001,	0x8044,
+X	0x0001,	0x8004,	0x2001,	0x807C,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0002,	0x8004,	0x2001,	0x4044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0004,	0x8008,	0x1001,	0x2044,
+X	0x0008,	0x800F,	0xF001,	0x1038,
+X	0x0008,	0x8003,	0xC001,	0x1000,
+X	0x0010,	0x8000,	0x0001,	0x0800,
+X	0x0010,	0xFFFF,	0xFFFF,	0x0800,
+X	0x0020,	0x8000,	0x0001,	0x0400,
+X	0x0020,	0x8000,	0x0000,	0x8400,
+X	0x0021,	0x0000,	0x0000,	0x8400,
+X	0x0041,	0x0000,	0x0000,	0x8200,
+X	0x0042,	0x0000,	0x0000,	0x4200,
+X	0x0082,	0x0000,	0x0000,	0x4100,
+X	0x0082,	0x0007,	0xE000,	0x2100,
+X	0x0104,	0x0009,	0x9000,	0x2080,
+X	0x0104,	0x0009,	0x9000,	0x2080,
+X	0x0204,	0x0007,	0xE000,	0x1040,
+X	0x0208,	0x0000,	0x0000,	0x1040,
+X	0x0408,	0x0000,	0x0000,	0x1020,
+X	0x0410,	0x0000,	0x0000,	0x0820,
+X	0x0810,	0x0000,	0x0000,	0x0810,
+X	0x0FFF,	0xFFFF,	0xFFFF,	0xFFF0,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0xFFFF,	0xFFFF,	0xFFFF,	0xFFFF,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+X	0x0000,	0x0000,	0x0000,	0x0000,
+END_OF_FILE
+if test 2190 -ne `wc -c <'bitmaps/sink7'`; then
+    echo shar: \"'bitmaps/sink7'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/sink7'
+fi
+if test -f 'bitmaps/stop.button' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bitmaps/stop.button'\"
+else
+echo shar: Extracting \"'bitmaps/stop.button'\" \(333 characters\)
+sed "s/^X//" >'bitmaps/stop.button' <<'END_OF_FILE'
+X/* Format_version=1, Width=32, Height=16, Depth=1, Valid_bits_per_item=16
+X */
+X	0x0000,0x0000,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x007F,0xFE00,
+X	0x0000,0x0000
+END_OF_FILE
+if test 333 -ne `wc -c <'bitmaps/stop.button'`; then
+    echo shar: \"'bitmaps/stop.button'\" unpacked with wrong size!
+fi
+# end of 'bitmaps/stop.button'
+fi
+if test -f 'struct.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'struct.h'\"
+else
+echo shar: Extracting \"'struct.h'\" \(2710 characters\)
+sed "s/^X//" >'struct.h' <<'END_OF_FILE'
+X/* @(#)struct.h	1.13 11/12/92 */
+X
+X/*
+X * Structure for a single track.  This is pretty much self-explanatory --
+X * one of these exists for each track on the current CD.
+X */
+Xstruct trackinfo {
+X	char	*songname;	/* Name of song, dynamically allocated */
+X	char	*otherdb;	/* Unrecognized info for this track */
+X	char	*otherrc;
+X	int	length;		/* Length of track in seconds or Kbytes */
+X	int	start;		/* Starting position (f+s*75+m*60*75) */
+X	int	volume;		/* Per-track volume (1-32, 0 to disable) */
+X	int	track;		/* Physical track number */
+X	int	section;	/* Section number (0 if track not split) */
+X	char	contd;		/* Flag: continuation of previous track */
+X	char	avoid;		/* Flag: don't play this track. */
+X	char	data;		/* Flag: data track */
+X};
+X
+X/*
+X * Structure for internal playlist management.  The internal playlist is
+X * simply the list of track ranges that are being played currently.  This
+X * is built whenever the CD starts playing; it's used in normal and shuffle
+X * modes as well as playlist mode.
+X *
+X * The "starttime" element represents how much time has elapsed by the time
+X * we get to this entry.  For instance, if the list begins with a 5-minute
+X * track and a 3-minute track, the third entry would have a starttime of 8
+X * minutes.  This is used so that the elapsed play time can be displayed
+X * even in shuffle or playlist modes.
+X *
+X * The last member of the list has a start track of 0, and its starttime is
+X * the total playing time of the playlist (which will usually be overestimated,
+X * since we don't play leadouts in some cases.)
+X */
+Xstruct play {
+X	int	start;		/* Start track, or 0 if end of list */
+X	int	end;		/* last track plus 1 */
+X	int	starttime;	/* Number of seconds elapsed previously */
+X};
+X
+X/*
+X * Structure for playlists (as seen by the user.)  This is simply a name
+X * followed by a zero-terminated list of track numbers to play.  The list
+X * is terminated by a NULL name.
+X */
+Xstruct playlist {
+X	char	*name;		/* Name of this playlist */
+X	int	*list;		/* List of tracks */
+X};
+X
+Xstruct cdinfo {
+X	char	artist[84];	/* Artist's name */
+X	char	cdname[84];	/* Disc's name */
+X	int	ntracks;	/* Number of tracks on the disc */
+X	int	length;		/* Total running time in seconds */
+X	int	autoplay;	/* Start playing CD immediately */
+X	int	playmode;	/* How to play the CD */
+X	int	volume;		/* Default volume (1-32, 0 for none) */
+X	struct trackinfo *trk;	/* struct trackinfo[ntracks] */
+X	struct playlist *lists;	/* User-specified playlists */
+X	char	*whichdb;	/* Which database is this entry from? */
+X	char	*otherdb;	/* Unrecognized lines from this entry */
+X	char	*otherrc;
+X};
+X
+X/* The global variable "cd" points to the struct for the CD that's playing. */
+Xextern struct cdinfo *cd;
+X
+Xstruct playlist *new_list();
+END_OF_FILE
+if test 2710 -ne `wc -c <'struct.h'`; then
+    echo shar: \"'struct.h'\" unpacked with wrong size!
+fi
+# end of 'struct.h'
+fi
+if test -f 'workman_ui.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'workman_ui.h'\"
+else
+echo shar: Extracting \"'workman_ui.h'\" \(1996 characters\)
+sed "s/^X//" >'workman_ui.h' <<'END_OF_FILE'
+X#ifndef	HEADER
+X#define	HEADER
+X
+X/*
+X * @(#)workman_ui.h	1.7 11/9/92
+X *
+X * User interface structure declarations.
+X */
+X
+Xextern Attr_attribute	INSTANCE;
+X
+Xextern Xv_opaque	track_menu_create();
+X
+Xtypedef struct {
+X	Xv_opaque	window1;
+X	Xv_opaque	controls1;
+X	Xv_opaque	artist_display;
+X	Xv_opaque	cdname_display;
+X	Xv_opaque	tracks;
+X	Xv_opaque	tracktimer;
+X	Xv_opaque	songpos;
+X	Xv_opaque	tracklen;
+X	Xv_opaque	speaker;
+X	Xv_opaque	repeat;
+X	Xv_opaque	mode;
+X	Xv_opaque	volume;
+X	Xv_opaque	shuffle;
+X	Xv_opaque	cdtimer;
+X	Xv_opaque	cdlen;
+X	Xv_opaque	cdgauge;
+X	Xv_opaque	button3;
+X	Xv_opaque	button2;
+X	Xv_opaque	button4;
+X} window1_objects;
+X
+Xextern window1_objects	*window1_objects_init();
+X
+Xtypedef struct {
+X	Xv_opaque	popup1;
+X	Xv_opaque	controls2;
+X	Xv_opaque	artist;
+X	Xv_opaque	cdname;
+X	Xv_opaque	tracklist;
+X	Xv_opaque	trackname;
+X	Xv_opaque	trackoptions;
+X	Xv_opaque	whichvolume;
+X	Xv_opaque	defaultvolume;
+X	Xv_opaque	defaultspeaker;
+X	Xv_opaque	playmode;
+X	Xv_opaque	autoplay;
+X	Xv_opaque	button1;
+X	Xv_opaque	button8;
+X	Xv_opaque	buttonpl;
+X} popup1_objects;
+X
+Xextern popup1_objects	*popup1_objects_init();
+X
+Xtypedef struct {
+X	Xv_opaque	about;
+X	Xv_opaque	controls3;
+X	Xv_opaque	message1;
+X	Xv_opaque	message2;
+X	Xv_opaque	message7;
+X	Xv_opaque	sink;
+X	Xv_opaque	message3;
+X	Xv_opaque	message4;
+X	Xv_opaque	message5;
+X	Xv_opaque	message6;
+X} about_objects;
+X
+Xextern about_objects	*about_objects_init();
+X
+Xtypedef struct {
+X	Xv_opaque	goodies;
+X	Xv_opaque	controls4;
+X	Xv_opaque	balance;
+X	Xv_opaque	phones;
+X	Xv_opaque	timemode;
+X	Xv_opaque	playnewcds;
+X	Xv_opaque	abrepeat;
+X	Xv_opaque	a;
+X	Xv_opaque	alabel;
+X	Xv_opaque	b;
+X	Xv_opaque	blabel;
+X	Xv_opaque	indexscan;
+X	Xv_opaque	split;
+X	Xv_opaque	delete;
+X} goodies_objects;
+X
+Xextern goodies_objects	*goodies_objects_init();
+X
+Xtypedef struct {
+X	Xv_opaque	plpopup;
+X	Xv_opaque	controls5;
+X	Xv_opaque	playlists;
+X	Xv_opaque	listname;
+X	Xv_opaque	button7;
+X	Xv_opaque	button6;
+X	Xv_opaque	button5;
+X	Xv_opaque	playlist;
+X	Xv_opaque	delete;
+X} plpopup_objects;
+X
+Xextern plpopup_objects	*plpopup_objects_init();
+X
+X#endif
+END_OF_FILE
+if test 1996 -ne `wc -c <'workman_ui.h'`; then
+    echo shar: \"'workman_ui.h'\" unpacked with wrong size!
+fi
+# end of 'workman_ui.h'
+fi
+echo shar: End of archive 1 \(of 6\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 3 4 5 6 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 6 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

@@ -1,0 +1,1779 @@
+Path: funic!fuug!mcsun!unido!estevax!norisc!iain
+From: iain@norisc.UUCP (Iain Lea)
+Newsgroups: alt.sources
+Subject: tin v1.0 Patchlevel 1 Newsreader (part 03/08)
+Message-ID: <601@norisc.UUCP>
+Date: 3 Sep 91 10:58:23 GMT
+Sender: iain@norisc.UUCP (Iain Lea)
+Organization: What organization?
+Lines: 1769
+
+Submitted-by: iain@estevax.uucp
+Archive-name: tin1.0/part03
+
+#!/bin/sh
+# this is tin.shar.03 (part 3 of tin1.0)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file group.c continued
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+if test ! -r shar3_seq_.tmp; then
+	echo "Please unpack part 1 first!"
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 3; then
+	echo "Please unpack part $Scheck next!"
+	exit 1
+ else
+	exit 0
+ fi
+) < shar3_seq_.tmp || exit 1
+echo "x - Continuing file group.c"
+sed 's/^X//' << 'SHAR_EOF' >> group.c &&
+X}
+X
+Xvoid erase_subject_arrow()
+X{
+X	erase_arrow (INDEX_TOP + (index_point-first_subj_on_screen));
+X}
+X
+X
+Xint prompt_subject_num (ch, group)
+X	char ch;
+X	char *group;
+X{
+X	int num;
+X
+X	clear_message();
+X
+X	if ((num = parse_num(ch, txt_read_art)) == -1) {
+X		clear_message();
+X		return FALSE;
+X	}
+X	num--;		/* index from 0 (internal) vs. 1 (user) */
+X
+X	if (num >= top_base)
+X		num = top_base - 1;
+X
+X	if (num >= first_subj_on_screen
+X	&&  num < last_subj_on_screen) {
+X		erase_subject_arrow();
+X		index_point = num;
+X		draw_subject_arrow();
+X	} else {
+X#ifndef USE_CLEARSCREEN
+X		erase_subject_arrow();
+X#endif		
+X		index_point = num;
+X		show_group_page(group);
+X	}
+X	return TRUE;
+X}
+X
+X/*
+X *  Return the number of unread articles there are within a thread
+X */
+X
+Xint new_responses (thread)
+X	int thread;
+X{
+X	int i;
+X	int sum = 0;
+X
+X	for (i = base[thread]; i >= 0; i = arts[i].thread)
+X			if (arts[i].unread)
+X				sum++;
+X	
+X	return sum;
+X}
+X
+X
+Xvoid clear_note_area ()
+X{
+X#ifndef USE_CLEARSCREEN
+X	MoveCursor (3, 0);		/* top left corner */
+X	CleartoEOS ();
+X#endif
+X}
+X
+X
+Xint find_new_pos (old_top, old_artnum, cur_pos)
+X	int old_top;
+X	long old_artnum;
+X	int cur_pos;
+X{
+X	int pos;
+X	
+X	if (top != old_top) {
+X		if ((pos = valid_artnum (old_artnum)) >= 0) {
+X			if ((pos = which_base (pos)) >= 0) {
+X				return pos;
+X			} else {
+X				return top_base - 1;
+X			}
+X		} else {
+X			return top_base - 1;
+X		}
+X	}
+X
+X	return cur_pos;
+X}
+X
+SHAR_EOF
+echo "File group.c is complete" &&
+$TOUCH -am 0903095091 group.c &&
+chmod 0600 group.c ||
+echo "restore of group.c failed"
+set `wc -c group.c`;Wc_c=$1
+if test "$Wc_c" != "18741"; then
+	echo original size 18741, current size $Wc_c
+fi
+# ============= hashstr.c ==============
+echo "x - extracting hashstr.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > hashstr.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : hashstr.c
+X *  Author    : R.Skrenta
+X *  Created   : 01-04-91
+X *  Updated   : 10-08-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	<stdio.h>
+X#ifdef BSD
+X#include	<strings.h>
+X#else
+X#include	<string.h>
+X#include	<malloc.h>
+X#endif
+X
+X/*
+X *  Maintain a table of all strings we have seen.
+X *  If a new string comes in, add it to the table and return a pointer
+X *  to it.  If we've seen it before, just return the pointer to it.
+X *
+X *  Usage:  hash_str("some string") returns char *
+X *
+X *  Spillovers are chained on the end
+X *
+X *  !!! NOTE: CHECK OUT add_string FOR THE *iptr TRICK THAT IS LATER !!!
+X *  !!! USED IN dump_index (art.c)                                   !!!
+X *
+X */
+X
+X
+X/*
+X *  Arbitrary table size, but make sure it's prime!
+X */
+X
+X/* #define		TABLE_SIZE	1409	*/
+X
+X#define		TABLE_SIZE	2411
+X
+X
+X
+Xstruct hashnode {
+X	char *s;			/* the string we're saving */
+X	struct hashnode *next;		/* chain for spillover */
+X};
+X
+Xstruct hashnode *table[TABLE_SIZE];
+X
+Xextern char *my_malloc();
+Xstruct hashnode *add_string();
+X
+X
+Xchar *hash_str(s)
+Xchar *s;
+X{
+X	struct hashnode *p;	/* used to descend the spillover structs */
+X	long h;			/* result of hash:  index into hash table */
+X
+X	if (s == NULL)
+X		return(NULL);
+X
+X	{
+X		char *t = s;
+X
+X		h = *t++;
+X		while (*t)
+X			h = ((h << 1) ^ *t++) % TABLE_SIZE;
+X	/*		h = (h * 128 + *t++) % TABLE_SIZE;	*/
+X	}
+X
+X	p = table[h];
+X
+X	if (p == NULL) {
+X		table[h] = add_string(s);
+X		return table[h]->s;
+X	}
+X
+X	while (1) {
+X		if (strcmp(s, p->s) == 0)
+X			return(p->s);
+X
+X		if (p->next == NULL) {
+X			p->next = add_string(s);
+X			return p->next->s;
+X		} else
+X			p = p->next;
+X	}
+X}
+X
+X
+Xstruct hashnode *add_string(s)
+Xchar *s;
+X{
+X	struct hashnode *p;
+X	extern char *strcpy();
+X	int *iptr;
+X
+X	p = (struct hashnode *) my_malloc(sizeof(*p));
+X
+X	p->next = NULL;
+X	iptr = (int *) my_malloc((unsigned) strlen(s) + sizeof(int) + 1);
+X	*iptr++ = -1;
+X	p->s = (char *) iptr;
+X	strcpy(p->s, s);
+X	return(p);
+X}
+X
+X
+Xvoid hash_init ()
+X{
+X	int i;
+X
+X	for (i = 0; i < TABLE_SIZE; i++)
+X		table[i] = NULL;
+X}
+X
+X
+Xvoid hash_reclaim ()
+X{
+X	int i;
+X	struct hashnode *p, *next;
+X	int *iptr;
+X
+X	for (i = 0; i < TABLE_SIZE; i++)
+X		if (table[i] != NULL) {
+X			p = table[i];
+X			while (p != NULL) {
+X				next = p->next;
+X				iptr = (int *) p->s;
+X				free(--iptr);
+X				free(p);
+X				p = next;
+X			}
+X			table[i] = NULL;
+X		}
+X}
+X
+X
+SHAR_EOF
+$TOUCH -am 0903095091 hashstr.c &&
+chmod 0600 hashstr.c ||
+echo "restore of hashstr.c failed"
+set `wc -c hashstr.c`;Wc_c=$1
+if test "$Wc_c" != "2673"; then
+	echo original size 2673, current size $Wc_c
+fi
+# ============= help.c ==============
+echo "x - extracting help.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > help.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : help.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 03-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X#include	"nntp.h"
+X
+Xchar *help_select[] = {
+X	txt_help_g_4,
+X	txt_help_ctrl_d,
+X	txt_help_ctrl_l,
+X	txt_help_g_ctrl_k,
+X	txt_help_g_ctrl_r,
+X	txt_help_g_cr,
+X	txt_help_g_tab,
+X	txt_help_b,
+X	txt_help_bug_report,
+X	txt_help_sel_c,
+X	txt_help_g,
+X	txt_help_j,
+X	txt_help_h,
+X	txt_help_m,
+X	txt_help_M,
+X	txt_help_q,
+X	txt_help_s,
+X	txt_help_S,
+X	txt_help_W,
+X	txt_help_g_y,
+X	txt_help_g_dollar,
+X	txt_help_g_search,
+X	(char *) 0
+X};
+X
+Xchar *help_group[] = {
+X	txt_help_i_4,
+X	txt_help_ctrl_d,
+X	txt_help_ctrl_k,
+X	txt_help_ctrl_l,
+X	txt_help_i_cr,
+X	txt_help_i_tab,
+X	txt_help_a,
+X	txt_help_b,
+X	txt_help_bug_report,
+X	txt_help_c,
+X	txt_help_g,
+X	txt_help_h,
+X	txt_help_I,
+X	txt_help_j,
+X	txt_help_K,
+X	txt_help_p_m,
+X	txt_help_M,
+X	txt_help_o,
+X	txt_help_i_n,
+X	txt_help_i_p,
+X	txt_help_q,
+X	txt_help_p_s,
+X	txt_help_t,
+X	txt_help_T,
+X	txt_help_U,
+X	txt_help_w,
+X	txt_help_W,
+X	txt_help_p_z,
+X	txt_help_i_search,
+X	txt_help_dash,
+X	txt_help_pipe,
+X	(char *) 0
+X};
+X
+Xchar *help_page[] = {
+X	txt_help_p_0,
+X	txt_help_p_4,
+X	txt_help_ctrl_h,
+X	txt_help_ctrl_k,
+X	txt_help_ctrl_l,
+X	txt_help_p_ctrl_r,
+X	txt_help_p_cr,
+X	txt_help_p_tab,
+X	txt_help_b,
+X	txt_help_a,
+X	txt_help_bug_report,
+X	txt_help_c,
+X	txt_help_p_d,
+X	txt_help_p_f,
+X	txt_help_h,
+X	txt_help_p_i,
+X	txt_help_I,
+X	txt_help_p_k,
+X	txt_help_p_m,
+X	txt_help_M,
+X	txt_help_p_n,
+X	txt_help_o,
+X	txt_help_p_p,
+X	txt_help_q,
+X	txt_help_p_r,
+X	txt_help_p_s,
+X	txt_help_t,
+X	txt_help_T,
+X	txt_help_w,
+X	txt_help_W,
+X	txt_help_p_z,
+X	txt_help_p_search,
+X	txt_help_dash,
+X	txt_help_pipe,
+X	(char *) 0
+X};
+X
+X
+Xvoid show_help_page (help, title)
+X	char *help[];
+X	char *title;
+X{
+X	char buf[LEN+1];
+X	char ch;
+X	int i;
+X	int cur_page = 1;
+X	int max_page = 1;
+X	int pos_help = 0;
+X
+X	for (i=0 ; help[i] ; i++) {		/* find how many elements in array */
+X		;
+X	}
+X
+X	max_page = i / NOTESLINES;
+X	if (i % NOTESLINES) {
+X		max_page++;
+X	}
+X
+X	while (1) {
+X		ClearScreen ();
+X		sprintf (buf, title, cur_page, max_page);
+X		center_line (0, FALSE, page_header);
+X		center_line (1, TRUE, buf);
+X		MoveCursor (3, 0);
+X
+X		for (i=pos_help ; i < (pos_help + NOTESLINES) && help[i] ; i++) {
+X			printf (help[i]);
+X		}
+X
+X		center_line (LINES, FALSE, txt_hit_space_for_more);
+X		ch = ReadCh ();
+X		switch (ch) {
+X			case 27:	/* (ESC) common arrow keys */
+X				ch = ReadCh();
+X				if (ch == '[' || ch == 'O')
+X					ch = ReadCh();
+X				switch (ch) {
+X					case 'B':		/* page down */
+X					case 'C':
+X					case 'G':		/* ansi  PgDn */
+X					case 'U':		/* at386 PgDn */
+X						if (cur_page < max_page) {
+X							pos_help = cur_page*NOTESLINES;
+X							cur_page++;
+X						}
+X						break;
+X
+X					case 'A':		/* page up */
+X					case 'D':
+X					case 'i':
+X					case 'I':		/* ansi  PgUp */
+X					case 'V':		/* at386 PgUp */
+X						if (cur_page > 1) {
+X							cur_page--;
+X							pos_help = (cur_page-1)*NOTESLINES;
+X						}
+X						break;
+X
+X					case 'H':		/* at386  Home */
+X						cur_page = 1;
+X						pos_help = 0;
+X						break;
+X					
+X					case 'F':		/* ansi  End */
+X					case 'Y':		/* at386  End */
+X						cur_page = max_page;
+X						pos_help = (max_page-1) * NOTESLINES;
+X						break;
+X				}
+X				break;
+X
+X			case ctrl('D'):			/* page down */
+X			case ' ':
+X				if (cur_page < max_page) {
+X					pos_help = cur_page*NOTESLINES;
+X					cur_page++;
+X				}
+X				break;
+X			
+X			case ctrl('U'):			/* page up */
+X			case 'b':
+X				if (cur_page > 1) {
+X					cur_page--;
+X					pos_help = (cur_page-1)*NOTESLINES;
+X				}
+X				break;
+X
+X			default:
+X#ifndef USE_CLEARSCREEN
+X				ClearScreen ();
+X#endif	
+X				return;
+X		}	
+X	}
+X}
+X
+X
+Xvoid help_select_info ()
+X{
+X}
+X
+X
+Xvoid help_group_info ()
+X{
+X}
+X
+X
+Xvoid help_page_info ()
+X{
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 help.c &&
+chmod 0600 help.c ||
+echo "restore of help.c failed"
+set `wc -c help.c`;Wc_c=$1
+if test "$Wc_c" != "4017"; then
+	echo original size 4017, current size $Wc_c
+fi
+# ============= kill.c ==============
+echo "x - extracting kill.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > kill.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : kill.c
+X *  Author    : I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 28-08-91
+X *  Release   : 1.0
+X *  Notes     : kill articles
+X *  Copyright : (c) Copyright 1991 by Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+Xextern char index_file[LEN+1];
+X
+Xstruct kill_t *killf;
+Xint kill_num = 0;
+Xint max_kill;
+X
+X/*
+X *  read_kill_file - read ~/.tin/kill file contents into kill array
+X */
+X
+Xint read_kill_file ()
+X{
+X	char buf[LEN+1];
+X	FILE *fp;
+X
+X	free_kill_array ();
+X	
+X	set_real_uid_gid ();
+X
+X	if ((fp = fopen (killfile, "r")) != NULL) {
+X		kill_num=0;
+X		while (fgets (buf, LEN, fp) != NULL) {
+X			if (buf[0] != '#') {
+X				if (kill_num == max_kill-1) {
+X					expand_kill ();
+X				}
+X				killf[kill_num].kill_type = atoi (buf);
+X				if (fgets (buf, LEN, fp) != NULL) {
+X					killf[kill_num].kill_group = atol (buf);
+X				} else {	
+X					goto corrupt_killfile;
+X				}	
+X				switch (killf[kill_num].kill_type) {
+X					case KILL_SUBJ:
+X						if (fgets (buf, LEN, fp) != NULL) {
+X							buf[strlen (buf)-1] = '\0';
+X							killf[kill_num].kill_subj = str_dup (buf);
+X						}
+X						break;
+X					case KILL_FROM:
+X						if (fgets (buf, LEN, fp) != NULL) {
+X							buf[strlen (buf)-1] = '\0';
+X							killf[kill_num].kill_from = str_dup (buf);
+X						}
+X						break;
+X					case KILL_BOTH:
+X						if (fgets (buf, LEN, fp) != NULL) {
+X							buf[strlen (buf)-1] = '\0';
+X							killf[kill_num].kill_subj = str_dup (buf);
+X						}
+X						if (fgets (buf, LEN, fp) != NULL) {
+X							buf[strlen (buf)-1] = '\0';
+X							killf[kill_num].kill_from = str_dup (buf);
+X						}
+X						break;
+X					default:
+X						goto corrupt_killfile;
+X				}
+X				kill_num++;
+X			}
+X		}
+X		fclose (fp);
+X		set_tin_uid_gid ();
+X		return TRUE;		
+X	} else {
+X		set_tin_uid_gid ();
+X		return FALSE;
+X	}
+X
+Xcorrupt_killfile:
+X	fclose (fp);
+X	killf[kill_num].kill_type = 0;
+X	error_message ("corrupt kill file %s", killfile);
+X	set_tin_uid_gid ();
+X	return FALSE;
+X}
+X
+X/*
+X *  write_kill_file - write kill strings to ~/.tin/kill
+X */
+X
+Xvoid write_kill_file ()
+X{
+X	FILE *fp;
+X	int i;
+X	
+X	set_real_uid_gid ();
+X
+X	if (kill_num && (fp = fopen (killfile, "w")) != NULL) {
+X		wait_message (txt_saving);
+X		fprintf (fp, "# 1st line  1=(Subject: only)  2=(From: only)  3=(Subject: & From:)\n");
+X		fprintf (fp, "# 2nd line  0=(kill on all newsgroups)  >0=(kill on specific newsgroup)\n");
+X		for (i=0 ; i < kill_num ; i++) {
+X			if (killf[i].kill_type && (killf[i].kill_subj || killf[i].kill_from)) {
+X				fprintf (fp, "#\n# kill description %d\n", i+1);
+X				fprintf (fp, "%d\n", killf[i].kill_type);
+X				fprintf (fp, "%ld\n", killf[i].kill_group);
+X				switch (killf[i].kill_type) {
+X					case KILL_SUBJ:
+X						fprintf (fp, "%s\n", killf[i].kill_subj);
+X						break;
+X					case KILL_FROM:
+X						fprintf (fp, "%s\n", killf[i].kill_from);
+X						break;
+X					case KILL_BOTH:
+X						fprintf (fp, "%s\n", killf[i].kill_subj);
+X						fprintf (fp, "%s\n", killf[i].kill_from);
+X						break;
+X				}
+X			}
+X		}
+X		fclose (fp);
+X		chmod (killfile, 0600);
+X	}
+X	set_tin_uid_gid ();
+X}
+X
+X/*
+X *  options menu so that the user can dynamically change parameters
+X */
+X 
+Xint kill_art_menu (group_name, index)
+X	char *group_name;
+X	int index;
+X{
+X	char text[LEN+1];
+X	char kill_from[LEN+1];
+X	char kill_subj[LEN+1];
+X	char kill_group[LEN+1];
+X	char ch_default = 's';
+X	char *str;	
+X	int ch;
+X	int counter;
+X	int kill_from_ok = FALSE;
+X	int kill_subj_ok = FALSE;
+X	int kill_every_group;
+X	
+X	sprintf (kill_group, "%s only", group_name);
+X	my_strncpy (text, arts[index].subject, 45);
+X	sprintf (kill_subj, txt_kill_subject, text);
+X	my_strncpy (text, arts[index].from, 45);
+X	sprintf (kill_from, txt_kill_from, text);
+X	text[0] = '\0';
+X	
+X	ClearScreen ();
+X	printf("%s\r\n", nice_time());	/* time in upper left */
+X
+X	center_line (1, TRUE, txt_kill_menu);
+X	
+X	MoveCursor(INDEX_TOP, 0);
+X	printf ("%s\r\n\r\n", txt_kill_text);
+X	printf ("%s\r\n\r\n\r\n", txt_kill_text_type);
+X	printf ("%s\r\n\r\n", kill_subj);
+X	printf ("%s\r\n\r\n\r\n", kill_from);
+X	printf ("%s%s", txt_kill_group, kill_group);
+X	fflush(stdout);
+X
+X	show_menu_help (txt_help_kill_text);
+X	parse_menu_string (INDEX_TOP, strlen (txt_kill_text), text);
+X
+X	if (text[0]) {
+X		show_menu_help (txt_help_kill_text_type);
+X		counter = 1;
+X		MoveCursor (INDEX_TOP+2, strlen (txt_kill_text_type));
+X		str = "Subject: line only    ";
+X		printf ("%s", str);
+X		fflush(stdout);
+X		do {
+X			MoveCursor (INDEX_TOP+2, strlen (txt_kill_text_type));
+X			if ((ch	= ReadCh()) == ' ') {
+X				counter++;
+X				if (counter == KILL_BOTH+1) {
+X					counter = KILL_SUBJ;
+X				}
+X				switch (counter) {
+X					case KILL_SUBJ:
+X						str = "Subject: line only    ";
+X						break;
+X					case KILL_FROM:
+X						str = "From: line only       ";
+X						break;
+X					case KILL_BOTH:
+X						str = "Subject: & From: lines";
+X						break;
+X				}
+X				printf ("%s", str);
+X				fflush(stdout);
+X			}
+X		} while (ch != CR);
+X	}
+X
+X	if (! text[0]) {
+X		show_menu_help (txt_help_kill_subject);
+X		kill_subj_ok = prompt_yn (INDEX_TOP+5, kill_subj, 'y');
+X
+X		show_menu_help (txt_help_kill_from);
+X		kill_from_ok = prompt_yn (INDEX_TOP+7, kill_from, 'n');
+X	}
+X
+X	if (text[0] || kill_subj_ok || kill_from_ok) {
+X		show_menu_help (txt_help_kill_group);
+X		kill_every_group = FALSE;
+X		MoveCursor (INDEX_TOP+10, strlen (txt_kill_group));
+X		str = kill_group;
+X		printf ("%s", str);
+X		fflush(stdout);
+X		do {
+X			MoveCursor (INDEX_TOP+10, strlen (txt_kill_group));
+X			if ((ch	= ReadCh()) == ' ') {
+X				kill_every_group = !kill_every_group;
+X				if (kill_every_group) {
+X					str = "All groups";
+X				} else {
+X					str = kill_group;
+X				}
+X				CleartoEOLN (); 
+X				printf ("%s", str);
+X				fflush(stdout);
+X			}
+X		} while (ch != CR);
+X	}
+X
+X	while (1) {
+X		do {
+X			sprintf (msg, "%s%c", txt_abort_edit_save_killfile, ch_default);
+X			wait_message (msg);
+X			MoveCursor(LINES, strlen (txt_abort_edit_save_killfile));
+X			if ((ch = ReadCh()) == CR)
+X				ch = ch_default;
+X		} while (ch != 'a' && ch != 'e' && ch != 's');
+X		switch (ch) {
+X			case 'e':
+X				start_line_offset = 2;
+X				invoke_editor (killfile);
+X				untag_all_articles ();
+X				read_kill_file ();
+X				reload_index_file (group_name, FALSE);
+X				return TRUE;
+X
+X			case 'a':
+X				return FALSE;
+X			
+X			case 's':
+X				if (kill_num > max_kill-1) {
+X					expand_kill ();
+X				}
+X				if (text[0]) {
+X					switch (counter) {
+X						case KILL_SUBJ:
+X							killf[kill_num].kill_subj = str_dup (text);
+X							break;
+X						case KILL_FROM:
+X							killf[kill_num].kill_from = str_dup (text);
+X							break;
+X						case KILL_BOTH:
+X							killf[kill_num].kill_subj = str_dup (text);
+X							killf[kill_num].kill_from = str_dup (text);
+X							break;
+X					}
+X					killf[kill_num].kill_type = counter;
+X					if (kill_every_group) {
+X						killf[kill_num].kill_group= 0L;
+X					} else {
+X						killf[kill_num].kill_group= hash_s (group_name);
+X					}
+X					kill_num++;
+X				} else {
+X					if (kill_subj_ok) {
+X						killf[kill_num].kill_type = KILL_SUBJ;
+X						killf[kill_num].kill_subj = str_dup (arts[index].subject);
+X					}
+X					if (kill_from_ok) {
+X						killf[kill_num].kill_type |= KILL_FROM;
+X						killf[kill_num].kill_from = str_dup (arts[index].from);
+X					}
+X					if (killf[kill_num].kill_type) {		
+X						if (kill_every_group) {
+X							killf[kill_num].kill_group= 0L;
+X						} else {
+X							killf[kill_num].kill_group= hash_s (group_name);
+X						}
+X						kill_num++;
+X					}
+X				}
+X				write_kill_file ();
+X				return TRUE;
+X		}	
+X	}
+X}
+X
+X
+Xint untag_all_articles ()
+X{
+X	int untagged = FALSE;
+X	register int i;
+X
+X	for (i=0 ; i < top ; i++) {
+X		if (arts[i].tagged) {
+X			arts[i].tagged = FALSE;
+X			untagged = TRUE;
+X		}
+X	}
+X	num_of_tagged_files = 0;
+X
+X	return (untagged);
+X}
+X
+X
+Xint kill_any_articles (group)
+X	char *group;
+X{
+X	int killed = FALSE;
+X	int run_ok = FALSE;
+X	long group_hash;
+X	register int i, j;
+X
+X	if (! kill_articles) {
+X		return killed;
+X	}
+X
+X	if (kill_num) {
+X		group_hash = hash_s (group);
+X		for (i=0 ; i < kill_num ; i++) {
+X				if (killf[i].kill_group == 0L ||
+X					killf[i].kill_group == group_hash) {
+X					run_ok = TRUE;	
+X				}
+X		}
+X		if (! run_ok) {
+X			return (killed);
+X		}
+X		if (debug && ! update) {
+X			wait_message ("Killing articles...");
+X		}
+X		for (i=0 ; i < top ; i++) {
+X			for (j=0 ; j < kill_num && ! arts[i].tagged ; j++) {
+X				if (killf[j].kill_group == 0L ||
+X					killf[j].kill_group == group_hash) {
+X					switch (killf[j].kill_type) {
+X						case KILL_SUBJ:
+X							if (str_str (arts[i].subject, killf[j].kill_subj) != 0) {
+X								arts[i].tagged = TRUE;
+X								killed = TRUE;
+X							}
+X							break;
+X						case KILL_FROM:
+X							if (str_str (arts[i].from, killf[j].kill_from) != 0) {
+X								arts[i].tagged = TRUE;
+X								killed = TRUE;
+X							}
+X							break;
+X						case KILL_BOTH:
+X							if (str_str (arts[i].subject, killf[j].kill_subj) != 0) {
+X								arts[i].tagged = TRUE;
+X								killed = TRUE;
+X							}
+X							if (str_str (arts[i].from, killf[j].kill_from) != 0) {
+X								arts[i].tagged = TRUE;
+X								killed = TRUE;
+X							}
+X							break;
+X					}
+X				}
+X			}
+X		}
+X	}
+X	return (killed);
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 kill.c &&
+chmod 0600 kill.c ||
+echo "restore of kill.c failed"
+set `wc -c kill.c`;Wc_c=$1
+if test "$Wc_c" != "9118"; then
+	echo original size 9118, current size $Wc_c
+fi
+# ============= lang.c ==============
+echo "x - extracting lang.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > lang.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : lang.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 01-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#ifdef LANG_GERMAN
+X
+X#else
+X
+X/*
+X *  art.c
+X */
+X
+Xchar txt_group[] = "Group %s...    ";
+Xchar txt_cannot_open_dir[] = "can't open dir %s\n";
+Xchar txt_cannot_open_art[] = "can't open article %s: ";
+Xchar txt_indexing[] = "Indexing...%4d";
+Xchar txt_corrupt_index[] = "Index file %s corrupted. error %d on article %d";
+X
+X/*
+X *  feed.c
+X */
+X
+Xchar txt_art_thread_regex_tag[] = " a)rticle, t)hread, r)egex pattern T)agged articles: ";
+X#ifdef DONT_USE_REGEX 
+Xchar txt_feed_pattern[] = "Enter pattern [%s]> ";
+X#else
+Xchar txt_feed_pattern[] = "Enter regex pattern [%s]> ";
+X#endif
+Xchar txt_no_command[] = "No command";
+X
+X/*
+X *  group.c
+X */
+X
+Xchar txt_tagged_art[] = "tagged article";
+Xchar txt_untagged_art[] = "untagged article";
+Xchar txt_inverse_on[] = "Inverse video enabled";
+Xchar txt_inverse_off[] = "Inverse video disabled";
+Xchar txt_subscribed_to[] = "subscribed to %s";
+Xchar txt_unsubscribed_to[] = "unsubscribed from %s";
+Xchar txt_mark_all_read[] = "Mark everything as read? (y/n): ";
+Xchar txt_marked_as_read[] = "All articles marked as read";
+Xchar txt_no_more_groups[] = "No more groups";
+Xchar txt_no_prev_group[] = "No previous group";
+Xchar txt_no_arts[] = "*** No Articles ***";
+Xchar txt_no_groups[] = "*** No Groups ***";
+Xchar txt_end_of_arts[] = "*** End of Articles ***";
+Xchar txt_end_of_groups[] = "*** End of Groups ***";
+Xchar txt_no_next_unread_art[] = "No next unread article";
+Xchar txt_no_prev_unread_art[] = "No previous unread article";
+Xchar txt_no_last_message[] = "No last message";
+Xchar txt_bad_command[] = "Bad command.  Type 'h' for help.";
+Xchar txt_you_have_mail[] = "    You have mail\n";
+Xchar txt_type_h_for_help[] = "Type 'h' for help\n";
+Xchar txt_read_art[] = "Read article> ";
+Xchar txt_search_forwards[] = "Search forwards [%s]> ";
+Xchar txt_search_backwards[] = "Search backwards [%s]> ";
+Xchar txt_author_search_forwards[] = "Author search forwards [%s]> ";
+Xchar txt_author_search_backwards[] = "Author search backwards [%s]> ";
+Xchar txt_no_search_string[] = "No search string";
+Xchar txt_no_match[] = "No match";
+Xchar txt_post_subject[] = "Post Subject: ";
+Xchar txt_no_subject[] = "No subject";
+Xchar txt_cannot_open[] = "can't open %s";
+Xchar txt_posting[] = "Posting...";
+Xchar txt_art_posted[] = "-- Article posted --";
+Xchar txt_art_rejected[] = "-- Article rejected (saved to %s) --";
+Xchar txt_abort_edit_post[] = "a)bort, e)dit, p)ost: ";
+Xchar txt_help_i_4[] = "4$       Select article 4 ($=select last article)\r\n";
+Xchar txt_help_ctrl_k[] = "^K       Kill current article\r\n";
+Xchar txt_help_ctrl_l[] = "^L       Redraw page\r\n";
+Xchar txt_help_ctrl_d[] = "^D^U     Down (^U=up) a page\r\n";
+Xchar txt_help_i_cr[] = "<CR>     Read current article\r\n";
+Xchar txt_help_i_tab[] = "<TAB>    View next unread article or group\r\n";
+Xchar txt_help_m[] = "m        Move current group within group selection list\r\n";
+Xchar txt_help_M[] = "M        Menu of configurable options\r\n";
+Xchar txt_help_a[] = "aA       Author forward (A=backward) search\r\n";
+Xchar txt_help_sel_c[] = "cC       Mark group read (C=and goto next unread group)\r\n";
+Xchar txt_help_c[] = "c        Mark all articles as read and goto group selection menu\r\n";
+Xchar txt_help_g[] = "g        Choose a new group by name\r\n";
+Xchar txt_help_I[] = "I        Toggle inverse video\r\n";
+Xchar txt_help_K[] = "K        Mark article/thread as read & goto next unread\r\n";
+Xchar txt_help_j[] = "jk       Down (k=up) a line\r\n";
+Xchar txt_help_i_n[] = "nN       Goto next (N=next unread) group\r\n";
+Xchar txt_help_i_p[] = "pP       Goto previous (P=previous unread) group\r\n";
+Xchar txt_help_q[] = "q        Quit\r\n";
+Xchar txt_help_s[] = "su       Subscribe (u=unsubscribe) to this group\r\n";
+Xchar txt_help_S[] = "SU       Subscribe (U=unsubscribe) groups that match pattern\r\n";
+Xchar txt_help_t[] = "t        Return to group selection index\r\n";
+Xchar txt_help_T[] = "T        Tag current article for mailing/piping/printing/saving\r\n";
+Xchar txt_help_U[] = "U        Untag all tagged articles\r\n";
+Xchar txt_help_w[] = "w        Post an article\r\n";
+Xchar txt_help_i_search[] = "/?       Subject forward (?=backward) search\r\n";
+Xchar txt_help_dash[] = "-        Show last message\r\n";
+X#ifdef DONT_USE_REGEX 
+Xchar txt_save_pattern[] = "Enter save pattern [%s]> ";
+X#else
+Xchar txt_save_pattern[] = "Enter regex save pattern [%s]> ";
+X#endif
+Xchar txt_base_subdir[] = "Enter sub directory name> ";
+Xchar txt_saved_pattern_to[] = "-- Saved pattern to %s - %s --";
+Xchar txt_saved_to_mailbox[] = "-- Saved to mailbox %s --";
+Xchar txt_switch_on_kill_art_menu[] = "Kill Article Menu is switched OFF. Select Options Menu to switch it ON.";
+X
+X/* 
+X *  help.c:
+X */
+X
+Xchar txt_group_select_com[] = "Group Selection Commands (page %d of %d)";
+Xchar txt_index_page_com[] = "Index Page Commands (page %d of %d)";
+Xchar txt_art_pager_com[] = "Article Pager Commands (page %d of %d)";
+Xchar txt_hit_space_for_more[] = "PgDn,End,<SPACE>,^D - page down. PgUp,Home,b,^U - page up. <CR>,q - quit";
+X
+X/* 
+X *  kill.c:
+X */
+X
+Xchar txt_kill_menu[] = "Kill Article Menu";
+Xchar txt_kill_subject[] = "Kill Subject [%-45s] (y/n): ";
+Xchar txt_kill_from[] =    "Kill From    [%-45s] (y/n): ";
+Xchar txt_kill_text[] = "Kill text pattern : ";
+Xchar txt_kill_text_type[] = "Apply pattern to  : ";
+Xchar txt_kill_group[] =     "Kill pattern scope: ";
+Xchar txt_help_kill_subject[] = "Subject: line to add to kill file. Press backspace key to clear field.";
+Xchar txt_help_kill_from[] = "From: line to add to kill file. Press backspace key to clear field.";
+Xchar txt_help_kill_text[] = "Enter text pattern to kill if Subject: & From: lines are not what you want.";
+Xchar txt_help_kill_text_type[] = "Select where text pattern should be applied. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_kill_group[] = "Apply kill to current group only or all groups. <SPACE> toggles & <CR> sets.";
+Xchar txt_abort_edit_save_killfile[] = "a)bort e)dit s)ave killfile: ";
+X
+X
+X/* 
+X *  main.c:
+X */
+X
+Xchar txt_not_in_active_file[] = "Group %s not found in active file";
+Xchar txt_screen_init_failed[] = "Screen initialization failed\n";
+Xchar txt_bad_active_file[] = "Active file corrupt\n";
+X
+X/*
+X *  misc.c
+X */
+X
+Xchar txt_cannot_find_base_art[] = "Cannot find base article %s";
+Xchar txt_out_of_memory[] = "%s: out of memory\n";
+Xchar txt_rename_error[] = "Error: rename %s to %s";
+Xchar txt_shell_escape[] = "Enter shell command> ";
+X
+X/*
+X *  nntp_open.c
+X */
+X
+Xchar txt_cannot_get_nntp_server_name[] = "Cannot get nntp server name\n";
+Xchar txt_server_name_in_file_env_var[] = "Either put the name in the file %s,\nor put it in the environment variable NNTPSERVER\n";
+Xchar txt_failed_to_connect_to_server[] = "failed to connect to (%s) server\n";
+Xchar txt_rejected_by_nntpserver[] = "rejected by server, nntp error %d\n";
+Xchar txt_connection_to_server_broken[] = "connection to server broken\n";
+Xchar txt_stuff_nntp_cannot_open[] = "stuff_nntp: can't open %s: ";
+Xchar txt_nntp_to_fp_cannot_reopen[] = "nntp_to_fp: can't reopen %s: ";
+Xchar txt_nntp_to_fd_cannot_reopen[] = "nntp_to_fd: can't reopen %s: ";
+X
+X/*
+X *  page.c
+X */
+X
+Xchar txt_quit[] = "Do you really want to quit? (y/n): ";
+Xchar txt_art_unavailable[] = "[Article %ld unvailable]\r\r";
+Xchar txt_art_marked_as_unread[] = "Article marked as unread";
+Xchar txt_thread_marked_as_unread[] = "Thread marked as unread";
+Xchar txt_begin_of_art[] = "*** Beginning of article ***";
+Xchar txt_next_resp[] = "-- Next response --";
+Xchar txt_last_resp[] = "-- Last response --";
+Xchar txt_more[] = "--More--";
+Xchar txt_more_percent[] = "--More--(%d%%) [%ld/%ld]";
+Xchar txt_thread_x_of_n[] = "%sThread %3d of %3d\r\n";
+Xchar txt_art[] = "Article %ld  ";
+Xchar txt_resp_x_of_n[] = "Respno %3d of %3d\r\n";
+Xchar txt_no_resp[] = "No responses\r\n";
+Xchar txt_1_resp[] = "1 Response\r\n";
+Xchar txt_x_resp[] = "%d Responses\r\n";
+Xchar txt_s_at_s[] = "%s at %s";
+Xchar txt_thread_resp_page[] = "Thread %d of %d, Resp %d (page %d):  %s";
+Xchar txt_thread_page[] = "Thread %d of %d (page %d):  %s";
+Xchar txt_read_resp[] = "Read response> ";
+Xchar txt_help_p_0[] = "0        Read the base article in current thread\r\n";
+Xchar txt_help_p_4[] = "4        Read response 4 in current thread\r\n";
+Xchar txt_help_p_cr[] = "<CR>     Goto to next thread\r\n";
+Xchar txt_help_p_tab[] = "<TAB>    Advance to next page or unread article\r\n";
+Xchar txt_help_b[] = "b<SPACE> Back (<SPACE>=forward) a page\r\n";
+Xchar txt_help_bug[] = "B        Mail bug/gripe/comment to %s\r\n";
+Xchar txt_help_p_f[] = "fF       Post (F=copy text) a followup\r\n";
+Xchar txt_help_ctrl_h[] = "^H       Show articles header\r\n";
+Xchar txt_help_h[] =      "hH       Command (H=context sensitive) help\r\n";
+Xchar txt_help_p_i[] = "i        Return to index page\r\n";
+Xchar txt_help_p_k[] = "kK       Mark article (K=thread) as read & advance to next unread\r\n";
+Xchar txt_help_p_m[] = "m        Mail article/thread/pattern/tagged articles to someone\r\n";
+Xchar txt_help_p_n[] = "nN       Goto to the next (N=unread) article\r\n";
+Xchar txt_help_o[] = "o        Output article/thread/pattern/tagged articles to printer\r\n";
+Xchar txt_help_p_p[] = "pP       Goto the previous (P=unread) article\r\n";
+Xchar txt_help_p_r[] = "rR       Reply through mail (R=copy text) to author\r\n";
+Xchar txt_help_p_s[] = "s        Save article/thread/pattern/tagged articles to file\r\n";
+Xchar txt_help_p_z[] = "zZ       Mark article (Z=thread) as unread\r\n";
+Xchar txt_help_p_ctrl_r[] = "^R$      Redisplay first page ($=last page) of article\r\n";
+Xchar txt_help_p_d[] = "d        Toggle rot-13 decoding for this article\r\n";
+Xchar txt_help_pipe[] = "|        Pipe article/thread/pattern/tagged articles into command\r\n";
+Xchar txt_help_p_search[] = "/        Article forward search\r\n";
+Xchar txt_mail_art_to[] = "Mail article to: ";
+Xchar txt_no_mail_address[] = "No mail address";
+Xchar txt_abort_edit_send[] = "a)bort, e)dit, s)end";
+Xchar txt_mailing_to[] = "Mailing to %s...";
+Xchar txt_message_sent[] = "-- Mailed --";
+Xchar txt_command_failed_s[] = "Command failed: %s\n";
+Xchar txt_in_art_you_write[] = "In article %s you write:\n";
+Xchar txt_resp_to_poster[] = "Responses have been directed to the poster. Post anyway? (y/n): ";
+Xchar txt_resp_redirect[] = "Responses have been directed to the following newsgroups";
+Xchar txt_continue[] = "Continue? (y/n): ";
+Xchar txt_writes[] = "%s writes:\n";
+Xchar txt_save_filename[] = "Save filename> ";
+Xchar txt_art_not_saved[] = "-- Article not saved --";
+Xchar txt_print_yn[] = "Do you really want to print? (y/n): ";
+Xchar txt_no_filename[] = "No filename";
+Xchar txt_saving[] = "Saving...";
+Xchar txt_art_saved_to[] = "-- Article saved to %s --";
+Xchar txt_thread_not_saved[] = "-- Thread not saved --";
+Xchar txt_thread_saved_to_many[] = "-- Thread saved to %s - %s --";
+Xchar txt_thread_saved_to[] = "-- Thread saved to %s --";
+Xchar txt_pipe_to_command[] = "Pipe to command: ";
+Xchar txt_error_printing_art[] = "-- Error printing article --";
+Xchar txt_printing[] = "Printing...";
+Xchar txt_printed[] = "-- Articles printed --";
+Xchar txt_append_to_file[] = "File %s exists. Append? (y/n): ";
+Xchar txt_toggled_rot13[] = "Toggled rot13 encoding";
+X
+X/*
+X *  posted.c
+X */
+X
+Xchar txt_post_history_menu[] = "Posted articles history";
+Xchar txt_no_arts_posted[] = "No articles have been posted";
+X
+X/*
+X *  prompt.c
+X */
+X
+Xchar txt_hit_any_key[] = "-- Hit any key to continue --";
+X
+X/*
+X *  rcfile.c
+X */
+X 
+Xchar txt_opt_autosave[] =        "    1. Auto save       : ";
+Xchar txt_opt_save_separate[] =   "    2. Save separate   : ";
+Xchar txt_opt_mark_saved_read[] = "    3. Mark saved read : ";
+Xchar txt_opt_kill_articles[] =   "    4. Kill articles   : ";
+Xchar txt_opt_show_author[] =     "    5. Show Author     : ";
+Xchar txt_opt_draw_arrow[] =      "    6. Draw arrow      : ";
+Xchar txt_opt_post_process[] =    "    7. Post process    : ";
+Xchar txt_opt_print_header[] =    "    8. Print header    : ";
+Xchar txt_opt_process_type[] = "    9. Process type    : ";
+Xchar txt_opt_sort_type[] = "    10 Sort article by : ";
+Xchar txt_opt_savedir[] = "    11 Save directory  : ";
+Xchar txt_opt_maildir[] = "    12 Mail directory  : ";
+Xchar txt_opt_printer[] = "    13 Printer         : ";
+Xchar txt_options_menu[] = "Options Menu";
+Xchar txt_post_process_sh[] = "shell archive";
+Xchar txt_post_process_uud[] = "uudecode";
+Xchar txt_post_process_uud_zoo[] = "uudecode & zoo";
+Xchar txt_post_process_uud_lzh[] = "uudecode & lharc";
+Xchar txt_post_process_uud_arc[] = "uudecode & arc";
+Xchar txt_post_process_uud_zip[] = "uudecode & zip";
+Xchar txt_post_process_patch[] = "patch";
+Xchar txt_sort_by_none[] = "Nothing";
+Xchar txt_sort_by_subj[] = "Subject: field";
+Xchar txt_sort_by_from[] = "From: field";
+Xchar txt_sort_by_date[] = "Date: field";
+Xchar txt_help_autosave[] = "Auto save article/thread by Archive-name: header. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_save_separate[] = "Save articles/threads to separate files. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_print_header[] = "Print complete mail header or Subject: & From:. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_show_author[] = "Show Subject & From (author) fields in group menu. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_draw_arrow[] = "Draw -> or highlighted bar for selection. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_kill_articles[] = "Kill articles that match entries in kill file. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_post_process[] = "Post process (ie. unshar) saved article/thread. <SPACE> toggles & <CR> sets."; 
+Xchar txt_help_mark_saved_read[] = "Mark saved articles/threads as read. <SPACE> toggles & <CR> sets."; 
+Xchar txt_help_post_proc_type[] = "Post processing to apply to articles/threads. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_sort_type[] = "Sort articles by Subject, From or Date fields. <SPACE> toggles & <CR> sets.";
+Xchar txt_help_savedir[] = "The directory where you want articles/threads saved.";
+Xchar txt_help_maildir[] = "The directory where articles/threads are to be saved in mailbox format.";
+Xchar txt_help_printer[] = "The printer program with options that is to be used to print articles/threads.";
+Xchar txt_select_rcfile_option[] = "Select option by entering number before text. Enter '0' to save/quit.";
+Xchar txt_save_options[] = "Save options? (y/n): ";
+X
+X/*
+X *  save.c
+X */
+X
+Xchar txt_post_processing[] = "Post processing...";
+Xchar txt_deleting[] = "Deleting...";
+X
+X/*
+X *  search.c
+X */
+X
+Xchar txt_searching[] = "Searching...";
+X
+X/*
+X *  select.c
+X */
+X
+Xchar txt_moving[] = "Moving...";
+X#ifdef DONT_USE_REGEX 
+Xchar txt_subscribe_pattern[] = "Enter subscribe pattern> ";
+Xchar txt_unsubscribe_pattern[] = "Enter subscribe pattern> ";
+X#else
+Xchar txt_subscribe_pattern[] = "Enter regex subscribe pattern> ";
+Xchar txt_unsubscribe_pattern[] = "Enter regex subscribe pattern> ";
+X#endif
+Xchar txt_subscribing[] = "Subscribing...";
+Xchar txt_subscribing_to[] = "Subscribing to %s...";
+Xchar txt_unsubscribing[] = "Unsubscribing...";
+Xchar txt_unsubscribing_from[] = "Unsubscribing from %s...";
+Xchar txt_subscribed_num_groups[] = "subscribed to %d groups";
+Xchar txt_unsubscribed_num_groups[] = "unsubscribed from %d groups";
+Xchar txt_del_group_in_newsrc[] = "Delete current group from .newsrc? (y/n): ";
+Xchar txt_group_deleted[] = "Group deleted";
+Xchar txt_mark_group_read[] = "Mark group as read? (y/n): ";
+Xchar txt_no_groups_to_delete[] = "No groups to delete";
+Xchar txt_reset_newsrc[] = "Reset newsrc? (y/n): ";
+Xchar txt_no_groups_to_read[] = "No more groups to read";
+Xchar txt_added_groups[] = "Added %d group%s";
+Xchar txt_plural[] = "s";
+Xchar txt_no_groups_to_yank_in[] = "No more groups to yank in";
+Xchar txt_group_selection[] = "Group Selection";
+Xchar txt_select_group[] = "Select group> ";
+Xchar txt_help_g_4[] = "4$       Select group 4 ($=select last group)\r\n";
+Xchar txt_help_g_ctrl_r[] = "^R       Reset .newsrc\r\n";
+Xchar txt_help_g_ctrl_k[] = "^Kz      Delete (z=undelete) group from .newsrc\r\n";
+Xchar txt_help_g_cr[] = "<CR>     Read current group\r\n";
+Xchar txt_help_g_tab[] = "<TAB>    View next unread group\r\n";
+Xchar txt_help_g_c[] = "c        Mark group as all read\r\n";
+Xchar txt_help_W[] = "W        List articles posted by user\r\n";
+Xchar txt_help_g_y[] = "y        Yank in groups that are not in the .newsrc\r\n";
+Xchar txt_help_g_dollar[] = "Y        Reread group list from .newsrc\r\n";
+Xchar txt_help_g_search[] = "/?       Group forward (?=backward) search\r\n";
+Xchar txt_newsgroup[] = "Newsgroup> ";
+Xchar txt_newsgroup_position[] = "Position %s in group list [1,2,..,$]> ";
+X
+X/*
+X *  signal.c
+X */
+X
+Xchar txt_resizing_window[] = "resizing window";
+X
+X#endif
+X
+SHAR_EOF
+$TOUCH -am 0903095091 lang.c &&
+chmod 0600 lang.c ||
+echo "restore of lang.c failed"
+set `wc -c lang.c`;Wc_c=$1
+if test "$Wc_c" != "16989"; then
+	echo original size 16989, current size $Wc_c
+fi
+# ============= lang.h ==============
+echo "x - extracting lang.h (Text)"
+sed 's/^X//' << 'SHAR_EOF' > lang.h &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : lang.h
+X *  Author    : I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 31-08-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X/*
+X *  art.c
+X */
+X
+Xextern char txt_group[];
+Xextern char txt_cannot_open_dir[];
+Xextern char txt_cannot_open_art[];
+Xextern char txt_indexing[];
+Xextern char txt_corrupt_index[];
+X
+X/*
+X *  feed.c
+X */
+X
+Xextern char txt_art_thread_regex_tag[];
+Xextern char txt_feed_pattern[];
+Xextern char txt_no_command[];
+X
+X/*
+X *  group.c
+X */
+X
+Xextern char txt_tagged_art[];
+Xextern char txt_untagged_art[];
+Xextern char txt_inverse_on[];
+Xextern char txt_inverse_off[];
+Xextern char txt_subscribed_to[];
+Xextern char txt_unsubscribed_to[];
+Xextern char txt_mark_all_read[];
+Xextern char txt_marked_as_read[];
+Xextern char txt_no_more_groups[];
+Xextern char txt_no_prev_group[];
+Xextern char txt_no_arts[];
+Xextern char txt_no_groups[];
+Xextern char txt_end_of_arts[];
+Xextern char txt_end_of_groups[];
+Xextern char txt_no_next_unread_art[];
+Xextern char txt_no_prev_unread_art[];
+Xextern char txt_no_last_message[];
+Xextern char txt_bad_command[];
+Xextern char txt_you_have_mail[];
+Xextern char txt_type_h_for_help[];
+Xextern char txt_read_art[];
+Xextern char txt_author_search_forwards[];
+Xextern char txt_author_search_backwards[];
+Xextern char txt_search_forwards[];
+Xextern char txt_search_backwards[];
+Xextern char txt_no_search_string[];
+Xextern char txt_no_match[];
+Xextern char txt_post_subject[];
+Xextern char txt_no_subject[];
+Xextern char txt_cannot_open[];
+Xextern char txt_posting[];
+Xextern char txt_art_posted[];
+Xextern char txt_art_rejected[];
+Xextern char txt_abort_edit_post[];
+Xextern char txt_index_page_com[];
+Xextern char txt_help_i_4[];
+Xextern char txt_help_ctrl_k[];
+Xextern char txt_help_ctrl_l[];
+Xextern char txt_help_ctrl_d[];
+Xextern char txt_help_i_cr[];
+Xextern char txt_help_i_tab[];
+Xextern char txt_help_m[];
+Xextern char txt_help_M[];
+Xextern char txt_help_a[];
+Xextern char txt_help_sel_c[];
+Xextern char txt_help_c[];
+Xextern char txt_help_g[];
+Xextern char txt_help_I[];
+Xextern char txt_help_K[];
+Xextern char txt_help_j[];
+Xextern char txt_help_i_n[];
+Xextern char txt_help_i_p[];
+Xextern char txt_help_q[];
+Xextern char txt_help_s[];
+Xextern char txt_help_S[];
+Xextern char txt_help_t[];
+Xextern char txt_help_T[];
+Xextern char txt_help_U[];
+Xextern char txt_help_i_u[];
+Xextern char txt_help_w[];
+Xextern char txt_help_i_search[];
+Xextern char txt_help_dash[];
+Xextern char txt_save_pattern[];
+Xextern char txt_base_subdir[];
+Xextern char txt_saved_pattern_to[];
+Xextern char txt_saved_to_mailbox[];
+Xextern char txt_switch_on_kill_art_menu[];
+X
+X/* 
+X *  help.c:
+X */
+X
+Xextern char txt_hit_space_for_more[];
+X
+X/* 
+X *  kill.c:
+X */
+X
+Xextern char txt_kill_menu[];
+Xextern char txt_kill_subject[];
+Xextern char txt_kill_from[];
+Xextern char txt_kill_text[];
+Xextern char txt_kill_text_type[];
+Xextern char txt_kill_group[];
+Xextern char txt_help_kill_subject[];
+Xextern char txt_help_kill_from[];
+Xextern char txt_help_kill_text[];
+Xextern char txt_help_kill_text_type[];
+Xextern char txt_help_kill_group[];
+Xextern char txt_abort_edit_save_killfile[];
+X
+X/*
+X *  page.c
+X */
+X
+Xextern char txt_quit[];
+Xextern char txt_art_unavailable[];
+Xextern char txt_art_marked_as_unread[];
+Xextern char txt_thread_marked_as_unread[];
+Xextern char txt_begin_of_art[];
+Xextern char txt_next_resp[];
+Xextern char txt_last_resp[];
+Xextern char txt_more_percent[];
+Xextern char txt_more[];
+Xextern char txt_thread_x_of_n[];
+Xextern char txt_art[];
+Xextern char txt_resp_x_of_n[];
+Xextern char txt_no_resp[];
+Xextern char txt_1_resp[];
+Xextern char txt_x_resp[];
+Xextern char txt_s_at_s[];
+Xextern char txt_thread_resp_page[];
+Xextern char txt_thread_page[];
+Xextern char txt_read_resp[];
+Xextern char txt_art_pager_com[];
+Xextern char txt_help_p_0[];
+Xextern char txt_help_p_4[];
+Xextern char txt_help_p_cr[];
+Xextern char txt_help_p_tab[];
+Xextern char txt_help_b[];
+Xextern char txt_help_bug[];
+Xextern char txt_help_p_f[];
+Xextern char txt_help_ctrl_h[];
+Xextern char txt_help_h[];
+Xextern char txt_help_p_i[];
+Xextern char txt_help_p_k[];
+Xextern char txt_help_p_m[];
+Xextern char txt_help_p_n[];
+Xextern char txt_help_o[];
+Xextern char txt_help_p_p[];
+Xextern char txt_help_p_r[];
+Xextern char txt_help_p_s[];
+Xextern char txt_help_p_z[];
+Xextern char txt_help_p_ctrl_r[];
+Xextern char txt_help_p_d[];
+Xextern char txt_help_pipe[];
+Xextern char txt_help_p_search[];
+Xextern char txt_mail_art_to[];
+Xextern char txt_no_mail_address[];
+Xextern char txt_abort_edit_send[];
+Xextern char txt_mailing_to[];
+Xextern char txt_message_sent[];
+Xextern char txt_command_failed_s[];
+Xextern char txt_in_art_you_write[];
+Xextern char txt_resp_to_poster[];
+Xextern char txt_resp_redirect[];
+Xextern char txt_continue[];
+Xextern char txt_writes[];
+Xextern char txt_save_filename[];
+Xextern char txt_art_not_saved[];
+Xextern char txt_print_yn[];
+Xextern char txt_no_filename[];
+Xextern char txt_saving[];
+Xextern char txt_art_saved_to[];
+Xextern char txt_thread_not_saved[];
+Xextern char txt_thread_saved_to_many[];
+Xextern char txt_thread_saved_to[];
+Xextern char txt_pipe_to_command[];
+Xextern char txt_command_failed[];
+Xextern char txt_error_printing_art[];
+Xextern char txt_printing[];
+Xextern char txt_printed[];
+Xextern char txt_append_to_file[];
+X
+X/*
+X *  prompt.c
+X */
+X
+Xextern char txt_hit_any_key[];
+X 
+X/* 
+X *  main.c:
+X */
+X
+Xextern char txt_not_in_active_file[];
+Xextern char txt_screen_init_failed[];
+Xextern char txt_bad_active_file[];
+X
+X/*
+X *  misc.c
+X */
+X
+Xextern char txt_cannot_find_base_art[];
+Xextern char txt_out_of_memory[];
+Xextern char txt_rename_error[];
+Xextern char txt_shell_escape[];
+X
+X/*
+X *  nntp.c
+X */
+X
+Xextern char txt_cannot_get_nntp_server_name[];
+Xextern char txt_server_name_in_file_env_var[];
+Xextern char txt_failed_to_connect_to_server[];
+Xextern char txt_rejected_by_nntpserver[];
+Xextern char txt_connection_to_server_broken[];
+Xextern char txt_stuff_nntp_cannot_open[];
+Xextern char txt_nntp_to_fp_cannot_reopen[];
+Xextern char txt_nntp_to_fd_cannot_reopen[];
+Xextern char txt_toggled_rot13[];
+X
+X/*
+X *  posted.c
+X */
+X
+Xextern char txt_post_history_menu[];
+Xextern char txt_no_arts_posted[];
+X
+X/*
+X *  rcfile.c
+X */
+X
+Xextern char txt_opt_autosave[];
+Xextern char txt_opt_save_separate[];
+Xextern char txt_opt_mark_saved_read[];
+Xextern char txt_opt_kill_articles[];
+Xextern char txt_opt_show_author[];
+Xextern char txt_opt_draw_arrow[];
+Xextern char txt_opt_post_process[];
+Xextern char txt_opt_print_header[];
+Xextern char txt_opt_process_type[];
+Xextern char txt_opt_sort_type[];
+Xextern char txt_post_process_sh[];
+Xextern char txt_post_process_uud[];
+Xextern char txt_post_process_uud_zoo[];
+Xextern char txt_post_process_uud_lzh[];
+Xextern char txt_post_process_uud_arc[];
+Xextern char txt_post_process_uud_zip[];
+Xextern char txt_post_process_patch[];
+Xextern char txt_sort_by_none[];
+Xextern char txt_sort_by_subj[];
+Xextern char txt_sort_by_from[];
+Xextern char txt_sort_by_date[];
+Xextern char txt_opt_savedir[];
+Xextern char txt_opt_maildir[];
+Xextern char txt_opt_printer[];
+Xextern char txt_opt_kill_subj[];
+Xextern char txt_opt_kill_from[];
+Xextern char txt_options_menu[];
+Xextern char txt_help_autosave[];
+Xextern char txt_help_save_separate[];
+Xextern char txt_help_print_header[];
+Xextern char txt_help_show_author[];
+Xextern char txt_help_draw_arrow[];
+Xextern char txt_help_kill_articles[];
+Xextern char txt_help_post_process[];
+Xextern char txt_help_mark_saved_read[];
+Xextern char txt_help_post_proc_type[];
+Xextern char txt_help_sort_type[];
+Xextern char txt_help_savedir[];
+Xextern char txt_help_maildir[];
+Xextern char txt_help_printer[];
+Xextern char txt_select_rcfile_option[];
+Xextern char txt_save_options[];
+X
+X/*
+X *  save.c
+X */
+X
+Xextern char txt_post_processing[];
+Xextern char txt_deleting[];
+X
+X/*
+X *  search.c
+X */
+X
+Xextern char txt_searching[];
+X
+X/*
+X *  select.c
+X */
+X
+Xextern char txt_moving[];
+Xextern char txt_subscribe_pattern[];
+Xextern char txt_unsubscribe_pattern[];
+Xextern char txt_subscribing[];
+Xextern char txt_subscribing_to[];
+Xextern char txt_unsubscribing[];
+Xextern char txt_unsubscribing_from[];
+Xextern char txt_subscribed_num_groups[];
+Xextern char txt_unsubscribed_num_groups[];
+Xextern char txt_del_group_in_newsrc[];
+Xextern char txt_group_deleted[];
+Xextern char txt_mark_group_read[];
+Xextern char txt_no_groups_to_delete[];
+Xextern char txt_reset_newsrc[];
+Xextern char txt_no_groups_to_read[];
+Xextern char txt_added_groups[];
+Xextern char txt_rewriting_newsrc_file[];
+Xextern char txt_plural[];
+Xextern char txt_no_groups_to_yank_in[];
+Xextern char txt_group_selection[];
+Xextern char txt_select_group[];
+Xextern char txt_group_select_com[];
+Xextern char txt_help_g_4[];
+Xextern char txt_help_g_ctrl_r[];
+Xextern char txt_help_g_ctrl_k[];
+Xextern char txt_help_g_cr[];
+Xextern char txt_help_g_tab[];
+Xextern char txt_help_g_c[];
+Xextern char txt_help_W[];
+Xextern char txt_help_g_y[];
+Xextern char txt_help_g_dollar[];
+Xextern char txt_help_g_search[];
+Xextern char txt_newsgroup[];
+Xextern char txt_newsgroup_position[];
+X
+X/*
+X *  signal.c
+X */
+X
+Xextern char txt_resizing_window[];
+SHAR_EOF
+$TOUCH -am 0903095091 lang.h &&
+chmod 0600 lang.h ||
+echo "restore of lang.h failed"
+set `wc -c lang.h`;Wc_c=$1
+if test "$Wc_c" != "9222"; then
+	echo original size 9222, current size $Wc_c
+fi
+# ============= mail.c ==============
+echo "x - extracting mail.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > mail.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : mail.c
+X *  Author    : R.Skrenta
+X *  Created   : 01-04-91
+X *  Updated   : 01-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+Xchar *mailbox_name = (char *) 0;
+Xint  mailbox_size;
+X
+X
+X/*
+X *  Record size of mailbox so we can detect if new mail has arrived
+X */
+X
+Xvoid mail_setup ()
+X{
+X	struct stat buf;
+X	extern char *getenv();
+X
+X	mailbox_name = get_val ("MAIL", mailbox);
+X
+X	if (stat(mailbox_name, &buf) >= 0) {
+X		mailbox_size = buf.st_size;
+X	} else {
+X		mailbox_size = 0;
+X	}
+X}
+X
+X/*
+X *  Return TRUE if new mail has arrived
+X */
+X
+Xint mail_check ()
+X{
+X	struct stat buf;
+X
+X	if (mailbox_name != NULL
+X	&&  stat(mailbox_name, &buf) >= 0
+X	&&  mailbox_size < buf.st_size)
+X		return TRUE;
+X
+X	return FALSE;
+X}
+X
+SHAR_EOF
+$TOUCH -am 0903095091 mail.c &&
+chmod 0600 mail.c ||
+echo "restore of mail.c failed"
+set `wc -c mail.c`;Wc_c=$1
+if test "$Wc_c" != "1121"; then
+	echo original size 1121, current size $Wc_c
+fi
+# ============= main.c ==============
+echo "x - extracting main.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > main.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : main.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 30-08-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+Xchar *version = "v1.0";
+Xchar cvers[LEN+1];
+Xchar nntp_server[LEN+1];
+X
+Xint NOTESLINES;						/* set in set_win_size () */
+Xint RIGHT_POS;						/* set in set_win_size () */
+Xint MORE_POS;						/* set in set_win_size () */
+Xint max_subj = 0;
+Xint max_from = 0;
+Xint max_active;
+Xint group_hash[TABLE_SIZE];			/* group name --> active[] */
+Xint *my_group;						/* .newsrc --> active[] */
+Xint *unread;						/* highest art read in group */
+Xint num_active;						/* one past top of active */
+Xint local_top;						/* one past top of my_group */
+Xint catchup = FALSE;				/* mark all arts read in all subscribed groups */
+Xint update = FALSE;					/* update index files only mode */
+Xint verbose = FALSE;				/* update index files only mode */
+SHAR_EOF
+echo "End of tin1.0 part 3"
+echo "File main.c is continued in part 4"
+echo "4" > shar3_seq_.tmp
+exit 0
+
+
+--
+NAME   Iain Lea
+EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+PHONE  +49-911-895-3853, +49-911-895-3877, +49-911-331963

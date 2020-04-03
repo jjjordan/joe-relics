@@ -1,0 +1,7047 @@
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!cs.utexas.edu!natinst.com!news.dell.com!texsun!cronkite.Central.Sun.COM!west.West.Sun.COM!male.EBay.Sun.COM!exodus.Eng.Sun.COM!peregrine.Eng.Sun.COM!falk
+From: falk@peregrine.Eng.Sun.COM (Ed Falk)
+Newsgroups: alt.sources
+Subject: dstar - spacewars game for Suns (1/2)
+Message-ID: <lh2h4mINN9s0@exodus.Eng.Sun.COM>
+Date: 23 Nov 92 20:52:38 GMT
+Organization: Sun Microsystems Inc., Mountain View, CA
+Lines: 7037
+NNTP-Posting-Host: peregrine
+
+By request, I am posting the most up-to-date version of dstar, a 3-d
+real-time multi-player networked spacewars game.
+
+Dstar runs under Xgl 2.0 and above.  You need to have XGL on your
+system to compile dstar.  If you don't have access to XGL, I can't help
+you.
+
+(Note that "up to date" is a relative term; I haven't done any
+significant work on dstar in several years.  If your system has a
+GX or GX+ framebuffer, you'd do well to get "Aviator" instead.  I
+just saw a sneak preview of the latest version and it's awesome.)
+
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh to create the files:
+#	README
+#	Makefile
+#	blast_line0.h
+#	blast_line1.h
+#	bsp_object.h
+#	dstar.h
+#	fighter1_bsp.h
+#	fighter1_line.h
+#	fighter2_bsp.h
+#	fighter2_line.h
+#	graphics.h
+#	hsi.h
+#	line_object.h
+#	missile_line.h
+#	monolith_bsp.h
+#	netio.h
+#	object_types.h
+#	parameters.h
+#	planet1.h
+#	planet2.h
+#	starfield.h
+#	cursor1.pr
+#	cursor2.pr
+#	dstar.icon
+#	dstar_sleep.icon
+#	nodstar.icon
+#	dstar.c
+#	control.c
+#	draw_hsi_xgl.c
+#	draw_starfield_xgl.c
+# This archive created: Mon Nov 23 12:41:51 1992 by falk
+# archive part 1 of 2
+#
+#
+export PATH; PATH=/bin:$PATH
+
+
+if test -f README ; then
+echo shar: will not over-write existing file README
+else
+echo shar: extracting README, 18678 characters
+sed 's/^X//' > README <<'SHAR_EOF'
+X	@(#)README 1.1 92/05/28 SMI
+X
+X"dstar" is a multi-player network 3-d video game.  In dstar, you are
+Xthe pilot of a spaceship armed with lasers and missiles.  You have the
+Xpilot's-eye view out of the spaceship's front window.  Other people
+Xplaying the game on their workstations are playing in the same "space"
+Xas you are.  Everybody sees everybody else in the game.  You fly up to
+Xother spaceships and shoot them with your laser or launch rockets at
+Xthem.  Obviously, they want to do the same to you.
+X
+X(WARNING: This is a horrible, militaristic, fascist, violent game.  It
+Xdesensitizes you from the brutal reality of warfare and acts as a
+Xblatant propaganda tool for high-tech weaponry and the militarization
+Xof space.  So sue me.)
+X
+XThis is the source code to the game "dstar".  Dstar is not complete by
+Xany stretch of the imagination.  If you make any bug fixes/extensions
+Xto the game, or even think of new features you'd like to see, please
+Xsend them back to me at
+X
+X	falk@sun.com
+X	sun!falk
+X
+Xso I can incorporate them into the game.  There's a "to do" list at the
+Xend of this README file.
+X
+X
+X
+X
+X
+X
+X
+X
+XINSTALLATION:
+X
+XTo build or run dstar, you also need the XGL library.
+X
+X% make dstar robot
+X
+X
+X
+X
+X
+XHOW TO RUN:
+X
+Xdstar requires a sun with a color board and (preferably) an accelerator
+Xsuch as GX.
+X
+XTo simply run dstar, type
+X
+X% dstar
+X
+XIf you are the first player, dstar will spend about 5 seconds looking
+Xfor other players.  If it doesn't find any, it assumes that you are
+Xthe first player in the game.  It's a good idea to use a robot as the
+Xfirst player in the game (see below.)
+X
+XDstar uses broadcast packets to locate players playing on your local
+Xnet.  If you want to join a game running on a different network, type
+X
+X% dstar <hostname>
+X
+Xwhere <hostname> is the name of any machine playing dstar.
+X
+X
+XTo control the spaceship, move the cursor near the center of the screen
+Xand click the left mouse button.  The cursor will change from an arrow
+Xto an aiming box.  At this point, the cursor steers the ship; moving it
+Xaway from the center of the screen starts turning the ship in that
+Xdirection.  The further you move the cursor, the faster the ship
+Xturns.
+X
+XIf you click the left mouse button again, the cursor returns to being
+Xan arrow and the ship stops turning.
+X
+XThe L9/L10 buttons and the R13/R14 buttons roll the ship left and right
+Xalong its axis.  This has almost no utility, but can help you navigate
+Xsometimes.
+X
+XTo fire the lasers, press and hold the middle button.  The lasers can
+Xfire indefinately, but firing them makes you easier to see from a
+Xdistance.  The lasers fire in the direction indicated by the cursor.
+XThe lasers have a limited range, and the target has to be quite close
+Xin order to shoot it.
+X
+XTo turn the radar on, press 'r'.  The center of the screen changes from
+Xblue to yellow or red.  Yellow indicates that the radar is on, red
+Xindicates that the radar is on and is locked on a target.  The center
+Xof the screen will switch back and forth between yellow and red as you
+Xacquire and lose targets.  When you have a radar lock on someone, that
+Xperson will be alerted, so use radar sparingly.  The radar locks on the
+Xnearest object within a certain range and near the center of the
+Xscreen.  Once the radar locks on a target, it stays locked on that
+Xtarget until the target either leaves the radar's range, leaves the area
+Xnear the center of the screen or is destroyed.  Other objects coming
+Xinto range will not confuse the radar.  Pressing 'r' again will turn
+Xthe radar back off.
+X
+XTo turn the auto pilot on, press 'a'.  When the auto pilot is on, it
+Xwill chase whatever the radar has locked onto.  If the radar is not
+Xlocked onto a target, the auto pilot will fly lazy circles.  If you
+Xpress 'A' instead of 'a', you get the "agressive" auto pilot which will
+Xshoot the target if it comes within range.  Pressing 'a' again will
+Xturn the auto pilot back off.  Note that the auto pilot is rarely as
+Xgood at flying or shooting as a human is, so don't think you'll win the
+Xgame on automatic.  When autopilot is on, the left mouse button switches
+Xbetween manual control and autopilot, rather than flying straight.
+X
+XTo arm a missile, press F2.  You cannot launch a missile until you've
+Xarmed it.  If you have more than a certain number (currently eight) of
+Xmissiles launched at the same time, you will not be able to arm another.
+X
+XTo launch a missile, press F3.  The missile will chase whatever the
+Xradar is locked onto.  If the radar is not locked (or is not on), the
+Xmissile will fly in a straight line.  Missiles launched without radar
+Xlock are harmless and just fly until they time out.  Missiles travel
+Xthree times as fast as spaceships and last 15 seconds.  Missiles are
+Xnot very maneuverable and can be dodged if you see them coming.
+XMissiles launched from too far away will run out of steam before
+Xhitting their target.  Missiles launched from too close will fly past
+Xtheir targets before they can stabalize on course unless you have
+Xthe target right in the center of the screen when you launch.  Once a
+Xmissile loses its target, it flies harmlessly in circles until it
+Xtimes out.
+X
+X(Note: the sunview version of dstar uses F1 and F2 for missile control.)
+X
+X
+XTHE ROBOT:
+X
+XThe robot is a simple fighter program that flies around in circles
+Xand can be used for target practice etc.  The robot is not a graphics
+Xprogram and can thus be run from any system on the net.
+X
+XWhen the robot is running, it flies in a constant lazy circle and can
+Xbe used for target practice.
+X
+Xto run:
+X
+X% robot [-auto] [hostname]
+X
+XHostname is used for linking the robot to a game in progress on a
+Xdifferent sub-net.  This is the same as the hostname argument to dstar.
+X
+XThe -auto flag turns on the robot's auto-pilot.  This is the same as
+Xusing the agressive auto pilot with the fighter.
+X
+X
+X
+X
+XHINTS:
+X
+XRun the robot first.  The first player (the master) has extra work
+Xto do, so you may as well let the robot do it.  Also, there are
+Xcertain bugs that occur when players enter and leave the game frequently
+Xthese are mostly eliminated if the master is a robot.
+X
+XAll ships fly at the same speed; if someone is flying away from you,
+Xyou can't possibly catch them.  If they're not too far away, a missile
+Xwill get them, otherwise you'll have to wait for them to turn around
+Xand come back.
+X
+XIf someone (or something) is flying in a constant circle, you can catch
+Xup to them by getting behind them and then flying a tighter circle than
+Xthey are flying; since your speeds are the same, you'll catch up on the
+Xinside.  If you fly to keep your quarry in the center of your screen,
+Xyou're flying almost the exact same circle they are and you'll never
+Xcatch up.  Instead, figure out which way they're turning (not hard to
+Xdo) and turn a little tighter than they're turning.  Keep the image of
+Xthe other ship about halfway between the center and the edge of the
+Xscreen.  For instance, if you're chasing a ship making a constant turn
+Xto the right, keep it in the left half of your screen:
+X
+X	+-------------------------------+
+X	|				|
+X	|				|
+X	|	    +-------+		|
+X	|	    |   |   |		|
+X	|    X-	    |-     -|		|
+X	|	    |   |   |		|
+X	|	    +-------+		|
+X	|				|
+X	|				|
+X	+-------------------------------+
+X	     ^
+X	     enemy ship, turning to the right.
+X
+XWhen fighting someone head to head, you usually both lose.  Using
+Xthe agressive autopilot in this situation almost guarantees that you
+Xwon't miss unless your opponent is good at dogfighting, in which case
+Xthe autopilot will probably get you killed.  Various tricks may be
+Xtried when in a head-to-head situation: wiggling back and forth or
+Xspiraling may make it difficult for your opponent to aim at you.  You
+Xmight try waiting until just before you come within range and then
+Xdoing a tight (but not too tight) 360-degree turn.  This can be
+Xvery effective if done right since it causes your opponent to lose
+Xsight of you and you usually come back behind them for an easy shot.
+X
+XRobots make good bait.  Put a couple of robots into a game, and from
+Xtime to time someone will chase one thinking it's another player.  When
+Xyou see this happening, fall in behind and get them while they're
+Xchasing the robot.  Sometimes whole convoys of players line up behind a
+Xrobot.  If you're lucky, you can come up behind this convoy and pick
+Xoff all the members one by one.  Caution: when you're chasing
+Xpeople this way, count the number of players ahead of you.  If you
+Xcan't account for all the players in the game, there's a good chance
+Xthat someone's behind you.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+XTHINGS TO DO:
+X
+Xo Add a speed control.
+Xo Ships appear as white dots rather than red dots when not under power.
+Xo Add a rear-view mirror.
+Xo Add status information:
+X  o speed.
+X  o list of other players in game
+X  o scrolling message area listing who shot who.
+X  o (anything else currently printed to stdout)
+Xo Master should sanity-check incoming message addresses.
+Xo #2 player should poll the master.
+X
+Xo Currently, both ships are designed by hand (that's why there's only
+X  two of them.)  It would be nice to have a ship-building tool.  My
+X  original idea was to have a large variety of ships taken from SCI-FI
+X  movies.
+X
+Xo Collisions with planet/monolith should be fatal
+X
+Xo map generic terrain onto surface of planet so there's something to see.
+X
+Xo "team" play, in which the team you're on determines what kind of ship
+X  you're flying.  There ought to be a way to communicate with them.  A
+X  situation display that shows all your teammates positions would be nice,
+X  but how to do this in 3d?
+X
+Xo Change the planet into the Death Star.  This will have to wait for
+X  faster hardware/libraries.  This may also require re-writing the
+X  BSP algorithm.  Ultimately have battles to destroy/protect the death
+X  star.
+X
+X
+X
+X
+X
+XINTERNAL NOTES FOR DEVELOPERS:
+X
+XNetworking:
+X
+XUnlike mazewar or spacewar, dstar does not require a daemon to keep things
+Xsynchronized.  Instead, when the game starts up it sends out a broadcast
+Xpacket onto the local net.  If there is no answer for five seconds, the
+Xprogram assumes that it is the first player in the game.  In this case,
+Xthe program becomes "master" and takes on the duties that would have
+Xbeen assigned to a daemon otherwise.
+X
+XThere are three networking roles the program can take: Master, Submaster
+Xor Slave.  The Master is the program that coordinates all communications
+Xin the game.  Id numbers and missile ids are assigned by the master; in
+Xshort, the master's job is to act as a clearing house to keep all the
+Xother players in touch with each other.  Initially, the master is the
+Xfirst program to come up on the net, but this task can be re-assigned
+Xto another program if the master leaves the game.
+X
+XSubmasters are programs that were the first to come up on the local
+Xnet.  Their job is to acts as relays between subnets.  When a new program
+Xcomes up and sends out the initial broadcast packet, the submaster
+Xcatches this broadcast and forwards it to the master.  The job of
+Xbeing submaster can also be re-assigned as players leave the game.
+X
+XA Slave is any program that is not master or submaster.  If a program
+Xcomes up and there is already a submaster on the local network, then
+Xthe program is a slave.  Slaves are not really "slaved" to any other
+Xprogram, they are really clients with the master providing the service
+Xof assigning id's etc..
+X
+XCommunications in the game are in the form of UDP "datagram" packets
+Xsent directly from player to player.  These packets contain things like
+Xrequests to join the game, status updates, scoring information etc.
+XInternet addressing is used.
+X
+XAll networking code is contained in "netio.c".  This file contains two
+Xkinds of subroutines, routines called from within the program to send
+Xdata over the net and routines called asynchronously by the notifier
+Xwhen a message arrives.
+X
+XOutgoing messages are queued internally to save network bandwidth.  The
+Xqueue is flushed whenever the intended recipient changes or when
+Xnet_flush() is called.
+X
+XHere is how the game is run, a complete description of the individual
+Xmessage packets are built can be found in h/netio.h:
+X
+XWhen the program starts up, it calls init_netio which broadcasts a
+XNET_JOINING message to the local net.  This message asks the master to
+Xgive the game an id number and a list of other players in the game.  If
+Xthe game was started with the command "dstar <hostname>", the
+XNET_JOINING message is wrapped in a NET_BROADCAST message (see below)
+Xand sent directly to the named host instead of being broadcast.
+X
+XIf there is no answer for five seconds, the program assumes that there
+Xare no other players and becomes the master (assigning itself id # 0).
+X
+XWhen the master receives a NET_JOINING message, it assigns an id number
+Xto the new player and sends a NET_WELCOME message informing the new
+Xplayer of its id number, team (not implemented yet) and other
+Xinformation.  This is followed by NET_CURRENT_STATUS packets for all of
+Xthe other players in the game.  The new player is now in the game.
+X
+XIf the master does not hear from a player for 30 seconds, it sends a
+XNET_ARE_YOU_THERE packet to make sure the player is still active.  If
+Xthe master still has not heard from the player for 60 seconds, it sends
+Xa NET_DIED packet to all of the other players informing them that the
+Xplayer has left the game.
+X
+XIf a player or one of its missiles leaves the game, it sends out a
+XNET_DIED message to all of the other players.
+X
+XIf a player shoots something, it sends a NET_JUST_SCORED message out to
+Xlet everybody know about it.  If the destroyed object is a missile, the
+Xowner of that missile will then send out a NET_DIED message to remove
+Xthe missile from the game.
+X
+XAll players periodically send out NET_CURRENT_STATUS packets to let all
+Xthe other players know its current status.  NET_CURRENT_STATUS packets
+Xare also sent out on behalf of all of the player's missiles.  The
+Xmaster periodically sends out a NET_CURRENT_STATUS on all of the static
+Xobjects in the game to keep them synchronized (not yet implemented).
+X
+XWhen a player arms a missile, it sends a NET_REQUEST_MISSILE packet to
+Xthe master.  This is similar to a NET_JOINING packet.  The master will
+Xassign an id number to the missile and return a NET_MISSILE packet to
+Xthe requesting player.
+X
+XIf any player receives a NET_BROADCAST packet, it rebroadcasts the
+Xcontents of the packet onto the local net.  This is used when programs
+Xare joining games on other subnets and for reducing net bandwidth (see
+Xbelow).
+X
+XBroadcasting messages to all the players in the game can be a tricky
+Xbusiness.  When there are a small number of players, each player sends
+Xstatus packets directly to all of the other players in the game.  This
+Xmeans that net bandwidth goes up with the square of the number of
+Xplayers.  This is avoided with a "netlist" mechanism:
+X
+XThe game maintains a list of players sorted by the subnets on which
+Xthey reside.  When the game wants to send a message to all of the other
+Xplayers, it calls the routine "broadcast".  Broadcast goes through the
+Xlist of subnets in the game.  For each subnet, broadcast checks the
+Xnumber of players on that subnet.  If this number is less than
+XBROADCAST_THRESH (currently 4), individual transmissions are made. 
+XIf the number of players is greater than BROADCAST_THRESH and it is
+Xthe local network being examined, then a broadcast packet is sent to
+Xthe local network.  If the number of players is greater than
+XBROADCAST_THRESH and they are on a different subnet, then the entire
+Xmessage is wrapped in a NET_BROADCAST packet and sent to the submaster
+Xof that net.  The submaster will then rebroadcast the packet.
+X
+XThe net lists are re-computed every time a player enters or leaves the
+Xgame.  Static objects and missiles are not included in the lists.
+X
+X
+X
+XStatus block description:
+X
+XThe game maintains a block of data for every object.  This block
+Xcontains the following information (for more info, see h/object_types.h)
+X
+Xid		object id, assigned by master
+Xname		object's name, assigned by object or object's owner
+Xteam		object's team for players (not implemented), object's
+X		owner for missiles and static object.
+Xscore		score (not implemented)
+Xstatus		object's type: OBJ_EMPTY=empty slot in status block array,
+X		OBJ_SLEEPING=player who has closed the window, OBJ_DEAD=
+X		player who has just been shot, OBJ_STATIC=planets and
+X		things, OBJ_MISSILE=missile.
+Xflags		flag word, indicates lasers or radar on.
+XPosn		object's position in 3-space
+XForward,	three normalized normal vectors describing object's
+XUp, Right	orientation.  These three vectors plus Posn describe
+X		a 4x4 transformation matrix to convert object modelling
+X		coords to world coords and back.
+XDelta		vector in object modelling coords describing control
+X		inputs.  Delta plus Speed can be used to calculate
+X		object's position over time.
+XPointing	vector describing the direction the object is "looking".
+X		indicates where the laser beam is.
+XSpeed		Objects speed.  Currently fixed at 25.0 units/sec.
+Xtarget		object radar is locked onto.
+Xtime		used for missiles etc.
+Xdescription	index into table describing objects visual appearance.
+Xaddress		object's (or object's owner's) internet address
+Xsequence	data packet sequence number, not currently checked.
+Xlast_rep	time of last status report from object; used by master
+X		to detect dead players.
+Xnet_addr	first three bytes of object's internet address -- used
+X		as subnet id.
+Xnet_status	MASTER, SUBMASTER or SLAVE.
+Xnet_next	link to next player in this netlist.
+Xnet_num		number of players in this netlist.
+X
+X
+X
+Xgeneral files:
+X
+Xdstar.c		- main program, used by all programs
+Xcontrol.c	- routines useful for controlling object behavior
+Xnetio.c		- communications routines
+Xlaser.c		- tests to see if a laser hit a target
+Xprioritizer.c	- special prioritizer for the notifier
+X
+X
+Xfiles that vary from program to program:
+X
+Xspecial.c	- routines specific to this program
+Xcontrol_ship.c	- routine to control this ship
+X
+X
+Xfiles used for the fighter only
+X
+Xcreate_eship.c	- build enemy fighter image
+Xblast.c		- build explosion image
+Xdraw_image.c	- draw the image on the screen
+Xdraw_hsi.c	- draw the hsi
+Xdraw_starfield.c - draw the star field
+Xdraw_objects.c	- draw all objects in list
+Xdraw_bsp.c	- draw a bsp tree
+X
+X
+X
+Xroutines provided in special.c:
+X
+Xinit_me()		- initialize ships position, state etc.  Called once
+X				at startup
+X
+Xinit_game_graphics(&argc,argv)
+X			- initializes graphics (if any).  Called once at startup
+X
+Xinit_communications()	- open communications.
+X
+Xdstar_main_loop()	- start the game
+X
+Xterminate_game()	- called from sigint handler to finish the game
+X
+Xnormal_action()		- called once per time slice when state = OBJ_ACTIVE
+X
+Xblast_action()		- called once per time slice when state = OBJ_DEAD
+X
+Xset_blast_state(state)	- called once per state change when state = OBJ_DEAD
+SHAR_EOF
+len=`wc -c < README`
+if test $len != 18678 ; then
+echo shar: README was $len bytes long, should have been 18678
+fi
+fi # end of overwriting check
+
+if test -f Makefile ; then
+echo shar: will not over-write existing file Makefile
+else
+echo shar: extracting Makefile, 3878 characters
+sed 's/^X//' > Makefile <<'SHAR_EOF'
+X#	@(#)Makefile 1.2 92/05/28 SMI
+X#	from Makefile 1.5 90/07/23 SMI
+X#	make xv		build xview/xgl version
+X#	make sv		build sunview/xgl version (requires special library)
+X#	make gp		build sunview/gpsi version
+X
+X
+XXGLINC = -I$(XGLHOME)/include
+X
+X
+XFX-sun4 =	-fsingle /usr/lib/libm.il
+XFX-sun3 =	-fsingle -f68881 /usr/lib/f68881/libm.il
+XFX =		-fsingle -f68881 /usr/lib/f68881.il
+XFP = $(FX$(TARGET_ARCH))
+X
+XCFLAGS = -O $(FP) $(INC)
+X#CFLAGS = -g -DDEBUG $(FP) $(INC)
+X#CFLAGS = -O -pg $(FP) $(INC)
+X
+Xdstar:= CFLAGS += -DXGL -DXV $(XGLINC)
+Xdstar_xglsv:= CFLAGS += -DXGL $(XGLSVINC)
+X
+X
+X#LIBXGLSW = -lxglSW
+XLIBXGLSW = -L$(XGLHOME)/lib -lxglSW
+X
+X#LIBXGL = -lxgl
+XLIBXGL = -L$(XGLHOME)/lib -lxgl 
+X
+X.KEEP_STATE:
+X
+X
+XSRC = dstar.c control.c draw_hsi_xgl.c draw_starfield_xgl.c netio.c \
+X	draw_image_xgl.c draw_bsp_xgl.c draw_objects_xgl.c \
+X	laser.c blast.c special_xv.c control_ship.c \
+X	create_planet.c create_monolith.c autopilot.c missile.c \
+X	radar.c panel.c master.c fighter.c static.c \
+X	create_eship.c missile_control.c
+X
+XOBJ = $(SRC:.c=.o)
+X
+XXGL_SV_SRC = dstar.c control.c draw_hsi_xgl.c draw_starfield_xgl.c netio.c \
+X	draw_image_xgl.c draw_bsp_xgl.c draw_objects_xgl.c \
+X	laser.c blast.c special.c control_ship.c \
+X	create_planet.c create_monolith.c autopilot.c missile.c \
+X	radar.c panel.c master.c fighter.c static.c \
+X	create_eship.c missile_control.c
+X
+XXGL_SV_OBJ = $(XGL_SV_SRC:.c=.o)
+X
+XGP_SRCS = dstar.c control.c draw_hsi.c draw_starfield.c netio.c \
+X	draw_image.c draw_bsp.c draw_objects.c \
+X	laser.c blast.c special.c control_ship.c \
+X	create_planet.c create_monolith.c autopilot.c missile.c \
+X	radar.c panel.c master.c fighter.c static.c \
+X	create_eship.c missile_control.c
+X
+XGP_OBJS = $(GP_SRCS:.c=.o)
+X
+X
+XINCS = blast_line0.h blast_line1.h bsp_object.h dstar.h fighter1_bsp.h \
+X	fighter1_line.h fighter2_bsp.h fighter2_line.h graphics.h \
+X	hsi.h line_object.h missile_line.h monolith_bsp.h netio.h \
+X	object_types.h parameters.h planet1.h planet2.h starfield.h \
+X	cursor1.pr cursor2.pr dstar.icon dstar_sleep.icon nodstar.icon
+X
+XROBOT_SRCS = dstar.c control.c netio.c laser.c autopilot.c robot_special.c \
+X	control_robot.c radar.c fighter.c static.c missile.c master.c
+X
+XROBOT_OBJS = $(ROBOT_SRCS:.c=.o)
+X
+X
+XROBOT_ARCH = robot_special.c control_robot.c
+X
+XFULL_ARCH = dstar.c control.c draw_hsi.c draw_starfield.c netio.c \
+X	draw_image.c draw_bsp.c draw_objects.c \
+X	laser.c blast.c special.c control_ship.c \
+X	create_planet.c create_monolith.c autopilot.c missile.c \
+X	radar.c panel.c master.c fighter.c static.c \
+X	create_eship.c missile_control.c \
+X	draw_hsi_xgl.c draw_starfield_xgl.c special_xv.c \
+X	draw_image_xgl.c draw_bsp_xgl.c draw_objects_xgl.c $(ROBOT_ARCH)
+X
+X
+Xdstar: $(INCS) $(OBJ)
+X	cc $(CFLAGS) -o dstar $(OBJ) \
+X		-L$(OPENWINHOME)/lib $(LIBXGL) -lm -lxview -lolgx -lX11
+X
+Xdstar_xglsv: $(INCS) $(XGL_SV_OBJ)
+X	cc $(CFLAGS) -o dstar_xglsv $(XGL_SV_OBJ) \
+X		$(LIBXGLSW) -lm -lsuntool -lsunwindow -lpixrect
+X
+Xdstar_gp: $(INCS) $(GP_OBJS) dev_gp1.a
+X	cc $(CFLAGS) -o dstar_gp $(GP_OBJS) dev_gp1.a \
+X		-lm -lsuntool -lsunwindow -lpixrect
+X
+Xall: dstar robot
+X
+Xxv:	dstar_xv
+X
+Xsv xgl:	dstar_xglsv
+X
+Xgp:	dstar_gp
+X
+X
+Xrobot:	$(ROBOT_OBJS)
+X	cc $(CFLAGS) -o robot $(ROBOT_OBJS) -lm -lxview -lolgx -lX11
+X#	cc $(CFLAGS) -o robot $(ROBOT_OBJS) -lm -lsunwindow -lpixrect
+X
+X
+Xtester:	tester.o
+X	cc $(CFLAGS) -o tester tester.o -lsuntool -lsunwindow -lpixrect
+X
+Xarchive: README Makefile $(INCS) $(SRC) $(ROBOT_ARCH)
+X	cshar -a -M 200000 -o ar README Makefile $(INCS) $(SRC) $(ROBOT_ARCH)
+X
+Xxgl_sv_archive: README Makefile $(INCS) $(XGL_SV_SRC) $(ROBOT_ARCH)
+X	cshar -a -M 200000 -o ar README Makefile $(INCS) $(XGL_SV_SRC) $(ROBOT_ARCH)
+X
+Xgp_archive: README Makefile $(INCS) $(SRCS) $(ROBOT_ARCH)
+X	cshar -a -M 200000 -o ar README Makefile $(INCS) $(SRCS) $(ROBOT_ARCH)
+X
+Xtarchive: README Makefile $(INCS) $(FULL_ARCH)
+X	tar -cvf - README Makefile $(INCS) $(FULL_ARCH) | \
+X		compress -c > dstar.tar.Z
+X
+Xclean:
+X	rm -f *.o core
+SHAR_EOF
+len=`wc -c < Makefile`
+if test $len != 3878 ; then
+echo shar: Makefile was $len bytes long, should have been 3878
+fi
+fi # end of overwriting check
+
+if test -f blast_line0.h ; then
+echo shar: will not over-write existing file blast_line0.h
+else
+echo shar: extracting blast_line0.h, 631 characters
+sed 's/^X//' > blast_line0.h <<'SHAR_EOF'
+X/*	@(#)blast_line0.h 1.1 92/05/28 SMI	*/
+X/*	blast_line0.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{{  6.00,  0.00,  0.00}, MOVE},
+X	{{ -6.00,  0.00,  0.00}, RED},
+X	{{  0.00,  6.00,  0.00}, MOVE},
+X	{{  0.00, -6.00,  0.00}, RED},
+X	{{  0.00,  0.00,  6.00}, MOVE},
+X	{{  0.00,  0.00, -6.00}, RED},
+X	{{  6.00,  6.00,  6.00}, MOVE},
+X	{{ -6.00, -6.00, -6.00}, YELLOW},
+X	{{ -6.00,  6.00,  6.00}, MOVE},
+X	{{  6.00, -6.00, -6.00}, YELLOW},
+X	{{  6.00, -6.00,  6.00}, MOVE},
+X	{{ -6.00,  6.00, -6.00}, YELLOW},
+X	{{ -6.00, -6.00,  6.00}, MOVE},
+X	{{  6.00,  6.00, -6.00}, YELLOW},
+X	{{0.0, 0.0, 0.0}, LINE_END}
+SHAR_EOF
+len=`wc -c < blast_line0.h`
+if test $len != 631 ; then
+echo shar: blast_line0.h was $len bytes long, should have been 631
+fi
+fi # end of overwriting check
+
+if test -f blast_line1.h ; then
+echo shar: will not over-write existing file blast_line1.h
+else
+echo shar: extracting blast_line1.h, 4347 characters
+sed 's/^X//' > blast_line1.h <<'SHAR_EOF'
+X/*	@(#)blast_line1.h 1.1 92/05/28 SMI	*/
+X/*	from blast_line1.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{{  2.00,  0.00,  0.00}, MOVE},
+X	{{  0.95,  0.31,  0.00}, WHITE},
+X	{{  1.62,  1.18,  0.00}, WHITE},
+X	{{  0.59,  0.81,  0.00}, WHITE},
+X	{{  0.62,  1.90,  0.00}, WHITE},
+X	{{  0.00,  1.00,  0.00}, WHITE},
+X	{{ -0.62,  1.90,  0.00}, WHITE},
+X	{{ -0.59,  0.81,  0.00}, WHITE},
+X	{{ -1.62,  1.18,  0.00}, WHITE},
+X	{{ -0.95,  0.31,  0.00}, WHITE},
+X	{{ -2.00,  0.00,  0.00}, WHITE},
+X	{{ -0.95, -0.31,  0.00}, WHITE},
+X	{{ -1.62, -1.18,  0.00}, WHITE},
+X	{{ -0.59, -0.81,  0.00}, WHITE},
+X	{{ -0.62, -1.90,  0.00}, WHITE},
+X	{{  0.00, -1.00,  0.00}, WHITE},
+X	{{  0.62, -1.90,  0.00}, WHITE},
+X	{{  0.59, -0.81,  0.00}, WHITE},
+X	{{  1.62, -1.18,  0.00}, WHITE},
+X	{{  0.95, -0.31,  0.00}, WHITE},
+X	{{  2.00,  0.00,  0.00}, WHITE},
+X	{{  3.00,  0.00,  0.00}, MOVE},
+X	{{  1.90,  0.62,  0.00}, YELLOW},
+X	{{  2.43,  1.76,  0.00}, YELLOW},
+X	{{  1.18,  1.62,  0.00}, YELLOW},
+X	{{  0.93,  2.85,  0.00}, YELLOW},
+X	{{  0.00,  2.00,  0.00}, YELLOW},
+X	{{ -0.93,  2.85,  0.00}, YELLOW},
+X	{{ -1.18,  1.62,  0.00}, YELLOW},
+X	{{ -2.43,  1.76,  0.00}, YELLOW},
+X	{{ -1.90,  0.62,  0.00}, YELLOW},
+X	{{ -3.00,  0.00,  0.00}, YELLOW},
+X	{{ -1.90, -0.62,  0.00}, YELLOW},
+X	{{ -2.43, -1.76,  0.00}, YELLOW},
+X	{{ -1.18, -1.62,  0.00}, YELLOW},
+X	{{ -0.93, -2.85,  0.00}, YELLOW},
+X	{{  0.00, -2.00,  0.00}, YELLOW},
+X	{{  0.93, -2.85,  0.00}, YELLOW},
+X	{{  1.18, -1.62,  0.00}, YELLOW},
+X	{{  2.43, -1.76,  0.00}, YELLOW},
+X	{{  1.90, -0.62,  0.00}, YELLOW},
+X	{{  3.00,  0.00,  0.00}, YELLOW},
+X	{{  4.00,  0.00,  0.00}, MOVE},
+X	{{  2.85,  0.93,  0.00}, GREEN},
+X	{{  3.24,  2.35,  0.00}, GREEN},
+X	{{  1.76,  2.43,  0.00}, GREEN},
+X	{{  1.24,  3.80,  0.00}, GREEN},
+X	{{  0.00,  3.00,  0.00}, GREEN},
+X	{{ -1.24,  3.80,  0.00}, GREEN},
+X	{{ -1.76,  2.43,  0.00}, GREEN},
+X	{{ -3.24,  2.35,  0.00}, GREEN},
+X	{{ -2.85,  0.93,  0.00}, GREEN},
+X	{{ -4.00,  0.00,  0.00}, GREEN},
+X	{{ -2.85, -0.93,  0.00}, GREEN},
+X	{{ -3.24, -2.35,  0.00}, GREEN},
+X	{{ -1.76, -2.43,  0.00}, GREEN},
+X	{{ -1.24, -3.80,  0.00}, GREEN},
+X	{{  0.00, -3.00,  0.00}, GREEN},
+X	{{  1.24, -3.80,  0.00}, GREEN},
+X	{{  1.76, -2.43,  0.00}, GREEN},
+X	{{  3.24, -2.35,  0.00}, GREEN},
+X	{{  2.85, -0.93,  0.00}, GREEN},
+X	{{  4.00,  0.00,  0.00}, GREEN},
+X	{{  5.00,  0.00,  0.00}, MOVE},
+X	{{  3.80,  1.24,  0.00}, RED},
+X	{{  4.05,  2.94,  0.00}, RED},
+X	{{  2.35,  3.24,  0.00}, RED},
+X	{{  1.55,  4.76,  0.00}, RED},
+X	{{  0.00,  4.00,  0.00}, RED},
+X	{{ -1.55,  4.76,  0.00}, RED},
+X	{{ -2.35,  3.24,  0.00}, RED},
+X	{{ -4.05,  2.94,  0.00}, RED},
+X	{{ -3.80,  1.24,  0.00}, RED},
+X	{{ -5.00,  0.00,  0.00}, RED},
+X	{{ -3.80, -1.24,  0.00}, RED},
+X	{{ -4.05, -2.94,  0.00}, RED},
+X	{{ -2.35, -3.24,  0.00}, RED},
+X	{{ -1.55, -4.76,  0.00}, RED},
+X	{{  0.00, -4.00,  0.00}, RED},
+X	{{  1.55, -4.76,  0.00}, RED},
+X	{{  2.35, -3.24,  0.00}, RED},
+X	{{  4.05, -2.94,  0.00}, RED},
+X	{{  3.80, -1.24,  0.00}, RED},
+X	{{  5.00,  0.00,  0.00}, RED},
+X	{{  6.00,  0.00,  0.00}, MOVE},
+X	{{  4.76,  1.55,  0.00}, RED},
+X	{{  4.85,  3.53,  0.00}, RED},
+X	{{  2.94,  4.05,  0.00}, RED},
+X	{{  1.85,  5.71,  0.00}, RED},
+X	{{  0.00,  5.00,  0.00}, RED},
+X	{{ -1.85,  5.71,  0.00}, RED},
+X	{{ -2.94,  4.05,  0.00}, RED},
+X	{{ -4.85,  3.53,  0.00}, RED},
+X	{{ -4.76,  1.55,  0.00}, RED},
+X	{{ -6.00,  0.00,  0.00}, RED},
+X	{{ -4.76, -1.55,  0.00}, RED},
+X	{{ -4.85, -3.53,  0.00}, RED},
+X	{{ -2.94, -4.05,  0.00}, RED},
+X	{{ -1.85, -5.71,  0.00}, RED},
+X	{{  0.00, -5.00,  0.00}, RED},
+X	{{  1.85, -5.71,  0.00}, RED},
+X	{{  2.94, -4.05,  0.00}, RED},
+X	{{  4.85, -3.53,  0.00}, RED},
+X	{{  4.76, -1.55,  0.00}, RED},
+X	{{  6.00,  0.00,  0.00}, RED},
+X	{{  7.00,  0.00,  0.00}, MOVE},
+X	{{  5.71,  1.85,  0.00}, RED},
+X	{{  5.66,  4.11,  0.00}, RED},
+X	{{  3.53,  4.85,  0.00}, RED},
+X	{{  2.16,  6.66,  0.00}, RED},
+X	{{  0.00,  6.00,  0.00}, RED},
+X	{{ -2.16,  6.66,  0.00}, RED},
+X	{{ -3.53,  4.85,  0.00}, RED},
+X	{{ -5.66,  4.11,  0.00}, RED},
+X	{{ -5.71,  1.85,  0.00}, RED},
+X	{{ -7.00,  0.00,  0.00}, RED},
+X	{{ -5.71, -1.85,  0.00}, RED},
+X	{{ -5.66, -4.11,  0.00}, RED},
+X	{{ -3.53, -4.85,  0.00}, RED},
+X	{{ -2.16, -6.66,  0.00}, RED},
+X	{{  0.00, -6.00,  0.00}, RED},
+X	{{  2.16, -6.66,  0.00}, RED},
+X	{{  3.53, -4.85,  0.00}, RED},
+X	{{  5.66, -4.11,  0.00}, RED},
+X	{{  5.71, -1.85,  0.00}, RED},
+X	{{  7.00,  0.00,  0.00}, RED},
+X	{{0.0, 0.0, 0.0}, LINE_END}
+SHAR_EOF
+len=`wc -c < blast_line1.h`
+if test $len != 4347 ; then
+echo shar: blast_line1.h was $len bytes long, should have been 4347
+fi
+fi # end of overwriting check
+
+if test -f bsp_object.h ; then
+echo shar: will not over-write existing file bsp_object.h
+else
+echo shar: extracting bsp_object.h, 1024 characters
+sed 's/^X//' > bsp_object.h <<'SHAR_EOF'
+X/*	@(#)bsp_object.h 1.1 92/05/28 SMI	*/
+X/*	from bsp_object.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file is type definitions for object bsp tree descriptions.
+X *
+X */
+X
+X#ifndef	BSP_OBJECT
+X#define	BSP_OBJECT
+X
+X
+X#define	BSP_TYPE	7		/* type field in flags */
+X#define	  BSP_LINE	0		/* line segment */
+X#define	  BSP_POLY	1		/* flat polygon */
+X#define	BSP_BACK_VIEW	8		/* back-culling disable */
+X
+X
+X#define	BSP_MAX_LOOP	3
+X
+X
+X/* the dev_gp1 package creates polygons like this:
+X
+X	Dev_gp1_polygon_3df(gp1, n_bounds, bounds, pts, shade)
+X
+X   so the bsp-node structure is designed with this in mind */
+X
+X
+X
+X
+Xtypedef	struct bsp_node {
+X	  unsigned short flags ;	/* control flags */
+X	  Pt3d		normal ;	/* normal vector */
+X	  short		color ;		/* color index */
+X	  short		trimcolor ;	/* trim color index */
+X	  int		work ;		/* workarea */
+X	  int		nloop ;		/* # loops */
+X	  int		loops[BSP_MAX_LOOP] ;
+X	  Pt3d		*vertices ;
+X	  struct bsp_node	*front_child, *back_child ;
+X	} Bsp_Node ;
+X
+X
+X#endif	BSP_OBJECT
+SHAR_EOF
+len=`wc -c < bsp_object.h`
+if test $len != 1024 ; then
+echo shar: bsp_object.h was $len bytes long, should have been 1024
+fi
+fi # end of overwriting check
+
+if test -f dstar.h ; then
+echo shar: will not over-write existing file dstar.h
+else
+echo shar: extracting dstar.h, 1024 characters
+sed 's/^X//' > dstar.h <<'SHAR_EOF'
+X/*	@(#)dstar.h 1.1 92/05/28 SMI	*/
+X/*	from dstar.h 1.3 90/07/23	*/
+X
+X#ifndef DSTAR_H
+X#define DSTAR_H
+X
+X
+X#include <sys/time.h>
+X
+X
+X
+X#ifndef	GRAPHICS_H
+X
+Xtypedef struct {
+X	  float	x,y,z ;
+X	} Pt3d ;
+X
+Xtypedef float	Mat3d[4][4] ;
+X
+X#endif
+X
+X
+Xtypedef	enum {B_NIL, B_FLASH, B_WAIT} Blast_State ;
+X
+X
+X
+X
+X
+X
+X/*	*** GAME PARAMETERS ***		*/
+X
+X/****
+X *
+X * description of ship's position & orientation in 3-space.
+X *
+X * left-hand rule used throughout.
+X *
+X * game grid is 20,000 km in all 3 dimensions, ship's position is given
+X * as a 3-space location in km.  Ship's forward orientation
+X * is given as two 3-space unit vectors.  Velocity is a scalar (this
+X * may change)
+X *
+X * The ship's z-coordinate is looking straight along the nose, +x is to
+X * the right & +y is up
+X *
+X ****/
+X
+X	char	Hostname[64] ;
+X
+X	struct itimerval Main_Timer, Sleep_Timer ;
+X
+X	struct timeval	Last_Time, Now ;
+X	float	Dtime ;
+X
+X	int	auto_pilot, auto_fire ;
+X
+X	int	missiles_remaining ;
+X	int	armed_missiles ;	/* count of missile armed & ready */
+X
+X	int	debug_level ;
+X
+X
+X#endif	DSTAR_H
+SHAR_EOF
+len=`wc -c < dstar.h`
+if test $len != 1024 ; then
+echo shar: dstar.h was $len bytes long, should have been 1024
+fi
+fi # end of overwriting check
+
+if test -f fighter1_bsp.h ; then
+echo shar: will not over-write existing file fighter1_bsp.h
+else
+echo shar: extracting fighter1_bsp.h, 6707 characters
+sed 's/^X//' > fighter1_bsp.h <<'SHAR_EOF'
+X/*	@(#)fighter1_bsp.h 1.1 92/05/28 SMI	*/
+X/*	from fighter1_bsp.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/* this is a bsp-tree description of an enemy fighter */
+X
+X#ifndef FIGHTER1_BSP
+X#define	FIGHTER1_BSP
+X
+X
+Xstatic	Pt3d	bv22[] = {
+X	  { -0.5, -0.1, 1.2},
+X	  { -0.5, -0.1, 0.8},
+X	  { -1.5, -1.1,-0.2},
+X	  { -1.5, -1.1, 0.2}} ;
+X
+Xstatic	Bsp_Node	bn22 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  { 0.7071,-0.7071, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv22,
+X	  NULL,NULL } ;
+X
+X
+X
+X
+Xstatic	Pt3d	bv19[] = {
+X	  { -0.5, 0.1, 1.2},
+X	  { -0.5, 0.1, 0.8},
+X	  { -1.5, 1.1,-.2},
+X	  { -1.5, 1.1, .2}} ;
+X
+Xstatic	Bsp_Node	bn19 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  { 0.7071, 0.7071, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv19,
+X	  NULL,&bn22 } ;
+X
+X
+X
+Xstatic	Pt3d	bv20[] = {
+X	  { 0.5, 0.1, 1.2},
+X	  { 0.5, 0.1, 0.8},
+X	  { 1.5, 1.1,-0.2},
+X	  { 1.5, 1.1, 0.2}} ;
+X
+Xstatic	Bsp_Node	bn20 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {-0.7071, 0.7071, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv20,
+X	  NULL,NULL } ;
+X
+X
+X
+Xstatic	Pt3d	bv21[] = {
+X	  { 0.5, -0.1, 1.2},
+X	  { 0.5, -0.1, 0.8},
+X	  { 1.5, -1.1,-0.2},
+X	  { 1.5, -1.1, 0.2}} ;
+X
+Xstatic	Bsp_Node	bn21 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {-0.7071,-0.7071, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv21,
+X	  NULL,&bn20 } ;
+X
+X
+X
+Xstatic	Pt3d	bv1[] = {
+X	  {-.50, .10, 0.0},
+X	  {-.25, .35, 0.0},
+X	  {-.25, .35, 2.0},
+X	  {-.50, .10, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn1 = {
+X	  BSP_POLY,
+X	  {-0.7071, 0.7071, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv1,
+X	  NULL,NULL } ;
+X
+X
+X
+Xstatic	Pt3d	bv2[] = {
+X	  {-.25, .35, 0.0},
+X	  { .25, .35, 0.0},
+X	  { .25, .35, 2.0},
+X	  {-.25, .35, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn2 = {
+X	  BSP_POLY,
+X	  { 0.0, 1.0, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2,
+X	  NULL,&bn1 } ;
+X
+X
+X
+Xstatic	Pt3d	bv3[] = {
+X	  { .50, .10, 0.0},
+X	  { .25, .35, 0.0},
+X	  { .25, .35, 2.0},
+X	  { .50, .10, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn3 = {
+X	  BSP_POLY,
+X	  { 0.7071, 0.7071, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv3,
+X	  NULL,&bn2 } ;
+X
+X
+X
+Xstatic	Pt3d	bv5[] = {
+X	  { .50,-.10, 0.0},
+X	  { .25,-.35, 0.0},
+X	  { .25,-.35, 2.0},
+X	  { .50,-.10, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn5 = {
+X	  BSP_POLY,
+X	  { 0.7071,-0.7071, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv5,
+X	  NULL,&bn3 } ;
+X
+X
+X
+Xstatic	Pt3d	bv6[] = {
+X	  {-.25,-.35,0.0},
+X	  { .25,-.35,0.0},
+X	  { .25,-.35,2.0},
+X	  {-.25,-.35,2.0}} ;
+X
+Xstatic	Bsp_Node	bn6 = {
+X	  BSP_POLY,
+X	  { 0.0,-1.0, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv6,
+X	  NULL,&bn5 } ;
+X
+X
+X
+Xstatic	Pt3d	bv7[] = {
+X	  {-.50,-.10,0.0},
+X	  {-.25,-.35,0.0},
+X	  {-.25,-.35,2.0},
+X	  {-.50,-.10,2.0}} ;
+X
+Xstatic	Bsp_Node	bn7 = {
+X	  BSP_POLY,
+X	  {-0.7071,-0.7071, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv7,
+X	  NULL,&bn6 } ;
+X
+X
+X
+Xstatic	Pt3d	bv4[] = {
+X	  { .5, .1, 0.0},
+X	  { .5,-.1, 0.0},
+X	  { .5,-.1, 2.0},
+X	  { .5, .1, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn4 = {
+X	  BSP_POLY,
+X	  { 1.0, 0.0, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv4,
+X	  &bn21,&bn7 } ;
+X
+X
+X
+Xstatic	Pt3d	bv8[] = {
+X	  {-.5, .1, 0.0},
+X	  {-.5,-.1, 0.0},
+X	  {-.5,-.1, 2.0},
+X	  {-.5, .1, 2.0}} ;
+X
+Xstatic	Bsp_Node	bn8 = {
+X	  BSP_POLY,
+X	  {-1.0, 0.0, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv8,
+X	  &bn19,&bn4 } ;
+X
+X
+X
+Xstatic	Pt3d	bv18[] = {
+X	  {-.50, .10, 0.0},
+X	  {-.25, .35, 0.0},
+X	  { .25, .35, 0.0},
+X	  { .50, .10, 0.0},
+X	  { .50,-.10, 0.0},
+X	  { .25,-.35, 0.0},
+X	  {-.25,-.35, 0.0},
+X	  {-.50,-.10, 0.0}} ;
+X
+Xstatic	Bsp_Node	bn18 = {
+X	  BSP_POLY,
+X	  { 0.0, 0.0, -1.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {8,0,0},
+X	  bv18,
+X	  NULL,&bn8 } ;
+X
+X
+X
+Xstatic	Pt3d	bv9[] = {
+X	  {-.50, .10, 2.0},
+X	  {-.25, .35, 2.0},
+X	  {-.25, .10, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn9 = {
+X	  BSP_POLY,
+X	  {-0.4082, 0.4082, 0.8165},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {3,0,0},
+X	  bv9,
+X	  NULL,&bn18 } ;
+X
+X
+Xstatic	Pt3d	bv10[] = {
+X	  {-.25, .35,2.0},
+X	  { .25, .35,2.0},
+X	  { .25, .10,2.5},
+X	  {-.25, .10,2.5}} ;
+X
+Xstatic	Bsp_Node	bn10 = {
+X	  BSP_POLY,
+X	  { 0.0, 0.4472, 0.8944},
+X	  BLUE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv10,
+X	  NULL,&bn9 } ;
+X
+X
+X
+Xstatic	Pt3d	bv11[] = {
+X	  { .50, .10, 2.0},
+X	  { .25, .35, 2.0},
+X	  { .25, .10, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn11 = {
+X	  BSP_POLY,
+X	  { 0.4082, 0.4082, 0.8165},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {3,0,0},
+X	  bv11,
+X	  NULL,&bn10 } ;
+X
+X
+Xstatic	Pt3d	bv12[] = {
+X	  { .50, .1, 2.0},
+X	  { .50,-.1, 2.0},
+X	  { .25,-.1, 2.5},
+X	  { .25, .1, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn12 = {
+X	  BSP_POLY,
+X	  { 0.4472, 0.0, 0.8944},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv12,
+X	  NULL,&bn11 } ;
+X
+X
+X
+Xstatic	Pt3d	bv13[] = {
+X	  { .50,-.10, 2.0},
+X	  { .25,-.35, 2.0},
+X	  { .25,-.10, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn13 = {
+X	  BSP_POLY,
+X	  { 0.4082,-0.4082, 0.8165},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {3,0,0},
+X	  bv13,
+X	  NULL,&bn12 } ;
+X
+X
+Xstatic	Pt3d	bv14[] = {
+X	  {-.25,-.35,2.0},
+X	  { .25,-.35,2.0},
+X	  { .25,-.10,2.5},
+X	  {-.25,-.10,2.5}} ;
+X
+Xstatic	Bsp_Node	bn14 = {
+X	  BSP_POLY,
+X	  { 0.0,-0.4472, 0.8944},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv14,
+X	  NULL,&bn13 } ;
+X
+X
+X
+Xstatic	Pt3d	bv15[] = {
+X	  {-.50,-.10, 2.0},
+X	  {-.25,-.35, 2.0},
+X	  {-.25,-.10, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn15 = {
+X	  BSP_POLY,
+X	  {-0.4082,-0.4082, 0.8165},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {3,0,0},
+X	  bv15,
+X	  NULL,&bn14 } ;
+X
+X
+Xstatic	Pt3d	bv16[] = {
+X	  {-.50, .1, 2.0},
+X	  {-.50,-.1, 2.0},
+X	  {-.25,-.1, 2.5},
+X	  {-.25, .1, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn16 = {
+X	  BSP_POLY,
+X	  {-0.4472, 0.0, 0.8944},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv16,
+X	  NULL,&bn15 } ;
+X
+X
+X
+X
+Xstatic	Pt3d	bv17[] = {
+X	  { .25, .1, 2.5},
+X	  { .25,-.1, 2.5},
+X	  {-.25,-.1, 2.5},
+X	  {-.25, .1, 2.5}} ;
+X
+Xstatic	Bsp_Node	bn17 = {
+X	  BSP_POLY,
+X	  { 0.0, 0.0, 1.0},
+X	  BLUE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv17,
+X	  NULL,&bn16 } ;
+X
+X
+X
+Xstatic	Pt3d	bv23[] = {
+X	  { -1.7, 0.9,  1.0},
+X	  { -1.7, 0.9, -1.0},
+X	  { -1.3, 1.3, -1.0},
+X	  { -1.3, 1.3,  1.0}} ;
+X
+Xstatic	Bsp_Node	bn23 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {-0.7071, 0.7071, 0.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv23,
+X	  NULL,&bn17 } ;
+X
+X
+X
+Xstatic	Pt3d	bv24[] = {
+X	  { 1.7, 0.9,  1.0},
+X	  { 1.7, 0.9, -1.0},
+X	  { 1.3, 1.3, -1.0},
+X	  { 1.3, 1.3,  1.0}} ;
+X
+Xstatic	Bsp_Node	bn24 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  { 0.7071, 0.7071, 0.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv24,
+X	  NULL,&bn23 } ;
+X
+X
+X
+Xstatic	Pt3d	bv25[] = {
+X	  { 1.7, -0.9,  1.0},
+X	  { 1.7, -0.9, -1.0},
+X	  { 1.3, -1.3, -1.0},
+X	  { 1.3, -1.3,  1.0}} ;
+X
+Xstatic	Bsp_Node	bn25 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  { 0.7071,-0.7071, 0.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv25,
+X	  NULL,&bn24 } ;
+X
+X
+X
+Xstatic	Pt3d	bv26[] = {
+X	  { -1.7,-0.9,  1.0},
+X	  { -1.7,-0.9, -1.0},
+X	  { -1.3,-1.3, -1.0},
+X	  { -1.3,-1.3,  1.0}} ;
+X
+Xstatic	Bsp_Node	bn26 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {-0.7071,-0.7071, 0.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv26,
+X	  NULL,&bn25 } ;
+X
+X
+X
+X
+X#define	FIGHTER1_TOP	bn26
+X
+X
+X#endif	FIGHTER1_BSP
+SHAR_EOF
+len=`wc -c < fighter1_bsp.h`
+if test $len != 6707 ; then
+echo shar: fighter1_bsp.h was $len bytes long, should have been 6707
+fi
+fi # end of overwriting check
+
+if test -f fighter1_line.h ; then
+echo shar: will not over-write existing file fighter1_line.h
+else
+echo shar: extracting fighter1_line.h, 676 characters
+sed 's/^X//' > fighter1_line.h <<'SHAR_EOF'
+X/*	@(#)fighter1_line.h 1.1 92/05/28 SMI	*/
+X/*	from fighter1_line.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{{ 0.0, 0.0, 1.00}, MOVE},
+X	{{ 1.5, 1.1, 0.00}, WHITE},
+X	{{ 0.0, 0.0, 1.00}, MOVE},
+X	{{ 1.5,-1.1, 0.00}, WHITE},
+X	{{ 0.0, 0.0, 1.00}, MOVE},
+X	{{-1.5, 1.1, 0.00}, WHITE},
+X	{{ 0.0, 0.0, 1.00}, MOVE},
+X	{{-1.5,-1.1, 0.00}, WHITE},
+X	{{ 0.0, 0.0, 2.00}, MOVE},
+X	{{ 0.0, 0.0, 0.00}, RED},
+X	{{ 1.5, 1.1, 1.00}, MOVE},
+X	{{ 1.5, 1.1,-1.00}, RED},
+X	{{ 1.5,-1.1, 1.00}, MOVE},
+X	{{ 1.5,-1.1,-1.00}, RED},
+X	{{-1.5, 1.1, 1.00}, MOVE},
+X	{{-1.5, 1.1,-1.00}, RED},
+X	{{-1.5,-1.1, 1.00}, MOVE},
+X	{{-1.5,-1.1,-1.00}, RED},
+X	{{0.0, 0.0, 0.0}, LINE_END}
+SHAR_EOF
+len=`wc -c < fighter1_line.h`
+if test $len != 676 ; then
+echo shar: fighter1_line.h was $len bytes long, should have been 676
+fi
+fi # end of overwriting check
+
+if test -f fighter2_bsp.h ; then
+echo shar: will not over-write existing file fighter2_bsp.h
+else
+echo shar: extracting fighter2_bsp.h, 9328 characters
+sed 's/^X//' > fighter2_bsp.h <<'SHAR_EOF'
+X/*	@(#)fighter2_bsp.h 1.1 92/05/28 SMI	*/
+X/*	from fighter2_bsp.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/* this is a bsp-tree description of a tie fighter */
+X
+X#ifndef FIGHTER2_BSP
+X#define	FIGHTER2_BSP
+X
+X
+Xstatic	Pt3d	bv2_1[] = {
+X	  { 0.0858, 0.2071, -0.5},
+X	  { 0.2071, 0.0858, -0.5},
+X	  { 0.2071,-0.0858, -0.5},
+X	  { 0.0858,-0.2071, -0.5},
+X	  {-0.0858,-0.2071, -0.5},
+X	  {-0.2071,-0.0858, -0.5},
+X	  {-0.2071, 0.0858, -0.5},
+X	  {-0.0858, 0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_1 = {
+X	  BSP_POLY,
+X	  { 0.0, 0.0, -1.0},
+X	  RED,
+X	  0,
+X	  0,
+X	  1,
+X	  {8,0,0},
+X	  bv2_1,
+X	  NULL,NULL } ;
+X
+X
+Xstatic	Pt3d	bv2_2[] = {
+X	  {-0.2071, 0.5000, -0.2071},
+X	  {-0.5000, 0.2071, -0.2071},
+X	  {-0.2071, 0.0858, -0.5},
+X	  {-0.0858, 0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_2 = {
+X	  BSP_POLY,
+X	  {-0.5000, 0.5000, -0.7071},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_2,
+X	  NULL,&bn2_1 } ;
+X
+X
+Xstatic	Pt3d	bv2_3[] = {
+X	  {-0.2071, 0.5000, -0.2071},
+X	  { 0.2071, 0.5000, -0.2071},
+X	  { 0.0858, 0.2071, -0.5},
+X	  {-0.0858, 0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_3 = {
+X	  BSP_POLY,
+X	  { 0.0000, 0.7071, -0.7071},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_3,
+X	  NULL,&bn2_2 } ;
+X
+X
+Xstatic	Pt3d	bv2_4[] = {
+X	  { 0.2071, 0.5000, -0.2071},
+X	  { 0.5000, 0.2071, -0.2071},
+X	  { 0.2071, 0.0858, -0.5},
+X	  { 0.0858, 0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_4 = {
+X	  BSP_POLY,
+X	  { 0.5000, 0.5000, -0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_4,
+X	  NULL,&bn2_3 } ;
+X
+X
+Xstatic	Pt3d	bv2_5[] = {
+X	  { 0.5000,-0.2071, -0.2071},
+X	  { 0.5000, 0.2071, -0.2071},
+X	  { 0.2071, 0.0858, -0.5},
+X	  { 0.2071,-0.0858, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_5 = {
+X	  BSP_POLY,
+X	  { 0.7071, 0.0000, -0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_5,
+X	  NULL,&bn2_4 } ;
+X
+X
+Xstatic	Pt3d	bv2_6[] = {
+X	  { 0.2071,-0.5000, -0.2071},
+X	  { 0.5000,-0.2071, -0.2071},
+X	  { 0.2071,-0.0858, -0.5},
+X	  { 0.0858,-0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_6 = {
+X	  BSP_POLY,
+X	  { 0.5000,-0.5000, -0.7071},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_6,
+X	  NULL,&bn2_5 } ;
+X
+X
+Xstatic	Pt3d	bv2_7[] = {
+X	  {-0.2071,-0.5000, -0.2071},
+X	  { 0.2071,-0.5000, -0.2071},
+X	  { 0.0858,-0.2071, -0.5},
+X	  {-0.0858,-0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_7 = {
+X	  BSP_POLY,
+X	  { 0.0000,-0.7071, -0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_7,
+X	  NULL,&bn2_6 } ;
+X
+X
+Xstatic	Pt3d	bv2_8[] = {
+X	  {-0.2071,-0.5000, -0.2071},
+X	  {-0.5000,-0.2071, -0.2071},
+X	  {-0.2071,-0.0858, -0.5},
+X	  {-0.0858,-0.2071, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_8 = {
+X	  BSP_POLY,
+X	  {-0.5000,-0.5000, -0.7071},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_8,
+X	  NULL,&bn2_7 } ;
+X
+X
+Xstatic	Pt3d	bv2_9[] = {
+X	  {-0.5000,-0.2071, -0.2071},
+X	  {-0.5000, 0.2071, -0.2071},
+X	  {-0.2071, 0.0858, -0.5},
+X	  {-0.2071,-0.0858, -0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_9 = {
+X	  BSP_POLY,
+X	  {-0.7071, 0.0000, -0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_9,
+X	  NULL,&bn2_8 } ;
+X
+X
+Xstatic	Pt3d	bv2_10[] = {
+X	  {-0.2071, 0.5000, -0.2071},
+X	  {-0.5000, 0.2071, -0.2071},
+X	  {-0.5000, 0.2071,  0.2071},
+X	  {-0.2071, 0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_10 = {
+X	  BSP_POLY,
+X	  {-0.7071, 0.7071, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_10,
+X	  NULL,&bn2_9 } ;
+X
+X
+Xstatic	Pt3d	bv2_11[] = {
+X	  {-0.2071, 0.5000, -0.2071},
+X	  { 0.2071, 0.5000, -0.2071},
+X	  { 0.2071, 0.5000,  0.2071},
+X	  {-0.2071, 0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_11 = {
+X	  BSP_POLY,
+X	  { 0.0000, 1.0000, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_11,
+X	  NULL,&bn2_10 } ;
+X
+X
+Xstatic	Pt3d	bv2_12[] = {
+X	  { 0.2071, 0.5000, -0.2071},
+X	  { 0.5000, 0.2071, -0.2071},
+X	  { 0.5000, 0.2071,  0.2071},
+X	  { 0.2071, 0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_12 = {
+X	  BSP_POLY,
+X	  { 0.7071, 0.7071, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_12,
+X	  NULL,&bn2_11 } ;
+X
+X
+Xstatic	Pt3d	bv2_14[] = {
+X	  { 0.2071,-0.5000, -0.2071},
+X	  { 0.5000,-0.2071, -0.2071},
+X	  { 0.5000,-0.2071,  0.2071},
+X	  { 0.2071,-0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_14 = {
+X	  BSP_POLY,
+X	  { 0.7071,-0.7071, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_14,
+X	  NULL,&bn2_12 } ;
+X
+X
+Xstatic	Pt3d	bv2_15[] = {
+X	  {-0.2071,-0.5000, -0.2071},
+X	  { 0.2071,-0.5000, -0.2071},
+X	  { 0.2071,-0.5000,  0.2071},
+X	  {-0.2071,-0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_15 = {
+X	  BSP_POLY,
+X	  { 0.0000,-1.0000, 0.0},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_15,
+X	  NULL,&bn2_14 } ;
+X
+X
+Xstatic	Pt3d	bv2_16[] = {
+X	  {-0.2071,-0.5000, -0.2071},
+X	  {-0.5000,-0.2071, -0.2071},
+X	  {-0.5000,-0.2071,  0.2071},
+X	  {-0.2071,-0.5000,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_16 = {
+X	  BSP_POLY,
+X	  { 0.7071,-0.7071, 0.0},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_16,
+X	  NULL,&bn2_15 } ;
+X
+X
+Xstatic	Pt3d	bv2_18[] = {
+X	  {-0.2071, 0.5000,  0.2071},
+X	  {-0.5000, 0.2071,  0.2071},
+X	  {-0.2071, 0.0858,  0.5},
+X	  {-0.0858, 0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_18 = {
+X	  BSP_POLY,
+X	  {-0.5000, 0.5000,  0.7071},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_18,
+X	  NULL,&bn2_16 } ;
+X
+X
+Xstatic	Pt3d	bv2_19[] = {
+X	  {-0.2071, 0.5000,  0.2071},
+X	  { 0.2071, 0.5000,  0.2071},
+X	  { 0.0858, 0.2071,  0.5},
+X	  {-0.0858, 0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_19 = {
+X	  BSP_POLY,
+X	  { 0.0000, 0.7071,  0.7071},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_19,
+X	  NULL,&bn2_18 } ;
+X
+X
+Xstatic	Pt3d	bv2_20[] = {
+X	  { 0.2071, 0.5000,  0.2071},
+X	  { 0.5000, 0.2071,  0.2071},
+X	  { 0.2071, 0.0858,  0.5},
+X	  { 0.0858, 0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_20 = {
+X	  BSP_POLY,
+X	  { 0.5000, 0.5000,  0.7071},
+X	  GREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_20,
+X	  NULL,&bn2_19 } ;
+X
+X
+Xstatic	Pt3d	bv2_21[] = {
+X	  { 0.5000,-0.2071,  0.2071},
+X	  { 0.5000, 0.2071,  0.2071},
+X	  { 0.2071, 0.0858,  0.5},
+X	  { 0.2071,-0.0858,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_21 = {
+X	  BSP_POLY,
+X	  { 0.7071, 0.0000,  0.7071},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_21,
+X	  NULL,&bn2_20 } ;
+X
+X
+Xstatic	Pt3d	bv2_22[] = {
+X	  { 0.2071,-0.5000,  0.2071},
+X	  { 0.5000,-0.2071,  0.2071},
+X	  { 0.2071,-0.0858,  0.5},
+X	  { 0.0858,-0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_22 = {
+X	  BSP_POLY,
+X	  { 0.5000,-0.5000,  0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_22,
+X	  NULL,&bn2_21 } ;
+X
+X
+Xstatic	Pt3d	bv2_23[] = {
+X	  {-0.2071,-0.5000, 0.2071},
+X	  { 0.2071,-0.5000, 0.2071},
+X	  { 0.0858,-0.2071, 0.5},
+X	  {-0.0858,-0.2071, 0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_23 = {
+X	  BSP_POLY,
+X	  { 0.0000,-0.7071, 0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_23,
+X	  NULL,&bn2_22 } ;
+X
+X
+Xstatic	Pt3d	bv2_24[] = {
+X	  {-0.2071,-0.5000,  0.2071},
+X	  {-0.5000,-0.2071,  0.2071},
+X	  {-0.2071,-0.0858,  0.5},
+X	  {-0.0858,-0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_24 = {
+X	  BSP_POLY,
+X	  {-0.5000,-0.5000,  0.7071},
+X	  LGREY,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_24,
+X	  NULL,&bn2_23 } ;
+X
+X
+Xstatic	Pt3d	bv2_25[] = {
+X	  {-0.5000,-0.2071,  0.2071},
+X	  {-0.5000, 0.2071,  0.2071},
+X	  {-0.2071, 0.0858,  0.5},
+X	  {-0.2071,-0.0858,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_25 = {
+X	  BSP_POLY,
+X	  {-0.7071, 0.0000,  0.7071},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_25,
+X	  NULL,&bn2_24 } ;
+X
+X
+Xstatic	Pt3d	bv2_26[] = {
+X	  { 0.0858, 0.2071,  0.5},
+X	  { 0.2071, 0.0858,  0.5},
+X	  { 0.2071,-0.0858,  0.5},
+X	  { 0.0858,-0.2071,  0.5},
+X	  {-0.0858,-0.2071,  0.5},
+X	  {-0.2071,-0.0858,  0.5},
+X	  {-0.2071, 0.0858,  0.5},
+X	  {-0.0858, 0.2071,  0.5}} ;
+X
+Xstatic	Bsp_Node	bn2_26 = {
+X	  BSP_POLY,
+X	  { 0.0, 0.0,  1.0},
+X	  BLUE,
+X	  0,
+X	  0,
+X	  1,
+X	  {8,0,0},
+X	  bv2_26,
+X	  NULL,&bn2_25 } ;
+X
+X
+Xstatic	Pt3d	bv2_28[] = {
+X	  { 1.0, 0.0858, 0.0},
+X	  { 0.5, 0.0858, 0.0},
+X	  { 0.5,-0.0858, 0.0},
+X	  { 1.0,-0.0858, 0.0}} ;
+X
+Xstatic	Bsp_Node	bn2_28 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {0.0, 0.0, 1.0},
+X	  YELLOW,
+X	  RED,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_28,
+X	  NULL,NULL } ;
+X
+X
+Xstatic	Pt3d	bv2_13[] = {
+X	  { 0.5000,-0.2071, -0.2071},
+X	  { 0.5000, 0.2071, -0.2071},
+X	  { 0.5000, 0.2071,  0.2071},
+X	  { 0.5000,-0.2071,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_13 = {
+X	  BSP_POLY,
+X	  { 1.0000, 0.0000, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_13,
+X	  &bn2_28,&bn2_26 } ;
+X
+X
+Xstatic	Pt3d	bv2_27[] = {
+X	  {-1.0, 0.0858, 0.0},
+X	  {-0.5, 0.0858, 0.0},
+X	  {-0.5,-0.0858, 0.0},
+X	  {-1.0,-0.0858, 0.0}} ;
+X
+Xstatic	Bsp_Node	bn2_27 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {0.0, 0.0, 1.0},
+X	  YELLOW,
+X	  RED,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_27,
+X	  NULL,NULL } ;
+X
+X
+Xstatic	Pt3d	bv2_17[] = {
+X	  {-0.5000,-0.2071, -0.2071},
+X	  {-0.5000, 0.2071, -0.2071},
+X	  {-0.5000, 0.2071,  0.2071},
+X	  {-0.5000,-0.2071,  0.2071}} ;
+X
+Xstatic	Bsp_Node	bn2_17 = {
+X	  BSP_POLY,
+X	  {-1.0000, 0.0000, 0.0},
+X	  WHITE,
+X	  0,
+X	  0,
+X	  1,
+X	  {4,0,0},
+X	  bv2_17,
+X	  &bn2_27,&bn2_13 } ;
+X
+X
+Xstatic	Pt3d	bv2_29[] = {
+X	  {-1.0, 1.0000, 0.4142},
+X	  {-1.0, 0.4142, 1.0000},
+X	  {-1.0,-0.4142, 1.0000},
+X	  {-1.0,-1.0000, 0.4142},
+X	  {-1.0,-1.0000,-0.4142},
+X	  {-1.0,-0.4142,-1.0000},
+X	  {-1.0, 0.4142,-1.0000},
+X	  {-1.0, 1.0000,-0.4142}} ;
+X
+Xstatic	Bsp_Node	bn2_29 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  {-1.0, 0.0, 0.0},
+X	  GREY,
+X	  RED,
+X	  0,
+X	  1,
+X	  {8,0,0},
+X	  bv2_29,
+X	  NULL,&bn2_17 } ;
+X
+X
+Xstatic	Pt3d	bv2_30[] = {
+X	  { 1.0, 1.0000, 0.4142},
+X	  { 1.0, 0.4142, 1.0000},
+X	  { 1.0,-0.4142, 1.0000},
+X	  { 1.0,-1.0000, 0.4142},
+X	  { 1.0,-1.0000,-0.4142},
+X	  { 1.0,-0.4142,-1.0000},
+X	  { 1.0, 0.4142,-1.0000},
+X	  { 1.0, 1.0000,-0.4142}} ;
+X
+Xstatic	Bsp_Node	bn2_30 = {
+X	  BSP_BACK_VIEW | BSP_POLY,
+X	  { 1.0, 0.0, 0.0},
+X	  GREY,
+X	  RED,
+X	  0,
+X	  1,
+X	  {8,0,0},
+X	  bv2_30,
+X	  NULL,&bn2_29 } ;
+X
+X#define FIGHTER2_TOP	bn2_30
+X
+X#endif FIGHTER2_BSP
+SHAR_EOF
+len=`wc -c < fighter2_bsp.h`
+if test $len != 9328 ; then
+echo shar: fighter2_bsp.h was $len bytes long, should have been 9328
+fi
+fi # end of overwriting check
+
+if test -f fighter2_line.h ; then
+echo shar: will not over-write existing file fighter2_line.h
+else
+echo shar: extracting fighter2_line.h, 546 characters
+sed 's/^X//' > fighter2_line.h <<'SHAR_EOF'
+X/*	@(#)fighter2_line.h 1.1 92/05/28 SMI	*/
+X/*	from fighter2_line.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{{ 0.0, 0.0,-0.5}, MOVE},
+X	{{ 0.0, 0.0,-0.5}, LGREY},
+X	{{-1.0, 0.0, 0.0}, MOVE},
+X	{{ 1.0, 0.0, 0.0}, YELLOW},
+X	{{ 1.0, 1.0, 1.0}, MOVE},
+X	{{ 1.0, 1.0,-1.0}, RED},
+X	{{ 1.0,-1.0,-1.0}, RED},
+X	{{ 1.0,-1.0, 1.0}, RED},
+X	{{ 1.0, 1.0, 1.0}, RED},
+X	{{-1.0, 1.0, 1.0}, MOVE},
+X	{{-1.0, 1.0,-1.0}, RED},
+X	{{-1.0,-1.0,-1.0}, RED},
+X	{{-1.0,-1.0, 1.0}, RED},
+X	{{-1.0, 1.0, 1.0}, RED},
+X	{{0.0, 0.0, 0.0}, LINE_END}
+SHAR_EOF
+len=`wc -c < fighter2_line.h`
+if test $len != 546 ; then
+echo shar: fighter2_line.h was $len bytes long, should have been 546
+fi
+fi # end of overwriting check
+
+if test -f graphics.h ; then
+echo shar: will not over-write existing file graphics.h
+else
+echo shar: extracting graphics.h, 2771 characters
+sed 's/^X//' > graphics.h <<'SHAR_EOF'
+X/*	@(#)graphics.h 1.2 92/05/28 SMI	*/
+X/*	from graphics.h 1.4 90/07/23 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#ifndef GRAPHICS_H
+X#define GRAPHICS_H
+X
+X
+X#ifndef	window_hs_DEFINED
+X#ifdef XV
+X#include <xview/window_hs.h>
+X#else
+X#include <sunwindow/window_hs.h>
+X#endif XV
+X#endif	window_hs_DEFINED
+X
+X#ifdef XV
+X#include <X11/Xlib.h>
+X#include <X11/Xatom.h>
+X#include <xview/xview.h>
+X#include <xview/canvas.h>
+X#endif XV
+X
+X#ifdef	XGL
+X#ifndef XGL_INCLUDED
+X#include <xgl/xgl.h>
+X#endif
+X#else
+X#ifndef	DEV_GP1_ERR_NO_GP1
+X#include "dev_gp1.h"
+X#endif
+X#endif	XGL
+X
+X
+X
+X#ifdef	XGL
+X
+X	Xgl_trans	Ctrl_view_mat ;
+X	Xgl_trans	WIN_MAT ;
+X	Xgl_trans	OBJ_MAT ;
+X	Xgl_trans	ROT_MAT ;
+X	Xgl_trans	TM1 ;
+X	Xgl_trans	TM2 ;
+X	Xgl_trans	TM3 ;
+X	Xgl_trans	PERSP_MAT ;
+X	Xgl_trans	ID_MAT ;
+X
+Xtypedef	Xgl_pt_f2d	Pt2d ;
+Xtypedef	Xgl_pt_f3d	Pt3d ;
+Xtypedef	Xgl_matrix_f3d	Mat3d ;
+Xtypedef	Xgl_matrix_f2d	Mat2d ;
+X
+X
+X#else
+X
+X#define	WIN_MAT	0		/* final viewing matrix */
+X#define	TM1	1
+X#define	TM2	2
+X#define	TM3	3
+X#define	OBJ_MAT	4		/* (TRANLATION*ROTATION*PERSPECTIVE) */
+X#define	ROT_MAT	5		/* matrix that holds ship orientation */
+X
+Xtypedef	Point2df	Pt2d ;
+Xtypedef	Point3df	Pt3d ;
+Xtypedef	Matrix3df	Mat3d ;
+Xtypedef	Matrix2df	Mat2d ;
+X
+X#endif	XGL
+X
+X#include "object_types.h"
+X
+X#define	WHITE	1
+X#define	LGREY	2
+X#define	GREY	3
+X#define	RED	4
+X#define	GREEN	5
+X#define	BLUE	6
+X#define	YELLOW	7
+X
+X
+X
+X#ifdef	XGL
+X#define Set_color(ctx, i)			\
+X	do {					\
+X	  current_xgl_color.index = dbmap[i] ;	\
+X	  xgl_object_set(ctx, XGL_CTX_LINE_COLOR, &current_xgl_color, 0) ; \
+X	} while(0) ;
+X#define Set_marker_color(ctx)			\
+X	  xgl_object_set(ctx, XGL_CTX_MARKER_COLOR, &current_xgl_color, 0) ;
+X#else
+X#define	Set_color(gp,color)			\
+X{						\
+X	if(hwdb)				\
+X	{					\
+X	  Dev_gp1_set_color((gp),(color)) ;	\
+X	}					\
+X	else					\
+X	{					\
+X	  Dev_gp1_dbuf_color((gp),(color)) ;	\
+X	}					\
+X}
+X#endif	XGL
+X
+X
+X
+X#ifdef XV
+Xextern	Xv_Window       Main_pw, Control_pw;
+X#else
+Xextern	Pixwin	*Main_pw, *Control_pw ;
+X#endif XV
+X
+X#ifdef	XGL
+Xextern	Xgl_3d_ctx	Main_gfx, Control_gfx ;
+Xextern	Xgl_2d_ctx	Text_gfx;
+Xextern	Xgl_mem_ras	Cursor_ras;
+X#else
+Xextern	GP1_handle	Main_gfx, Control_gfx ;
+X#endif	XGL
+X
+X#ifdef	XGL
+X	Xgl_matrix_f3d	P_matrix ;
+X#else
+X	Matrix3df	P_matrix ;
+X#endif	XGL
+X
+X#ifdef	XGL
+X	Xgl_color current_xgl_color ;
+X#endif	XGL
+X
+X	int	Mouse_x, Mouse_y ;
+X	int	Left_But, Middle_But, Right_But ;
+X	int	Side_1, Side_2, Side_3, Side_4, Side_5 ;
+X	int	Side_6, Side_7, Side_8, Side_9, Side_10 ;
+X	float	Mouse_ax, Mouse_ay ;
+X	int	hwdb ;
+X	int	mouse_control ;
+X
+X		/* sort_list is a list of objects that starts out in
+X		   strictly increasing order but then gets sorted.  It
+X		   is kept from frame to frame in order to optimize
+X		   sorting time (taking advantage of coherence) */
+X	short	sort_list[MAX_OBJECTS] ;
+X	short	nobjects ;
+X	int	dbmap[256] ;
+X
+X#endif	GRAPHICS_H
+SHAR_EOF
+len=`wc -c < graphics.h`
+if test $len != 2771 ; then
+echo shar: graphics.h was $len bytes long, should have been 2771
+fi
+fi # end of overwriting check
+
+if test -f hsi.h ; then
+echo shar: will not over-write existing file hsi.h
+else
+echo shar: extracting hsi.h, 6836 characters
+sed 's/^X//' > hsi.h <<'SHAR_EOF'
+X/*	@(#)hsi.h 1.1 92/05/28 SMI	*/
+X/*	from hsi.h 1.3 90/07/23 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#define	NLAT	7
+X#define	NLON	16
+X
+Xstatic	Pt3d	lons[NLON][NLAT+2] = {
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.000, 0.924,-0.383},
+X	{ 0.000, 0.707,-0.707},
+X	{ 0.000, 0.383,-0.924},
+X	{ 0.000, 0.000,-1.000},
+X	{ 0.000,-0.383,-0.924},
+X	{ 0.000,-0.707,-0.707},
+X	{ 0.000,-0.924,-0.383},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.146, 0.924,-0.354},
+X	{ 0.271, 0.707,-0.653},
+X	{ 0.354, 0.383,-0.854},
+X	{ 0.383, 0.000,-0.924},
+X	{ 0.354,-0.383,-0.854},
+X	{ 0.271,-0.707,-0.653},
+X	{ 0.146,-0.924,-0.354},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.271, 0.924,-0.271},
+X	{ 0.500, 0.707,-0.500},
+X	{ 0.653, 0.383,-0.653},
+X	{ 0.707, 0.000,-0.707},
+X	{ 0.653,-0.383,-0.653},
+X	{ 0.500,-0.707,-0.500},
+X	{ 0.271,-0.924,-0.271},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.354, 0.924,-0.146},
+X	{ 0.653, 0.707,-0.271},
+X	{ 0.854, 0.383,-0.354},
+X	{ 0.924, 0.000,-0.383},
+X	{ 0.854,-0.383,-0.354},
+X	{ 0.653,-0.707,-0.271},
+X	{ 0.354,-0.924,-0.146},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.383, 0.924, 0.000},
+X	{ 0.707, 0.707, 0.000},
+X	{ 0.924, 0.383, 0.000},
+X	{ 1.000, 0.000, 0.000},
+X	{ 0.924,-0.383, 0.000},
+X	{ 0.707,-0.707, 0.000},
+X	{ 0.383,-0.924, 0.000},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.354, 0.924, 0.146},
+X	{ 0.653, 0.707, 0.271},
+X	{ 0.854, 0.383, 0.354},
+X	{ 0.924, 0.000, 0.383},
+X	{ 0.854,-0.383, 0.354},
+X	{ 0.653,-0.707, 0.271},
+X	{ 0.354,-0.924, 0.146},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.271, 0.924, 0.271},
+X	{ 0.500, 0.707, 0.500},
+X	{ 0.653, 0.383, 0.653},
+X	{ 0.707, 0.000, 0.707},
+X	{ 0.653,-0.383, 0.653},
+X	{ 0.500,-0.707, 0.500},
+X	{ 0.271,-0.924, 0.271},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.146, 0.924, 0.354},
+X	{ 0.271, 0.707, 0.653},
+X	{ 0.354, 0.383, 0.854},
+X	{ 0.383, 0.000, 0.924},
+X	{ 0.354,-0.383, 0.854},
+X	{ 0.271,-0.707, 0.653},
+X	{ 0.146,-0.924, 0.354},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{ 0.000, 0.924, 0.383},
+X	{ 0.000, 0.707, 0.707},
+X	{ 0.000, 0.383, 0.924},
+X	{ 0.000, 0.000, 1.000},
+X	{ 0.000,-0.383, 0.924},
+X	{ 0.000,-0.707, 0.707},
+X	{ 0.000,-0.924, 0.383},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.146, 0.924, 0.354},
+X	{-0.271, 0.707, 0.653},
+X	{-0.354, 0.383, 0.854},
+X	{-0.383, 0.000, 0.924},
+X	{-0.354,-0.383, 0.854},
+X	{-0.271,-0.707, 0.653},
+X	{-0.146,-0.924, 0.354},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.271, 0.924, 0.271},
+X	{-0.500, 0.707, 0.500},
+X	{-0.653, 0.383, 0.653},
+X	{-0.707, 0.000, 0.707},
+X	{-0.653,-0.383, 0.653},
+X	{-0.500,-0.707, 0.500},
+X	{-0.271,-0.924, 0.271},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.354, 0.924, 0.146},
+X	{-0.653, 0.707, 0.271},
+X	{-0.854, 0.383, 0.354},
+X	{-0.924, 0.000, 0.383},
+X	{-0.854,-0.383, 0.354},
+X	{-0.653,-0.707, 0.271},
+X	{-0.354,-0.924, 0.146},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.383, 0.924, 0.000},
+X	{-0.707, 0.707, 0.000},
+X	{-0.924, 0.383, 0.000},
+X	{-1.000, 0.000, 0.000},
+X	{-0.924,-0.383, 0.000},
+X	{-0.707,-0.707, 0.000},
+X	{-0.383,-0.924, 0.000},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.354, 0.924,-0.146},
+X	{-0.653, 0.707,-0.271},
+X	{-0.854, 0.383,-0.354},
+X	{-0.924, 0.000,-0.383},
+X	{-0.854,-0.383,-0.354},
+X	{-0.653,-0.707,-0.271},
+X	{-0.354,-0.924,-0.146},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.271, 0.924,-0.271},
+X	{-0.500, 0.707,-0.500},
+X	{-0.653, 0.383,-0.653},
+X	{-0.707, 0.000,-0.707},
+X	{-0.653,-0.383,-0.653},
+X	{-0.500,-0.707,-0.500},
+X	{-0.271,-0.924,-0.271},
+X	{ 0.000,-1.000, 0.000},
+X
+X	{ 0.000, 1.000, 0.000},
+X	{-0.146, 0.924,-0.354},
+X	{-0.271, 0.707,-0.653},
+X	{-0.354, 0.383,-0.854},
+X	{-0.383, 0.000,-0.924},
+X	{-0.354,-0.383,-0.854},
+X	{-0.271,-0.707,-0.653},
+X	{-0.146,-0.924,-0.354},
+X	{ 0.000,-1.000, 0.000},
+X		} ;
+X
+Xstatic	Pt3d	lats[NLAT][NLON+1] = {
+X	{ 0.000, 0.924, 0.383},
+X	{ 0.146, 0.924, 0.354},
+X	{ 0.271, 0.924, 0.271},
+X	{ 0.354, 0.924, 0.146},
+X	{ 0.383, 0.924, 0.000},
+X	{ 0.354, 0.924,-0.146},
+X	{ 0.271, 0.924,-0.271},
+X	{ 0.146, 0.924,-0.354},
+X	{ 0.000, 0.924,-0.383},
+X	{-0.146, 0.924,-0.354},
+X	{-0.271, 0.924,-0.271},
+X	{-0.354, 0.924,-0.146},
+X	{-0.383, 0.924, 0.000},
+X	{-0.354, 0.924, 0.146},
+X	{-0.271, 0.924, 0.271},
+X	{-0.146, 0.924, 0.354},
+X	{ 0.000, 0.924, 0.383},
+X
+X	{ 0.000, 0.707, 0.707},
+X	{ 0.271, 0.707, 0.653},
+X	{ 0.500, 0.707, 0.500},
+X	{ 0.653, 0.707, 0.271},
+X	{ 0.707, 0.707, 0.000},
+X	{ 0.653, 0.707,-0.271},
+X	{ 0.500, 0.707,-0.500},
+X	{ 0.271, 0.707,-0.653},
+X	{ 0.000, 0.707,-0.707},
+X	{-0.271, 0.707,-0.653},
+X	{-0.500, 0.707,-0.500},
+X	{-0.653, 0.707,-0.271},
+X	{-0.707, 0.707, 0.000},
+X	{-0.653, 0.707, 0.271},
+X	{-0.500, 0.707, 0.500},
+X	{-0.271, 0.707, 0.653},
+X	{ 0.000, 0.707, 0.707},
+X
+X	{ 0.000, 0.383, 0.924},
+X	{ 0.354, 0.383, 0.854},
+X	{ 0.653, 0.383, 0.653},
+X	{ 0.854, 0.383, 0.354},
+X	{ 0.924, 0.383, 0.000},
+X	{ 0.854, 0.383,-0.354},
+X	{ 0.653, 0.383,-0.653},
+X	{ 0.354, 0.383,-0.854},
+X	{ 0.000, 0.383,-0.924},
+X	{-0.354, 0.383,-0.854},
+X	{-0.653, 0.383,-0.653},
+X	{-0.854, 0.383,-0.354},
+X	{-0.924, 0.383, 0.000},
+X	{-0.854, 0.383, 0.354},
+X	{-0.653, 0.383, 0.653},
+X	{-0.354, 0.383, 0.854},
+X	{ 0.000, 0.383, 0.924},
+X
+X	{ 0.000, 0.000, 1.000},
+X	{ 0.383, 0.000, 0.924},
+X	{ 0.707, 0.000, 0.707},
+X	{ 0.924, 0.000, 0.383},
+X	{ 1.000, 0.000, 0.000},
+X	{ 0.924, 0.000,-0.383},
+X	{ 0.707, 0.000,-0.707},
+X	{ 0.383, 0.000,-0.924},
+X	{ 0.000, 0.000,-1.000},
+X	{-0.383, 0.000,-0.924},
+X	{-0.707, 0.000,-0.707},
+X	{-0.924, 0.000,-0.383},
+X	{-1.000, 0.000, 0.000},
+X	{-0.924, 0.000, 0.383},
+X	{-0.707, 0.000, 0.707},
+X	{-0.383, 0.000, 0.924},
+X	{ 0.000, 0.000, 1.000},
+X
+X	{ 0.000,-0.383, 0.924},
+X	{ 0.354,-0.383, 0.854},
+X	{ 0.653,-0.383, 0.653},
+X	{ 0.854,-0.383, 0.354},
+X	{ 0.924,-0.383, 0.000},
+X	{ 0.854,-0.383,-0.354},
+X	{ 0.653,-0.383,-0.653},
+X	{ 0.354,-0.383,-0.854},
+X	{ 0.000,-0.383,-0.924},
+X	{-0.354,-0.383,-0.854},
+X	{-0.653,-0.383,-0.653},
+X	{-0.854,-0.383,-0.354},
+X	{-0.924,-0.383, 0.000},
+X	{-0.854,-0.383, 0.354},
+X	{-0.653,-0.383, 0.653},
+X	{-0.354,-0.383, 0.854},
+X	{ 0.000,-0.383, 0.924},
+X
+X	{ 0.000,-0.707, 0.707},
+X	{ 0.271,-0.707, 0.653},
+X	{ 0.500,-0.707, 0.500},
+X	{ 0.653,-0.707, 0.271},
+X	{ 0.707,-0.707, 0.000},
+X	{ 0.653,-0.707,-0.271},
+X	{ 0.500,-0.707,-0.500},
+X	{ 0.271,-0.707,-0.653},
+X	{ 0.000,-0.707,-0.707},
+X	{-0.271,-0.707,-0.653},
+X	{-0.500,-0.707,-0.500},
+X	{-0.653,-0.707,-0.271},
+X	{-0.707,-0.707, 0.000},
+X	{-0.653,-0.707, 0.271},
+X	{-0.500,-0.707, 0.500},
+X	{-0.271,-0.707, 0.653},
+X	{ 0.000,-0.707, 0.707},
+X
+X	{ 0.000,-0.924, 0.383},
+X	{ 0.146,-0.924, 0.354},
+X	{ 0.271,-0.924, 0.271},
+X	{ 0.354,-0.924, 0.146},
+X	{ 0.383,-0.924, 0.000},
+X	{ 0.354,-0.924,-0.146},
+X	{ 0.271,-0.924,-0.271},
+X	{ 0.146,-0.924,-0.354},
+X	{ 0.000,-0.924,-0.383},
+X	{-0.146,-0.924,-0.354},
+X	{-0.271,-0.924,-0.271},
+X	{-0.354,-0.924,-0.146},
+X	{-0.383,-0.924, 0.000},
+X	{-0.354,-0.924, 0.146},
+X	{-0.271,-0.924, 0.271},
+X	{-0.146,-0.924, 0.354},
+X	{ 0.000,-0.924, 0.383},
+X		} ;
+X
+SHAR_EOF
+len=`wc -c < hsi.h`
+if test $len != 6836 ; then
+echo shar: hsi.h was $len bytes long, should have been 6836
+fi
+fi # end of overwriting check
+
+if test -f line_object.h ; then
+echo shar: will not over-write existing file line_object.h
+else
+echo shar: extracting line_object.h, 406 characters
+sed 's/^X//' > line_object.h <<'SHAR_EOF'
+X/*	@(#)line_object.h 1.1 92/05/28 SMI	*/
+X/*	from line_object.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file is type definitions for object line descriptions.
+X *
+X */
+X
+X#ifndef	LINE_OBJECT
+X#define	LINE_OBJECT
+X
+X#define	MOVE	0		/* flags in color field */
+X#define	LINE_END -1
+X
+X
+Xtypedef	struct xyzf {
+X	  Pt3d p ;
+X	  short	color ;
+X	} XYZF ;
+X
+X
+X
+X
+X
+X
+X#endif	LINE_OBJECT
+SHAR_EOF
+len=`wc -c < line_object.h`
+if test $len != 406 ; then
+echo shar: line_object.h was $len bytes long, should have been 406
+fi
+fi # end of overwriting check
+
+if test -f missile_line.h ; then
+echo shar: will not over-write existing file missile_line.h
+else
+echo shar: extracting missile_line.h, 596 characters
+sed 's/^X//' > missile_line.h <<'SHAR_EOF'
+X/*	@(#)missile_line.h 1.1 92/05/28 SMI	*/
+X/*	from missile_line.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{{  0.5,  0.0,  0.0}, MOVE},
+X	{{ -0.5,  0.0,  0.0}, RED},
+X	{{  0.0,  0.5,  0.0}, MOVE},
+X	{{  0.0, -0.5,  0.0}, RED},
+X	{{  0.0,  0.0,  3.0}, MOVE},
+X	{{  0.0,  0.0,  0.0}, RED},
+X	{{  1.5,  1.5,  0.5}, MOVE},
+X	{{ -1.5, -1.5, -0.5}, YELLOW},
+X	{{ -1.5,  1.5,  0.5}, MOVE},
+X	{{  1.5, -1.5, -0.5}, YELLOW},
+X	{{  1.5, -1.5,  0.5}, MOVE},
+X	{{ -1.5,  1.5, -0.5}, YELLOW},
+X	{{ -1.5, -1.5,  0.5}, MOVE},
+X	{{  1.5,  1.5, -0.5}, YELLOW},
+X	{{0.0, 0.0, 0.0}, LINE_END}
+SHAR_EOF
+len=`wc -c < missile_line.h`
+if test $len != 596 ; then
+echo shar: missile_line.h was $len bytes long, should have been 596
+fi
+fi # end of overwriting check
+
+if test -f monolith_bsp.h ; then
+echo shar: will not over-write existing file monolith_bsp.h
+else
+echo shar: extracting monolith_bsp.h, 1629 characters
+sed 's/^X//' > monolith_bsp.h <<'SHAR_EOF'
+X/*	@(#)monolith_bsp.h 1.1 92/05/28 SMI	*/
+X/*	from monolith_bsp.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono1[] = {
+X	{-40.0, -10.0, -90.0},
+X	{ 40.0, -10.0, -90.0},
+X	{ 40.0,  10.0, -90.0},
+X	{-40.0,  10.0, -90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0, 0.0, -1.0},
+X	WHITE,0,
+X	0,1,{4,0,0},
+X	Vmono1,NULL,NULL} ;
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono2[] = {
+X	{-40.0, -10.0,  90.0},
+X	{ 40.0, -10.0,  90.0},
+X	{ 40.0,  10.0,  90.0},
+X	{-40.0,  10.0,  90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0, 0.0,  1.0},
+X	WHITE,0,
+X	0,1,{4,0,0},
+X	Vmono2,NULL,&Nmono1} ;
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono3[] = {
+X	{-40.0, -10.0, -90.0},
+X	{-40.0, -10.0,  90.0},
+X	{-40.0,  10.0,  90.0},
+X	{-40.0,  10.0, -90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-1.0, 0.0, 0.0},
+X	LGREY,0,
+X	0,1,{4,0,0},
+X	Vmono3,NULL,&Nmono2} ;
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono4[] = {
+X	{ 40.0, -10.0, -90.0},
+X	{ 40.0, -10.0,  90.0},
+X	{ 40.0,  10.0,  90.0},
+X	{ 40.0,  10.0, -90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{1.0, 0.0, 0.0},
+X	LGREY,0,
+X	0,1,{4,0,0},
+X	Vmono4,NULL,&Nmono3} ;
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono5[] = {
+X	{-40.0, -10.0, -90.0},
+X	{ 40.0, -10.0, -90.0},
+X	{ 40.0, -10.0,  90.0},
+X	{-40.0, -10.0,  90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0, -1.0, 0.0},
+X	GREY,0,
+X	0,1,{4,0,0},
+X	Vmono5,NULL,&Nmono4} ;
+X
+X
+X
+X
+Xstatic	Pt3d	Vmono6[] = {
+X	{-40.0,  10.0, -90.0},
+X	{ 40.0,  10.0, -90.0},
+X	{ 40.0,  10.0,  90.0},
+X	{-40.0,  10.0,  90.0}} ;
+X
+Xstatic	Bsp_Node	Nmono6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0, 1.0, 0.0},
+X	GREY,0,
+X	0,1,{4,0,0},
+X	Vmono6,NULL,&Nmono5} ;
+SHAR_EOF
+len=`wc -c < monolith_bsp.h`
+if test $len != 1629 ; then
+echo shar: monolith_bsp.h was $len bytes long, should have been 1629
+fi
+fi # end of overwriting check
+
+if test -f netio.h ; then
+echo shar: will not over-write existing file netio.h
+else
+echo shar: extracting netio.h, 6473 characters
+sed 's/^X//' > netio.h <<'SHAR_EOF'
+X/*	@(#)netio.h 1.1 92/05/28 SMI	*/
+X/*	from netio.h 1.4 90/07/23		*/
+X
+X
+X#ifndef	DSTAR_NETIO
+X#define	DSTAR_NETIO
+X
+X#include <netinet/in.h>
+X
+X#ifndef	OBJECT_TYPES
+X#include "object_types.h"
+X#endif	OBJECT_TYPES
+X
+X
+X/* if there's more than this many players in the game, use broadcast
+X   messages instead of point-to-point */
+X
+X#define	BROADCAST_THRESH 5
+X
+X#define	MESSAGE_LENGTH	1024		/* maximum datagram length */
+X
+X#define	MAX_DAEMONS	10		/* max # nets in game */
+X
+X
+X/*
+X * this constant determine the port addresses that the game and
+X * the daemon will try to contact each other on.  The exact values are
+X * not important as long as they are greater than 1024 and are unique
+X * within the local network
+X */
+X
+X#define	DSTAR_PORT	3314
+X
+X
+X
+X
+X/*
+X * datagram headers.  Multiple messages may be packed into a single
+X * datagram.  All headers contain their length so that they may be
+X * skipped over by software that doesn't recognize them.  All
+X * messages (player->player, player->daemon, daemon->player) fit
+X * these categories.
+X */
+X
+X/*
+X * KLUDGE ALERT!  WHOOP WHOOP WHOOP!
+X *
+X * This communications protocol assumes that all the machines on the
+X * net have the same byte ordering and data padding.  This is an
+X * unreasonable assumption, and it's already caused trouble porting
+X * to sun-4.  To do this right would require using the XDR protocol
+X * which I'm too lazy to adapt to.
+X */
+X
+X
+Xtypedef enum header_type {
+X	  NET_NULL,			/* no message			*/
+X	  NET_JOINING,			/* I'm joining game		*/
+X	  NET_WELCOME,			/* acknowledgement		*/
+X	  NET_ARE_YOU_THERE,		/* check to see if still alive	*/
+X	  NET_JUST_SCORED,		/* I just shot someone		*/
+X	  NET_NEW_SCORES,		/* update score info		*/
+X	  NET_CURRENT_STATUS,		/* here's a new status block	*/
+X	  NET_REQUEST_MISSILE,		/* want new missile id		*/
+X	  NET_MISSILE,			/* response to above		*/
+X	  NET_DIED,			/* some player has timed out	*/
+X	  NET_BROADCAST,		/* request to rebroadcast a message */
+X	  NET_RENAME,			/* move player from slot to slot */
+X	} Header_Type ;
+X
+X
+X
+X
+X
+X/*
+X * null message
+X */
+X
+Xtypedef	struct net_null {
+X	  Header_Type	type ;		/* identifier = NET_NULL */
+X	  int		len ;		/* sizeof(Net_null) */
+X	  int		id ;		/* sender's id */
+X	  int		sequence ;	/* sender's sequence # */
+X	} Net_null ;
+X
+X
+X/*
+X * message to submaster from new player
+X */
+Xtypedef	struct net_joining {
+X	  Header_Type	type ;		/* identifier = NET_JOINING */
+X	  int		len ;		/* sizeof(Net_joining)	*/
+X	  int		id ;		/* assigned by submaster */
+X	  int		sequence ;
+X	  char		name[NAMELEN] ;	/* player's name	*/
+X	  Object_Class	class ;		/* player's class	*/
+X	  struct sockaddr_in address ;	/* player's address	*/
+X	} Net_joining ;
+X
+X
+X/*
+X * message to new player from daemon
+X */
+Xtypedef	struct net_welcome {
+X	  Header_Type	type ;		/* identifier = NET_WELCOME */
+X	  int		len ;		/* sizeof(Net_welcome) */
+X	  int		id ;		/* master id */
+X	  int		sequence ;
+X	  int		player_id ;	/* player's id number */
+X	  int		team ;		/* player's team number */
+X	  Game_Type	game_type ;	/* scenario */
+X	} Net_welcome ;
+X
+X
+X/*
+X * message to player from submaster if timing out
+X */
+Xtypedef	struct net_are_you_there {
+X	  Header_Type	type ;		/* identifier = NET_ARE_YOU_THERE */
+X	  int		len ;		/* sizeof(Net_are_you_there) */
+X	  int		id ;
+X	  int		sequence ;
+X	  int		his_id ;
+X	} Net_are_you_there ;
+X
+X
+X
+X
+X
+X/*
+X * message to all players from player that shot someone
+X */
+Xtypedef	struct net_just_scored {
+X	  Header_Type	type ;		/* identifier = NET_JUST_SCORED */
+X	  int		len ;		/* sizeof(Net_just_scored) */
+X	  int		id ;		/* player's id */
+X	  int		sequence ;
+X	  int		weapon_id ;	/* weapon's (me or missile) id */
+X	  int		his_id ;	/* victim's id */
+X	} Net_just_scored ;
+X
+X
+X/*
+X * message to all players from daemon keeping score
+X */
+Xtypedef	struct net_new_scores {
+X	  Header_Type	type ;		/* identifier = NET_NEW_SCORES */
+X	  int		len ;		/* length of this message */
+X	  int		id ;
+X	  int		sequence ;
+X	  int		nscores ;	/* total # of scores in array */
+X	  int		scores[2] ;	/* this is an array, player:score */
+X	} Net_new_scores ;
+X
+X
+X/*
+X * message from player to player with current status
+X */
+Xtypedef	struct net_current_status {
+X	  Header_Type	type ;		/* identifier = NET_CURRENT_STATUS */
+X	  int		len ;		/* sizeof(Net_current_status)	*/
+X	  int		id ;
+X	  int		sequence ;
+X	  int		obj_id ;
+X	  char		name[NAMELEN] ;	/* pilot's name			*/
+X	  int		team ;		/* player's team or object's owner */
+X	  int		score ;		/* player's score		*/
+X	  Object_Class	class ;		/* ship type			*/
+X	  Object_State	status ;	/* ship status			*/
+X	  u_int		flags ;		/* radar, laser etc.		*/
+X	  Pt3d		Posn,		/* ship position & orientation	*/
+X			Forward,
+X			Up,
+X			Right ;
+X	  Pt3d		Delta ;		/* amount object is turning	*/
+X	  Pt3d		Pointing ;	/* direction player is looking	*/
+X	  float		Speed ;		/* velocity along Forward vector */
+X	  int		target ;	/* id of target if radar locked	*/
+X	  int		description ;	/* index into object table	*/
+X	  struct sockaddr_in address ;	/* net address			*/
+X	  long		net_addr ;	/* what local net are we?	*/
+X	} Net_current_status ;
+X
+X
+X
+X/*
+X * message from player to master asking for a missile assignment
+X */
+Xtypedef	struct net_request_missile {
+X	  Header_Type	type ;		/* identifier = NET_REQUEST_MISSILE */
+X	  int		len ;		/* sizeof(Net_request_missile) */
+X	  int		id ;
+X	  int		sequence ;
+X	} Net_request_missile ;
+X
+X
+X
+X
+X/*
+X * message from master to player making assignment
+X */
+Xtypedef	struct net_missile {
+X	  Header_Type	type ;		/* identifier = NET_MISSILE */
+X	  int		len ;		/* sizeof(Net_missile) */
+X	  int		id ;
+X	  int		sequence ;
+X	  int		missile_id ;	/* returned missile id */
+X	} Net_missile ;
+X
+X
+X
+X
+X/*
+X * message to all players about a player that timed out or quit
+X */
+Xtypedef	struct net_died {
+X	  Header_Type	type ;		/* identifier = NET_DIED */
+X	  int		len ;		/* sizeof(Net_died) */
+X	  int		id ;		/* master's id */
+X	  int		sequence ;
+X	  int		his_id ;	/* dead player's id */
+X	} Net_died ;
+X
+X
+X
+X/*
+X * message to all players from master that changed id
+X */
+Xtypedef	struct net_rename {
+X	  Header_Type	type ;		/* identifier = NET_RENAME */
+X	  int		len ;		/* sizeof(Net_rename) */
+X	  int		id ;		/* master's id */
+X	  int		sequence ;
+X	  int		new_id ;	/* new id */
+X	} Net_rename ;
+X
+X
+X
+X/*
+X * request to rebroadcast a message
+X */
+Xtypedef	struct net_broadcast {
+X	  Header_Type	type ;		/* identifier = NET_BROADCAST */
+X	  int		len ;		/* size of total packet */
+X	  int		id ;		/* id */
+X	  int		sequence ;
+X	} Net_broadcast ;
+X
+X
+X
+X
+X
+X	int	sequence_number ;
+X	int	status_display ;
+X	int	poll_master ;
+X	int	need_rehash ;
+X	int	master_id ;
+X
+X
+X
+X#endif	DSTAR_NETIO
+SHAR_EOF
+len=`wc -c < netio.h`
+if test $len != 6473 ; then
+echo shar: netio.h was $len bytes long, should have been 6473
+fi
+fi # end of overwriting check
+
+if test -f object_types.h ; then
+echo shar: will not over-write existing file object_types.h
+else
+echo shar: extracting object_types.h, 3335 characters
+sed 's/^X//' > object_types.h <<'SHAR_EOF'
+X/*	@(#)object_types.h 1.1 92/05/28 SMI	*/
+X/*	from object_types.h 1.3 90/05/02 SMI	*/
+X
+X/*
+X * this file is type definitions for object descriptions.
+X *
+X */
+X
+X#ifndef	OBJECT_TYPES
+X#define	OBJECT_TYPES
+X
+X
+X#include <sys/types.h>
+X#include <netinet/in.h>
+X#ifndef	DSTAR_PARAMETERS
+X#include "parameters.h"
+X#endif	DSTAR_PARAMETERS
+X
+X#define	F_NEWSTAT	0		/* control vector */
+X#define	F_CONTROL	1
+X#define	F_KILLED	2
+X#define	F_SCORED	3
+X#define	VECTOR_LENGTH	4
+X
+X#define	LASER_FLAG	1	/* laser is on */
+X#define	RADAR_FLAG	2	/* radar is on */
+X#define	ROBOT_FLAG	4	/* automatic pilot of some sort */
+X
+X
+Xtypedef	enum object_class {
+X	  OBJ_EMPTY,		/* free slot in object list */
+X	  OBJ_STATIC,		/* planets and things */
+X	  OBJ_PLAYER,		/* active player */
+X	  OBJ_MISSILE,		/* missile */
+X	} Object_Class ;
+X
+Xtypedef	enum object_state {
+X	  OBJ_ACTIVE,		/* flying & playing */
+X	  OBJ_SLEEPING,		/* closed or something */
+X	  OBJ_DEAD,		/* just got blown up */
+X	  OBJ_KILLED,		/* just got blown up, but doesn't know it */
+X	} Object_State ;
+X
+X
+X
+Xtypedef	enum object_types {
+X	  LINE_DRAWING,		/* object description types */
+X	  BSP_TREE,
+X	} Object_Types ;
+X
+X
+Xtypedef	enum	{
+X	  GAME_FREE,			/* free-for-all */
+X	  GAME_TEAMS,			/* two teams */
+X	} Game_Type ;
+X
+Xtypedef enum {
+X	  UNKNOWN,
+X	  SLAVE,
+X	  SUBMASTER,
+X	  MASTER,
+X	} Net_status ;
+X
+X
+Xtypedef	int	(*fptr)() ;
+X
+X
+X#define	BLAST_DESC	0	/* index into description table */
+X#define	FIGHTER1_DESC	1	/* index into description table */
+X#define	FIGHTER2_DESC	2	/* index into description table */
+X#define	MISSILE_DESC	14	/* a missile */
+X#define	PLANET1_DESC	15	/* index into description table */
+X#define	MONOLITH_DESC	16	/* index into description table */
+X
+X
+X
+Xtypedef struct	object_desc {
+X	  float		thresh ;	/* min. distance to use this descr */
+X	  struct object_desc *next ;	/* ptr to next level of descr */
+X	  Object_Types	type ;		/* type of descriptor */
+X	  caddr_t	first ;		/* first item in descriptor */
+X	} Object_Desc ;
+X
+X
+X
+X
+X
+X
+X
+X
+Xtypedef	struct	object {
+X	  int		id ;		/* player's id			*/
+X	  char		name[NAMELEN] ;	/* pilot's name			*/
+X	  int		team ;		/* player's team or object's owner */
+X	  int		score ;		/* player's score		*/
+X	  Object_Class	class ;		/* object type			*/
+X	  Object_State	status ;	/* object status		*/
+X	  u_int		flags ;		/* radar, laser etc.		*/
+X	  Pt3d		Posn,		/* ship position & orientation	*/
+X			Forward,
+X			Up,
+X			Right ;
+X	  Pt3d		Delta ;		/* amount object is turning	*/
+X	  Pt3d		Pointing ;	/* direction player is looking	*/
+X	  float		Speed ;		/* velocity along Forward vector */
+X	  struct object	*target ;	/* for missiles etc.		*/
+X	  float		time ;		/* for missiles etc.		*/
+X	  int		description ;	/* index into object table	*/
+X	  struct sockaddr_in address ;	/* internet address		*/
+X	  int		sequence ;	/* sequence # of last report	*/
+X	  struct timeval last_rep ;	/* time of last report		*/
+X	  long		net_addr ;	/* what local net are we?	*/
+X	  Net_status	net_status ;	/* what duties do we have?	*/
+X	  struct object	*next_net ;	/* next subnet			*/
+X	  struct object	*next_subnet ;	/* next object in this subnet	*/
+X	  int		net_num ;	/* # objects in this subnet	*/
+X	  fptr		f_vector[VECTOR_LENGTH] ;
+X	} Object ;
+X
+X
+X
+X	Game_Type	game_type ;
+X
+X	int		num_missiles ;
+X	Object		objects[MAX_OBJECTS] ;
+X	Object		*missiles[MAX_MISSILES] ;
+X	Object		*Me ;
+X
+X	Object_Desc	*descriptions[MAX_DESCRIPTIONS] ;
+X
+X
+X
+X#endif	OBJECT_TYPES
+SHAR_EOF
+len=`wc -c < object_types.h`
+if test $len != 3335 ; then
+echo shar: object_types.h was $len bytes long, should have been 3335
+fi
+fi # end of overwriting check
+
+if test -f parameters.h ; then
+echo shar: will not over-write existing file parameters.h
+else
+echo shar: extracting parameters.h, 2555 characters
+sed 's/^X//' > parameters.h <<'SHAR_EOF'
+X/*	@(#)parameters.h 1.2 92/05/28 SMI	*/
+X/*	from parameters.h 1.3 90/07/23 SMI	*/
+X
+X/*
+X * This file contains compilation parameters for the game
+X */
+X
+X
+X#ifndef DSTAR_PARAMETERS
+X#define	DSTAR_PARAMETERS
+X
+X
+X#define	MAX_PLAYERS	20
+X
+X
+X
+X#define	NAMELEN	32		/* player name@host maximum length */
+X#define	MAX_OBJECTS	20	/* max # objects game can handle */
+X#define	MAX_DESCRIPTIONS 20	/* max # object types */
+X#define	MAX_MISSILES	8	/* max # of missiles player can handle*/
+X#define	MISSILES_PER_LIFE 10	/* limited number of missiles */
+X
+X
+X
+X
+X
+X/*
+X * these constants increment your score after you kill someone or are killed
+X * respectively
+X */
+X
+X#define	SCORE_KILL	10
+X#define	SCORE_KILLED	5
+X
+X
+X
+X/* laser beam limit
+X */
+X
+X#define	LASER_RANGE	50.0		/* distance beam is effective */
+X#define	LASER_THRESH	2.0		/* how close it has to come */
+X
+X
+X	/* note: given that the view angle is +/- 45 degrees, we want
+X	   the delta vector to accurately reflect the place the player
+X	   is pointing.  Therefore, we scale by 2*tan(45) = 2.  Change
+X	   this if the view angle changes */
+X
+X#define	VIEWSCALE	2.0
+X
+X
+X/* radar limits
+X */
+X
+X#define	RADAR_RANGE	3000.0		/* distance you can lock up within */
+X#define	RADAR_ANGLE	15.0		/* +/- radar detection angle	*/
+X#define	RADAR_TAN	0.2679		/* tan(RADAR_ANGLE)		*/
+X
+X
+X
+X/* autopilot limits
+X */
+X
+X#define	AUTO_RANGE	3000.0		/* distance you can lock up within */
+X#define	MAX_TURN	0.3		/* max Rate Of Turn		*/
+X#define	MAX_TURN_ERROR	0.001		/* max R.O.T. error before kicking in */
+X#define	MAX_SLEW	0.3		/* maximum R.O.T. slew rate	*/
+X#define	SCAN_TURN	0.1		/* R.O.T. while searching	*/
+X#define	FEEDBACK_GAIN	2.0		/* controls how tightly we track */
+X#define	ROLL_RATE	0.3		/* how fast ship rolls		*/
+X
+X
+X/*
+X * time interval for display updates
+X */
+X
+X#define	DISPLAY_INTERVAL	50000		/* microseconds */
+X#define	FLASH_INTERVAL		500000		/* how long screen flashes */
+X#define	DEATH_INTERVAL		5		/* how long you stay dead */
+X#define	POLL_INTERVAL		10		/* how long between polls */
+X#define	SLEEP_INTERVAL		10		/* time between updates */
+X
+X
+X/*
+X * default speed
+X */
+X
+X#define	DEFAULT_SPEED	25.0
+X
+X
+X/*
+X * missile parameters
+X */
+X#define	MISSILE_SPEED	(DEFAULT_SPEED*3.0)
+X#define	MISSILE_LIFE	5.0		/* lifetime in seconds */
+X#define	MISSILE_REGEN	0.6		/* lifetime in seconds */
+X#define MISSILE_RANGE	3000.0		/* locking range */
+X#define	MISSILE_TURN	1.0		/* maximum rate of turn */
+X#define	MISSILE_SLEW	1.0		/* r.o.t. slew rate */
+X#define	MISSILE_THRESH	5.0		/* how close it has to come */
+X#define	MISSILE_GAIN	6.0		/* controls how tightly we track */
+X
+X
+X#endif	DSTAR_PARAMETERS
+SHAR_EOF
+len=`wc -c < parameters.h`
+if test $len != 2555 ; then
+echo shar: parameters.h was $len bytes long, should have been 2555
+fi
+fi # end of overwriting check
+
+if test -f planet1.h ; then
+echo shar: will not over-write existing file planet1.h
+else
+echo shar: extracting planet1.h, 50794 characters
+sed 's/^X//' > planet1.h <<'SHAR_EOF'
+X/*	@(#)planet1.h 1.1 92/05/28 SMI	*/
+X/*	from planet1.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+Xstatic	Pt3d		VSphere1_10_5[] = {
+X	{-97.1376,17.3649,16.2096},
+X	{-97.1376,17.3649,-16.2091},
+X	{-97.1377,-17.3647,-16.2092},
+X	{-97.1376,-17.3647,16.2096}};
+Xstatic	Bsp_Node	NSphere1_10_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-1,1.31808e-06,2.35339e-06},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_5,NULL,NULL,};
+Xstatic	Pt3d		VSphere1_10_4[] = {
+X	{-85.4213,50.0001,14.2545},
+X	{-85.4214,50.0001,-14.2541},
+X	{-97.1376,17.3649,-16.2091},
+X	{-97.1376,17.3649,16.2096}};
+Xstatic	Bsp_Node	NSphere1_10_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.941185,0.337892,2.51877e-06},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_4,NULL,&NSphere1_10_5,};
+Xstatic	Pt3d		VSphere1_10_6[] = {
+X	{-97.1376,-17.3647,16.2096},
+X	{-97.1377,-17.3647,-16.2092},
+X	{-85.4215,-49.9999,-14.2541},
+X	{-85.4214,-49.9999,14.2545}};
+Xstatic	Bsp_Node	NSphere1_10_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.941186,-0.33789,2.21497e-06},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_6,NULL,&NSphere1_10_4,};
+Xstatic	Pt3d		VSphere1_10_3[] = {
+X	{-63.402,76.6045,10.5801},
+X	{-63.4021,76.6045,-10.5798},
+X	{-85.4214,50.0001,-14.2541},
+X	{-85.4213,50.0001,14.2545}};
+Xstatic	Bsp_Node	NSphere1_10_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.770368,0.6376,2.08323e-06},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_3,NULL,&NSphere1_10_6,};
+Xstatic	Pt3d		VSphere1_10_7[] = {
+X	{-85.4214,-49.9999,14.2545},
+X	{-85.4215,-49.9999,-14.2541},
+X	{-63.4023,-76.6043,-10.5798},
+X	{-63.4022,-76.6043,10.5801}};
+Xstatic	Bsp_Node	NSphere1_10_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.770369,-0.637598,2.06164e-06},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_7,NULL,&NSphere1_10_3,};
+Xstatic	Pt3d		VSphere1_10_2[] = {
+X	{-33.7355,93.9693,5.62954},
+X	{-33.7355,93.9693,-5.62937},
+X	{-63.4021,76.6045,-10.5798},
+X	{-63.402,76.6045,10.5801}};
+Xstatic	Bsp_Node	NSphere1_10_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.505158,0.863027,1.19809e-06},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_2,NULL,&NSphere1_10_7,};
+Xstatic	Pt3d		VSphere1_10_8[] = {
+X	{-63.4022,-76.6043,10.5801},
+X	{-63.4023,-76.6043,-10.5798},
+X	{-33.7358,-93.9692,-5.62941},
+X	{-33.7357,-93.9692,5.62958}};
+Xstatic	Bsp_Node	NSphere1_10_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.50516,-0.863026,1.27498e-06},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_8,NULL,&NSphere1_10_2,};
+Xstatic	Pt3d		VSphere1_10_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-33.7355,93.9693,-5.62937},
+X	{-33.7355,93.9693,5.62954}};
+Xstatic	Bsp_Node	NSphere1_10_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.175975,0.984395,4.17362e-07},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_1,NULL,&NSphere1_10_8,};
+Xstatic	Pt3d		VSphere1_10_9[] = {
+X	{-33.7357,-93.9692,5.62958},
+X	{-33.7358,-93.9692,-5.62941},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_10_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.175977,-0.984394,4.76986e-07},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_10_9,NULL,&NSphere1_10_1,};
+Xstatic	Pt3d		VSphere1_9_9[] = {
+X	{-30.0799,-93.9692,16.2785},
+X	{-33.7357,-93.9692,5.62958},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_9_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.166442,-0.984394,0.0571399},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_9,NULL,&NSphere1_10_9,};
+Xstatic	Pt3d		VSphere1_11_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-30.0798,93.9693,-16.2783},
+X	{-33.7355,93.9693,-5.62937}};
+Xstatic	Bsp_Node	NSphere1_11_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.16644,0.984395,-0.0571386},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_1,NULL,&NSphere1_9_9,};
+Xstatic	Pt3d		VSphere1_9_8[] = {
+X	{-56.5315,-76.6043,30.5935},
+X	{-63.4022,-76.6043,10.5801},
+X	{-33.7357,-93.9692,5.62958},
+X	{-30.0799,-93.9692,16.2785}};
+Xstatic	Bsp_Node	NSphere1_9_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.477789,-0.863026,0.164026},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_8,NULL,&NSphere1_11_1,};
+Xstatic	Pt3d		VSphere1_11_2[] = {
+X	{-33.7355,93.9693,-5.62937},
+X	{-30.0798,93.9693,-16.2783},
+X	{-56.5315,76.6045,-30.5931},
+X	{-63.4021,76.6045,-10.5798}};
+Xstatic	Bsp_Node	NSphere1_11_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.477788,0.863027,-0.164023},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_2,NULL,&NSphere1_9_8,};
+Xstatic	Pt3d		VSphere1_9_7[] = {
+X	{-76.1646,-49.9999,41.2185},
+X	{-85.4214,-49.9999,14.2545},
+X	{-63.4022,-76.6043,10.5801},
+X	{-56.5315,-76.6043,30.5935}};
+Xstatic	Bsp_Node	NSphere1_9_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.728628,-0.637598,0.25014},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_7,NULL,&NSphere1_11_2,};
+Xstatic	Pt3d		VSphere1_11_3[] = {
+X	{-63.4021,76.6045,-10.5798},
+X	{-56.5315,76.6045,-30.5931},
+X	{-76.1647,50.0001,-41.218},
+X	{-85.4214,50.0001,-14.2541}};
+Xstatic	Bsp_Node	NSphere1_11_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.728628,0.6376,-0.250136},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_3,NULL,&NSphere1_9_7,};
+Xstatic	Pt3d		VSphere1_9_6[] = {
+X	{-86.6112,-17.3647,46.8719},
+X	{-97.1376,-17.3647,16.2096},
+X	{-85.4214,-49.9999,14.2545},
+X	{-76.1646,-49.9999,41.2185}};
+Xstatic	Bsp_Node	NSphere1_9_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.890189,-0.33789,0.305604},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_6,NULL,&NSphere1_11_3,};
+Xstatic	Pt3d		VSphere1_11_4[] = {
+X	{-85.4214,50.0001,-14.2541},
+X	{-76.1647,50.0001,-41.218},
+X	{-86.6114,17.3649,-46.8714},
+X	{-97.1376,17.3649,-16.2091}};
+Xstatic	Bsp_Node	NSphere1_11_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.89019,0.337892,-0.3056},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_4,NULL,&NSphere1_9_6,};
+Xstatic	Pt3d		VSphere1_9_5[] = {
+X	{-86.6111,17.3649,46.8718},
+X	{-97.1376,17.3649,16.2096},
+X	{-97.1376,-17.3647,16.2096},
+X	{-86.6112,-17.3647,46.8719}};
+Xstatic	Bsp_Node	NSphere1_9_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.945816,1.31799e-06,0.324702},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_5,NULL,&NSphere1_11_4,};
+Xstatic	Pt3d		VSphere1_11_5[] = {
+X	{-97.1376,17.3649,-16.2091},
+X	{-86.6114,17.3649,-46.8714},
+X	{-86.6114,-17.3647,-46.8714},
+X	{-97.1377,-17.3647,-16.2092}};
+Xstatic	Bsp_Node	NSphere1_11_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.945818,1.46065e-06,-0.324697},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_5,NULL,&NSphere1_9_5,};
+Xstatic	Pt3d		VSphere1_9_4[] = {
+X	{-76.1645,50.0001,41.2184},
+X	{-85.4213,50.0001,14.2545},
+X	{-97.1376,17.3649,16.2096},
+X	{-86.6111,17.3649,46.8718}};
+Xstatic	Bsp_Node	NSphere1_9_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.890188,0.337892,0.305604},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_4,NULL,&NSphere1_11_5,};
+Xstatic	Pt3d		VSphere1_11_6[] = {
+X	{-97.1377,-17.3647,-16.2092},
+X	{-86.6114,-17.3647,-46.8714},
+X	{-76.1648,-49.9999,-41.2181},
+X	{-85.4215,-49.9999,-14.2541}};
+Xstatic	Bsp_Node	NSphere1_11_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.89019,-0.33789,-0.3056},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_6,NULL,&NSphere1_9_4,};
+Xstatic	Pt3d		VSphere1_9_3[] = {
+X	{-56.5314,76.6045,30.5934},
+X	{-63.402,76.6045,10.5801},
+X	{-85.4213,50.0001,14.2545},
+X	{-76.1645,50.0001,41.2184}};
+Xstatic	Bsp_Node	NSphere1_9_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.728626,0.6376,0.250139},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_3,NULL,&NSphere1_11_6,};
+Xstatic	Pt3d		VSphere1_11_7[] = {
+X	{-85.4215,-49.9999,-14.2541},
+X	{-76.1648,-49.9999,-41.2181},
+X	{-56.5317,-76.6043,-30.5932},
+X	{-63.4023,-76.6043,-10.5798}};
+Xstatic	Bsp_Node	NSphere1_11_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.728629,-0.637598,-0.250137},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_7,NULL,&NSphere1_9_3,};
+Xstatic	Pt3d		VSphere1_9_2[] = {
+X	{-30.0797,93.9693,16.2784},
+X	{-33.7355,93.9693,5.62954},
+X	{-63.402,76.6045,10.5801},
+X	{-56.5314,76.6045,30.5934}};
+Xstatic	Bsp_Node	NSphere1_9_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.477787,0.863027,0.164026},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_2,NULL,&NSphere1_11_7,};
+Xstatic	Pt3d		VSphere1_11_8[] = {
+X	{-63.4023,-76.6043,-10.5798},
+X	{-56.5317,-76.6043,-30.5932},
+X	{-30.08,-93.9692,-16.2784},
+X	{-33.7358,-93.9692,-5.62941}};
+Xstatic	Bsp_Node	NSphere1_11_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.47779,-0.863026,-0.164024},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_8,NULL,&NSphere1_9_2,};
+Xstatic	Pt3d		VSphere1_9_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-33.7355,93.9693,5.62954},
+X	{-30.0797,93.9693,16.2784}};
+Xstatic	Bsp_Node	NSphere1_9_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.16644,0.984395,0.0571394},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_9_1,NULL,&NSphere1_11_8,};
+Xstatic	Pt3d		VSphere1_11_9[] = {
+X	{-33.7358,-93.9692,-5.62941},
+X	{-30.08,-93.9692,-16.2784},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_11_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.166442,-0.984394,-0.057139},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_11_9,NULL,&NSphere1_9_1,};
+Xstatic	Pt3d		VSphere1_8_9[] = {
+X	{-23.1645,-93.9692,25.1634},
+X	{-30.0799,-93.9692,16.2785},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_8_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.13887,-0.984394,0.108087},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_9,NULL,&NSphere1_11_9,};
+Xstatic	Pt3d		VSphere1_12_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-23.1645,93.9693,-25.1631},
+X	{-30.0798,93.9693,-16.2783}};
+Xstatic	Bsp_Node	NSphere1_12_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.138869,0.984395,-0.108086},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_1,NULL,&NSphere1_8_9,};
+Xstatic	Pt3d		VSphere1_8_8[] = {
+X	{-43.5348,-76.6043,47.2916},
+X	{-56.5315,-76.6043,30.5935},
+X	{-30.0799,-93.9692,16.2785},
+X	{-23.1645,-93.9692,25.1634}};
+Xstatic	Bsp_Node	NSphere1_8_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.398642,-0.863026,0.310277},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_8,NULL,&NSphere1_12_1,};
+Xstatic	Pt3d		VSphere1_12_2[] = {
+X	{-30.0798,93.9693,-16.2783},
+X	{-23.1645,93.9693,-25.1631},
+X	{-43.535,76.6045,-47.2912},
+X	{-56.5315,76.6045,-30.5931}};
+Xstatic	Bsp_Node	NSphere1_12_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.398642,0.863027,-0.310273},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_2,NULL,&NSphere1_8_8,};
+Xstatic	Pt3d		VSphere1_8_7[] = {
+X	{-58.6542,-49.9999,63.7157},
+X	{-76.1646,-49.9999,41.2185},
+X	{-56.5315,-76.6043,30.5935},
+X	{-43.5348,-76.6043,47.2916}};
+Xstatic	Bsp_Node	NSphere1_8_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.607929,-0.637598,0.473172},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_7,NULL,&NSphere1_12_2,};
+Xstatic	Pt3d		VSphere1_12_3[] = {
+X	{-56.5315,76.6045,-30.5931},
+X	{-43.535,76.6045,-47.2912},
+X	{-58.6545,50.0001,-63.7153},
+X	{-76.1647,50.0001,-41.218}};
+Xstatic	Bsp_Node	NSphere1_12_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.60793,0.6376,-0.473168},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_3,NULL,&NSphere1_8_7,};
+Xstatic	Pt3d		VSphere1_8_6[] = {
+X	{-66.6991,-17.3647,72.4548},
+X	{-86.6112,-17.3647,46.8719},
+X	{-76.1646,-49.9999,41.2185},
+X	{-58.6542,-49.9999,63.7157}};
+Xstatic	Bsp_Node	NSphere1_8_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.742726,-0.33789,0.57809},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_6,NULL,&NSphere1_12_3,};
+Xstatic	Pt3d		VSphere1_12_4[] = {
+X	{-76.1647,50.0001,-41.218},
+X	{-58.6545,50.0001,-63.7153},
+X	{-66.6994,17.3649,-72.4544},
+X	{-86.6114,17.3649,-46.8714}};
+Xstatic	Bsp_Node	NSphere1_12_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.742729,0.337892,-0.578085},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_4,NULL,&NSphere1_8_6,};
+Xstatic	Pt3d		VSphere1_8_5[] = {
+X	{-66.6991,17.3649,72.4548},
+X	{-86.6111,17.3649,46.8718},
+X	{-86.6112,-17.3647,46.8719},
+X	{-66.6991,-17.3647,72.4548}};
+Xstatic	Bsp_Node	NSphere1_8_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.789139,1.27158e-06,0.614214},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_5,NULL,&NSphere1_12_4,};
+Xstatic	Pt3d		VSphere1_12_5[] = {
+X	{-86.6114,17.3649,-46.8714},
+X	{-66.6994,17.3649,-72.4544},
+X	{-66.6995,-17.3647,-72.4545},
+X	{-86.6114,-17.3647,-46.8714}};
+Xstatic	Bsp_Node	NSphere1_12_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.789143,1.23315e-06,-0.61421},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_5,NULL,&NSphere1_8_5,};
+Xstatic	Pt3d		VSphere1_8_4[] = {
+X	{-58.6542,50.0001,63.7156},
+X	{-76.1645,50.0001,41.2184},
+X	{-86.6111,17.3649,46.8718},
+X	{-66.6991,17.3649,72.4548}};
+Xstatic	Bsp_Node	NSphere1_8_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.742726,0.337892,0.578089},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_4,NULL,&NSphere1_12_5,};
+Xstatic	Pt3d		VSphere1_12_6[] = {
+X	{-86.6114,-17.3647,-46.8714},
+X	{-66.6995,-17.3647,-72.4545},
+X	{-58.6546,-49.9999,-63.7154},
+X	{-76.1648,-49.9999,-41.2181}};
+Xstatic	Bsp_Node	NSphere1_12_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.742729,-0.33789,-0.578086},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_6,NULL,&NSphere1_8_4,};
+Xstatic	Pt3d		VSphere1_8_3[] = {
+X	{-43.5347,76.6045,47.2915},
+X	{-56.5314,76.6045,30.5934},
+X	{-76.1645,50.0001,41.2184},
+X	{-58.6542,50.0001,63.7156}};
+Xstatic	Bsp_Node	NSphere1_8_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.607927,0.6376,0.473171},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_3,NULL,&NSphere1_12_6,};
+Xstatic	Pt3d		VSphere1_12_7[] = {
+X	{-76.1648,-49.9999,-41.2181},
+X	{-58.6546,-49.9999,-63.7154},
+X	{-43.5351,-76.6043,-47.2914},
+X	{-56.5317,-76.6043,-30.5932}};
+Xstatic	Bsp_Node	NSphere1_12_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.607931,-0.637598,-0.473169},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_7,NULL,&NSphere1_8_3,};
+Xstatic	Pt3d		VSphere1_8_2[] = {
+X	{-23.1643,93.9693,25.1633},
+X	{-30.0797,93.9693,16.2784},
+X	{-56.5314,76.6045,30.5934},
+X	{-43.5347,76.6045,47.2915}};
+Xstatic	Bsp_Node	NSphere1_8_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.39864,0.863027,0.310275},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_2,NULL,&NSphere1_12_7,};
+Xstatic	Pt3d		VSphere1_12_8[] = {
+X	{-56.5317,-76.6043,-30.5932},
+X	{-43.5351,-76.6043,-47.2914},
+X	{-23.1646,-93.9692,-25.1633},
+X	{-30.08,-93.9692,-16.2784}};
+Xstatic	Bsp_Node	NSphere1_12_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.398643,-0.863026,-0.310275},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_8,NULL,&NSphere1_8_2,};
+Xstatic	Pt3d		VSphere1_8_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-30.0797,93.9693,16.2784},
+X	{-23.1643,93.9693,25.1633}};
+Xstatic	Bsp_Node	NSphere1_8_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.138869,0.984395,0.108086},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_8_1,NULL,&NSphere1_12_8,};
+Xstatic	Pt3d		VSphere1_12_9[] = {
+X	{-30.08,-93.9692,-16.2784},
+X	{-23.1646,-93.9692,-25.1633},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_12_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.138871,-0.984394,-0.108087},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_12_9,NULL,&NSphere1_8_1,};
+Xstatic	Pt3d		VSphere1_7_9[] = {
+X	{-13.7388,-93.9692,31.3215},
+X	{-23.1645,-93.9692,25.1634},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_7_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0962498,-0.984394,0.147322},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_9,NULL,&NSphere1_12_9,};
+Xstatic	Pt3d		VSphere1_13_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-13.7389,93.9693,-31.3212},
+X	{-23.1645,93.9693,-25.1631}};
+Xstatic	Bsp_Node	NSphere1_13_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0962498,0.984395,-0.14732},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_1,NULL,&NSphere1_7_9,};
+Xstatic	Pt3d		VSphere1_7_8[] = {
+X	{-25.8204,-76.6043,58.865},
+X	{-43.5348,-76.6043,47.2916},
+X	{-23.1645,-93.9692,25.1634},
+X	{-13.7388,-93.9692,31.3215}};
+Xstatic	Bsp_Node	NSphere1_7_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.276296,-0.863026,0.422904},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_8,NULL,&NSphere1_13_1,};
+Xstatic	Pt3d		VSphere1_13_2[] = {
+X	{-23.1645,93.9693,-25.1631},
+X	{-13.7389,93.9693,-31.3212},
+X	{-25.8207,76.6045,-58.8646},
+X	{-43.535,76.6045,-47.2912}};
+Xstatic	Bsp_Node	NSphere1_13_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.276297,0.863027,-0.422901},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_2,NULL,&NSphere1_7_8,};
+Xstatic	Pt3d		VSphere1_7_7[] = {
+X	{-34.7877,-49.9999,79.3084},
+X	{-58.6542,-49.9999,63.7157},
+X	{-43.5348,-76.6043,47.2916},
+X	{-25.8204,-76.6043,58.865}};
+Xstatic	Bsp_Node	NSphere1_7_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.421351,-0.637598,0.644928},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_7,NULL,&NSphere1_13_2,};
+Xstatic	Pt3d		VSphere1_13_3[] = {
+X	{-43.535,76.6045,-47.2912},
+X	{-25.8207,76.6045,-58.8646},
+X	{-34.7881,50.0001,-79.3081},
+X	{-58.6545,50.0001,-63.7153}};
+Xstatic	Bsp_Node	NSphere1_13_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.421353,0.6376,-0.644924},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_3,NULL,&NSphere1_7_7,};
+Xstatic	Pt3d		VSphere1_7_6[] = {
+X	{-39.5591,-17.3647,90.1862},
+X	{-66.6991,-17.3647,72.4548},
+X	{-58.6542,-49.9999,63.7157},
+X	{-34.7877,-49.9999,79.3084}};
+Xstatic	Bsp_Node	NSphere1_7_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.514778,-0.33789,0.78793},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_6,NULL,&NSphere1_13_3,};
+Xstatic	Pt3d		VSphere1_13_4[] = {
+X	{-58.6545,50.0001,-63.7153},
+X	{-34.7881,50.0001,-79.3081},
+X	{-39.5596,17.3649,-90.1859},
+X	{-66.6994,17.3649,-72.4544}};
+Xstatic	Bsp_Node	NSphere1_13_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.514782,0.337892,-0.787927},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_4,NULL,&NSphere1_7_6,};
+Xstatic	Pt3d		VSphere1_7_5[] = {
+X	{-39.5591,17.3649,90.1861},
+X	{-66.6991,17.3649,72.4548},
+X	{-66.6991,-17.3647,72.4548},
+X	{-39.5591,-17.3647,90.1862}};
+Xstatic	Bsp_Node	NSphere1_7_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.546947,1.21625e-06,0.837167},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_5,NULL,&NSphere1_13_4,};
+Xstatic	Pt3d		VSphere1_13_5[] = {
+X	{-66.6994,17.3649,-72.4544},
+X	{-39.5596,17.3649,-90.1859},
+X	{-39.5596,-17.3647,-90.186},
+X	{-66.6995,-17.3647,-72.4545}};
+Xstatic	Bsp_Node	NSphere1_13_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.546951,1.21993e-06,-0.837165},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_5,NULL,&NSphere1_7_5,};
+Xstatic	Pt3d		VSphere1_7_4[] = {
+X	{-34.7877,50.0001,79.3083},
+X	{-58.6542,50.0001,63.7156},
+X	{-66.6991,17.3649,72.4548},
+X	{-39.5591,17.3649,90.1861}};
+Xstatic	Bsp_Node	NSphere1_7_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.514778,0.337892,0.787929},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_4,NULL,&NSphere1_13_5,};
+Xstatic	Pt3d		VSphere1_13_6[] = {
+X	{-66.6995,-17.3647,-72.4545},
+X	{-39.5596,-17.3647,-90.186},
+X	{-34.7882,-49.9999,-79.3083},
+X	{-58.6546,-49.9999,-63.7154}};
+Xstatic	Bsp_Node	NSphere1_13_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.514782,-0.33789,-0.787927},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_6,NULL,&NSphere1_7_4,};
+Xstatic	Pt3d		VSphere1_7_3[] = {
+X	{-25.8204,76.6045,58.8648},
+X	{-43.5347,76.6045,47.2915},
+X	{-58.6542,50.0001,63.7156},
+X	{-34.7877,50.0001,79.3083}};
+Xstatic	Bsp_Node	NSphere1_7_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.42135,0.6376,0.644927},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_3,NULL,&NSphere1_13_6,};
+Xstatic	Pt3d		VSphere1_13_7[] = {
+X	{-58.6546,-49.9999,-63.7154},
+X	{-34.7882,-49.9999,-79.3083},
+X	{-25.8208,-76.6043,-58.8648},
+X	{-43.5351,-76.6043,-47.2914}};
+Xstatic	Bsp_Node	NSphere1_13_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.421354,-0.637598,-0.644926},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_7,NULL,&NSphere1_7_3,};
+Xstatic	Pt3d		VSphere1_7_2[] = {
+X	{-13.7387,93.9693,31.3213},
+X	{-23.1643,93.9693,25.1633},
+X	{-43.5347,76.6045,47.2915},
+X	{-25.8204,76.6045,58.8648}};
+Xstatic	Bsp_Node	NSphere1_7_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.276295,0.863027,0.422902},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_2,NULL,&NSphere1_13_7,};
+Xstatic	Pt3d		VSphere1_13_8[] = {
+X	{-43.5351,-76.6043,-47.2914},
+X	{-25.8208,-76.6043,-58.8648},
+X	{-13.739,-93.9692,-31.3214},
+X	{-23.1646,-93.9692,-25.1633}};
+Xstatic	Bsp_Node	NSphere1_13_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.276298,-0.863026,-0.422902},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_8,NULL,&NSphere1_7_2,};
+Xstatic	Pt3d		VSphere1_7_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-23.1643,93.9693,25.1633},
+X	{-13.7387,93.9693,31.3213}};
+Xstatic	Bsp_Node	NSphere1_7_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.096249,0.984395,0.147321},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_7_1,NULL,&NSphere1_13_8,};
+Xstatic	Pt3d		VSphere1_13_9[] = {
+X	{-23.1646,-93.9692,-25.1633},
+X	{-13.739,-93.9692,-31.3214},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_13_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0962505,-0.984394,-0.147321},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_13_9,NULL,&NSphere1_7_1,};
+Xstatic	Pt3d		VSphere1_6_9[] = {
+X	{-2.82435,-93.9692,34.0854},
+X	{-13.7388,-93.9692,31.3215},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_6_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0431994,-0.984394,0.170592},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_9,NULL,&NSphere1_13_9,};
+Xstatic	Pt3d		VSphere1_14_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-2.82451,93.9693,-34.0852},
+X	{-13.7389,93.9693,-31.3212}};
+Xstatic	Bsp_Node	NSphere1_14_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0431999,0.984395,-0.17059},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_1,NULL,&NSphere1_6_9,};
+Xstatic	Pt3d		VSphere1_6_8[] = {
+X	{-5.30802,-76.6043,64.0594},
+X	{-25.8204,-76.6043,58.865},
+X	{-13.7388,-93.9692,31.3215},
+X	{-2.82435,-93.9692,34.0854}};
+Xstatic	Bsp_Node	NSphere1_6_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.124009,-0.863026,0.489703},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_8,NULL,&NSphere1_14_1,};
+Xstatic	Pt3d		VSphere1_14_2[] = {
+X	{-13.7389,93.9693,-31.3212},
+X	{-2.82451,93.9693,-34.0852},
+X	{-5.30834,76.6045,-64.0592},
+X	{-25.8207,76.6045,-58.8646}};
+Xstatic	Bsp_Node	NSphere1_14_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.124011,0.863027,-0.4897},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_2,NULL,&NSphere1_6_8,};
+Xstatic	Pt3d		VSphere1_6_7[] = {
+X	{-7.15147,-49.9999,86.3068},
+X	{-34.7877,-49.9999,79.3084},
+X	{-25.8204,-76.6043,58.865},
+X	{-5.30802,-76.6043,64.0594}};
+Xstatic	Bsp_Node	NSphere1_6_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.189113,-0.637598,0.746796},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_7,NULL,&NSphere1_14_2,};
+Xstatic	Pt3d		VSphere1_14_3[] = {
+X	{-25.8207,76.6045,-58.8646},
+X	{-5.30834,76.6045,-64.0592},
+X	{-7.15191,50.0001,-86.3067},
+X	{-34.7881,50.0001,-79.3081}};
+Xstatic	Bsp_Node	NSphere1_14_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.189117,0.6376,-0.746794},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_3,NULL,&NSphere1_6_7,};
+Xstatic	Pt3d		VSphere1_6_6[] = {
+X	{-8.13235,-17.3647,98.1445},
+X	{-39.5591,-17.3647,90.1862},
+X	{-34.7877,-49.9999,79.3084},
+X	{-7.15147,-49.9999,86.3068}};
+Xstatic	Bsp_Node	NSphere1_6_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.231046,-0.33789,0.912386},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_6,NULL,&NSphere1_14_3,};
+Xstatic	Pt3d		VSphere1_14_4[] = {
+X	{-34.7881,50.0001,-79.3081},
+X	{-7.15191,50.0001,-86.3067},
+X	{-8.13286,17.3649,-98.1444},
+X	{-39.5596,17.3649,-90.1859}};
+Xstatic	Bsp_Node	NSphere1_14_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.23105,0.337892,-0.912384},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_4,NULL,&NSphere1_6_6,};
+Xstatic	Pt3d		VSphere1_6_5[] = {
+X	{-8.13235,17.3649,98.1444},
+X	{-39.5591,17.3649,90.1861},
+X	{-39.5591,-17.3647,90.1862},
+X	{-8.13235,-17.3647,98.1445}};
+Xstatic	Bsp_Node	NSphere1_6_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.245484,1.19961e-06,0.969401},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_5,NULL,&NSphere1_14_4,};
+Xstatic	Pt3d		VSphere1_14_5[] = {
+X	{-39.5596,17.3649,-90.1859},
+X	{-8.13286,17.3649,-98.1444},
+X	{-8.13286,-17.3647,-98.1444},
+X	{-39.5596,-17.3647,-90.186}};
+Xstatic	Bsp_Node	NSphere1_14_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.245489,1.30471e-06,-0.969399},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_5,NULL,&NSphere1_6_5,};
+Xstatic	Pt3d		VSphere1_6_4[] = {
+X	{-7.15146,50.0001,86.3067},
+X	{-34.7877,50.0001,79.3083},
+X	{-39.5591,17.3649,90.1861},
+X	{-8.13235,17.3649,98.1444}};
+Xstatic	Bsp_Node	NSphere1_6_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.231046,0.337892,0.912385},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_4,NULL,&NSphere1_14_5,};
+Xstatic	Pt3d		VSphere1_14_6[] = {
+X	{-39.5596,-17.3647,-90.186},
+X	{-8.13286,-17.3647,-98.1444},
+X	{-7.15192,-49.9999,-86.3068},
+X	{-34.7882,-49.9999,-79.3083}};
+Xstatic	Bsp_Node	NSphere1_14_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.231051,-0.33789,-0.912385},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_6,NULL,&NSphere1_6_4,};
+Xstatic	Pt3d		VSphere1_6_3[] = {
+X	{-5.30801,76.6045,64.0592},
+X	{-25.8204,76.6045,58.8648},
+X	{-34.7877,50.0001,79.3083},
+X	{-7.15146,50.0001,86.3067}};
+Xstatic	Bsp_Node	NSphere1_6_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.189113,0.6376,0.746795},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_3,NULL,&NSphere1_14_6,};
+Xstatic	Pt3d		VSphere1_14_7[] = {
+X	{-34.7882,-49.9999,-79.3083},
+X	{-7.15192,-49.9999,-86.3068},
+X	{-5.30836,-76.6043,-64.0593},
+X	{-25.8208,-76.6043,-58.8648}};
+Xstatic	Bsp_Node	NSphere1_14_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.189117,-0.637598,-0.746795},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_7,NULL,&NSphere1_6_3,};
+Xstatic	Pt3d		VSphere1_6_2[] = {
+X	{-2.82433,93.9693,34.0852},
+X	{-13.7387,93.9693,31.3213},
+X	{-25.8204,76.6045,58.8648},
+X	{-5.30801,76.6045,64.0592}};
+Xstatic	Bsp_Node	NSphere1_6_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.124008,0.863027,0.489701},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_2,NULL,&NSphere1_14_7,};
+Xstatic	Pt3d		VSphere1_14_8[] = {
+X	{-25.8208,-76.6043,-58.8648},
+X	{-5.30836,-76.6043,-64.0593},
+X	{-2.82453,-93.9692,-34.0854},
+X	{-13.739,-93.9692,-31.3214}};
+Xstatic	Bsp_Node	NSphere1_14_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.124011,-0.863026,-0.489702},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_8,NULL,&NSphere1_6_2,};
+Xstatic	Pt3d		VSphere1_6_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-13.7387,93.9693,31.3213},
+X	{-2.82433,93.9693,34.0852}};
+Xstatic	Bsp_Node	NSphere1_6_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0431991,0.984395,0.17059},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_6_1,NULL,&NSphere1_14_8,};
+Xstatic	Pt3d		VSphere1_14_9[] = {
+X	{-13.739,-93.9692,-31.3214},
+X	{-2.82453,-93.9692,-34.0854},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_14_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{-0.0432003,-0.984394,-0.170592},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_14_9,NULL,&NSphere1_6_1,};
+Xstatic	Pt3d		VSphere1_5_9[] = {
+X	{8.39619,-93.9692,33.1556},
+X	{-2.82435,-93.9692,34.0854},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_5_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0145323,-0.984394,0.175375},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_9,NULL,&NSphere1_14_9,};
+Xstatic	Pt3d		VSphere1_15_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{8.39596,93.9693,-33.1555},
+X	{-2.82451,93.9693,-34.0852}};
+Xstatic	Bsp_Node	NSphere1_15_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0145312,0.984395,-0.175374},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_1,NULL,&NSphere1_5_9,};
+Xstatic	Pt3d		VSphere1_5_8[] = {
+X	{15.7796,-76.6043,62.312},
+X	{-5.30802,-76.6043,64.0594},
+X	{-2.82435,-93.9692,34.0854},
+X	{8.39619,-93.9692,33.1556}};
+Xstatic	Bsp_Node	NSphere1_5_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0417165,-0.863026,0.503435},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_8,NULL,&NSphere1_15_1,};
+Xstatic	Pt3d		VSphere1_15_2[] = {
+X	{-2.82451,93.9693,-34.0852},
+X	{8.39596,93.9693,-33.1555},
+X	{15.7792,76.6045,-62.3119},
+X	{-5.30834,76.6045,-64.0592}};
+Xstatic	Bsp_Node	NSphere1_15_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0417135,0.863027,-0.503433},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_2,NULL,&NSphere1_5_8,};
+Xstatic	Pt3d		VSphere1_5_7[] = {
+X	{21.2598,-49.9999,83.9526},
+X	{-7.15147,-49.9999,86.3068},
+X	{-5.30802,-76.6043,64.0594},
+X	{15.7796,-76.6043,62.312}};
+Xstatic	Bsp_Node	NSphere1_5_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0636175,-0.637598,0.767738},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_7,NULL,&NSphere1_15_2,};
+Xstatic	Pt3d		VSphere1_15_3[] = {
+X	{-5.30834,76.6045,-64.0592},
+X	{15.7792,76.6045,-62.3119},
+X	{21.2593,50.0001,-83.9526},
+X	{-7.15191,50.0001,-86.3067}};
+Xstatic	Bsp_Node	NSphere1_15_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0636133,0.6376,-0.767737},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_3,NULL,&NSphere1_5_7,};
+Xstatic	Pt3d		VSphere1_5_6[] = {
+X	{24.1757,-17.3647,95.4673},
+X	{-8.13235,-17.3647,98.1445},
+X	{-7.15147,-49.9999,86.3068},
+X	{21.2598,-49.9999,83.9526}};
+Xstatic	Bsp_Node	NSphere1_5_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0777236,-0.33789,0.937971},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_6,NULL,&NSphere1_15_3,};
+Xstatic	Pt3d		VSphere1_15_4[] = {
+X	{-7.15191,50.0001,-86.3067},
+X	{21.2593,50.0001,-83.9526},
+X	{24.1752,17.3649,-95.4674},
+X	{-8.13286,17.3649,-98.1444}};
+Xstatic	Bsp_Node	NSphere1_15_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0777186,0.337892,-0.937971},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_4,NULL,&NSphere1_5_6,};
+Xstatic	Pt3d		VSphere1_5_5[] = {
+X	{24.1757,17.3649,95.4672},
+X	{-8.13235,17.3649,98.1444},
+X	{-8.13235,-17.3647,98.1445},
+X	{24.1757,-17.3647,95.4673}};
+Xstatic	Bsp_Node	NSphere1_5_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0825806,1.30451e-06,0.996584},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_5,NULL,&NSphere1_15_4,};
+Xstatic	Pt3d		VSphere1_15_5[] = {
+X	{-8.13286,17.3649,-98.1444},
+X	{24.1752,17.3649,-95.4674},
+X	{24.1752,-17.3647,-95.4674},
+X	{-8.13286,-17.3647,-98.1444}};
+Xstatic	Bsp_Node	NSphere1_15_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0825752,1.34079e-06,-0.996585},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_5,NULL,&NSphere1_5_5,};
+Xstatic	Pt3d		VSphere1_5_4[] = {
+X	{21.2597,50.0001,83.9525},
+X	{-7.15146,50.0001,86.3067},
+X	{-8.13235,17.3649,98.1444},
+X	{24.1757,17.3649,95.4672}};
+Xstatic	Bsp_Node	NSphere1_5_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0777236,0.337892,0.93797},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_4,NULL,&NSphere1_15_5,};
+Xstatic	Pt3d		VSphere1_15_6[] = {
+X	{-8.13286,-17.3647,-98.1444},
+X	{24.1752,-17.3647,-95.4674},
+X	{21.2593,-49.9999,-83.9527},
+X	{-7.15192,-49.9999,-86.3068}};
+Xstatic	Bsp_Node	NSphere1_15_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0777186,-0.33789,-0.937971},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_6,NULL,&NSphere1_5_4,};
+Xstatic	Pt3d		VSphere1_5_3[] = {
+X	{15.7796,76.6045,62.3118},
+X	{-5.30801,76.6045,64.0592},
+X	{-7.15146,50.0001,86.3067},
+X	{21.2597,50.0001,83.9525}};
+Xstatic	Bsp_Node	NSphere1_5_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0636175,0.6376,0.767736},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_3,NULL,&NSphere1_15_6,};
+Xstatic	Pt3d		VSphere1_15_7[] = {
+X	{-7.15192,-49.9999,-86.3068},
+X	{21.2593,-49.9999,-83.9527},
+X	{15.7793,-76.6043,-62.3121},
+X	{-5.30836,-76.6043,-64.0593}};
+Xstatic	Bsp_Node	NSphere1_15_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0636133,-0.637598,-0.767738},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_7,NULL,&NSphere1_5_3,};
+Xstatic	Pt3d		VSphere1_5_2[] = {
+X	{8.39613,93.9693,33.1554},
+X	{-2.82433,93.9693,34.0852},
+X	{-5.30801,76.6045,64.0592},
+X	{15.7796,76.6045,62.3118}};
+Xstatic	Bsp_Node	NSphere1_5_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0417162,0.863027,0.503433},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_2,NULL,&NSphere1_15_7,};
+Xstatic	Pt3d		VSphere1_15_8[] = {
+X	{-5.30836,-76.6043,-64.0593},
+X	{15.7793,-76.6043,-62.3121},
+X	{8.39601,-93.9692,-33.1557},
+X	{-2.82453,-93.9692,-34.0854}};
+Xstatic	Bsp_Node	NSphere1_15_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0417137,-0.863026,-0.503435},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_8,NULL,&NSphere1_5_2,};
+Xstatic	Pt3d		VSphere1_5_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-2.82433,93.9693,34.0852},
+X	{8.39613,93.9693,33.1554}};
+Xstatic	Bsp_Node	NSphere1_5_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0145321,0.984395,0.175374},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_5_1,NULL,&NSphere1_15_8,};
+Xstatic	Pt3d		VSphere1_15_9[] = {
+X	{-2.82453,-93.9692,-34.0854},
+X	{8.39601,-93.9692,-33.1557},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_15_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0145313,-0.984394,-0.175376},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_15_9,NULL,&NSphere1_5_1,};
+Xstatic	Pt3d		VSphere1_4_9[] = {
+X	{18.7069,-93.9692,28.6329},
+X	{8.39619,-93.9692,33.1556},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_4_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0706891,-0.984394,0.161155},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_9,NULL,&NSphere1_15_9,};
+Xstatic	Pt3d		VSphere1_16_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{18.7066,93.9693,-28.6328},
+X	{8.39596,93.9693,-33.1555}};
+Xstatic	Bsp_Node	NSphere1_16_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0706877,0.984395,-0.161154},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_1,NULL,&NSphere1_4_9,};
+Xstatic	Pt3d		VSphere1_4_8[] = {
+X	{35.1573,-76.6043,53.8121},
+X	{15.7796,-76.6043,62.312},
+X	{8.39619,-93.9692,33.1556},
+X	{18.7069,-93.9692,28.6329}};
+Xstatic	Bsp_Node	NSphere1_4_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.202921,-0.863026,0.462612},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_8,NULL,&NSphere1_16_1,};
+Xstatic	Pt3d		VSphere1_16_2[] = {
+X	{8.39596,93.9693,-33.1555},
+X	{18.7066,93.9693,-28.6328},
+X	{35.1569,76.6045,-53.8121},
+X	{15.7792,76.6045,-62.3119}};
+Xstatic	Bsp_Node	NSphere1_16_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.202918,0.863027,-0.462611},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_2,NULL,&NSphere1_4_8,};
+Xstatic	Pt3d		VSphere1_4_7[] = {
+X	{47.3672,-49.9999,72.5008},
+X	{21.2598,-49.9999,83.9526},
+X	{15.7796,-76.6043,62.312},
+X	{35.1573,-76.6043,53.8121}};
+Xstatic	Bsp_Node	NSphere1_4_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.309455,-0.637598,0.705483},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_7,NULL,&NSphere1_16_2,};
+Xstatic	Pt3d		VSphere1_16_3[] = {
+X	{15.7792,76.6045,-62.3119},
+X	{35.1569,76.6045,-53.8121},
+X	{47.3668,50.0001,-72.5009},
+X	{21.2593,50.0001,-83.9526}};
+Xstatic	Bsp_Node	NSphere1_16_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.30945,0.6376,-0.705483},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_3,NULL,&NSphere1_4_7,};
+Xstatic	Pt3d		VSphere1_4_6[] = {
+X	{53.864,-17.3647,82.4448},
+X	{24.1757,-17.3647,95.4673},
+X	{21.2598,-49.9999,83.9526},
+X	{47.3672,-49.9999,72.5008}};
+Xstatic	Bsp_Node	NSphere1_4_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.378071,-0.33789,0.861912},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_6,NULL,&NSphere1_16_3,};
+Xstatic	Pt3d		VSphere1_16_4[] = {
+X	{21.2593,50.0001,-83.9526},
+X	{47.3668,50.0001,-72.5009},
+X	{53.8635,17.3649,-82.445},
+X	{24.1752,17.3649,-95.4674}};
+Xstatic	Bsp_Node	NSphere1_16_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.378066,0.337892,-0.861914},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_4,NULL,&NSphere1_4_6,};
+Xstatic	Pt3d		VSphere1_4_5[] = {
+X	{53.8639,17.3649,82.4447},
+X	{24.1757,17.3649,95.4672},
+X	{24.1757,-17.3647,95.4673},
+X	{53.864,-17.3647,82.4448}};
+Xstatic	Bsp_Node	NSphere1_4_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.401696,1.33943e-06,0.915773},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_5,NULL,&NSphere1_16_4,};
+Xstatic	Pt3d		VSphere1_16_5[] = {
+X	{24.1752,17.3649,-95.4674},
+X	{53.8635,17.3649,-82.445},
+X	{53.8635,-17.3647,-82.4451},
+X	{24.1752,-17.3647,-95.4674}};
+Xstatic	Bsp_Node	NSphere1_16_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.401692,1.27062e-06,-0.915775},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_5,NULL,&NSphere1_4_5,};
+Xstatic	Pt3d		VSphere1_4_4[] = {
+X	{47.3671,50.0001,72.5007},
+X	{21.2597,50.0001,83.9525},
+X	{24.1757,17.3649,95.4672},
+X	{53.8639,17.3649,82.4447}};
+Xstatic	Bsp_Node	NSphere1_4_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.37807,0.337892,0.861912},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_4,NULL,&NSphere1_16_5,};
+Xstatic	Pt3d		VSphere1_16_6[] = {
+X	{24.1752,-17.3647,-95.4674},
+X	{53.8635,-17.3647,-82.4451},
+X	{47.3668,-49.9999,-72.501},
+X	{21.2593,-49.9999,-83.9527}};
+Xstatic	Bsp_Node	NSphere1_16_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.378067,-0.33789,-0.861914},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_6,NULL,&NSphere1_4_4,};
+Xstatic	Pt3d		VSphere1_4_3[] = {
+X	{35.1572,76.6045,53.812},
+X	{15.7796,76.6045,62.3118},
+X	{21.2597,50.0001,83.9525},
+X	{47.3671,50.0001,72.5007}};
+Xstatic	Bsp_Node	NSphere1_4_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.309454,0.6376,0.705482},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_3,NULL,&NSphere1_16_6,};
+Xstatic	Pt3d		VSphere1_16_7[] = {
+X	{21.2593,-49.9999,-83.9527},
+X	{47.3668,-49.9999,-72.501},
+X	{35.157,-76.6043,-53.8123},
+X	{15.7793,-76.6043,-62.3121}};
+Xstatic	Bsp_Node	NSphere1_16_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.309451,-0.637598,-0.705485},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_7,NULL,&NSphere1_4_3,};
+Xstatic	Pt3d		VSphere1_4_2[] = {
+X	{18.7067,93.9693,28.6327},
+X	{8.39613,93.9693,33.1554},
+X	{15.7796,76.6045,62.3118},
+X	{35.1572,76.6045,53.812}};
+Xstatic	Bsp_Node	NSphere1_4_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.20292,0.863027,0.46261},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_2,NULL,&NSphere1_16_7,};
+Xstatic	Pt3d		VSphere1_16_8[] = {
+X	{15.7793,-76.6043,-62.3121},
+X	{35.157,-76.6043,-53.8123},
+X	{18.7067,-93.9692,-28.633},
+X	{8.39601,-93.9692,-33.1557}};
+Xstatic	Bsp_Node	NSphere1_16_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.202919,-0.863026,-0.462613},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_8,NULL,&NSphere1_4_2,};
+Xstatic	Pt3d		VSphere1_4_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{8.39613,93.9693,33.1554},
+X	{18.7067,93.9693,28.6327}};
+Xstatic	Bsp_Node	NSphere1_4_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0706886,0.984395,0.161153},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_4_1,NULL,&NSphere1_16_8,};
+Xstatic	Pt3d		VSphere1_16_9[] = {
+X	{8.39601,-93.9692,-33.1557},
+X	{18.7067,-93.9692,-28.633},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_16_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.0706883,-0.984394,-0.161155},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_16_9,NULL,&NSphere1_4_1,};
+Xstatic	Pt3d		VSphere1_3_9[] = {
+X	{26.9904,-93.9692,21.0074},
+X	{18.7069,-93.9692,28.6329},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_3_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.119186,-0.984394,0.12947},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_9,NULL,&NSphere1_16_9,};
+Xstatic	Pt3d		VSphere1_17_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{26.9901,93.9693,-21.0074},
+X	{18.7066,93.9693,-28.6328}};
+Xstatic	Bsp_Node	NSphere1_17_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.119184,0.984395,-0.12947},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_1,NULL,&NSphere1_3_9,};
+Xstatic	Pt3d		VSphere1_3_8[] = {
+X	{50.7251,-76.6043,39.4809},
+X	{35.1573,-76.6043,53.8121},
+X	{18.7069,-93.9692,28.6329},
+X	{26.9904,-93.9692,21.0074}};
+Xstatic	Bsp_Node	NSphere1_3_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.342136,-0.863026,0.371658},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_8,NULL,&NSphere1_17_1,};
+Xstatic	Pt3d		VSphere1_17_2[] = {
+X	{18.7066,93.9693,-28.6328},
+X	{26.9901,93.9693,-21.0074},
+X	{50.7248,76.6045,-39.481},
+X	{35.1569,76.6045,-53.8121}};
+Xstatic	Bsp_Node	NSphere1_17_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.342133,0.863027,-0.371659},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_2,NULL,&NSphere1_3_8,};
+Xstatic	Pt3d		VSphere1_3_7[] = {
+X	{68.3417,-49.9999,53.1924},
+X	{47.3672,-49.9999,72.5008},
+X	{35.1573,-76.6043,53.8121},
+X	{50.7251,-76.6043,39.4809}};
+Xstatic	Bsp_Node	NSphere1_3_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.521757,-0.637598,0.566779},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_7,NULL,&NSphere1_17_2,};
+Xstatic	Pt3d		VSphere1_17_3[] = {
+X	{35.1569,76.6045,-53.8121},
+X	{50.7248,76.6045,-39.481},
+X	{68.3413,50.0001,-53.1927},
+X	{47.3668,50.0001,-72.5009}};
+Xstatic	Bsp_Node	NSphere1_17_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.521753,0.6376,-0.56678},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_3,NULL,&NSphere1_3_7,};
+Xstatic	Pt3d		VSphere1_3_6[] = {
+X	{77.7152,-17.3647,60.4881},
+X	{53.864,-17.3647,82.4448},
+X	{47.3672,-49.9999,72.5008},
+X	{68.3417,-49.9999,53.1924}};
+Xstatic	Bsp_Node	NSphere1_3_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.637448,-0.33789,0.692452},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_6,NULL,&NSphere1_17_3,};
+Xstatic	Pt3d		VSphere1_17_4[] = {
+X	{47.3668,50.0001,-72.5009},
+X	{68.3413,50.0001,-53.1927},
+X	{77.7149,17.3649,-60.4885},
+X	{53.8635,17.3649,-82.445}};
+Xstatic	Bsp_Node	NSphere1_17_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.637444,0.337892,-0.692455},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_4,NULL,&NSphere1_3_6,};
+Xstatic	Pt3d		VSphere1_3_5[] = {
+X	{77.7152,17.3649,60.4881},
+X	{53.8639,17.3649,82.4447},
+X	{53.864,-17.3647,82.4448},
+X	{77.7152,-17.3647,60.4881}};
+Xstatic	Bsp_Node	NSphere1_3_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.677282,1.32887e-06,0.735723},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_5,NULL,&NSphere1_17_4,};
+Xstatic	Pt3d		VSphere1_17_5[] = {
+X	{53.8635,17.3649,-82.445},
+X	{77.7149,17.3649,-60.4885},
+X	{77.7149,-17.3647,-60.4885},
+X	{53.8635,-17.3647,-82.4451}};
+Xstatic	Bsp_Node	NSphere1_17_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.677278,1.30961e-06,-0.735727},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_5,NULL,&NSphere1_3_5,};
+Xstatic	Pt3d		VSphere1_3_4[] = {
+X	{68.3416,50.0001,53.1923},
+X	{47.3671,50.0001,72.5007},
+X	{53.8639,17.3649,82.4447},
+X	{77.7152,17.3649,60.4881}};
+Xstatic	Bsp_Node	NSphere1_3_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.637448,0.337892,0.692452},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_4,NULL,&NSphere1_17_5,};
+Xstatic	Pt3d		VSphere1_17_6[] = {
+X	{53.8635,-17.3647,-82.4451},
+X	{77.7149,-17.3647,-60.4885},
+X	{68.3414,-49.9999,-53.1927},
+X	{47.3668,-49.9999,-72.501}};
+Xstatic	Bsp_Node	NSphere1_17_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.637444,-0.33789,-0.692456},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_6,NULL,&NSphere1_3_4,};
+Xstatic	Pt3d		VSphere1_3_3[] = {
+X	{50.725,76.6045,39.4808},
+X	{35.1572,76.6045,53.812},
+X	{47.3671,50.0001,72.5007},
+X	{68.3416,50.0001,53.1923}};
+Xstatic	Bsp_Node	NSphere1_3_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.521756,0.6376,0.566778},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_3,NULL,&NSphere1_17_6,};
+Xstatic	Pt3d		VSphere1_17_7[] = {
+X	{47.3668,-49.9999,-72.501},
+X	{68.3414,-49.9999,-53.1927},
+X	{50.7249,-76.6043,-39.4812},
+X	{35.157,-76.6043,-53.8123}};
+Xstatic	Bsp_Node	NSphere1_17_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.521754,-0.637598,-0.566781},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_7,NULL,&NSphere1_3_3,};
+Xstatic	Pt3d		VSphere1_3_2[] = {
+X	{26.9902,93.9693,21.0073},
+X	{18.7067,93.9693,28.6327},
+X	{35.1572,76.6045,53.812},
+X	{50.725,76.6045,39.4808}};
+Xstatic	Bsp_Node	NSphere1_3_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.342135,0.863027,0.371657},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_2,NULL,&NSphere1_17_7,};
+Xstatic	Pt3d		VSphere1_17_8[] = {
+X	{35.157,-76.6043,-53.8123},
+X	{50.7249,-76.6043,-39.4812},
+X	{26.9903,-93.9692,-21.0076},
+X	{18.7067,-93.9692,-28.633}};
+Xstatic	Bsp_Node	NSphere1_17_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.342134,-0.863026,-0.37166},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_8,NULL,&NSphere1_3_2,};
+Xstatic	Pt3d		VSphere1_3_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{18.7067,93.9693,28.6327},
+X	{26.9902,93.9693,21.0073}};
+Xstatic	Bsp_Node	NSphere1_3_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.119185,0.984395,0.129469},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_3_1,NULL,&NSphere1_17_8,};
+Xstatic	Pt3d		VSphere1_17_9[] = {
+X	{18.7067,-93.9692,-28.633},
+X	{26.9903,-93.9692,-21.0076},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_17_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.119185,-0.984394,-0.129471},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_17_9,NULL,&NSphere1_3_1,};
+Xstatic	Pt3d		VSphere1_2_9[] = {
+X	{32.3491,-93.9692,11.1054},
+X	{26.9904,-93.9692,21.0074},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_2_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.154767,-0.984394,0.0837555},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_9,NULL,&NSphere1_17_9,};
+Xstatic	Pt3d		VSphere1_18_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{32.3488,93.9693,-11.1055},
+X	{26.9901,93.9693,-21.0074}};
+Xstatic	Bsp_Node	NSphere1_18_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.154765,0.984395,-0.0837556},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_1,NULL,&NSphere1_2_9,};
+Xstatic	Pt3d		VSphere1_2_8[] = {
+X	{60.7961,-76.6043,20.8713},
+X	{50.7251,-76.6043,39.4809},
+X	{26.9904,-93.9692,21.0074},
+X	{32.3491,-93.9692,11.1054}};
+Xstatic	Bsp_Node	NSphere1_2_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.444275,-0.863026,0.24043},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_8,NULL,&NSphere1_18_1,};
+Xstatic	Pt3d		VSphere1_18_2[] = {
+X	{26.9901,93.9693,-21.0074},
+X	{32.3488,93.9693,-11.1055},
+X	{60.7958,76.6045,-20.8716},
+X	{50.7248,76.6045,-39.481}};
+Xstatic	Bsp_Node	NSphere1_18_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.444272,0.863027,-0.240431},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_2,NULL,&NSphere1_2_8,};
+Xstatic	Pt3d		VSphere1_2_7[] = {
+X	{81.9103,-49.9999,28.1198},
+X	{68.3417,-49.9999,53.1924},
+X	{50.7251,-76.6043,39.4809},
+X	{60.7961,-76.6043,20.8713}};
+Xstatic	Bsp_Node	NSphere1_2_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.67752,-0.637598,0.366655},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_7,NULL,&NSphere1_18_2,};
+Xstatic	Pt3d		VSphere1_18_3[] = {
+X	{50.7248,76.6045,-39.481},
+X	{60.7958,76.6045,-20.8716},
+X	{81.91,50.0001,-28.1202},
+X	{68.3413,50.0001,-53.1927}};
+Xstatic	Bsp_Node	NSphere1_18_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.677516,0.6376,-0.366658},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_3,NULL,&NSphere1_2_7,};
+Xstatic	Pt3d		VSphere1_2_6[] = {
+X	{93.1449,-17.3647,31.9766},
+X	{77.7152,-17.3647,60.4881},
+X	{68.3417,-49.9999,53.1924},
+X	{81.9103,-49.9999,28.1198}};
+Xstatic	Bsp_Node	NSphere1_2_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.827748,-0.33789,0.447955},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_6,NULL,&NSphere1_18_3,};
+Xstatic	Pt3d		VSphere1_18_4[] = {
+X	{68.3413,50.0001,-53.1927},
+X	{81.91,50.0001,-28.1202},
+X	{93.1446,17.3649,-31.9771},
+X	{77.7149,17.3649,-60.4885}};
+Xstatic	Bsp_Node	NSphere1_18_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.827745,0.337892,-0.447958},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_4,NULL,&NSphere1_2_6,};
+Xstatic	Pt3d		VSphere1_2_5[] = {
+X	{93.1448,17.3649,31.9766},
+X	{77.7152,17.3649,60.4881},
+X	{77.7152,-17.3647,60.4881},
+X	{93.1449,-17.3647,31.9766}};
+Xstatic	Bsp_Node	NSphere1_2_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.879474,1.33196e-06,0.475947},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_5,NULL,&NSphere1_18_4,};
+Xstatic	Pt3d		VSphere1_18_5[] = {
+X	{77.7149,17.3649,-60.4885},
+X	{93.1446,17.3649,-31.9771},
+X	{93.1447,-17.3647,-31.9771},
+X	{77.7149,-17.3647,-60.4885}};
+Xstatic	Bsp_Node	NSphere1_18_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.879472,1.36833e-06,-0.475951},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_5,NULL,&NSphere1_2_5,};
+Xstatic	Pt3d		VSphere1_2_4[] = {
+X	{81.9101,50.0001,28.1198},
+X	{68.3416,50.0001,53.1923},
+X	{77.7152,17.3649,60.4881},
+X	{93.1448,17.3649,31.9766}};
+Xstatic	Bsp_Node	NSphere1_2_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.827747,0.337892,0.447954},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_4,NULL,&NSphere1_18_5,};
+Xstatic	Pt3d		VSphere1_18_6[] = {
+X	{77.7149,-17.3647,-60.4885},
+X	{93.1447,-17.3647,-31.9771},
+X	{81.9101,-49.9999,-28.1202},
+X	{68.3414,-49.9999,-53.1927}};
+Xstatic	Bsp_Node	NSphere1_18_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.827746,-0.33789,-0.447959},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_6,NULL,&NSphere1_2_4,};
+Xstatic	Pt3d		VSphere1_2_3[] = {
+X	{60.7959,76.6045,20.8713},
+X	{50.725,76.6045,39.4808},
+X	{68.3416,50.0001,53.1923},
+X	{81.9101,50.0001,28.1198}};
+Xstatic	Bsp_Node	NSphere1_2_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.677518,0.6376,0.366654},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_3,NULL,&NSphere1_18_6,};
+Xstatic	Pt3d		VSphere1_18_7[] = {
+X	{68.3414,-49.9999,-53.1927},
+X	{81.9101,-49.9999,-28.1202},
+X	{60.796,-76.6043,-20.8716},
+X	{50.7249,-76.6043,-39.4812}};
+Xstatic	Bsp_Node	NSphere1_18_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.677518,-0.637598,-0.366658},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_7,NULL,&NSphere1_2_3,};
+Xstatic	Pt3d		VSphere1_2_2[] = {
+X	{32.3488,93.9693,11.1054},
+X	{26.9902,93.9693,21.0073},
+X	{50.725,76.6045,39.4808},
+X	{60.7959,76.6045,20.8713}};
+Xstatic	Bsp_Node	NSphere1_2_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.444273,0.863027,0.240429},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_2,NULL,&NSphere1_18_7,};
+Xstatic	Pt3d		VSphere1_18_8[] = {
+X	{50.7249,-76.6043,-39.4812},
+X	{60.796,-76.6043,-20.8716},
+X	{32.349,-93.9692,-11.1056},
+X	{26.9903,-93.9692,-21.0076}};
+Xstatic	Bsp_Node	NSphere1_18_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.444274,-0.863026,-0.240432},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_8,NULL,&NSphere1_2_2,};
+Xstatic	Pt3d		VSphere1_2_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{26.9902,93.9693,21.0073},
+X	{32.3488,93.9693,11.1054}};
+Xstatic	Bsp_Node	NSphere1_2_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.154766,0.984395,0.0837549},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_2_1,NULL,&NSphere1_18_8,};
+Xstatic	Pt3d		VSphere1_18_9[] = {
+X	{26.9903,-93.9692,-21.0076},
+X	{32.349,-93.9692,-11.1056},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_18_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.154766,-0.984394,-0.0837563},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_18_9,NULL,&NSphere1_2_1,};
+Xstatic	Pt3d		VSphere1_1_9[] = {
+X	{34.2022,-93.9692,0},
+X	{32.3491,-93.9692,11.1054},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_1_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.173576,-0.984394,0.0289648},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_9,NULL,&NSphere1_18_9,};
+Xstatic	Pt3d		VSphere1_19_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{34.202,93.9693,0},
+X	{32.3488,93.9693,-11.1055}};
+Xstatic	Bsp_Node	NSphere1_19_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.173575,0.984395,-0.028965},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_1,NULL,&NSphere1_1_9,};
+Xstatic	Pt3d		VSphere1_1_8[] = {
+X	{64.2789,-76.6043,0},
+X	{60.7961,-76.6043,20.8713},
+X	{32.3491,-93.9692,11.1054},
+X	{34.2022,-93.9692,0}};
+Xstatic	Bsp_Node	NSphere1_1_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.498271,-0.863026,0.0831466},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_8,NULL,&NSphere1_19_1,};
+Xstatic	Pt3d		VSphere1_19_2[] = {
+X	{32.3488,93.9693,-11.1055},
+X	{34.202,93.9693,0},
+X	{64.2787,76.6045,0},
+X	{60.7958,76.6045,-20.8716}};
+Xstatic	Bsp_Node	NSphere1_19_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.498268,0.863027,-0.0831475},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_2,NULL,&NSphere1_1_8,};
+Xstatic	Pt3d		VSphere1_1_7[] = {
+X	{86.6026,-49.9999,0},
+X	{81.9103,-49.9999,28.1198},
+X	{60.7961,-76.6043,20.8713},
+X	{64.2789,-76.6043,0}};
+Xstatic	Bsp_Node	NSphere1_1_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.759862,-0.637598,0.126798},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_7,NULL,&NSphere1_19_2,};
+Xstatic	Pt3d		VSphere1_19_3[] = {
+X	{60.7958,76.6045,-20.8716},
+X	{64.2787,76.6045,0},
+X	{86.6025,50.0001,0},
+X	{81.91,50.0001,-28.1202}};
+Xstatic	Bsp_Node	NSphere1_19_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.759861,0.6376,-0.1268},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_3,NULL,&NSphere1_1_7,};
+Xstatic	Pt3d		VSphere1_1_6[] = {
+X	{98.4808,-17.3647,0},
+X	{93.1449,-17.3647,31.9766},
+X	{81.9103,-49.9999,28.1198},
+X	{86.6026,-49.9999,0}};
+Xstatic	Bsp_Node	NSphere1_1_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.928349,-0.33789,0.154914},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_6,NULL,&NSphere1_19_3,};
+Xstatic	Pt3d		VSphere1_19_4[] = {
+X	{81.91,50.0001,-28.1202},
+X	{86.6025,50.0001,0},
+X	{98.4808,17.3649,0},
+X	{93.1446,17.3649,-31.9771}};
+Xstatic	Bsp_Node	NSphere1_19_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.928348,0.337892,-0.154916},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_4,NULL,&NSphere1_1_6,};
+Xstatic	Pt3d		VSphere1_1_5[] = {
+X	{98.4808,17.3649,0},
+X	{93.1448,17.3649,31.9766},
+X	{93.1449,-17.3647,31.9766},
+X	{98.4808,-17.3647,0}};
+Xstatic	Bsp_Node	NSphere1_1_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.986361,1.15573e-06,0.164594},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_5,NULL,&NSphere1_19_4,};
+Xstatic	Pt3d		VSphere1_19_5[] = {
+X	{93.1446,17.3649,-31.9771},
+X	{98.4808,17.3649,0},
+X	{98.4808,-17.3647,0},
+X	{93.1447,-17.3647,-31.9771}};
+Xstatic	Bsp_Node	NSphere1_19_5 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.986361,1.3001e-06,-0.164597},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_5,NULL,&NSphere1_1_5,};
+Xstatic	Pt3d		VSphere1_1_4[] = {
+X	{86.6025,50.0001,0},
+X	{81.9101,50.0001,28.1198},
+X	{93.1448,17.3649,31.9766},
+X	{98.4808,17.3649,0}};
+Xstatic	Bsp_Node	NSphere1_1_4 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.928348,0.337892,0.154914},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_4,NULL,&NSphere1_19_5,};
+Xstatic	Pt3d		VSphere1_19_6[] = {
+X	{93.1447,-17.3647,-31.9771},
+X	{98.4808,-17.3647,0},
+X	{86.6026,-49.9999,0},
+X	{81.9101,-49.9999,-28.1202}};
+Xstatic	Bsp_Node	NSphere1_19_6 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.928349,-0.33789,-0.154916},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_6,NULL,&NSphere1_1_4,};
+Xstatic	Pt3d		VSphere1_1_3[] = {
+X	{64.2787,76.6045,0},
+X	{60.7959,76.6045,20.8713},
+X	{81.9101,50.0001,28.1198},
+X	{86.6025,50.0001,0}};
+Xstatic	Bsp_Node	NSphere1_1_3 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.759861,0.6376,0.126798},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_3,NULL,&NSphere1_19_6,};
+Xstatic	Pt3d		VSphere1_19_7[] = {
+X	{81.9101,-49.9999,-28.1202},
+X	{86.6026,-49.9999,0},
+X	{64.2789,-76.6043,0},
+X	{60.796,-76.6043,-20.8716}};
+Xstatic	Bsp_Node	NSphere1_19_7 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.759862,-0.637598,-0.1268},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_7,NULL,&NSphere1_1_3,};
+Xstatic	Pt3d		VSphere1_1_2[] = {
+X	{34.202,93.9693,0},
+X	{32.3488,93.9693,11.1054},
+X	{60.7959,76.6045,20.8713},
+X	{64.2787,76.6045,0}};
+Xstatic	Bsp_Node	NSphere1_1_2 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.498269,0.863027,0.0831462},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_2,NULL,&NSphere1_19_7,};
+Xstatic	Pt3d		VSphere1_19_8[] = {
+X	{60.796,-76.6043,-20.8716},
+X	{64.2789,-76.6043,0},
+X	{34.2022,-93.9692,0},
+X	{32.349,-93.9692,-11.1056}};
+Xstatic	Bsp_Node	NSphere1_19_8 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.49827,-0.863025,-0.0831479},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_8,NULL,&NSphere1_1_2,};
+Xstatic	Pt3d		VSphere1_1_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{32.3488,93.9693,11.1054},
+X	{34.202,93.9693,0}};
+Xstatic	Bsp_Node	NSphere1_1_1 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.173575,0.984395,0.0289645},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_1_1,NULL,&NSphere1_19_8,};
+Xstatic	Pt3d		VSphere1_19_9[] = {
+X	{32.349,-93.9692,-11.1056},
+X	{34.2022,-93.9692,0},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere1_19_9 = {
+X	BSP_BACK_VIEW | BSP_POLY,
+X	{0.173576,-0.984394,-0.0289652},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere1_19_9,NULL,&NSphere1_1_1,};
+X#define	BSP_ROOT1	NSphere1_19_9
+SHAR_EOF
+len=`wc -c < planet1.h`
+if test $len != 50794 ; then
+echo shar: planet1.h was $len bytes long, should have been 50794
+fi
+fi # end of overwriting check
+
+if test -f planet2.h ; then
+echo shar: will not over-write existing file planet2.h
+else
+echo shar: extracting planet2.h, 9917 characters
+sed 's/^X//' > planet2.h <<'SHAR_EOF'
+X/*	@(#)planet2.h 1.1 92/05/28 SMI	*/
+X/*	from planet2.h 1.2 90/05/02 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+Xstatic	Pt3d		VSphere2_5_2[] = {
+X	{-66.4462,70.7107,24.1846},
+X	{-66.4463,70.7107,-24.1843},
+X	{-93.9694,0.000126759,-34.2017},
+X	{-93.9692,0.000126759,34.2022}};
+Xstatic	Bsp_Node	NSphere2_5_2 = {
+X	BSP_POLY,
+X	{-0.931896,0.362726,2.35186e-06},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_5_2,NULL,NULL,};
+Xstatic	Pt3d		VSphere2_5_3[] = {
+X	{-93.9692,0.000126759,34.2022},
+X	{-93.9694,0.000126759,-34.2017},
+X	{-66.4465,-70.7105,-24.1843},
+X	{-66.4464,-70.7105,24.1847}};
+Xstatic	Bsp_Node	NSphere2_5_3 = {
+X	BSP_POLY,
+X	{-0.931897,-0.362724,2.39059e-06},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_5_3,NULL,&NSphere2_5_2,};
+Xstatic	Pt3d		VSphere2_5_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-66.4463,70.7107,-24.1843},
+X	{-66.4462,70.7107,24.1846}};
+Xstatic	Bsp_Node	NSphere2_5_1 = {
+X	BSP_POLY,
+X	{-0.403349,0.915046,1.01795e-06},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_5_1,NULL,&NSphere2_5_3,};
+Xstatic	Pt3d		VSphere2_5_4[] = {
+X	{-66.4464,-70.7105,24.1847},
+X	{-66.4465,-70.7105,-24.1843},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_5_4 = {
+X	BSP_POLY,
+X	{-0.40335,-0.915046,1.01795e-06},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_5_4,NULL,&NSphere2_5_1,};
+Xstatic	Pt3d		VSphere2_4_4[] = {
+X	{-35.3553,-70.7105,61.2374},
+X	{-66.4464,-70.7105,24.1847},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_4_4 = {
+X	BSP_POLY,
+X	{-0.308984,-0.915046,0.259269},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_4_4,NULL,&NSphere2_5_4,};
+Xstatic	Pt3d		VSphere2_6_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-35.3555,70.7107,-61.2371},
+X	{-66.4463,70.7107,-24.1843}};
+Xstatic	Bsp_Node	NSphere2_6_1 = {
+X	BSP_POLY,
+X	{-0.308984,0.915046,-0.259267},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_6_1,NULL,&NSphere2_4_4,};
+Xstatic	Pt3d		VSphere2_4_3[] = {
+X	{-49.9999,0.000126759,86.6026},
+X	{-93.9692,0.000126759,34.2022},
+X	{-66.4464,-70.7105,24.1847},
+X	{-35.3553,-70.7105,61.2374}};
+Xstatic	Bsp_Node	NSphere2_4_3 = {
+X	BSP_POLY,
+X	{-0.713873,-0.362724,0.599013},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_4_3,NULL,&NSphere2_6_1,};
+Xstatic	Pt3d		VSphere2_6_2[] = {
+X	{-66.4463,70.7107,-24.1843},
+X	{-35.3555,70.7107,-61.2371},
+X	{-50.0003,0.000126759,-86.6024},
+X	{-93.9694,0.000126759,-34.2017}};
+Xstatic	Bsp_Node	NSphere2_6_2 = {
+X	BSP_POLY,
+X	{-0.713875,0.362726,-0.599009},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_6_2,NULL,&NSphere2_4_3,};
+Xstatic	Pt3d		VSphere2_4_2[] = {
+X	{-35.3552,70.7107,61.2373},
+X	{-66.4462,70.7107,24.1846},
+X	{-93.9692,0.000126759,34.2022},
+X	{-49.9999,0.000126759,86.6026}};
+Xstatic	Bsp_Node	NSphere2_4_2 = {
+X	BSP_POLY,
+X	{-0.713872,0.362726,0.599012},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_4_2,NULL,&NSphere2_6_2,};
+Xstatic	Pt3d		VSphere2_6_3[] = {
+X	{-93.9694,0.000126759,-34.2017},
+X	{-50.0003,0.000126759,-86.6024},
+X	{-35.3556,-70.7105,-61.2372},
+X	{-66.4465,-70.7105,-24.1843}};
+Xstatic	Bsp_Node	NSphere2_6_3 = {
+X	BSP_POLY,
+X	{-0.713876,-0.362724,-0.59901},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_6_3,NULL,&NSphere2_4_2,};
+Xstatic	Pt3d		VSphere2_4_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-66.4462,70.7107,24.1846},
+X	{-35.3552,70.7107,61.2373}};
+Xstatic	Bsp_Node	NSphere2_4_1 = {
+X	BSP_POLY,
+X	{-0.308983,0.915046,0.259268},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_4_1,NULL,&NSphere2_6_3,};
+Xstatic	Pt3d		VSphere2_6_4[] = {
+X	{-66.4465,-70.7105,-24.1843},
+X	{-35.3556,-70.7105,-61.2372},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_6_4 = {
+X	BSP_POLY,
+X	{-0.308985,-0.915046,-0.259268},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_6_4,NULL,&NSphere2_4_1,};
+Xstatic	Pt3d		VSphere2_3_4[] = {
+X	{12.2789,-70.7105,69.6365},
+X	{-35.3553,-70.7105,61.2374},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_3_4 = {
+X	BSP_POLY,
+X	{-0.0700405,-0.915046,0.397223},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_3_4,NULL,&NSphere2_6_4,};
+Xstatic	Pt3d		VSphere2_7_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{12.2785,70.7107,-69.6364},
+X	{-35.3555,70.7107,-61.2371}};
+Xstatic	Bsp_Node	NSphere2_7_1 = {
+X	BSP_POLY,
+X	{-0.0700423,0.915046,-0.397221},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_7_1,NULL,&NSphere2_3_4,};
+Xstatic	Pt3d		VSphere2_3_3[] = {
+X	{17.3649,0.000126759,98.4808},
+X	{-49.9999,0.000126759,86.6026},
+X	{-35.3553,-70.7105,61.2374},
+X	{12.2789,-70.7105,69.6365}};
+Xstatic	Bsp_Node	NSphere2_3_3 = {
+X	BSP_POLY,
+X	{-0.161821,-0.362724,0.917739},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_3_3,NULL,&NSphere2_7_1,};
+Xstatic	Pt3d		VSphere2_7_2[] = {
+X	{-35.3555,70.7107,-61.2371},
+X	{12.2785,70.7107,-69.6364},
+X	{17.3644,0.000126759,-98.4808},
+X	{-50.0003,0.000126759,-86.6024}};
+Xstatic	Bsp_Node	NSphere2_7_2 = {
+X	BSP_POLY,
+X	{-0.161825,0.362726,-0.917738},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_7_2,NULL,&NSphere2_3_3,};
+Xstatic	Pt3d		VSphere2_3_2[] = {
+X	{12.2789,70.7107,69.6364},
+X	{-35.3552,70.7107,61.2373},
+X	{-49.9999,0.000126759,86.6026},
+X	{17.3649,0.000126759,98.4808}};
+Xstatic	Bsp_Node	NSphere2_3_2 = {
+X	BSP_POLY,
+X	{-0.161821,0.362726,0.917738},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_3_2,NULL,&NSphere2_7_2,};
+Xstatic	Pt3d		VSphere2_7_3[] = {
+X	{-50.0003,0.000126759,-86.6024},
+X	{17.3644,0.000126759,-98.4808},
+X	{12.2785,-70.7105,-69.6366},
+X	{-35.3556,-70.7105,-61.2372}};
+Xstatic	Bsp_Node	NSphere2_7_3 = {
+X	BSP_POLY,
+X	{-0.161825,-0.362724,-0.917739},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_7_3,NULL,&NSphere2_3_2,};
+Xstatic	Pt3d		VSphere2_3_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{-35.3552,70.7107,61.2373},
+X	{12.2789,70.7107,69.6364}};
+Xstatic	Bsp_Node	NSphere2_3_1 = {
+X	BSP_POLY,
+X	{-0.0700403,0.915046,0.397221},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_3_1,NULL,&NSphere2_7_3,};
+Xstatic	Pt3d		VSphere2_7_4[] = {
+X	{-35.3556,-70.7105,-61.2372},
+X	{12.2785,-70.7105,-69.6366},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_7_4 = {
+X	BSP_POLY,
+X	{-0.0700425,-0.915046,-0.397222},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_7_4,NULL,&NSphere2_3_1,};
+Xstatic	Pt3d		VSphere2_2_4[] = {
+X	{54.1677,-70.7105,45.452},
+X	{12.2789,-70.7105,69.6365},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_2_4 = {
+X	BSP_POLY,
+X	{0.201675,-0.915046,0.349311},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_2_4,NULL,&NSphere2_7_4,};
+Xstatic	Pt3d		VSphere2_8_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{54.1673,70.7107,-45.4522},
+X	{12.2785,70.7107,-69.6364}};
+Xstatic	Bsp_Node	NSphere2_8_1 = {
+X	BSP_POLY,
+X	{0.201673,0.915046,-0.349311},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_8_1,NULL,&NSphere2_2_4,};
+Xstatic	Pt3d		VSphere2_2_3[] = {
+X	{76.6045,0.000126759,64.2787},
+X	{17.3649,0.000126759,98.4808},
+X	{12.2789,-70.7105,69.6365},
+X	{54.1677,-70.7105,45.452}};
+Xstatic	Bsp_Node	NSphere2_2_3 = {
+X	BSP_POLY,
+X	{0.465949,-0.362724,0.807046},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_2_3,NULL,&NSphere2_8_1,};
+Xstatic	Pt3d		VSphere2_8_2[] = {
+X	{12.2785,70.7107,-69.6364},
+X	{54.1673,70.7107,-45.4522},
+X	{76.6042,0.000126759,-64.2791},
+X	{17.3644,0.000126759,-98.4808}};
+Xstatic	Bsp_Node	NSphere2_8_2 = {
+X	BSP_POLY,
+X	{0.465945,0.362726,-0.807047},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_8_2,NULL,&NSphere2_2_3,};
+Xstatic	Pt3d		VSphere2_2_2[] = {
+X	{54.1675,70.7107,45.4519},
+X	{12.2789,70.7107,69.6364},
+X	{17.3649,0.000126759,98.4808},
+X	{76.6045,0.000126759,64.2787}};
+Xstatic	Bsp_Node	NSphere2_2_2 = {
+X	BSP_POLY,
+X	{0.465949,0.362726,0.807045},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_2_2,NULL,&NSphere2_8_2,};
+Xstatic	Pt3d		VSphere2_8_3[] = {
+X	{17.3644,0.000126759,-98.4808},
+X	{76.6042,0.000126759,-64.2791},
+X	{54.1674,-70.7105,-45.4523},
+X	{12.2785,-70.7105,-69.6366}};
+Xstatic	Bsp_Node	NSphere2_8_3 = {
+X	BSP_POLY,
+X	{0.465945,-0.362724,-0.807048},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_8_3,NULL,&NSphere2_2_2,};
+Xstatic	Pt3d		VSphere2_2_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{12.2789,70.7107,69.6364},
+X	{54.1675,70.7107,45.4519}};
+Xstatic	Bsp_Node	NSphere2_2_1 = {
+X	BSP_POLY,
+X	{0.201675,0.915046,0.34931},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_2_1,NULL,&NSphere2_8_3,};
+Xstatic	Pt3d		VSphere2_8_4[] = {
+X	{12.2785,-70.7105,-69.6366},
+X	{54.1674,-70.7105,-45.4523},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_8_4 = {
+X	BSP_POLY,
+X	{0.201674,-0.915046,-0.349312},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_8_4,NULL,&NSphere2_2_1,};
+Xstatic	Pt3d		VSphere2_1_4[] = {
+X	{70.7108,-70.7105,0},
+X	{54.1677,-70.7105,45.452},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_1_4 = {
+X	BSP_POLY,
+X	{0.379025,-0.915046,0.137954},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_1_4,NULL,&NSphere2_8_4,};
+Xstatic	Pt3d		VSphere2_9_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{70.7106,70.7107,0},
+X	{54.1673,70.7107,-45.4522}};
+Xstatic	Bsp_Node	NSphere2_9_1 = {
+X	BSP_POLY,
+X	{0.379024,0.915046,-0.137954},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_9_1,NULL,&NSphere2_1_4,};
+Xstatic	Pt3d		VSphere2_1_3[] = {
+X	{100,0.000126759,0},
+X	{76.6045,0.000126759,64.2787},
+X	{54.1677,-70.7105,45.452},
+X	{70.7108,-70.7105,0}};
+Xstatic	Bsp_Node	NSphere2_1_3 = {
+X	BSP_POLY,
+X	{0.875697,-0.362724,0.318727},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_1_3,NULL,&NSphere2_9_1,};
+Xstatic	Pt3d		VSphere2_9_2[] = {
+X	{54.1673,70.7107,-45.4522},
+X	{70.7106,70.7107,0},
+X	{100,0.000126759,0},
+X	{76.6042,0.000126759,-64.2791}};
+Xstatic	Bsp_Node	NSphere2_9_2 = {
+X	BSP_POLY,
+X	{0.875695,0.362726,-0.318729},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_9_2,NULL,&NSphere2_1_3,};
+Xstatic	Pt3d		VSphere2_1_2[] = {
+X	{70.7106,70.7107,0},
+X	{54.1675,70.7107,45.4519},
+X	{76.6045,0.000126759,64.2787},
+X	{100,0.000126759,0}};
+Xstatic	Bsp_Node	NSphere2_1_2 = {
+X	BSP_POLY,
+X	{0.875696,0.362726,0.318727},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_1_2,NULL,&NSphere2_9_2,};
+Xstatic	Pt3d		VSphere2_9_3[] = {
+X	{76.6042,0.000126759,-64.2791},
+X	{100,0.000126759,0},
+X	{70.7108,-70.7105,0},
+X	{54.1674,-70.7105,-45.4523}};
+Xstatic	Bsp_Node	NSphere2_9_3 = {
+X	BSP_POLY,
+X	{0.875696,-0.362723,-0.318729},
+X	GREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_9_3,NULL,&NSphere2_1_2,};
+Xstatic	Pt3d		VSphere2_1_1[] = {
+X	{0,100,0},
+X	{0,100,0},
+X	{54.1675,70.7107,45.4519},
+X	{70.7106,70.7107,0}};
+Xstatic	Bsp_Node	NSphere2_1_1 = {
+X	BSP_POLY,
+X	{0.379024,0.915046,0.137953},
+X	LGREY,
+X	0,0,1,{4,0,0},
+X	VSphere2_1_1,NULL,&NSphere2_9_3,};
+Xstatic	Pt3d		VSphere2_9_4[] = {
+X	{54.1674,-70.7105,-45.4523},
+X	{70.7108,-70.7105,0},
+X	{0,-100,0},
+X	{0,-100,0}};
+Xstatic	Bsp_Node	NSphere2_9_4 = {
+X	BSP_POLY,
+X	{0.379025,-0.915045,-0.137955},
+X	WHITE,
+X	0,0,1,{4,0,0},
+X	VSphere2_9_4,NULL,&NSphere2_1_1,};
+X#define	BSP_ROOT2	NSphere2_9_4
+SHAR_EOF
+len=`wc -c < planet2.h`
+if test $len != 9917 ; then
+echo shar: planet2.h was $len bytes long, should have been 9917
+fi
+fi # end of overwriting check
+
+if test -f starfield.h ; then
+echo shar: will not over-write existing file starfield.h
+else
+echo shar: extracting starfield.h, 11336 characters
+sed 's/^X//' > starfield.h <<'SHAR_EOF'
+X/*	@(#)starfield.h 1.1 92/05/28 SMI	*/
+X/*	from starfield.h 1.1 88/04/07 SMI	*/
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X	{ -775.0, -732.0,-1692.0},
+X	{  252.0,-1477.0, 1324.0},
+X	{ 1812.0,  537.0, -655.0},
+X	{ -872.0,  337.0,-1768.0},
+X	{  698.0,  510.0,-1804.0},
+X	{  675.0,   63.0, 1881.0},
+X	{ -830.0,   10.0,-1820.0},
+X	{ -156.0,  983.0, 1735.0},
+X	{ 1161.0, -993.0, 1290.0},
+X	{ 1389.0,  709.0,-1252.0},
+X	{ 1235.0,-1163.0,-1059.0},
+X	{  594.0,  645.0,-1797.0},
+X	{-1392.0,  190.0, 1424.0},
+X	{  299.0,   71.0,-1976.0},
+X	{ -360.0,  395.0, 1927.0},
+X	{ -180.0,  416.0,-1948.0},
+X	{ 1926.0,  174.0, -510.0},
+X	{ -447.0,  346.0,-1919.0},
+X	{ 1913.0,  584.0,  -19.0},
+X	{  449.0, 1589.0, 1129.0},
+X	{  850.0, 1283.0,-1277.0},
+X	{ -523.0,-1856.0,  530.0},
+X	{ 1454.0, -783.0,-1128.0},
+X	{ 1840.0, -774.0, -134.0},
+X	{-1883.0,  209.0,  640.0},
+X	{ 1285.0,-1091.0, 1076.0},
+X	{ 1645.0,  115.0, 1132.0},
+X	{ -519.0,  506.0, 1864.0},
+X	{ -830.0,   10.0,-1820.0},
+X	{-1148.0, 1607.0,  313.0},
+X	{ -790.0,  508.0, 1766.0},
+X	{  489.0,-1578.0, 1127.0},
+X	{ 1251.0, 1335.0,  807.0},
+X	{-1800.0,  800.0,  347.0},
+X	{ 1930.0, -270.0, -448.0},
+X	{  574.0,  169.0, 1909.0},
+X	{ 1007.0,  468.0,-1664.0},
+X	{-1963.0,   68.0,  378.0},
+X	{ 1043.0, -519.0, 1625.0},
+X	{ -387.0, 1066.0,-1647.0},
+X	{ -530.0, -941.0,-1683.0},
+X	{ -530.0, -941.0,-1683.0},
+X	{  202.0,-1956.0,  367.0},
+X	{ 1332.0, 1483.0, -163.0},
+X	{ -696.0, 1374.0, 1276.0},
+X	{ -372.0,  359.0,-1932.0},
+X	{ 1257.0,  727.0, 1375.0},
+X	{  178.0, 1231.0,-1566.0},
+X	{ 1520.0,  937.0, -901.0},
+X	{  625.0, 1271.0,-1412.0},
+X	{ 1898.0,  546.0,  315.0},
+X	{ -208.0,  -82.0, 1987.0},
+X	{ -129.0,-1289.0,-1524.0},
+X	{  560.0,   59.0,-1919.0},
+X	{  691.0,  267.0, 1858.0},
+X	{ -151.0,  968.0, 1744.0},
+X	{-1011.0, 1658.0, -479.0},
+X	{  375.0,  690.0, 1839.0},
+X	{ 1974.0, -320.0,   -1.0},
+X	{ -190.0, -467.0,-1935.0},
+X	{ -590.0,  232.0, 1897.0},
+X	{  692.0,-1195.0, 1447.0},
+X	{ -516.0,-1858.0,  530.0},
+X	{ -141.0,   67.0, 1994.0},
+X	{ -379.0,-1905.0,  476.0},
+X	{ -193.0, -810.0,-1818.0},
+X	{ 1982.0, -155.0,  218.0},
+X	{ -165.0,  511.0,-1926.0},
+X	{  469.0, 1852.0,  591.0},
+X	{ 1134.0, 1214.0,-1114.0},
+X	{-1524.0,-1295.0,   31.0},
+X	{  358.0, -592.0,-1877.0},
+X	{  -10.0,  -24.0,-2000.0},
+X	{  570.0,-1608.0,-1044.0},
+X	{ -915.0,-1577.0,  822.0},
+X	{  -74.0,-1332.0, 1490.0},
+X	{  -89.0,    7.0, 1998.0},
+X	{ 1132.0,-1288.0,-1029.0},
+X	{ -675.0,-1812.0,  509.0},
+X	{ -399.0,-1572.0,-1171.0},
+X	{ 1437.0, 1386.0, -119.0},
+X	{-1618.0,-1041.0, -545.0},
+X	{ -263.0,  445.0,-1932.0},
+X	{ -995.0, 1703.0,  329.0},
+X	{ -213.0,  -63.0,-1988.0},
+X	{-1395.0, 1127.0,  885.0},
+X	{ -174.0, -721.0,-1857.0},
+X	{  -73.0,  463.0, 1944.0},
+X	{-2000.0,   30.0,  -17.0},
+X	{ 1562.0,-1107.0,  578.0},
+X	{ 1355.0,-1386.0,  492.0},
+X	{  502.0,  907.0,-1710.0},
+X	{ 1428.0,  849.0,-1114.0},
+X	{  -52.0,   58.0,-1998.0},
+X	{-1426.0,-1010.0, -973.0},
+X	{   20.0,-1149.0, 1637.0},
+X	{  -64.0,-1968.0, -350.0},
+X	{  -84.0,  173.0,-1991.0},
+X	{-1830.0, -711.0, -380.0},
+X	{  376.0,  742.0,-1819.0},
+X	{   39.0,-1035.0, 1711.0},
+X	{   72.0, 1051.0,-1700.0},
+X	{ 1786.0, -224.0,  872.0},
+X	{  -86.0,  496.0,-1936.0},
+X	{  -42.0,   10.0,-2000.0},
+X	{ 1991.0, -172.0,   83.0},
+X	{  686.0,  281.0,-1858.0},
+X	{ -995.0,  602.0, 1627.0},
+X	{ 1772.0,  159.0,  913.0},
+X	{-1784.0, -865.0, -266.0},
+X	{ -674.0, 1622.0,  957.0},
+X	{ -321.0,  -32.0,-1974.0},
+X	{   12.0,-1321.0,-1501.0},
+X	{ 1471.0, -876.0, 1034.0},
+X	{  437.0, 1747.0,  869.0},
+X	{ -135.0,-1340.0,-1479.0},
+X	{  -20.0,   53.0,-1999.0},
+X	{ -133.0,  297.0,-1973.0},
+X	{-1296.0, 1023.0,-1128.0},
+X	{ 1393.0, 1435.0,   37.0},
+X	{  664.0,-1719.0, -777.0},
+X	{ -231.0, -703.0, 1858.0},
+X	{  275.0,  385.0, 1943.0},
+X	{ -188.0, 1703.0,-1031.0},
+X	{  676.0, -880.0,-1664.0},
+X	{ 1781.0, -615.0, -671.0},
+X	{-1064.0, 1535.0, -717.0},
+X	{  -34.0,  -19.0, 2000.0},
+X	{    5.0,  725.0,-1864.0},
+X	{  114.0, -267.0, 1979.0},
+X	{ -489.0,-1830.0, -640.0},
+X	{ 1410.0,-1032.0, -973.0},
+X	{ -260.0,  887.0,-1774.0},
+X	{ -548.0,  -85.0, 1922.0},
+X	{-1084.0,  798.0,-1480.0},
+X	{ 1051.0,-1661.0, -366.0},
+X	{    5.0,-1179.0, 1615.0},
+X	{-1821.0,  -60.0, -825.0},
+X	{  -42.0,  -40.0, 1999.0},
+X	{ 1647.0,  968.0,  592.0},
+X	{ 1707.0,  287.0,-1002.0},
+X	{ 1412.0, 1411.0,  115.0},
+X	{ 1648.0,   44.0, 1132.0},
+X	{ -601.0, -241.0, 1892.0},
+X	{ -886.0, -572.0,-1699.0},
+X	{ -718.0, 1635.0, -901.0},
+X	{   77.0,-1693.0,-1062.0},
+X	{ 1520.0,  937.0, -901.0},
+X	{  -92.0, -595.0,-1907.0},
+X	{  486.0,  654.0,-1826.0},
+X	{  999.0,  334.0, 1700.0},
+X	{ 1742.0,  455.0,  871.0},
+X	{-1178.0,  977.0,-1288.0},
+X	{ 1170.0,-1136.0,-1158.0},
+X	{-1678.0, -695.0, -837.0},
+X	{   16.0, 1123.0, 1655.0},
+X	{ -133.0,-1725.0, 1003.0},
+X	{ -215.0,  804.0,-1818.0},
+X	{ 1299.0, -301.0,-1490.0},
+X	{  643.0,  902.0, 1665.0},
+X	{ -699.0, 1743.0,  688.0},
+X	{   15.0,-1900.0,  623.0},
+X	{ 1200.0,-1589.0,  186.0},
+X	{ 1108.0,-1489.0, -746.0},
+X	{   82.0,  721.0, 1864.0},
+X	{-1144.0,  210.0, 1627.0},
+X	{ -707.0, 1186.0,-1447.0},
+X	{ -150.0,  378.0, 1958.0},
+X	{ 1969.0,  185.0,  297.0},
+X	{ -174.0,  718.0,-1858.0},
+X	{ 1222.0, -532.0,-1491.0},
+X	{ -477.0, -242.0,-1927.0},
+X	{  326.0, 1061.0,-1664.0},
+X	{-1539.0, -512.0,-1171.0},
+X	{ 1799.0,  874.0,   -1.0},
+X	{-1034.0,-1500.0,  826.0},
+X	{-1073.0,-1387.0, -961.0},
+X	{ -351.0, 1858.0, -653.0},
+X	{-1079.0, 1155.0, 1225.0},
+X	{  297.0,  323.0,-1951.0},
+X	{ 1484.0, -208.0, 1325.0},
+X	{ -111.0, 1577.0, 1225.0},
+X	{  264.0, -467.0,-1927.0},
+X	{ 1207.0, 1366.0, -822.0},
+X	{ -513.0,-1548.0,-1158.0},
+X	{-1081.0,   72.0,-1681.0},
+X	{ 1045.0,  598.0, 1597.0},
+X	{  154.0, -190.0, 1985.0},
+X	{ 1663.0,  932.0, -606.0},
+X	{ -109.0,-1972.0, -318.0},
+X	{ -617.0, 1787.0,  654.0},
+X	{ -690.0,  156.0,-1871.0},
+X	{-1022.0, 1455.0, -915.0},
+X	{ -551.0,-1057.0,-1606.0},
+X	{ -244.0,-1753.0,  932.0},
+X	{-1659.0, -318.0,-1071.0},
+X	{ -788.0,-1801.0,  368.0},
+X	{ -100.0,  605.0,-1904.0},
+X	{  785.0, 1743.0,  590.0},
+X	{  880.0,-1768.0, -314.0},
+X	{ -128.0, 1874.0,  687.0},
+X	{ 1179.0, -345.0, 1578.0},
+X	{  785.0, -950.0, 1575.0},
+X	{  506.0, 1137.0, 1566.0},
+X	{  646.0,-1236.0,-1433.0},
+X	{ -616.0,-1742.0,  765.0},
+X	{ -808.0, -700.0, 1690.0},
+X	{   81.0, -294.0,-1977.0},
+X	{ -141.0,  567.0, 1913.0},
+X	{-1774.0,  772.0, -508.0},
+X	{  -40.0,  268.0,-1982.0},
+X	{-1538.0, -321.0,-1237.0},
+X	{ -451.0, -608.0, 1851.0},
+X	{-1054.0,-1533.0, -734.0},
+X	{ 1997.0,  -71.0,  -83.0},
+X	{-1450.0, -660.0,-1209.0},
+X	{-1506.0,  885.0,  974.0},
+X	{ 1052.0, 1658.0,  379.0},
+X	{ 1190.0, -200.0,-1595.0},
+X	{  -22.0,   11.0,-2000.0},
+X	{ 1094.0,-1102.0,-1261.0},
+X	{  455.0, 1292.0, 1458.0},
+X	{ -816.0, 1753.0,  511.0},
+X	{-1565.0, -678.0, 1044.0},
+X	{ -243.0,  546.0,-1909.0},
+X	{   64.0, 1244.0,-1565.0},
+X	{  -18.0,  -36.0, 2000.0},
+X	{  118.0,  -83.0,-1995.0},
+X	{  667.0, 1873.0, -217.0},
+X	{  793.0,  211.0,-1824.0},
+X	{-1920.0,  495.0, -265.0},
+X	{ 1262.0, 1334.0,  792.0},
+X	{ -480.0, 1420.0,-1324.0},
+X	{ -133.0, 1765.0, -932.0},
+X	{ 1086.0, 1232.0, 1142.0},
+X	{-1065.0,  583.0, 1589.0},
+X	{  494.0,  654.0,-1824.0},
+X	{ 1946.0, -350.0,  300.0},
+X	{ 1681.0, -532.0, -945.0},
+X	{-1631.0,-1110.0, -329.0},
+X	{ 1333.0,  607.0,-1362.0},
+X	{ -901.0, 1701.0, -542.0},
+X	{ 1338.0, 1304.0, -714.0},
+X	{-1708.0,  768.0, -702.0},
+X	{ 1325.0, 1348.0, -655.0},
+X	{  338.0, -979.0, 1711.0},
+X	{ -906.0,-1704.0, -526.0},
+X	{ -154.0,   47.0,-1994.0},
+X	{-1230.0,  772.0, 1375.0},
+X	{-1425.0,  832.0, 1129.0},
+X	{ 1397.0,-1430.0,  -50.0},
+X	{ -359.0,-1463.0, 1315.0},
+X	{ 1920.0, -492.0, -266.0},
+X	{-1239.0, 1495.0,  479.0},
+X	{-1248.0, -422.0,-1505.0},
+X	{ -137.0,  -47.0,-1995.0},
+X	{ -155.0, -283.0, 1974.0},
+X	{ -285.0, 1858.0, -683.0},
+X	{  157.0, -497.0, 1931.0},
+X	{ -431.0, 1852.0, -620.0},
+X	{-1566.0, -151.0,-1235.0},
+X	{  450.0, 1461.0, 1290.0},
+X	{  728.0, 1836.0,  316.0},
+X	{  518.0,   -2.0, 1932.0},
+X	{ 1566.0, -697.0,-1030.0},
+X	{-1771.0, -914.0,  166.0},
+X	{-1330.0,  -40.0,-1493.0},
+X	{ 1902.0,  425.0, -449.0},
+X	{-1034.0, -323.0, 1681.0},
+X	{-1434.0, -940.0, 1029.0},
+X	{  281.0,   68.0, 1979.0},
+X	{ -723.0,  167.0,-1857.0},
+X	{ -265.0, -213.0,-1971.0},
+X	{  571.0, -171.0,-1909.0},
+X	{  186.0, 1440.0,-1376.0},
+X	{-1324.0,  703.0, 1324.0},
+X	{ -913.0, -320.0, 1750.0},
+X	{ 1991.0,  -31.0,  183.0},
+X	{ -193.0,    5.0,-1991.0},
+X	{ -348.0, 1852.0,  669.0},
+X	{-1792.0,  335.0,  822.0},
+X	{  143.0,    8.0,-1995.0},
+X	{ -950.0,  290.0, 1736.0},
+X	{-1271.0,-1243.0,  915.0},
+X	{  580.0, -288.0,-1892.0},
+X	{ -523.0,-1524.0,-1184.0},
+X	{-1719.0, -121.0, 1016.0},
+X	{-1364.0, 1166.0, -883.0},
+X	{-1236.0,-1507.0, -447.0},
+X	{-1022.0,  351.0,-1683.0},
+X	{ 1949.0,  -25.0,  449.0},
+X	{  149.0,-1248.0, 1556.0},
+X	{ -771.0, -226.0, 1831.0},
+X	{ -242.0, -423.0,-1940.0},
+X	{ -572.0,  623.0,-1812.0},
+X	{ 1787.0, -883.0,  166.0},
+X	{  -71.0, 1948.0, -446.0},
+X	{ 1995.0,  147.0,  -16.0},
+X	{  544.0, -374.0,-1888.0},
+X	{-1391.0, 1271.0, -671.0},
+X	{ -719.0,-1748.0, -655.0},
+X	{ -499.0, -844.0, 1743.0},
+X	{ -432.0, 1208.0, 1535.0},
+X	{-1667.0, -924.0,  606.0},
+X	{-1624.0, -809.0,  841.0},
+X	{ -241.0, 1643.0, 1115.0},
+X	{    7.0,  769.0,-1846.0},
+X	{ -121.0, -248.0,-1981.0},
+X	{ -409.0, 1881.0, -543.0},
+X	{  105.0,-1449.0, 1374.0},
+X	{ -571.0,  263.0, 1899.0},
+X	{ -336.0, -923.0, 1742.0},
+X	{ -655.0, 1652.0,  918.0},
+X	{-1475.0,  187.0, 1338.0},
+X	{-1950.0,  440.0,  -66.0},
+X	{-1157.0, -219.0, 1617.0},
+X	{ -350.0, 1868.0,  624.0},
+X	{  344.0,  135.0, 1966.0},
+X	{ 1233.0, -566.0, 1470.0},
+X	{-1629.0,-1082.0, -417.0},
+X	{ -125.0,   93.0, 1994.0},
+X	{ -383.0, -951.0, 1717.0},
+X	{ 1370.0, 1456.0,   52.0},
+X	{  492.0, 1796.0,  731.0},
+X	{  -53.0, -891.0,-1790.0},
+X	{  404.0,-1938.0,  281.0},
+X	{-1101.0,-1279.0, 1074.0},
+X	{-1092.0,-1492.0, -763.0},
+X	{ 1517.0,  -19.0,-1303.0},
+X	{-1914.0, -149.0,  561.0},
+X	{ -477.0,  983.0,-1675.0},
+X	{ 1476.0, -762.0,-1114.0},
+X	{  491.0, 1725.0, -886.0},
+X	{  357.0, -540.0, 1893.0},
+X	{   68.0, -383.0,-1962.0},
+X	{ -539.0, 1885.0, -397.0},
+X	{-1073.0,-1078.0, 1299.0},
+X	{  -90.0, 1064.0,-1691.0},
+X	{  345.0,  132.0, 1966.0},
+X	{ 1194.0, 1443.0, -701.0},
+X	{  535.0, -368.0, 1892.0},
+X	{ -189.0,   18.0, 1991.0},
+X	{  523.0, 1685.0,  942.0},
+X	{-1312.0, -668.0,-1353.0},
+X	{ 1037.0,-1701.0, -182.0},
+X	{   84.0,  -90.0,-1996.0},
+X	{  691.0,  634.0, 1766.0},
+X	{ -583.0,  285.0, 1892.0},
+X	{ 1732.0, -321.0,  946.0},
+X	{  -59.0,  -41.0,-1999.0},
+X	{   72.0, -101.0,-1996.0},
+X	{  154.0, 1139.0,-1637.0},
+X	{ -115.0,-1942.0, -465.0},
+X	{  292.0,-1326.0, 1468.0},
+X	{  885.0,-1506.0,  974.0},
+X	{ -981.0,-1742.0,   33.0},
+X	{ 1151.0, 1532.0, -574.0},
+X	{-1174.0,  678.0, 1470.0},
+X	{  176.0, 1965.0, -329.0},
+X	{-1324.0, -807.0, 1263.0},
+X	{  -83.0,  226.0, 1985.0},
+X	{ -354.0, -306.0, 1944.0},
+X	{ 1662.0, 1077.0,  283.0},
+X	{ -832.0,  752.0, 1656.0},
+X	{ -210.0,  367.0, 1955.0},
+X	{-1319.0, -871.0, 1225.0},
+X	{-1799.0,  732.0,  478.0},
+X	{  996.0, -343.0, 1700.0},
+X	{ -223.0,  395.0, 1948.0},
+X	{  -25.0,  -53.0, 1999.0},
+X	{-1846.0, -733.0, -233.0},
+X	{  436.0,-1203.0, 1537.0},
+X	{ -468.0, 1877.0,  509.0},
+X	{ 1127.0, -492.0,-1577.0},
+X	{ -963.0, 1750.0,   98.0},
+X	{  -85.0,-1904.0,  607.0},
+X	{  403.0, 1487.0,-1276.0},
+X	{  177.0,-1972.0,  283.0},
+X	{ -321.0,-1851.0, -687.0},
+X	{ 1968.0, -345.0,  -84.0},
+X	{   52.0, -644.0,-1893.0},
+X	{ 1698.0, -232.0, 1031.0},
+X	{ 1819.0, -110.0, -825.0},
+X	{ 1729.0,  812.0, -592.0},
+X	{  575.0, -719.0,-1776.0},
+X	{ -619.0,-1713.0, -826.0},
+X	{ -420.0,-1853.0, -625.0},
+X	{ 1165.0, 1625.0,   48.0},
+X	{  199.0,-1990.0,  -36.0},
+X	{ -701.0,-1443.0, 1195.0},
+X	{  602.0,-1865.0, -399.0},
+X	{ -489.0,  120.0, 1936.0},
+X	{ 1858.0,  538.0,  510.0},
+X	{-1418.0,-1374.0, -318.0},
+X	{ -402.0, -353.0, 1927.0},
+X	{ 1235.0, 1566.0, -150.0},
+X	{ -199.0,  -52.0,-1989.0},
+X	{  331.0,  -84.0, 1971.0},
+X	{-1935.0, -500.0,  -81.0},
+X	{  415.0,-1539.0, 1208.0},
+SHAR_EOF
+len=`wc -c < starfield.h`
+if test $len != 11336 ; then
+echo shar: starfield.h was $len bytes long, should have been 11336
+fi
+fi # end of overwriting check
+
+if test -f cursor1.pr ; then
+echo shar: will not over-write existing file cursor1.pr
+else
+echo shar: extracting cursor1.pr, 267 characters
+sed 's/^X//' > cursor1.pr <<'SHAR_EOF'
+X/* Format_version=1, Width=16, Height=16, Depth=1, Valid_bits_per_item=16
+X *
+X *	@(#)cursor1.pr 1.1 92/05/28 SMI
+X *	from cursor1.pr 1.1 88/04/07 SMI
+X */
+X	0xFFFE,0x8102,0x8102,0x8102,0x8102,0x8102,0x8102,0xFFFE,
+X	0x8102,0x8102,0x8102,0x8102,0x8102,0x8102,0xFFFE,0x0000
+SHAR_EOF
+len=`wc -c < cursor1.pr`
+if test $len != 267 ; then
+echo shar: cursor1.pr was $len bytes long, should have been 267
+fi
+fi # end of overwriting check
+
+if test -f cursor2.pr ; then
+echo shar: will not over-write existing file cursor2.pr
+else
+echo shar: extracting cursor2.pr, 267 characters
+sed 's/^X//' > cursor2.pr <<'SHAR_EOF'
+X/* Format_version=1, Width=16, Height=16, Depth=1, Valid_bits_per_item=16
+X *
+X *	@(#)cursor2.pr 1.1 92/05/28 SMI
+X *	from cursor2.pr 1.1 88/04/07 SMI
+X */
+X	0xFFFE,0x8102,0x8102,0x8002,0x8002,0x8002,0x8002,0xE00E,
+X	0x8002,0x8002,0x8002,0x8002,0x8102,0x8102,0xFFFE,0x0000
+SHAR_EOF
+len=`wc -c < cursor2.pr`
+if test $len != 267 ; then
+echo shar: cursor2.pr was $len bytes long, should have been 267
+fi
+fi # end of overwriting check
+
+if test -f dstar.icon ; then
+echo shar: will not over-write existing file dstar.icon
+else
+echo shar: extracting dstar.icon, 2060 characters
+sed 's/^X//' > dstar.icon <<'SHAR_EOF'
+X/*	from dstar.icon 1.2 88/09/02 SMI
+X *	@(#)dstar.icon 1.1 92/05/28 SMI
+X *
+X * Copyright (c) 1988 by Sun Microsystems, Inc.
+X */
+X
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0xFFFF,0xFFFF,0xEF39,0xFBFF,0xFFFF,0xFFFF,0xEFC7,0xFBFF,
+X	0xFFFF,0xFFFF,0xEFFF,0xFBFF,0xFFFF,0xFFFF,0xECFE,0x3BFF,
+X	0xFFFF,0xFFFF,0xF539,0xB7FF,0xFFFF,0xFFFF,0xF5C7,0x77FF,
+X	0xFFFF,0xFFFF,0xF5FF,0x77FF,0xFFFF,0xFFFF,0xF57D,0x77FF,
+X	0xFFFF,0xFFFF,0xED19,0xB9FF,0xFFFF,0xFFFF,0xDDA5,0xCE7F,
+X	0xFFFF,0xFFFF,0xBDBC,0x779F,0xFFFF,0xFFFF,0xBBB6,0xEFE7,
+X	0xFFFF,0xFFFF,0x776D,0xDF1F,0xFFFF,0xFFFE,0xF602,0xDCFF,
+X	0xFFFF,0xFFFC,0xE714,0xD3FF,0xFFFF,0xFFFF,0x382F,0x1BFF,
+X	0xFFFF,0xFFFF,0xC46C,0xFBFF,0xFFFF,0xFFFF,0xF13B,0xFDFF,
+X	0xFFFF,0xFFFF,0xEED7,0xFDFF,0xFFFF,0xFFFF,0xDCD7,0xFEFF,
+X	0xFFFF,0xFFFF,0xBD6E,0x0EFF,0xFFFF,0xFFFF,0x7B7D,0xF07F,
+X	0xFFFF,0xFFFE,0xF7BD,0xFFFF,0xFFFF,0xFFFD,0xF7BB,0xFFFF,
+X	0xFFFF,0xFFFB,0xEFD7,0xFFFF,0xFFFF,0xFFF7,0xDFD7,0xFFFF,
+X	0xFFFF,0xFFEF,0xBFEF,0xFFFF,0xFFFF,0xFFDF,0xBFFF,0xFFFF,
+X	0xFFFF,0xFFBF,0x7FFF,0xFFFF,0xFFFF,0xFF7E,0xFFFF,0xFFFF,
+X	0xFFFF,0xFEFE,0xFFFF,0xFFFF,0xFFFF,0xFDFD,0xFFFF,0xFFFF,
+X	0xFFFF,0xFBFB,0xFFFF,0xFFFF,0xFFFF,0xF7F7,0xFFFF,0xFFFF,
+X	0xFFFF,0xEBF7,0xFFFF,0xFFFF,0xFFFF,0xC7EF,0xFFFF,0xFFFF,
+X	0xFFFF,0x87DF,0xFFFF,0xFFFF,0xFF7E,0x0FDF,0xFFFF,0xFFC3,
+X	0xFEFC,0x1FBF,0xFFFF,0xFFEF,0xFDF8,0x2F7F,0xFFFF,0xFC0F,
+X	0xF9F0,0x5F7F,0xFFFF,0xFFEF,0xF060,0xBEFF,0xFFFF,0xFFC3,
+X	0xFE40,0x7DFF,0xFFFF,0xFFFF,0xFF00,0xFBFF,0xFFFF,0x87FF,
+X	0xFF01,0xFBFF,0xFFFF,0xDFFF,0xFF03,0xF7FF,0xFFF8,0x1FFF,
+X	0xFE00,0xEFFF,0xFFFF,0xDFFF,0xFD80,0x5FFF,0xFFFF,0x87FF,
+X	0xFBFF,0x3FFF,0xFFFF,0xFFFF,0xF7FF,0x7FFF,0xFF0F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFBF,0xFFFF,0xFFFF,0xFFFF,0xF03F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFBF,0xFFFF,0xFFFF,0xFFFF,0xFF0F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0x83FF,0xFFFF,0xFFFF,0xFFFF,0xDFFF,
+X	0xFFFF,0xFFFF,0xFFF8,0x1FFF,0xFFFF,0xFFFF,0xFFFF,0xDFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0x83FF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF
+SHAR_EOF
+len=`wc -c < dstar.icon`
+if test $len != 2060 ; then
+echo shar: dstar.icon was $len bytes long, should have been 2060
+fi
+fi # end of overwriting check
+
+if test -f dstar_sleep.icon ; then
+echo shar: will not over-write existing file dstar_sleep.icon
+else
+echo shar: extracting dstar_sleep.icon, 2077 characters
+sed 's/^X//' > dstar_sleep.icon <<'SHAR_EOF'
+X/*	@(#)dstar_sleep.icon 1.1 92/05/28 SMI
+X *	from dstar_sleep.icon 1.1 88/04/07 SMI
+X */
+X
+X/*
+X * Copyright (c) 1988 by Sun Microsystems, Inc.
+X */
+X
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0xFFFF,0xFFFF,0xEF39,0xFBFF,0xFFFF,0xFFFF,0xEFC7,0xFBFF,
+X	0xFFFF,0xFFFF,0xEFFF,0xFBFF,0xFFFF,0xFFFF,0xECFE,0x3BFF,
+X	0xFFFF,0xFFFF,0xF539,0xB7FF,0xFFFF,0xFFFF,0xF5C7,0x77FF,
+X	0xFFFF,0xFFFF,0xF5FF,0x77FF,0xFFFF,0xFFFF,0xF57D,0x77FF,
+X	0xFFFF,0xFFFF,0xED19,0xB9FF,0xFFFF,0xFFFF,0xDDA5,0xCE7F,
+X	0xFFFF,0xFFFF,0xBDBC,0x779F,0xFFFF,0xFFFF,0xBBB6,0xEFE7,
+X	0xFFFF,0xFFFF,0x776D,0xDF1F,0xFFFF,0xFFFE,0xF602,0xDCFF,
+X	0xFFFF,0xFFFC,0xE714,0xD3FF,0xFFFF,0xFFFF,0x382F,0x1BFF,
+X	0xFFFF,0xFFFF,0xC46C,0xFBFF,0xFFFF,0xFFFF,0xF13B,0xFDFF,
+X	0xFFFF,0xFFFF,0xEED7,0xFDFF,0xFFFF,0xFFFF,0xDCD7,0xFEFF,
+X	0xFFFF,0xFFFF,0xBD6E,0x0EFF,0xFFFF,0xFFFF,0x7B7D,0xF07F,
+X	0xFFFF,0xFFFE,0xF7BD,0xFFFF,0xFFFF,0xFFFD,0xF7BB,0xFFFF,
+X	0xFFFF,0xFFFB,0xEFD7,0xFFFF,0xFFFF,0xFFF7,0xDFD7,0xFFFF,
+X	0xFFFF,0xFFEF,0xBFEF,0xFFFF,0xFFFF,0xFFDF,0xBFFF,0xFFFF,
+X	0xFFFF,0xFFBF,0x7FFF,0xFFFF,0xFFFF,0xFF7E,0xFFFF,0xFFFF,
+X	0xFFFF,0xFEFE,0xFFFF,0xFFFF,0xFFFF,0xFDFD,0xFFFF,0xFFFF,
+X	0xFFFF,0xFBFB,0xFFFF,0xFFFF,0xFFFF,0xF7F7,0xFFFF,0xFFFF,
+X	0xFFFF,0xEBF7,0xFFFF,0xFFFF,0xFFFF,0xC7EF,0xFFFF,0xFFFF,
+X	0xFFFF,0x87DF,0xFFFF,0xFFFF,0xFF7E,0x0FDF,0xFFFF,0xFFFF,
+X	0xFEFC,0x1FBF,0xFFFF,0xFFFF,0xFDF8,0x2F7F,0xFFFF,0xFFFF,
+X	0xF9F0,0x5F7F,0xFFFF,0xFFFF,0xF060,0xBEFF,0xFFFF,0xFFFF,
+X	0xFE40,0x7DFF,0xFFFF,0xFFFF,0xFF00,0xFBFF,0xFFFF,0x87FF,
+X	0xFF01,0xFBFF,0xFFFF,0xDFFF,0xFF03,0xF7FF,0xFFF8,0x1FFF,
+X	0xFE00,0xEFFF,0xFFFF,0xDFFF,0xFD80,0x5FFF,0xFFFF,0x87FF,
+X	0xFBFF,0x3FFF,0xFFFF,0xFFFF,0xF7FF,0x7FFF,0xFF0F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFBF,0xFFFF,0xFFFF,0xFFFF,0xF03F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFBF,0xFFFF,0xFFFF,0xFFFF,0xFF0F,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF
+SHAR_EOF
+len=`wc -c < dstar_sleep.icon`
+if test $len != 2077 ; then
+echo shar: dstar_sleep.icon was $len bytes long, should have been 2077
+fi
+fi # end of overwriting check
+
+if test -f nodstar.icon ; then
+echo shar: will not over-write existing file nodstar.icon
+else
+echo shar: extracting nodstar.icon, 2069 characters
+sed 's/^X//' > nodstar.icon <<'SHAR_EOF'
+X/*	@(#)nodstar.icon 1.1 92/05/28 SMI
+X *	from nodstar.icon 1.1 88/04/07 SMI
+X */
+X
+X/*
+X * Copyright (c) 1988 by Sun Microsystems, Inc.
+X */
+X
+X/* Format_version=1, Width=64, Height=64, Depth=1, Valid_bits_per_item=16
+X */
+X	0xFFFF,0xFFFF,0xEF39,0xFBFF,0xFFFF,0xFFFF,0xEFC7,0xFBFF,
+X	0xFFFF,0xFFFF,0xEFFF,0xFBFF,0xFFFF,0xFFFF,0xECFE,0x3BFF,
+X	0xFFFF,0xFFFF,0xF539,0xB7FF,0xFFFF,0xFFFF,0xF5C7,0x77FF,
+X	0xFFFF,0xFFFF,0xF5FF,0x77FF,0xFFFF,0xFFFF,0xF57D,0x77FF,
+X	0xFFFF,0xFFFF,0xED19,0xB9FF,0xFFFF,0xFFFF,0xDDA5,0xCE7F,
+X	0xFFFF,0xFFFF,0xBDBC,0x779F,0xFFFF,0xFFFF,0xBBB6,0xEFE7,
+X	0xFFFF,0xFFFF,0x776D,0xDF1F,0xFFFF,0xFFFE,0xF602,0xDCFF,
+X	0xFFFF,0xFFFC,0xE714,0xD3FF,0xFFFF,0xFFFF,0x382F,0x1BFF,
+X	0xFFFF,0xFFFF,0xC46C,0xFBFF,0xFFFF,0xFFFF,0xF13B,0xFDFF,
+X	0xFFFF,0xFFFF,0xEED7,0xFDFF,0xFFFF,0xFFFF,0xDCD7,0xFEFF,
+X	0xFFFF,0xFFFF,0xBD6E,0x0EFF,0xFFFF,0xFFFF,0x7B7D,0xF07F,
+X	0xFFFF,0xFFFE,0xF7BD,0xFFFF,0xFFFF,0xFFFD,0xF7BB,0xFFFF,
+X	0xFFFF,0xFFFB,0xEFD7,0xFFFF,0xFFFF,0xFFF7,0xDFD7,0xFFFF,
+X	0xFFFF,0xFFEF,0xBFEF,0xFFFF,0xFFFF,0xFFDF,0xBFFF,0xFFFF,
+X	0xFFFF,0xFFBF,0x7FFF,0xFFFF,0xFFFF,0xFF7E,0xFFFF,0xFFFF,
+X	0xFFFF,0xFEFE,0xFFFF,0xFFFF,0xFFFF,0xFDFD,0xFFFF,0xFFFF,
+X	0xFFFF,0xFBFB,0xFFFF,0xFFFF,0xFFFF,0xF7F7,0xFFFF,0xFFFF,
+X	0xFFFF,0xEBF7,0xFFFF,0xFFFF,0xFFFF,0xC7EF,0xFFFF,0xFFFF,
+X	0xFFFF,0x87DF,0xFFFF,0xFFFF,0xFF7E,0x0FDF,0xFFFF,0xFFFF,
+X	0xFEFC,0x1FBF,0xFFFF,0xFFFF,0xFDF8,0x2F7F,0xFFFF,0xFFFF,
+X	0xF9F0,0x5F7F,0xFFFF,0xFFFF,0xF060,0xBEFF,0xFFFF,0xFFFF,
+X	0xFE40,0x7DFF,0xFFFF,0xFFFF,0xFF00,0xFBFF,0xFFFF,0xFFFF,
+X	0xFF01,0xFBFF,0xFFFF,0xFFFF,0xFF03,0xF7FF,0xFFFF,0xFFFF,
+X	0xFE00,0xEFFF,0xFFFF,0xFFFF,0xFD80,0x5FFF,0xFFFF,0xFFFF,
+X	0xFBFF,0x3FFF,0xFFFF,0xFFFF,0xF7FF,0x7FFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,
+X	0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF,0xFFFF
+SHAR_EOF
+len=`wc -c < nodstar.icon`
+if test $len != 2069 ; then
+echo shar: nodstar.icon was $len bytes long, should have been 2069
+fi
+fi # end of overwriting check
+
+if test -f dstar.c ; then
+echo shar: will not over-write existing file dstar.c
+else
+echo shar: extracting dstar.c, 3992 characters
+sed 's/^X//' > dstar.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)dstar.c 1.2 92/05/28 SMI" ;
+X	/* from dstar.c 1.5 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#include <fcntl.h>
+X#include <stdio.h>
+X#include <math.h>
+X#include <sys/types.h>
+X#include <sys/time.h>
+X#include <signal.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X#ifdef XV
+X#include <xview/notify.h>
+X#else
+X#include <sunwindow/notify.h>
+X#endif XV
+X
+X
+X
+Xextern	int		optind ;
+Xextern	char		*optarg ;
+X
+X
+Xstatic	struct timeval	Last_Poll ;
+Xstatic	struct timeval	countdown ;
+Xstatic	Blast_State	blast_state ;
+Xstatic	int		sigint() ;
+X
+X
+X#ifdef	COMMENT
+Xextern	Notify_value	dstar_prioritizer() ;
+X#endif	COMMENT
+X	void		timefunc(), sleepfunc() ;
+X
+Xmain(argc,argv)
+Xint	argc;
+Xchar	**argv;
+X{
+X	int	i,j,k,iret ;
+X	int	c ;
+X	Pt3d	p1, p2, p3, p4, p5 ;
+X
+X	gettimeofday(&Now, NULL) ;
+X	Last_Time.tv_sec = -1 ;
+X	Last_Poll = Now ;
+X
+X	debug_level = 0 ;
+X
+X	srandom(getpid()) ;
+X
+X	Main_Timer.it_interval.tv_usec = DISPLAY_INTERVAL ;
+X	Main_Timer.it_interval.tv_sec = 0 ;
+X	Main_Timer.it_value.tv_usec = 0 ;
+X	Main_Timer.it_value.tv_sec = 1 ;
+X
+X	Sleep_Timer.it_interval.tv_usec = 0 ;
+X	Sleep_Timer.it_interval.tv_sec = SLEEP_INTERVAL ;
+X	Sleep_Timer.it_value.tv_usec = 0 ;
+X	Sleep_Timer.it_value.tv_sec = POLL_INTERVAL ;
+X
+X	blast_state = B_NIL ;
+X
+X	init_objects() ;		/* init object descriptions */
+X	Me = &objects[0] ;		/* gets changed later */
+X
+X	init_game_special(argc,argv) ;	/* init graphic stuff (if any) */
+X
+X
+X	notify_set_signal_func(&Main_Timer, sigint, SIGHUP, NOTIFY_SYNC) ;
+X	notify_set_signal_func(&Main_Timer, sigint, SIGINT, NOTIFY_SYNC) ;
+X	notify_set_signal_func(&Main_Timer, sigint, SIGTERM, NOTIFY_SYNC) ;
+X	notify_set_signal_func(&Main_Timer, sigint, SIGXCPU, NOTIFY_SYNC) ;
+X#ifdef	COMMENT
+X	notify_set_prioritizer_func(&Main_Timer, dstar_prioritizer) ;
+X#endif	COMMENT
+X
+X	if( Me->status == OBJ_SLEEPING )
+X	  (void) notify_set_itimer_func(&Main_Timer, sleepfunc,
+X		  ITIMER_REAL, &Sleep_Timer, 0) ;
+X	else
+X	  (void) notify_set_itimer_func(&Main_Timer, timefunc,
+X		  ITIMER_REAL, &Main_Timer, 0) ;
+X
+X	dstar_main_loop() ;
+X	exit(0) ;
+X}
+X
+X
+X
+X
+X/* this routine called at start-up to zero out all objects */
+X
+Xinit_objects()
+X{
+X	int	i ;
+X	Pt3d	p1,p2,p3 ;
+X
+X	for(i=0; i<MAX_OBJECTS; objects[i++].class = OBJ_EMPTY ) ;
+X	for(i=0; i<MAX_DESCRIPTIONS; descriptions[i++] = NULL ) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X/* interrupt handler.  Simply tells the notifier to get the hell out */
+X
+X
+Xstatic	int
+Xsigint(me, signal, when)
+X	int	*me, signal ;
+X	Notify_signal_mode when ;
+X{
+X	terminate_game() ;
+X}
+X
+X
+X
+X
+X
+X
+X/* this routine called whenever the clock ticks.  Current mode affects
+X   what happens */
+X
+X
+Xvoid
+Xtimefunc(client, which)
+X	int	*client ;
+X	int	which ;
+X{
+X	long	interval ;
+X
+X	gettimeofday(&Now, NULL) ;
+X	if(Last_Time.tv_sec == -1)
+X	  Last_Time = Now ;
+X
+X	Dtime = (Now.tv_sec - Last_Time.tv_sec) + 
+X		(Now.tv_usec - Last_Time.tv_usec) * .000001 ;
+X
+X	switch(Me->status)
+X	{
+X	  case OBJ_ACTIVE:
+X	    normal_action() ;
+X	    break ;
+X
+X	  case OBJ_DEAD:
+X	    switch(blast_state)
+X	    {
+X	      case B_NIL:
+X		blast_state = B_FLASH ;
+X		set_blast_state(blast_state) ;
+X		countdown = Now ;
+X		break ;
+X
+X	      case B_FLASH:
+X		interval = (Now.tv_sec - countdown.tv_sec)*1000000 + 
+X			    Now.tv_usec - countdown.tv_usec ;
+X		if(interval > FLASH_INTERVAL)
+X		{
+X		  blast_state = B_WAIT ;
+X		  set_blast_state(blast_state) ;
+X		}
+X		blast_action() ;
+X		break ;
+X
+X	      case B_WAIT:
+X		interval = Now.tv_sec - countdown.tv_sec ;
+X		if(interval > DEATH_INTERVAL)
+X		{
+X		  blast_state = B_NIL ;
+X		  set_blast_state(blast_state) ;
+X		}
+X		else
+X		  blast_action() ;
+X		break ;
+X	    }
+X	    break ;
+X	}
+X
+X	if(Now.tv_sec - Last_Poll.tv_sec > POLL_INTERVAL)
+X	{
+X	  net_poll() ;
+X	  Last_Poll = Now ;
+X	}
+X	Last_Time = Now ;
+X
+X	if( Me->id != -1 )
+X	  net_flush() ;
+X}
+X
+X
+X
+X
+X
+X
+X/* this routine called whenever the clock ticks while asleep. */
+X
+X
+Xvoid
+Xsleepfunc(client, which)
+X	int	*client ;
+X	int	which ;
+X{
+X	long	interval ;
+X
+X	gettimeofday(&Now, NULL) ;
+X
+X	net_poll() ;
+X	Last_Poll = Now ;
+X	Last_Time = Now ;
+X
+X	special_sleep_func() ;
+X
+X	if( Me->id != -1 )
+X	  net_flush() ;
+X}
+SHAR_EOF
+len=`wc -c < dstar.c`
+if test $len != 3992 ; then
+echo shar: dstar.c was $len bytes long, should have been 3992
+fi
+fi # end of overwriting check
+
+if test -f control.c ; then
+echo shar: will not over-write existing file control.c
+else
+echo shar: extracting control.c, 4929 characters
+sed 's/^X//' > control.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)control.c 1.1 92/05/28 SMI" ;
+X	/* from control.c 1.3 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file contains generic control stuff:
+X *
+X * adjust_vector(object)
+X *	re-calculate objects "Pointing" vector from its "Delta"
+X *
+X * adjust_vectors(object)
+X *	updates an object's orientation according to its control inputs
+X *
+X * control_enemies()
+X *	goes through object list and updates everything according to
+X *	their last known control inputs
+X *
+X */
+X
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+Xextern	int	debug_level ;
+X
+X
+X/****
+X *
+X * apply a delta to a vector
+X *
+X ****/
+X
+X
+Xadjust_vector(object, delta)
+Xregister Object	*object ;
+Xregister Pt3d	*delta ;
+X{
+X	float   magnitude ;
+X
+X/* transform Delta from ship coords to universal coords
+X * matrix to go from ship coords to universe coords is:
+X *
+X * |  Right  |
+X * |   Up    |
+X * | Forward |
+X *
+X * (z-component of Delta is 1.0)
+X */
+X
+X	/* apply to forward vector */
+X
+X	object->Pointing.x = delta->x*object->Right.x +
+X			     delta->y*object->Up.x +
+X			     object->Forward.x ;
+X	object->Pointing.y = delta->x*object->Right.y +
+X			     delta->y*object->Up.y +
+X			     object->Forward.y ;
+X	object->Pointing.z = delta->x*object->Right.z +
+X			     delta->y*object->Up.z +
+X			     object->Forward.z ;
+X
+X	/* normalize the resulting vector */
+X
+X	magnitude = object->Pointing.x*object->Pointing.x +
+X		    object->Pointing.y*object->Pointing.y +
+X		    object->Pointing.z*object->Pointing.z ;
+X	if(magnitude != 1.0)
+X	{
+X	  magnitude = 1.0 / sqrt(magnitude) ;
+X	  object->Pointing.x *= magnitude ;
+X	  object->Pointing.y *= magnitude ;
+X	  object->Pointing.z *= magnitude ;
+X	}
+X}
+X
+X
+X
+X/****
+X *
+X * update object's position/velocity/"up" vectors
+X *
+X ****/
+X
+X
+Xadjust_vectors(object)
+Xregister Object	*object ;
+X{
+X	Pt3d	delta1, delta2, Forward2, Up2, Right2 ;
+X	float	a ;
+X	float	x,y ;
+X
+X
+X	delta1 = object->Delta ;
+X
+X	delta1.x *= Dtime ;
+X	delta1.y *= Dtime ;
+X	delta1.z *= Dtime ;
+X
+X
+X	/* transform Delta from ship coords to universal coords */
+X	/* matrix to go from ship coords to universe coords is:
+X	 *
+X	 * |  Right  |
+X	 * |   Up    |
+X	 * | Forward |
+X	 */
+X
+X
+X	/* (z-component of Delta is zero) */
+X
+X	delta2.x = delta1.x*object->Right.x + delta1.y*object->Up.x ;
+X	delta2.y = delta1.x*object->Right.y + delta1.y*object->Up.y ;
+X	delta2.z = delta1.x*object->Right.z + delta1.y*object->Up.z ;
+X
+X
+X	/* apply to forward vector */
+X
+X	Forward2.x = object->Forward.x + delta2.x ;
+X	Forward2.y = object->Forward.y + delta2.y ;
+X	Forward2.z = object->Forward.z + delta2.z ;
+X
+X	a = Forward2.x*Forward2.x +
+X	    Forward2.y*Forward2.y + 
+X	    Forward2.z*Forward2.z ; 
+X
+X	if(a != 1.0)
+X	{
+X	  a = 1.0 / sqrt(a) ;
+X	  Forward2.x *= a ;
+X	  Forward2.y *= a ;
+X	  Forward2.z *= a ;
+X	}
+X
+X
+X	/* transform Roll from ship coords to universal coords */
+X	/* (y,z components are zero */
+X
+X	delta2.x = delta1.z * object->Right.x ;
+X	delta2.y = delta1.z * object->Right.y ;
+X	delta2.z = delta1.z * object->Right.z ;
+X
+X	Up2.x = object->Up.x + delta2.x ;
+X	Up2.y = object->Up.y + delta2.y ;
+X	Up2.z = object->Up.z + delta2.z ;
+X
+X
+X
+X	/* calculate new Right vector and normalize */
+X
+X	Right2.x = Forward2.z*Up2.y - Forward2.y*Up2.z ; 
+X	Right2.y = Forward2.x*Up2.z - Forward2.z*Up2.x ; 
+X	Right2.z = Forward2.y*Up2.x - Forward2.x*Up2.y ; 
+X
+X	a = Right2.x*Right2.x + Right2.y*Right2.y + Right2.z*Right2.z ; 
+X
+X	if(a != 1.0)
+X	{
+X	  a = 1.0 / sqrt(a) ;
+X	  Right2.x *= a ;
+X	  Right2.y *= a ;
+X	  Right2.z *= a ;
+X	}
+X
+X
+X	/* go back and recalculate Up vector */
+X
+X	Up2.x = Right2.z*Forward2.y - Right2.y*Forward2.z ;
+X	Up2.y = Right2.x*Forward2.z - Right2.z*Forward2.x ;
+X	Up2.z = Right2.y*Forward2.x - Right2.x*Forward2.y ;
+X
+X	a = Up2.x*Up2.x + Up2.y*Up2.y + Up2.z*Up2.z ; 
+X	if(a > 1.00001  ||  a < .9999)
+X	  printf("whadda fuck? a=%f\n",a) ;
+X
+X
+X
+X
+X	/* update position */
+X
+X	object->Posn.x += object->Speed*Dtime*Forward2.x ;
+X	object->Posn.y += object->Speed*Dtime*Forward2.y ;
+X	object->Posn.z += object->Speed*Dtime*Forward2.z ;
+X
+X	object->Forward = Forward2 ;
+X	object->Up = Up2 ;
+X	object->Right = Right2 ;
+X}
+X
+X
+X
+X
+X
+Xcontrol_object(object)
+X	Object	*object ;
+X{
+X	adjust_vector(object,&object->Delta) ;
+X	adjust_vectors(object) ;
+X}
+X
+X
+X
+X
+X
+Xcontrol_enemies()
+X{
+Xregister int	i ;
+Xregister Object	*object = &objects[0] ;
+X
+X	/* adjust all active or dead, non-empty objects except
+X	   for myself and my missiles (which are adjusted elsewhere).
+X	   Do not adjust objects for which we've had a recent report. */
+X
+X
+X	for(i=MAX_PLAYERS; --i >= 0;)
+X	{
+X	  if(object->class != OBJ_EMPTY  &&
+X
+X	    (object->status == OBJ_ACTIVE || object->status == OBJ_DEAD)  &&
+X
+X	     object != Me  &&
+X	     !(object->class == OBJ_MISSILE  &&  object->team == Me->id)  &&
+X
+X	    (object->last_rep.tv_sec < Last_Time.tv_sec  ||
+X	     (object->last_rep.tv_sec == Last_Time.tv_sec  &&
+X	      object->last_rep.tv_usec < Last_Time.tv_usec)) )
+X	  {
+X	    (*object->f_vector[F_CONTROL])(object) ;
+X	  }
+X	  ++object ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < control.c`
+if test $len != 4929 ; then
+echo shar: control.c was $len bytes long, should have been 4929
+fi
+fi # end of overwriting check
+
+if test -f draw_hsi_xgl.c ; then
+echo shar: will not over-write existing file draw_hsi_xgl.c
+else
+echo shar: extracting draw_hsi_xgl.c, 2500 characters
+sed 's/^X//' > draw_hsi_xgl.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)draw_hsi_xgl.c 1.2 92/05/28 SMI" ;
+X	/* from draw_hsi_xgl.c 1.1 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file draws the hsi
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X
+Xextern	int	debug_level ;
+X
+X#include "hsi.h"
+X
+Xstatic	int		initialized = 0 ;
+Xstatic	Xgl_pt_list	lon_pt[NLON] ;
+Xstatic	Xgl_pt_list	lat_pt[NLAT] ;
+Xstatic	Xgl_circle_list	circle ;
+Xstatic	Xgl_circle_f2d	circle_dat ;
+Xstatic	Xgl_bbox	my_bbox ;
+Xstatic	Xgl_trans	scale_trans ;
+Xstatic	Mat3d		scale_mat = {{1.,0.,0.,0.},{0.,1.,0.,0.},
+X				     {0.,0.,-1.,0.},{0.,0.,0.,1.}} ;
+X
+X
+Xhsi_init()
+X{
+X	int	i ;
+X	Xgl_pt_list	tmp ;
+X
+X	my_bbox.bbox_type = XGL_BBOX_F3D ;
+X	my_bbox.box.f3d.xmin = -1. ;
+X	my_bbox.box.f3d.xmax = 1. ;
+X	my_bbox.box.f3d.ymin = -1. ;
+X	my_bbox.box.f3d.ymax = 1. ;
+X	my_bbox.box.f3d.zmin = -1. ;
+X	my_bbox.box.f3d.zmax = 1. ;
+X
+X	for(i=0; i<NLON; ++i)
+X	{
+X	  lon_pt[i].pt_type = XGL_PT_F3D ;
+X	  lon_pt[i].bbox = &my_bbox ;
+X	  lon_pt[i].num_pts = i%2 ? NLAT : NLAT+2 ;
+X	  lon_pt[i].pts.f3d = &lons[i][i%2] ;
+X	}
+X	tmp = lon_pt[1] ;
+X	lon_pt[1] = lon_pt[NLON/2] ;
+X	lon_pt[NLON/2] = tmp ;
+X
+X	for(i=0; i<NLAT; ++i)
+X	{
+X	  lat_pt[i].pt_type = XGL_PT_F3D ;
+X	  lat_pt[i].bbox = &my_bbox ; 
+X	  lat_pt[i].num_pts = NLON+1 ;
+X	  lat_pt[i].pts.f3d = lats[i] ;
+X	}
+X
+X	circle.num_circles = 1 ;
+X	circle.type = XGL_MULTICIRCLE_F2D ;
+X	circle.bbox = &my_bbox ;
+X	circle.circles.f2d = &circle_dat ;
+X	circle_dat.center.x = 0. ;
+X	circle_dat.center.y = 0. ;
+X	circle_dat.radius = 1 ;
+X
+X	initialized = 1 ;
+X
+X	scale_trans = xgl_transform_create(0) ;
+X	xgl_transform_write(scale_trans, scale_mat) ;
+X}
+X
+X
+Xdraw_hsi(ctx)
+Xregister Xgl_3d_ctx	ctx ;
+X{
+X	int	i,j ;
+X	int	color ;
+X	int	flag ;
+X	Pt3d	p1,p2,p3,p4,p5 ;
+Xregister Pt3d	*ptr ;
+X	int	fit ;
+X	Mat3d	matrix ;
+X
+X	if( !initialized )
+X	  hsi_init() ;
+X
+X	xgl_object_set(ctx,
+X		XGL_CTX_LOCAL_MODEL_TRANS, scale_trans,
+X		XGL_CTX_GLOBAL_MODEL_TRANS, ROT_MAT,
+X		XGL_CTX_CLIP_PLANES, 0x3f,
+X		0 ) ;
+X
+X	Set_color(ctx,LGREY) ;
+X
+X#ifdef	COMMENT
+X	xgl_multicircle(ctx, &circle) ;
+X#endif	COMMENT
+X
+X	/* draw longitude lines */
+X
+X	Set_color(ctx,RED) ;
+X	xgl_multipolyline(ctx, NULL, 1, &lon_pt[0]) ;
+X
+X	Set_color(ctx,GREEN) ;
+X	xgl_multipolyline(ctx, NULL, 1, &lon_pt[1]) ;
+X
+X	Set_color(ctx,LGREY) ;
+X	xgl_multipolyline(ctx, NULL, NLON-2, &lon_pt[2]) ;
+X
+X
+X	/* draw lattitude lines */
+X
+X	xgl_multipolyline(ctx, NULL, (NLAT+1)/2, lat_pt) ;
+X
+X	Set_color(ctx,RED) ;
+X	xgl_multipolyline(ctx, NULL, NLAT-((NLAT+1)/2), &lat_pt[(NLAT+1)/2]) ;
+X}
+SHAR_EOF
+len=`wc -c < draw_hsi_xgl.c`
+if test $len != 2500 ; then
+echo shar: draw_hsi_xgl.c was $len bytes long, should have been 2500
+fi
+fi # end of overwriting check
+
+if test -f draw_starfield_xgl.c ; then
+echo shar: will not over-write existing file draw_starfield_xgl.c
+else
+echo shar: extracting draw_starfield_xgl.c, 1691 characters
+sed 's/^X//' > draw_starfield_xgl.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)draw_starfield_xgl.c 1.1 92/05/28 SMI" ;
+X	/* from draw_starfield_xgl.c 1.1 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file draws all the stars
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X
+Xstatic	Pt3d	starfield[] = {
+X#include "starfield.h"
+X		} ;
+X
+X#define	NSTAR	(sizeof(starfield)/sizeof(Pt3d))
+X
+Xstatic	Xgl_pt_flag_f3d	starpts[NSTAR][2] ;
+X
+Xextern	int	debug_level ;
+X
+Xstatic	int	initialized = 0 ;
+X
+X
+Xstarfield_init()
+X{
+X	int	i ;
+X
+X	for(i=0; i<NSTAR; ++i)
+X	{
+X	  starpts[i][0].x = starfield[i].x ;
+X	  starpts[i][0].y = starfield[i].y ;
+X	  starpts[i][0].z = starfield[i].z ;
+X	  starpts[i][1] = starpts[i][0] ;
+X	  starpts[i][0].flag = 0 ;
+X	  starpts[i][1].flag = 1 ;
+X	}
+X	initialized = 1 ;
+X}
+X
+Xdraw_starfield()
+X{
+X	int	i ;
+X	int	nwhite, nother ;
+X	int	color ;
+Xregister Pt3d	*ptr ;
+Xregister int	fit ;
+X	Xgl_pt_list	pts ;
+X
+X	if( !initialized )
+X	  starfield_init() ;
+X
+X	pts.pt_type = XGL_PT_FLAG_F3D ;
+X	pts.bbox = NULL ;
+X	pts.num_pts = NSTAR*2 ;
+X	pts.pts.flag_f3d = &starpts[0][0] ;
+X	xgl_multipolyline(Main_gfx, NULL, 1, &pts) ;
+X}
+X
+X
+X
+X
+X#ifdef	COMMENT
+Xdraw_starfield()
+X{
+X	int	i ;
+X	int	nstars ;
+X	int	nwhite, nother ;
+X	int	color ;
+Xregister Pt3d	*ptr ;
+Xregister int	fit ;
+X	Xgl_pt_list	pts ;
+X
+X
+X	nstars = sizeof(starfield) / sizeof(Pt3d) ;
+X	nwhite = nstars/2 ;
+X	nother = nstars/8 ;
+X	color = 4 ;
+X	ptr = &starfield[0] ;
+X
+X	xgl_object_set(Main_gfx,
+X		XGL_CTX_MARKER_DESCRIPTION, xgl_marker_dot,
+X		XGL_CTX_MARKER_COLOR, &current_xgl_color, 0) ;
+X
+X	pts.pt_type = XGL_PT_F3D ;
+X	pts.bbox = NULL ;
+X	pts.num_pts = nstars ;
+X	pts.pts.f3d = starfield ;
+X	xgl_multimarker(Main_gfx, &pts) ;
+X}
+X#endif	COMMENT
+SHAR_EOF
+len=`wc -c < draw_starfield_xgl.c`
+if test $len != 1691 ; then
+echo shar: draw_starfield_xgl.c was $len bytes long, should have been 1691
+fi
+fi # end of overwriting check
+
+exit 0
+#	End of part 1
+--
+		-ed falk, sun microsystems
+		 sun!falk, falk@sun.com
+To be loyal to rags, to shout for rags, to worship rags, to die for rags 
+-- that is a loyalty of unreason, it is pure animal (Mark Twain).

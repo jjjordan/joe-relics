@@ -1,0 +1,288 @@
+Path: funic!fuug!mcsun!uunet!zaphod.mps.ohio-state.edu!casbah.acns.nwu.edu!ucsd!ucsbcsl!dschub!sbanet!nixbbs!root
+From: root@nixbbs.UUCP (Donald Burr)
+Newsgroups: alt.sources
+Subject: A shellscript to make variables unique within 8 chars
+Message-ID: <1991Sep3.033418.4227@nixbbs.UUCP>
+Date: 3 Sep 91 03:34:18 GMT
+Reply-To: root@nixbbs.UUCP (Donald Burr)
+Distribution: alt
+Organization: NixBBS Public Access UNIX, Carpinteria, CA
+Lines: 277
+
+
+A lot of C compilers, especially those on older UNIX boxes, ignore anything
+after 8 characters, in variable and function declarations.  This is very
+annoying, especially if you're trying to compile more modern software
+(virtually anything from GNU, a lot of the stuff that comes over the net,
+etc.)
+
+Until now, people have had to laboriously go through each and every code
+file, change all references of a particular variable or function to be
+unique within 8 characters, and recompile.  Frequently, this would take a
+long amount of time, and would be prone to error.
+
+Now, there is a solution.  (Well, sort of.)  Here is a shell script that
+will do this process for function definitions only.  It's up to you to
+fix variable names.  But it takes some of the work out.  Plus, it leaves
+a record of what changes it made, so you can reverse engineer them if you
+must.
+
+This runs under the Bourne Shell, and requires the system programs 'ctags'
+and 'sed', usually present on anything that calls itself Unix.  If you are
+on a BSD machine, you will (may) need to change two things.  First, delete
+the line that reads ": use /bin/sh", and replace it with "#!/bin/sh".
+Second , look through all the "echo" lines.  Currently they are of the
+form:
+
+echo "stuff\c"
+
+This form of echo suppresses the newline character at the end of the echo,
+so when the cursor is displayed, it is displayed after "stuff"; this creates
+a prompt.  On some systems, instead of doing "echo 'stuff\c'", you use
+a line of the following:
+
+echo -n "stuff"
+
+If this is true on your system, you will need to change all the echo state-
+ments.
+
+Anyways, hope you enjoy this.  I am not the author, but I can get in touch
+with him.  If you have any comments, questions, bug fixes, etc. I would be
+happy to pass them along to the author.  Just mail them to me.
+
+Enjoy.
+
+BTW, don't forget, there's a .signature at the end of this article...
+
+: use /bin/sh
+# Name: unique_nms
+#
+# Usage: unique_nms [ -y ] [ -v ] [ tagfilename ]
+#
+# Description: from the set of C source files in the current directory
+# (i.e., *.c and *.h), detects function names that aren't unique within
+# their first seven characters, and rewrites each reference to such
+# functions (including their definitions) with a unique prefix.
+#
+# If a tagfilename is specified, then the specified tagfilename is
+# taken to be a file created by 'ctags', representing the contents of
+# the C source files in the current directory, and up to date.  If no
+# tagfilename is specified, "tags" is assumed to be the tagfilename.
+# The script prompts for whether to restrict the edit to the files
+# specifically mentioned in the tagfile, regardless of whether a
+# tagfilename is specified on the command line.
+#
+# If the "-y" (for "yes" or "affirmative") switch is present, no
+# prompting will occur; the responses to all ordinary prompts will be
+# assumed to be "yes".
+#
+# If the "-v" (for "void") switch is present, then if a tags file must
+# be built, it will be built from copies of the specified source files
+# with references to the "void" type removed.  This is for versions of
+# 'ctags' that don't know about the "void" data type.  The implementation
+# is crude, requiring a physical copy of each source file so as not to
+# disturb the original.  The Tandy 6000 requires this switch for any
+# source fileset that contains "void" functions.
+#
+# Notes: this script generates a 'sed' scriptfile called "sedfile$$"
+# where "$$" is the current process number.  This file can be referred
+# to to keep track of changes made in the original source files; it's
+# pretty easy to reverse the changes made by this script with simple
+# massaging of the sedfile and re-running 'sed'.
+#
+# Copyright: this script was written by Fred Buck, who hereby releases
+# it into the public domain and expressly waives all copyright or
+# similar rights with respect to it.  This script is public property.
+# However, liability is disclaimed for any consequences of use of
+# this script.
+
+trap "rm -f TEMP$$ *@ tags$$ /tmp/tag$$; exit 1" 1 2 15
+
+# affirmative mode?
+if [ $# -gt 0 -a "$1" = "-y" ]
+then
+	AFFIRM="yes"
+	shift
+else
+	AFFIRM="no"
+fi
+
+# anti-void mode?
+if [ $# -gt 0 -a "$1" = "-v" ]
+then
+	VOID="yes"
+	shift
+else
+	VOID="no"
+fi
+
+
+# usage section
+case $# in
+0)
+	TAGFILE="tags"				;;
+1)	if [ ! -r $1 ]
+	then
+		echo "$0: can't open $1"
+		exit 1
+	else
+		TAGFILE="$1"
+	fi					;;
+*)	echo "usage: $0 [ -y ] [ -v ] [ tagfilename ]"
+	exit 1					;;
+esac
+
+# check for readability of specified tags file
+if [ ! -r "$TAGFILE" ]
+then
+	if [ "$AFFIRM" = "no" ]
+	then
+		echo "'tags' file doesn't exist; generate it? \c"
+		read yesno
+		case $yesno in
+			[Yy]*)					;;
+			*)	echo "can't work without a tags file"
+			exit 1					;;
+		esac
+	fi
+	echo "calling 'ctags'....."
+	if [ "$VOID" = "no" ]
+	then
+		ctags *.c *.h
+	else
+		for SFILE in *.c *.h
+		do
+			0<$SFILE sed \
+				-e 's/^void//'\
+				-e 's/^static void/static/'\
+			1>$SFILE@
+		done
+		ctags *.c@ *.h@
+		mv tags tags$$
+		TAGFILE=/tmp/tag$$
+		0<tags$$ sed 's/@//' 1>$TAGFILE
+		rm tags$$
+	fi
+else
+	echo "The tags file is stamped as follows:"
+	echo
+	ls -l ./$TAGFILE
+	echo
+	if [ "$AFFIRM" = "no" ]
+	then
+		echo "Use it? \c"
+		read yesno
+		case $yesno in
+		[Yy]*)		echo "OK."				;;
+		*)		echo "can't work without a tags file"
+				exit 1					;;
+		esac
+	fi
+fi
+
+# get to work
+
+				# first, find names ambiguous in 1st 7 chars;
+				# and build a sed scriptfile to disambiguate 'em
+				# (scriptfile will be sedfile$$).  This logic
+				# will accommodate up to about seventeen
+				# thousand ambiguous function names, with
+				# gradually increasing probability that
+				# some "[A-Z][A-Z][A-Z]_*" names may become
+				# ambiguous.
+echo "Building edit scriptfile for ambiguous function names....."
+0<$TAGFILE awk '
+	BEGIN {
+		a = "ABCDEFGFHIJKLMNOPQRSTUVWXYZ"
+		i1 = 1
+		i2 = 0
+		i3 = 0
+		l1 = 1
+		l2 = 0
+		l3 = 0
+	}
+	{ if (substr($1,1,7) == prevsub) {
+		prefix = substr(a,i3,l3) substr(a,i2,l2) substr(a,i1,l1)
+		printf "s/^%s(/%s_&/\n", $1, prefix
+		printf "s/\\([^_]\\)\\(%s(\\)/\\1%s_\\2/g\n", $1, prefix
+		printf "s/\\([, \t]\\)\\(%s[^A-Za-z0-9_]\\)/\\1%s_\\2/g\n", \
+			$1, prefix
+		++i1
+		if (i1 > 26) {
+			i1 = 1
+			++i2
+			l2 = 1
+		}
+		if (i2 > 26) {
+			i2 = 1
+			++i3
+			l3 = 1
+		}
+		if (i3 > 26) exit(1)
+	  }
+	}
+	{ prevsub = substr($1,1,7)
+	}'				1>sedfile$$
+
+	if [ $? -gt 0 ]
+	then
+		echo "Fatal error: 'awk' failure" 1>&2
+		exit 1
+	fi
+
+				# if the sedfile is empty, bail out
+if [ ! -s sedfile$$ ]
+then
+	echo "All names in '$TAGFILE' are unique within the first 7 characters."
+	rm -f sedfile$$ /tmp/tag$$
+	exit 0
+fi
+
+				# let the user look over the sedfile first
+if [ "$AFFIRM" = "no" ]
+then
+	echo "Sed command file contains:"
+	/bin/more sedfile$$
+	echo " -- go ahead with edit? \c"
+	read yesno
+	case $yesno in
+		[Yy]*) echo ;;
+		*)     exit 1 ;;
+	esac
+	echo "Restrict edit to files mentioned in '$TAGFILE'? \c"
+	read yesno
+	case $yesno in
+		[Yy]*) TARGETS=`0<$TAGFILE awk '{ print $2 }' | sort -u` ;;
+		*)     TARGETS=`echo *.c *.h`				 ;;
+	esac
+else
+	echo "Restricting edit to files mentioned in '$TAGFILE'."
+	TARGETS=`0<$TAGFILE awk '{ print $2 }' | sort -u`
+fi
+echo "About to edit: $TARGETS" | tr '\012' ' '
+echo
+
+				# finally, run the 'sed' commandfile on
+				# the files mentioned in $TAGFILE
+for FILE in $TARGETS
+do
+	echo "Editing $FILE:"
+	0<$FILE sed -f sedfile$$ 1>TEMP$$
+	if [ $? -eq 0 ]
+	then
+		mv TEMP$$ $FILE
+		echo "	$FILE successfully edited"
+	else
+		echo "  Can't edit $FILE!"
+	fi
+done
+rm -f TEMP$$
+
++--------------------------------------------+--------------------------------+
+: Donald Burr, System Administrator          : INTERNET: root@nixbbs.UUCP,    :
+: NixBBS Public Access UNIX, Carpinteria, CA :      72540.3071@compuserve.COM :
+:                                            : COMPUSERVE: 72540,3071         :
+: UUCP: uunet!nixbbs!root, nixbbs!root       : AMERICA ONLINE: DonaldBurr     :
++--------------------------------------------+--------------------------------+
+:               Don't like my postings?  Call 1-800-dev-null.                 :
++-----------------------------------------------------------------------------+

@@ -1,0 +1,354 @@
+Xref: funic comp.lang.postscript:5682 alt.sources:3037
+Path: funic!news.funet.fi!sunic!seunet!kullmar!compuram!pgd
+From: pgd@compuram.bbt.se
+Newsgroups: comp.lang.postscript,alt.sources
+Subject: Postscript type1 font accent maker, part 3/3
+Message-ID: <1992Jan22.154116.2939@compuram.bbt.se>
+Date: 22 Jan 92 15:41:16 GMT
+Lines: 343
+Archive-name: ps-accent/part03
+Submitted-by: pgd@compuram.bbt.se
+
+#!/bin/sh
+# This is part 03 of ps-accent
+if touch 2>&1 | fgrep 'amc' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+# ============= parseAFM.h ==============
+echo "x - extracting parseAFM.h (Text)"
+sed 's/^X//' << 'SHAR_EOF' > parseAFM.h &&
+X/*
+X * (C) 1988, 1989 by Adobe Systems Incorporated. All rights reserved.
+X *
+X * This file may be freely copied and redistributed as long as:
+X *   1) This entire notice continues to be included in the file, 
+X *   2) If the file has been modified in any way, a notice of such
+X *      modification is conspicuously indicated.
+X *
+X * PostScript, Display PostScript, and Adobe are registered trademarks of
+X * Adobe Systems Incorporated.
+X * 
+X * ************************************************************************
+X * THE INFORMATION BELOW IS FURNISHED AS IS, IS SUBJECT TO CHANGE WITHOUT
+X * NOTICE, AND SHOULD NOT BE CONSTRUED AS A COMMITMENT BY ADOBE SYSTEMS
+X * INCORPORATED. ADOBE SYSTEMS INCORPORATED ASSUMES NO RESPONSIBILITY OR 
+X * LIABILITY FOR ANY ERRORS OR INACCURACIES, MAKES NO WARRANTY OF ANY 
+X * KIND (EXPRESS, IMPLIED OR STATUTORY) WITH RESPECT TO THIS INFORMATION, 
+X * AND EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES OF MERCHANTABILITY, 
+X * FITNESS FOR PARTICULAR PURPOSES AND NONINFINGEMENT OF THIRD PARTY RIGHTS.
+X * ************************************************************************
+X */
+X
+X/* ParseAFM.h
+X *
+X * This header file is used in conjuction with the parseAFM.c file.
+X * Together these files provide the functionality to parse Adobe Font
+X * Metrics files and store the information in predefined data structures.
+X * It is intended to work with an application program that needs font metric
+X * information. The program can be used as is by making a procedure call to 
+X * parse an AFM file and have the data stored, or an application developer
+X * may wish to customize the code. 
+X *
+X * This header file defines the data structures used as well as the key 
+X * strings that are currently recognized by this version of the AFM parser.
+X * This program is based on the document "Adobe Font Metrics Files, 
+X * Specification Version 2.0".
+X *
+X * AFM files are separated into distinct sections of different data. Because
+X * of this, the parseAFM program can parse a specified file to only save
+X * certain sections of information based on the application's needs. A record 
+X * containing the requested information will be returned to the application.
+X * 
+X * AFM files are divided into five sections of data:
+X *	1) The Global Font Information
+X *	2) The Character Metrics Information 
+X *	3) The Track Kerning Data
+X *	4) The Pair-Wise Kerning Data
+X *	5) The Composite Character Data
+X *
+X * Basically, the application can request any of these sections independent
+X * of what other sections are requested. In addition, in recognizing that
+X * many applications will want ONLY the x-width of characters and not all
+X * of the other character metrics information, there is a way to receive
+X * only the width information so as not to pay the storage cost for the 
+X * unwanted data. An application should never request both the 
+X * "quick and dirty" char metrics (widths only) and the Character Metrics 
+X * Information since the Character Metrics Information will contain all 
+X * of the character widths as well.
+X * 
+X * There is a procedure in parseAFM.c, called parseFile, that can be 
+X * called from any application wishing to get information from the AFM File.
+X * This procedure expects 3 parameters: a vaild file descriptor, a pointer
+X * to a (FontInfo *) variable (for which space will be allocated and then 
+X * will be filled in with the data requested), and a mask specifying
+X * which data from the AFM File should be saved in the FontInfo structure.
+X * 
+X * The flags that can be used to set the appropriate mask are defined below.
+X * In addition, several commonly used masks have already been defined. 
+X * 
+X * History:
+X *	original: DSM  Thu Oct 20 17:39:59 PDT 1988
+X *  modified: DSM  Mon Jul  3 14:17:50 PDT 1989
+X *    - added 'storageProblem' return code
+X *	  - fixed typos
+X */
+X
+X#include <stdio.h>
+X
+X
+X
+X/* your basic constants */
+X#define TRUE 1
+X#define FALSE 0
+X#define EOL '\n'                /* end-of-line indicator */
+X#define MAX_NAME 4096           /* max length for identifiers */
+X#define BOOL int
+X#define FLAGS int
+X
+X
+X
+X/* Flags that can be AND'ed together to specify exactly what
+X * information from the AFM file should be saved.
+X */
+X#define P_G	0x01	/* 0000 0001 */   /* Global Font Info      */
+X#define P_W	0x02	/* 0000 0010 */   /* Character Widths ONLY */
+X#define P_M	0x06	/* 0000 0110 */   /* All Char Metric Info  */
+X#define P_P	0x08	/* 0000 1000 */   /* Pair Kerning Info     */
+X#define P_T	0x10	/* 0001 0000 */   /* Track Kerning Info    */
+X#define P_C	0x20	/* 0010 0000 */   /* Composite Char Info   */
+X
+X
+X/* Commonly used flags
+X */
+X#define P_GW	(P_G | P_W) 
+X#define P_GM	(P_G | P_M)
+X#define P_GMP	(P_G | P_M | P_P)
+X#define P_GMK	(P_G | P_M | P_P | P_T) 
+X#define P_ALL	(P_G | P_M | P_P | P_T | P_C)
+X
+X
+X
+X/* Possible return codes from the parseFile procedure.
+X * 
+X * ok means there were no problems parsing the file.
+X *
+X * parseError means that there was some kind of parsing error, but the
+X * parser went on. This could include problems like the count for any given
+X * section does not add up to how many entries there actually were, or
+X * there was a key that was not recognized. The return record may contain
+X * vaild data or it may not. 
+X *
+X * earlyEOF means that an End of File was encountered before expected. This
+X * may mean that the AFM file had been truncated, or improperly formed.
+X * 
+X * storageProblem means that there were problems allocating storage for
+X * the data structures that would have contained the AFM data.
+X */
+X#define ok 0
+X#define parseError -1
+X#define earlyEOF -2
+X#define storageProblem -3
+X
+X
+X
+X/************************* TYPES *********************************/
+X/* Below are all of the data structure definitions. These structures
+X * try to map as closely as possible to grouping and naming of data 
+X * in the AFM Files.
+X */
+X
+X
+X/* Bounding box definition. Used for the Font BBox as well as the 
+X * Character BBox.
+X */
+Xtypedef struct
+X{ 
+X   int llx;	/* lower left x-position  */
+X   int lly;	/* lower left y-position  */
+X   int urx;	/* upper right x-position */
+X   int ury;	/* upper right y-position */
+X} BBox;
+X
+X
+X/* Global Font information.
+X * The key that each field is associated with is in comments. For an 
+X * explanation about each key and its value please refer to the AFM
+X * documentation (full title & version given above). 
+X */
+Xtypedef struct
+X{  
+X   char *afmVersion;		/* key: StartFontMetrics */
+X   char *fontName;		/* key: FontName */
+X   char *fullName;		/* key: FullName */
+X   char *familyName;		/* key: FamilyName */
+X   char *weight;		/* key: Weight */
+X   float italicAngle;		/* key: ItalicAngle */
+X   BOOL isFixedPitch;		/* key: IsFixedPitch */
+X   BBox fontBBox;		/* key: FontBBox */
+X   int underlinePosition;  	/* key: UnderlinePosition */
+X   int underlineThickness; 	/* key: UnderlineThickness */
+X   char *version;		/* key: Version */
+X   char *notice;		/* key: Notice */
+X   char *encodingScheme;	/* key: EncodingScheme */
+X   int capHeight;		/* key: CapHeight */
+X   int xHeight;			/* key: XHeight */
+X   int ascender;		/* key: Ascender */
+X   int descender;		/* key: Descender */
+X} GlobalFontInfo;
+X
+X
+X/* Ligature definition is a linked list since any character can have
+X * any number of ligatures.
+X */
+Xtypedef struct _t_ligature
+X{
+X    char *succ, *lig;
+X    struct _t_ligature *next;
+X} Ligature;
+X
+X
+X/* Character Metric Information. This structure is used only if ALL 
+X * character metric information is requested. If only the character
+X * widths is requested, then only an array of the character x-widths
+X * is returned.
+X *
+X * The key that each field is associated with is in comments. For an 
+X * explanation about each key and its value please refer to the 
+X * Character Metrics section of the AFM documentation (full title
+X * & version given above). 
+X */
+Xtypedef struct
+X{
+X    int code, 		/* key: C */
+X        wx,		/* key: WX */
+X        wy;		/* together wx and wy are associated with key: W */
+X    char *name; 	/* key: N */
+X    BBox charBBox;	/* key: B */
+X    Ligature *ligs;	/* key: L (linked list; not a fixed number of Ls */
+X} CharMetricInfo;
+X
+X
+X/* Track kerning data structure.
+X * The fields of this record are the five values associated with every 
+X * TrackKern entry.
+X *  
+X * For an explanation about each value please refer to the 
+X * Track Kerning section of the AFM documentation (full title
+X * & version given above). 
+X */
+Xtypedef struct 
+X{
+X    int degree;  
+X    float minPtSize, 
+X          minKernAmt, 
+X          maxPtSize, 
+X          maxKernAmt;
+X} TrackKernData;
+X
+X
+X/* Pair Kerning data structure.
+X * The fields of this record are the four values associated with every
+X * KP entry. For KPX entries, the yamt will be zero.
+X *
+X * For an explanation about each value please refer to the 
+X * Pair Kerning section of the AFM documentation (full title
+X * & version given above). 
+X */
+Xtypedef struct 
+X{
+X    char *name1;
+X    char *name2;
+X    int xamt,
+X        yamt;
+X} PairKernData;
+X
+X
+X/* PCC is a piece of a composite character. This is a sub structure of a
+X * compCharData described below.
+X * These fields will be filled in with the values from the key PCC.
+X * 
+X * For an explanation about each key and its value please refer to the 
+X * Composite Character section of the AFM documentation (full title
+X * & version given above).  
+X */
+Xtypedef struct
+X{
+X    char *pccName;
+X    int deltax,
+X        deltay;
+X} Pcc;
+X
+X
+X/* Composite Character Information data structure. 
+X * The fields ccName and numOfPieces are filled with the values associated
+X * with the key CC. The field pieces points to an array (size = numOfPieces)
+X * of information about each of the parts of the composite character. That
+X * array is filled in with the values from the key PCC.
+X * 
+X * For an explanation about each key and its value please refer to the 
+X * Composite Character section of the AFM documentation (full title
+X * & version given above).  
+X */
+Xtypedef struct
+X{
+X    char *ccName;
+X    int numOfPieces;
+X    Pcc *pieces;
+X} CompCharData;
+X
+X
+X/*  FontInfo
+X *  Record type containing pointers to all of the other data
+X *  structures containing information about a font.
+X *  A a record of this type is filled with data by the
+X *  parseFile function.
+X */
+Xtypedef struct
+X{ 
+X    GlobalFontInfo *gfi;	/* ptr to a GlobalFontInfo record */
+X    int *cwi;			/* ptr to 256 element array of just char widths */ 
+X    int numOfChars;		/* number of entries in char metrics array */
+X    CharMetricInfo *cmi;	/* ptr to char metrics array */
+X    int numOfTracks;		/* number to entries in track kerning array */
+X    TrackKernData *tkd;		/* ptr to track kerning array */
+X    int numOfPairs;		/* number to entries in pair kerning array */
+X    PairKernData *pkd;		/* ptr to pair kerning array */
+X    int numOfComps;		/* number to entries in comp char array */
+X    CompCharData *ccd;		/* ptr to comp char array */
+X} FontInfo;
+X
+X
+X
+X/************************* PROCEDURES ****************************/
+X
+X/*  Call this procedure to do the grunt work of parsing an AFM file.
+X *
+X *  "fp" should be a valid file pointer to an AFM file.
+X *
+X *  "fi" is a pointer to a pointer to a FontInfo record sturcture 
+X *  (defined above). Storage for the FontInfo structure will be
+X *  allocated in parseFile and the structure will be filled in
+X *  with the requested data from the AFM File.
+X *
+X *  "flags" is a mask with bits set representing what data should
+X *  be saved. Defined above are valid flags that can be used to set
+X *  the mask, as well as a few commonly used masks.
+X *
+X *  The possible return codes from parseFile are defined above.
+X */
+X
+Xint parseFile (FILE *fp, FontInfo **fi, FLAGS flags); 
+SHAR_EOF
+$TOUCH -am 0122154892 parseAFM.h &&
+chmod 0660 parseAFM.h ||
+echo "restore of parseAFM.h failed"
+set `wc -c parseAFM.h`;Wc_c=$1
+if test "$Wc_c" != "11485"; then
+	echo original size 11485, current size $Wc_c
+fi
+exit 0
+-- 
+Per Lindqvist
+
+Internet: pgd@compuram.bbt.se   Fidonet: Per Lindqvist @ 2:201/332

@@ -1,0 +1,971 @@
+Xref: funic alt.sources:4880 comp.lang.perl:11629
+Path: funic!news.funet.fi!fuug!mcsun!uunet!snorkelwacker.mit.edu!bloom-picayune.mit.edu!senator-bedfellow.mit.edu!athena.mit.edu!jik
+From: jik@athena.mit.edu (Jonathan I. Kamens)
+Newsgroups: alt.sources,comp.lang.perl
+Subject: "move-newsrc" -- transferring a .newsrc to a new NNTP server
+Followup-To: alt.sources.d,comp.lang.perl
+Date: 15 Nov 1992 04:40:52 GMT
+Organization: Massachusetts Institute of Technology
+Lines: 958
+Distribution: world
+Message-ID: <1e4kckINNlqa@senator-bedfellow.MIT.EDU>
+NNTP-Posting-Host: pit-manager.mit.edu
+
+Archive-name: move-newsrc/part1
+Submitted-by: jik@athena.mit.edu (Jonathan I. Kamens)
+
+This is a new version of my "move-newsrc" package, written in perl.
+
+These scripts can be used to transfer a .newsrc file from one NNTP server to
+another, preserving (as much as possible) the status information in the file.
+
+More information can be found in the README file in the shar.
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  README move-newsrc.1 merge-newsrcs.pl
+#   message-id-to-newsrc.pl newsrc-to-message-id.pl nntp.pl
+# Wrapped by jik@pit-manager on Sat Nov 14 23:39:23 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(1452 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+X  These scripts can be used to transfer a .newsrc file from one NNTP
+Xserver to another, preserving (as much as possible) the status
+Xinformation in the file.
+X
+X  Newsrc-to-message-id.pl reads a .newsrc file and converts it into a
+Xfile that lists Message-ID's instead of article numbers, by talking to
+Xthe NNTP server to figure out the Message-ID's.
+X
+X  Message-id-to-newsrc.pl does the reverse transformation, presumably
+Xon a different NNTP server.
+X
+X  Merge-newsrcs.pl isn't directly related to this conversion process,
+Xbut I found it useful anyway.  It reads multiple .newsrc files and
+Xmerges the lists of read articles for the various newsgroups in the
+Xvarious files.  I used it to merge my converted UCSC .newsrc back into
+Xmy MIT .newsrc from before the summer.
+X
+X  Nntp.pl is a library file used by newsrc-to-message-id and
+Xmessage-id-to-nesrc.  It is borrowed from a Perl news package by
+Xishii@hexard.co.jp, with some modifications by me, and some fixes by
+XDave Lawrence <tale@uunet.uu.net>.
+X
+X  You will have to modify the #! line at the top of the scripts, as
+Xwell as repairing the setting of @INC near the top of
+Xmessage-id-to-newsrc.pl and newsrc-to-message-id.pl (if you want to
+Xput nntp.pl in a different directory).
+X
+X  The move-newsrc.1 man page documents newsrc-to-message-id.pl and
+Xmessage-id-to-newsrc.pl.
+X
+X  If you have any suggestions or improvements, please let me know.
+X
+X	Jonathan Kamens
+X	jik@athena.mit.edu
+X	$Date: 1992/11/15 04:39:18 $
+END_OF_FILE
+if test 1452 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'move-newsrc.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'move-newsrc.1'\"
+else
+echo shar: Extracting \"'move-newsrc.1'\" \(4302 characters\)
+sed "s/^X//" >'move-newsrc.1' <<'END_OF_FILE'
+X.TH MOVE-NEWSRC 1 "October 28, 1992"
+X.SH NAME
+Xnewsrc-to-message-id.pl, message-id-to-newsrc.pl \- convert .newsrc files to/from a server-independent format
+X.SH SYNOPSIS
+X.B newsrc-to-message-id.pl
+X[
+X.BI \-server " server"
+X] [
+X.BI \-out " file"
+X] [
+X.B +|\-ticks
+X] [
+X.B +|\-nntp_debug
+X] [
+X.B +|\-buffered
+X] [
+X.B +|\-unsubbed
+X] [
+X.I file ...
+X]
+X.PP
+X.B message-id-to-newsrc.pl
+X[
+X.BI \-server " server"
+X] [
+X.BI \-out " file"
+X] [
+X.B +|\-ticks
+X] [
+X.B +|\-nntp_debug
+X] [
+X.B +|\-buffered
+X] [
+X.B +|\-upto
+X] [
+X.I file ...
+X]
+X.SH DESCRIPTION
+XThe
+X.I newsrc-to-message-id.pl
+Xscript, written in
+X.IR perl (1),
+Xconverts a
+XNetNews
+X.I .newsrc
+Xfile into a format that records messages by Message ID rather than by
+Xmessage number, so that the information in the new file is independent
+Xof the NNTP server being used to read news.  The
+X.I message-id-to-newsrc.pl
+Xscript, also written in
+X.IR perl ,
+Xconverts the server-independent file back into a
+X.I .newsrc
+Xfile so that it can be used to read News.
+X.PP
+XThese arguments are accepted by both scripts:
+X.TP
+X.BI \-server " server"
+XSpecifies the NNTP server to which to connect.  If not specified, the
+XNNTPSERVER environment variable is used.  If neither is present, the
+Xprogram aborts.
+X
+XWhen running
+X.IR newsrc-to-message-id.pl ,
+Xthe server specified should be the server to which the 
+X.I .newsrc
+Xfile being converted corresponds.  When running
+X.IR message-id-to-newsrc.pl ,
+Xthe server specified should be the server with which the new
+X.I .newsrc
+Xfile is going to be used.
+X.TP
+X.BI \-out " file"
+XSpecifies the file to which output should be directed.  If not
+Xspecified, output is directed to the standard output.
+X.TP
+X.B +|\-ticks
+XEnables or disables the printing of tick marks to the standard error
+Xfor each newsgroup processed.  Enabled by default.
+X.TP
+X.B +|\-nntp_debug
+XEnables or disables NNTP debugging.  If enabled, all data send to or
+Xreceived from the NNTP server is printed to the standard error.
+XDisabled by default.
+X.TP
+X.B +|\-buffered
+XEnables or disables buffered output to the output file.  It is useful
+Xto disable buffered output if if
+Xyou want to direct output to a file but be able to monitor exactly how
+Xfar the script has progressed in writing it.  Enabled by default.
+X.PP
+XThe following arguments are accepted only by
+X.IR newsrc-to-message-id.pl :
+X.TP
+X.B +|\-unsubbed
+XEnables or disables the processing of read articles in unsubscribed
+Xnewsgroups.  If disabled, information about articles in unsubscribed
+Xnewsgroups is not transferred to the server-independent file.  This
+Xspeeds up the conversion process, but throws away data (which most
+Xpeople will not need, anyway).  Enabled by default, so that no data is
+Xlost, but most people will probably want to disable it.
+X.PP
+XThe following arguments are accepted only by
+X.IR message-id-to-newsrc.pl :
+X.TP
+X.B +|\-upto
+XEnables or disables the marking of all messages up to the first found
+Xmessage read in processed newsgroups.  For example, if the script is
+Xable to determine that messages 502 and 503 through 520 were read and
+Xthis option is enabled, then it will mark messages 1 through 502 and
+X503 through 520 read in the
+X.I .newsrc
+Xfile it produces, rather than just marking 502 and 503 through 520.
+XDisabled by default, so that messages are not missed accidentally, but
+Xmost people will probably want to enable it.
+X.PP
+XIf input file(s) is/are not specified on the command line, input is taken
+Xfrom the standard input.  Multiple input files are supported (this is
+Xjust the perl <> construct, after all), but it's unlikely that
+Xfunctionality will be used very often.
+X.PP
+XWhen switching from one NNTP server to another, users will probably
+Xwant to (a) read all new articles in all subscribed newsgroups on the
+Xold server; (b) immediately convert the
+X.I .newsrc
+Xfor the old server into a server-independent file and then into a
+X.I .newsrc
+Xfile for the new server; and (c) read news immediately with the new
+Xserver in order to manually synchronize any unavoidable errors in the
+Xtransition.
+X.SH SEE ALSO
+Xperl(1), rn(1), xrn(1), GNU Emacs GNUS info file
+X.SH DIAGNOSTICS
+XShould be self-explanatory.
+X.SH BUGS
+XSome information is bound to be lost in the transfer from one NNTP
+Xserver to another.  There is no way to avoid this.  These scripts do
+Xtheir best to make the transition seamless, but can't always
+Xcompletely succeed.
+END_OF_FILE
+if test 4302 -ne `wc -c <'move-newsrc.1'`; then
+    echo shar: \"'move-newsrc.1'\" unpacked with wrong size!
+fi
+# end of 'move-newsrc.1'
+fi
+if test -f 'merge-newsrcs.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'merge-newsrcs.pl'\"
+else
+echo shar: Extracting \"'merge-newsrcs.pl'\" \(2289 characters\)
+sed "s/^X//" >'merge-newsrcs.pl' <<'END_OF_FILE'
+X#!/usr/local/bin/perl
+X
+X# "merge-newsrcs.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Id: merge-newsrcs.pl,v 1.4 91/09/01 12:59:43 jik Exp $
+X
+X# This program reads .newsrc files and merges the lists of read
+X# articles in each newsgroup in each file.
+X# 
+X# If a newsgroup is subscribed in one file and unsubscribed in
+X# another, the subscription wins out.
+X
+X%assoc = ();
+X%assocsub = ();
+X@ordered = ();
+X$hash = 0;
+X
+Xwhile ($_ = $ARGV[0], /^-/) {
+X    shift;
+X    if (/^-hash$/) {
+X	$hash++;
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X
+Xwhile (<>) {
+X    if ($hash && (($hash++ % 10) == 0)) {
+X	local($|) = 1;
+X	print STDERR "#";
+X    }
+X    next if (! /^(.*)([:!]) *(.*)$/);
+X    chop;
+X    if (! $assoc{$1}) {
+X	$assoc{$1} = $3;
+X	$assocsub{$1} = $2;
+X	push(@ordered, $1);
+X	next;
+X    }
+X    elsif ($3 ne "") {
+X	$assocsub{$1} = $2 if ($2 eq ":"); # subscribed wins over unsubscribed
+X	$assoc{$1} = &merge($assoc{$1}, $3);
+X    }
+X}
+X
+Xwhile ($group = shift @ordered) {
+X    if ($assoc{$group} ne "") {
+X	printf "$group$assocsub{$group} $assoc{$group}\n";
+X    }
+X    else {
+X	printf "$group$assocsub{$group}\n";
+X    }
+X}
+X
+Xsub merge {
+X    local(@ranges, $range, $merged, $last, $new, $newer);
+X    
+X    @ranges = split(/,/, @_[0]);
+X    push(@ranges, split(/,/, @_[1]));
+X
+X    foreach $range (@ranges) {
+X	if ($range =~ /-/) {
+X	    $range = sprintf("%6d-%6d", $`, $');
+X	}
+X	else {
+X	    $range = sprintf("%6d-%6d", $range, $range);
+X	}
+X    }
+X
+X    @ranges = sort @ranges;
+X
+X    $merged = shift @ranges;
+X
+X    while ($range = shift @ranges) {
+X	($merged =~ /......$/) && ($last = $&);
+X	($range =~ /-/) && (($new, $newer) = ($`, $'));
+X	if ($new <= $last + 1) {
+X	    if ($newer > $last) {
+X		$merged =~ s/......$//;
+X		$range =~ s/^.......//;
+X		$merged = $merged . $range;
+X	    }
+X	}
+X	else {
+X	    $merged = $merged . "," . $range;
+X	}
+X    }
+X
+X    $merged =~ s/(......)-\1/$1/g;
+X    $merged =~ s/ //g;
+X    
+X    $merged;
+X}
+END_OF_FILE
+if test 2289 -ne `wc -c <'merge-newsrcs.pl'`; then
+    echo shar: \"'merge-newsrcs.pl'\" unpacked with wrong size!
+fi
+chmod +x 'merge-newsrcs.pl'
+# end of 'merge-newsrcs.pl'
+fi
+if test -f 'message-id-to-newsrc.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'message-id-to-newsrc.pl'\"
+else
+echo shar: Extracting \"'message-id-to-newsrc.pl'\" \(4339 characters\)
+sed "s/^X//" >'message-id-to-newsrc.pl' <<'END_OF_FILE'
+X#!/afs/athena/contrib/perl/perl
+X
+X# "message-id-to-newsrc.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Id: message-id-to-newsrc.pl,v 1.9 1992/11/15 04:35:05 jik Exp $
+X
+X# This script reads the output of the 'newsrc-to-message-id.pl'
+X# script and turns it back into a .newsrc file.
+X# 
+X# The server to use to convert Message-ID's back into article numbers
+X# can be specified using $NNTPSERVER or the '-server' command line
+X# flag.
+X
+X# $opt_D = 1;
+X# $find_debug = 1;
+X
+X# Defaults
+X
+X$opt_D = 0;
+X$ticks = 1;
+X$unbuffered = 0;
+Xundef $outfile;
+X$server = $ENV{"NNTPSERVER"};
+X$upto = 0;
+X
+Xpush(@INC, '/afs/athena.mit.edu/user/j/i/jik/lib/perl');
+X
+Xrequire 'nntp.pl';
+X
+Xwhile ($_ = $ARGV[0], /^[-+]/) {
+X    shift;
+X    if (/^-server$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$server = shift;
+X	next;
+X    }
+X    if (/^-out$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$outfile = shift;
+X	next;
+X    }
+X    if (/^(\+|-)buffered$/) {
+X	$unbuffered = ($1 eq "+") ? 0 : 1;
+X	next;
+X    }
+X    if (/^(\+|-)ticks$/) {
+X	$ticks = ($1 eq "+") ? 1 : 0;
+X	next;
+X    }
+X    if (/^(\+|-)nntp_debug/) {
+X	$opt_D = ($1 eq "+") ? 1 : 0;
+X	next;
+X    }
+X    if (/^(\+|-)upto/) {
+X	$upto = ($1 eq "+") ? 1 : 0;
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X
+Xif ($outfile) {
+X    close(STDOUT);
+X    open(STDOUT, ">$outfile") || die "Opening $outfile for write: $!.\n";
+X    select(STDOUT);
+X}
+X
+Xif ($unbuffered) {
+X    $| = 1;
+X}
+X
+Xdie "No NNTP server specified!\n" if (! $server);
+X
+X&news_open($server);
+X
+X%byid = ();
+X$newsgroup = undef;
+X$subbed = undef;
+X@articles = ();
+X@stats = ();
+X%xref = ();
+X$in_xhdr = 0;
+X
+Xwhile (<>) {
+X    if (/^(.*)([:!])$/) {
+X
+X	# This is a new group.
+X	# If there's an old current group, deal with it.
+X
+X	&output() if $newsgroup;
+X	if ($in_xhdr) {
+X	    while ((($xhdr_tag, $xhdr_val) = &news_xhdr_next()) == 2) {
+X		# Empty.
+X	    }
+X	}
+X	undef $in_xhdr;
+X	$newsgroup = $1;
+X	$subbed = $2;
+X	($newsgroup_regex = $newsgroup) =~ s/(\W)/\\$1/g;
+X	@articles = ();
+X	%byid = ();
+X	undef @stats;
+X
+X	next;
+X    }
+X
+X    if (! defined(@stats)) {
+X	@stats = &news_select_ng($newsgroup);
+X    }
+X    next if (@stats == ());
+X
+X    chop;
+X
+X    if (defined($byid{$_})) {
+X	print STDERR "Found $_ in table.\n" if ($find_debug);
+X	push(@articles, $byid{$_});
+X	next;
+X    }
+X    elsif (! defined($in_xhdr) &&
+X	   (&news_xhdr_init('xref', $_)) &&
+X	   ((($xhdr_tag, $xhdr_val) = &news_xhdr_next()) == 2)) {
+X	&news_xhdr_next();	# Flush the dot at the end.
+X	if ($xhdr_val =~ / $newsgroup_regex:([^ ]+)/) {
+X	    print STDERR "Found xref in $_.\n" if ($find_debug);
+X	    push(@articles, $1);
+X	    next;
+X	}
+X    }
+X    else {
+X	next if (! ($in_xhdr || 
+X		    (! defined($in_xhdr) &&
+X		     ++$in_xhdr &&
+X		     &news_xhdr_init('message-id', "$stats[0]-$stats[1]"))));
+X	print STDERR "Building table to find $_.\n" if ($find_debug);
+X	while ((($xhdr_tag, $xhdr_val) = &news_xhdr_next()) == 2) {
+X	    $byid{$xhdr_val} = $xhdr_tag;
+X	    if ($xhdr_val eq $_) {
+X		print STDERR "Found $_ in built table.\n" if ($find_debug);
+X		push(@articles, $xhdr_tag);
+X		last;
+X	    }
+X	}
+X	$in_xhdr = 0 if ($xhdr_val ne $_);
+X    }
+X}
+X
+X&output() if $newsgroup;
+X
+Xprint STDERR "\n" if ($ticks);
+X
+Xsub output {
+X    local($i);
+X
+X    print "$newsgroup$subbed ";
+X    if (@articles) {
+X	local($first, $last, $new);
+X	@articles = sort byval @articles;
+X	$first = $last = shift @articles;
+X	if ($upto) {
+X	    for ($i = $first; $i > 1; $i--) {
+X		unshift(@articles, $i);
+X	    }
+X	    $first = $last = 1;
+X	}
+X	while ($new = shift @articles) {
+X	    if ($new > $last + 1) {
+X		if ($last > $first) {
+X		    print "$first-$last,";
+X		}
+X		else {
+X		    print "$first,";
+X		}
+X		$first = $last = $new;
+X		next;
+X	    }
+X	    else {
+X		$last = $new;
+X		next;
+X	    }
+X	}
+X	if ($last > $first) {
+X	    print "$first-$last\n";
+X	}
+X	else {
+X	    print "$first\n";
+X	}
+X    }
+X    else {
+X	print "\n";
+X    }
+X    if ($ticks) {
+X	if (++$counter % 10 == 0) {
+X	    print STDERR $counter;
+X	}
+X	else {
+X	    print STDERR ".";
+X	}
+X    }
+X}
+X    
+Xsub byval { $a <=> $b; }
+END_OF_FILE
+if test 4339 -ne `wc -c <'message-id-to-newsrc.pl'`; then
+    echo shar: \"'message-id-to-newsrc.pl'\" unpacked with wrong size!
+fi
+chmod +x 'message-id-to-newsrc.pl'
+# end of 'message-id-to-newsrc.pl'
+fi
+if test -f 'newsrc-to-message-id.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'newsrc-to-message-id.pl'\"
+else
+echo shar: Extracting \"'newsrc-to-message-id.pl'\" \(3446 characters\)
+sed "s/^X//" >'newsrc-to-message-id.pl' <<'END_OF_FILE'
+X#!/afs/athena/contrib/perl/perl
+X
+X# "newsrc-to-message-id.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Id: newsrc-to-message-id.pl,v 1.8 1992/11/15 04:35:05 jik Exp $
+X
+X# This script reads a .newsrc file.  The output consists of the list
+X# of newsgroups with ! or : after them to indicate whether they are
+X# subscribed or not, and then on subsequent lines, the Message-ID's
+X# of read messages on the specified (either by $NNTPSERVER) or by the
+X# command line flag '-server') NNTP server.
+X# 
+X# This output can then be fed into the 'message-id-to-newsrc.pl'
+X# script to turn it back into a .newsrc for another NNTP server.
+X
+X# $max_xhdr = 500;
+X
+Xpush(@INC, '/afs/athena.mit.edu/user/j/i/jik/lib/perl');
+X
+Xrequire 'nntp.pl';
+X
+X# Defaults
+X
+X$opt_D = 0;
+X$ticks = 1;
+X$unbuffered = 0;
+X$skip_unsubbed = 0;
+X$server = $ENV{"NNTPSERVER"};
+Xundef $outfile;
+X
+Xwhile ($_ = $ARGV[0], /^[-+]/) {
+X    shift;
+X    if (/^-server$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$server = shift;
+X	next;
+X    }
+X    if (/^-out$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$outfile = shift;
+X	next;
+X    }
+X    elsif (/^(\+|-)ticks$/) {
+X	$ticks = ($1 eq "+") ? 1 : 0;
+X	next;
+X    }
+X    elsif (/^(\+|-)nntp_debug$/) {
+X	$opt_D = ($1 eq "+") ? 1 : 0;
+X	next;
+X    }
+X    elsif (/^(\+|-)buffered$/) {
+X	$unbuffered = ($1 eq "+") ? 0 : 1;
+X	next;
+X    }
+X    elsif (/^(\+|-)unsubbed$/) {
+X	$skip_unsubbed = ($1 eq "+") ? 0 : 1;
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X	
+Xdie "No NNTP server specified!\n" if (! $server);
+X
+X&news_open($server);
+X
+Xif ($outfile) {
+X    close(STDOUT);
+X    open(STDOUT, ">$outfile") || die "Opening $outfile for write: $!.\n";
+X    select(STDOUT);
+X}
+X
+Xif ($unbuffered) {
+X    $| = 1;
+X}
+X
+Xwhile (<>) {
+X    if (/^(.*)([:!]) *(.*)$/) {
+X	($group, $sub) = ($1, $2);
+X	@ranges = split(/,/, $3);
+X
+X	print "$group$sub\n";
+X
+X	if ((@ranges > 0) && (($sub eq ":") || (! $skip_unsubbed))) {
+X	    @group = &news_select_ng($group);
+X
+X	    if (@group != 3) {
+X		print STDERR "Bogus group \"$group\"?\n";
+X	    }
+X	    else {
+X		($ng_first, $ng_last, $ng_num) = @group;
+X	    }
+X
+X	    foreach $range (@ranges) {
+X		if ($range =~ /^([0-9]+)-([0-9]+)$/) {
+X		    $start = $1;
+X		    $end = $2;
+X		}
+X		else {
+X		    $start = $end = $range;
+X		}
+X		if ($start < $ng_first) {
+X		    $start = $ng_first;
+X		}
+X		if ($end > $ng_last) {
+X		    $end = $ng_last;
+X		}
+X		if ($end && ($start <= $end)) {
+X		    &print_hdrs($start, $end);
+X		}
+X	    }
+X	}
+X    }
+X    if ($ticks) {
+X	if (++$counter % 10 == 0) {
+X	    print STDERR $counter;
+X	}
+X	else {
+X	    print STDERR ".";
+X	}
+X    }
+X}
+X
+Xprint STDERR "\n" if ($ticks);
+X
+Xsub print_hdrs {
+X    local($first, $last) = @_;
+X    local(%ids);
+X    local($number, $id);
+X    local($span) = $max_xhdr ? $max_xhdr : ($last - $first + 1);
+X
+X    while ($first <= $last) {
+X	$range = sprintf("%d-%d",
+X			 $first,
+X			 ($first + $span - 1 <= $last) ? 
+X			 $first + $span - 1 : $last);
+X	last if (! &news_xhdr_init('message-id', $range));
+X	$first += $span;
+X
+X	while ((($number, $id) = &news_xhdr_next()) == 2) {
+X	    print "$id\n";
+X	}
+X    }
+X}
+X
+X&news_close();
+END_OF_FILE
+if test 3446 -ne `wc -c <'newsrc-to-message-id.pl'`; then
+    echo shar: \"'newsrc-to-message-id.pl'\" unpacked with wrong size!
+fi
+chmod +x 'newsrc-to-message-id.pl'
+# end of 'newsrc-to-message-id.pl'
+fi
+if test -f 'nntp.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'nntp.pl'\"
+else
+echo shar: Extracting \"'nntp.pl'\" \(5040 characters\)
+sed "s/^X//" >'nntp.pl' <<'END_OF_FILE'
+X#
+X# nntp.pl
+X#
+X# No main program is in this file.
+X#
+X# ishii@hexard.co.jp
+X#
+X# $Id: nntp.pl,v 1.6 1992/11/13 15:57:50 jik Exp $
+X#
+X
+X# load socket package
+Xrequire "sys/socket.ph";
+X
+Xpackage nntp;
+X
+X# PRIVATE: news_command( $command ) -> returned_string
+Xsub news_command {
+X    local( $r );
+X    print NEWS (@_[0]."\r\n");
+X    print STDERR ">".@_[0]."\n" if $main'opt_D;
+X    $r = <NEWS>;
+X    print STDERR "<".$r if $main'opt_D;
+X#	if ($r !~ /^[23]/){
+X#		($retcode, $reason) = split( /[ \t]+/, $r, 2 );
+X#		print STDERR @_[0].":".$reason."\n";
+X#	}
+X    return $r;
+X}
+X
+X# PUBLIC: news_open( $server_name )
+Xsub main'news_open {
+X    local( $hostname );
+X    local( $server ) = @_[0];
+X    local( $name, $aliases, $proto, $port );
+X    local( $type, $len, $thisaddr, $thataddr );
+X    local( $this, $that );
+X    local( $r );
+X    chop( $hostname = `hostname` );
+X#
+X# create socket sturcture
+X#
+X    $sockaddr_t = "S n a4 x8";
+X    ($name, $aliases, $proto) = getprotobyname( "tcp" );
+X    ($name, $aliases, $port) = getservbyname( "nntp", "tcp" );
+X    ($name, $aliases, $type, $len, $thisaddr) = gethostbyname( $hostname );
+X    ($name, $aliases, $type, $len, $thataddr) = gethostbyname( $server );
+X    $this = pack( $sockaddr_t, &main'AF_INET, 0, $thisaddr );
+X    $that = pack( $sockaddr_t, &main'AF_INET, $port, $thataddr );
+X#
+X# connect with nntp server
+X#
+X    socket( NEWS, &main'PF_INET, &main'SOCK_STREAM, $proto ) ||
+X	die "socket: $!\n";
+X    bind( NEWS, $this ) || die "bind: $!\n";
+X    connect( NEWS, $that ) || die "connect: $!\n";
+X    select( NEWS ); $| = 1; select( STDOUT );
+X    $r = <NEWS>;
+X    print STDERR "<".$r if $main'opt_D;
+X    chop( $r );
+X    if ($r !~ /^20[01]/){
+X	die "Sorry, your NNTP connection request was rejected.\n";
+X    }
+X    $r = &news_command("MODE READER"); 
+X    if ($r !~ /^(20[01]|500)/){
+X        die "Sorry, the mode reader command bombed horribly.\n";
+X    }
+X}
+X
+X# PUBLIC: news_select_ng( $newsgroup_name ) -> (first, last, num)
+Xsub main'news_select_ng {
+X    local( $ng ) = $_[0];
+X    local( $cc, $num, $first, $last, $curr );
+X    ($cc, $num, $first, $last) = split( /[ \t]+/,
+X				       &news_command( "GROUP ".$ng ) );
+X    if (($cc !~ /^[23]/)){
+X	return undef;
+X    }
+X    return ( $first, $last, $num );
+X}
+X
+X# PUBLIC: news_jump( $article_no ) -> article_no
+Xsub main'news_jump {
+X    local( $article ) = $_[0];
+X    local( $cc );
+X    ($cc, $article) = split( /[ \t]+/, &news_command( "STAT ".$article ) );
+X    return $article;
+X}
+X
+X# PUBLIC: news_previous() -> article_no
+Xsub main'news_previous {
+X    local( $cc, $article );
+X    $cc = &news_command( "LAST" );
+X    if ($cc !~ /^[23]/){ return -1; }
+X    ($cc, $article) = split( /[ \t]+/, $cc );
+X    return $article;
+X}
+X
+X# PUBLIC: news_next() -> article_no
+Xsub main'news_next {
+X    local( $cc, $article );
+X    $cc = &news_command( "NEXT" );
+X    if ($cc !~ /^[23]/){ return -1; }
+X    ($cc, $article) = split( /[ \t]+/, $cc );
+X    return $article;
+X}
+X
+X# PUBLIC: news_header_open()
+Xsub main'news_header_open {
+X    local($r) = &news_command( "HEAD" );
+X    if ($r !~ /^[23]/){
+X	($retcode, $reason) = split( /[ \t]+/, $r, 2 );
+X	print STDERR $retcode.":".$reason."\n";
+X	return 0;
+X    }
+X    $news_stat = 1;
+X    return 1;
+X}
+X
+X# PUBLIC: news_header_next()
+Xsub main'news_header_next {
+X    local($_);
+X    if (! ($_ = <NEWS>)) {
+X	$news_stat = 0;
+X	return 0;
+X    }
+X    print STDERR "<".$_ if $main'opt_D;
+X    chop; chop;
+X    if ($_ eq "."){ $news_stat = 0; return 0; }
+X    return 1;
+X}
+X
+X# PUBLIC: news_header_close()
+Xsub main'news_header_close {
+X    if ($news_stat){
+X	while (&main'news_header_next){
+X	}
+X	$news_stat = 0;
+X    }
+X}
+X
+X# PUBLIC: news_get_header()
+Xsub main'news_get_header {
+X    local($_);
+X    &main'news_header_open;
+X    local(%current);
+X    while (&main'news_header_next){
+X	($key, $value) = split( /:\s*/, $_, 2 );
+X	$value =~ s/^[ \t]+//;
+X	$current{$key} = $value;
+X    }
+X    &main'news_header_close;
+X    return %current;
+X}
+X
+X# PUBLIC: news_body_open()
+Xsub main'news_body_open {
+X    local($r) = &news_command( "BODY" );
+X    if ($r !~ /^[23]/){
+X	($retcode, $reason) = split( /[ \t]+/, $r, 2 );
+X	print STDERR @_[0].":".$reason."\n";
+X	return 0;
+X    }
+X    $news_stat = 2;
+X    return 1;
+X}
+X
+X# PUBLIC: news_body_next()
+Xsub main'news_body_next {
+X    local($_);
+X    if (! ($_ = <NEWS>)) {
+X	$news_stat = 0;
+X	return 0;
+X    }
+X    print STDERR "<".$_ if $main'opt_D;
+X    chop; chop;
+X    if ($_ eq "."){ $news_stat = 0; return 0; }
+X    return 1;
+X}
+X
+X# PUBLIC: news_body_close()
+Xsub main'news_body_close {
+X    if ($news_stat){
+X	while (&main'news_body_next){
+X	}
+X	$news_stat = 0;
+X    }
+X}
+X
+X
+Xsub main'news_xhdr_init {
+X    local($r) = &news_command("XHDR $_[0] $_[1]");
+X    if ($r !~ /^[23]/) {
+X	($retcode, $reason) = split( /[ \t]+/, $r, 2 );
+X	undef;
+X    }
+X    else {
+X	$news_stat = 2;
+X	1;
+X    }
+X}
+X
+Xsub main'news_xhdr_next {
+X    local(@F);
+X    local($_);
+X    if (! ($_ = <NEWS>)) {
+X	$news_stat = 0;
+X	return 0;
+X    }
+X    print STDERR "<$_" if $main'opt_D;
+X    chop; chop;
+X    if ($_ eq "."){ $news_stat = 0; return undef; }
+X    @F = split(' ', $_, 2);
+X}
+X
+Xsub main'news_close {
+X    &news_command("QUIT");
+X    close(NEWS);
+X}
+X
+X1;
+END_OF_FILE
+if test 5040 -ne `wc -c <'nntp.pl'`; then
+    echo shar: \"'nntp.pl'\" unpacked with wrong size!
+fi
+# end of 'nntp.pl'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+Jonathan Kamens                                         jik@MIT.Edu
+MIT Information Systems/Athena              Moderator, news.answers

@@ -1,0 +1,2018 @@
+Path: funic!fuug!mcsun!unido!ira.uka.de!chx400!ieee.org!sdd.hp.com!caen!garbo.ucc.umass.edu!m2c!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOE Version 0.1.2: Part 2 of 4
+Message-ID: <1992Jan23.110600.1925@wpi.WPI.EDU>
+Date: 23 Jan 92 11:06:00 GMT
+Sender: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Organization: Kadath Tours, Inc.
+Lines: 2008
+
+
+*** Cut here
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*ccc;
+X if(usec>=500000/HZ)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  action.sa_handler=dosig;
+X  esignal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(stdout),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  esignal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(stdout),obuf,obufp);
+X obufp=0;
+X }
+Xif(!have)
+X {
+X fcntl(STDIN_FILENO,F_SETFL,O_NDELAY);
+X if(read(STDIN_FILENO,&havec,1)==1) have=1;
+X fcntl(STDIN_FILENO,F_SETFL,0);
+X }
+X}
+X
+Xunsigned char *take=0;
+X
+Xanext()
+X{
+Xif(take)
+X if(*take)
+X  {
+X  int c;
+X  if(*take!='\\') return *take++;
+X  ++take;
+X  if(!*take) return '\\';
+X  else if(*take=='r') c='\r';
+X  else if(*take=='b') c=8;
+X  else if(*take=='n') c=10;
+X  else if(*take=='f') c=12;
+X  else if(*take=='a') c=7;
+X  else if(*take=='\"') c='\"';
+X  else if(*take>='0' && *take<='7')
+X        {
+X        c= *take++-'0';
+X        if(*take>='0' && *take<='7')
+X         {
+X         c=c*8+*take++-'0';
+X         if(*take>='0' && *take<='7') c=c*8+*take++-'0';
+X         }
+X        --take;
+X        }
+X  else c= *take;
+X  ++take;
+X  return c;
+X  }
+X else take=0;
+Xaflush();
+Xif(have) have=0;
+Xelse if(read(STDIN_FILENO,&havec,1)<1) tsignal(0);
+Xif(record) macroadd(havec);
+Xreturn havec;
+X}
+X
+Xeputc(c)
+Xunsigned char c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+Xeputs(s)
+Xchar *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+Xgetsize()
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#else
+Xchar *p;
+X#endif
+X#endif
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X if(getit.ts_lines>=3) height=getit.ts_lines;
+X if(getit.ts_cols>=2) width=getit.ts_cols;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X if(getit.ws_row>=3) height=getit.ws_row;
+X if(getit.ws_col>=2) width=getit.ws_col;
+X }
+X#else
+Xif(p=getenv("ROWS")) sscanf(p,"%d",&height);
+Xif(p=getenv("COLS")) sscanf(p,"%d",&width);
+Xif(height<3) height=24;
+Xif(width<2) width=80;
+X#endif
+X#endif
+X}
+X
+Xtermtype()
+X{
+Xunsigned char entry[1024];
+Xunsigned char area[1024];
+Xunsigned char *foo=area;
+Xunsigned char *x=(unsigned char *)getenv("TERM");
+Xif(!x) goto down;
+Xif(tgetent(entry,x)!=1) goto down;
+Xheight=tgetnum("li");
+Xif(height<3) height=24;
+Xwidth=tgetnum("co");
+Xif(width<2) width=80;
+Xif(!tgetstr("cs",&foo)) scroll=0;
+Xdown:
+Xgetsize();
+X}
+X
+Xshell()
+X{
+Xint x;
+Xchar *s=(char *)getenv("SHELL");
+Xif(!s)
+X {
+X puts("\nSHELL variable not set");
+X return;
+X }
+Xeputs("\nYou are at the command shell.  Type 'exit' to continue editing\r\n");
+Xaclose();
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,0);
+X _exit(0);
+X }
+Xaopen();
+X}
+X
+Xsusp()
+X{
+X#ifdef SIGCONT
+Xeputs("\nThe editor has been suspended.  Type 'fg' to continue editing\r\n");
+Xyep=0;
+Xaclose();
+Xesignal(SIGCONT,dosig);
+Xsigsetmask(sigmask(SIGCONT));
+Xkill(0,SIGTSTP);
+Xwhile(!yep) sigpause(0);
+Xesignal(SIGCONT,SIG_DFL);
+Xaopen();
+X#else
+Xshell();
+X#endif
+X}
+END_OF_FILE
+if test 5603 -ne `wc -c <'asyncposix.c'`; then
+    echo shar: \"'asyncposix.c'\" unpacked with wrong size!
+fi
+# end of 'asyncposix.c'
+fi
+if test -f 'asyncxenix.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'asyncxenix.c'\"
+else
+echo shar: Extracting \"'asyncxenix.c'\" \(4419 characters\)
+sed "s/^X//" >'asyncxenix.c' <<'END_OF_FILE'
+X/* Terminal interface for XENIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <termio.h>
+X#include "async.h"
+X
+X#define DIVISOR 12000
+X#define TIMES 2
+X
+Xstatic struct termio oldterm;
+X
+Xstatic unsigned char *obuf=0;
+Xstatic unsigned obufp=0;
+Xstatic unsigned obufsiz;
+Xstatic unsigned long ccc;
+X
+Xstatic unsigned speeds[]=
+X{
+XB50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+XB1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+X};
+X
+Xvoid tsignal();
+X
+Xsigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGINT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGQUIT,SIG_IGN);
+X}
+X
+Xsignorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+X}
+X
+Xaopen()
+X{
+Xint x;
+Xstruct termio newterm;
+Xfflush(stdout);
+Xioctl(fileno(stdin),TCGETA,&oldterm);
+Xnewterm=oldterm;
+Xnewterm.c_lflag=0;
+Xnewterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+Xnewterm.c_oflag=0;
+Xnewterm.c_cc[VMIN]=1;
+Xnewterm.c_cc[VTIME]=0;
+Xioctl(fileno(stdin),TCSETAW,&newterm);
+Xccc=0;
+Xfor(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  ccc=DIVISOR/speeds[x+1];
+X  break;
+X  }
+Xif(obuf) free(obuf);
+Xif(!(TIMES*ccc)) obufsiz=4096;
+Xelse
+X {
+X obufsiz=1000/(TIMES*ccc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+Xif(!obufsiz) obufsiz=1;
+Xobuf=(unsigned char *)malloc(obufsiz);
+X}
+X
+Xaclose()
+X{
+Xaflush();
+Xioctl(fileno(stdin),TCSETAW,&oldterm);
+X}
+X
+Xint have=0;
+X
+Xaflush()
+X{
+Xif(obufp)
+X {
+X write(fileno(stdout),obuf,obufp);
+X nap(obufp*ccc);
+X obufp=0;
+X }
+Xif(!have) if(rdchk(fileno(stdin))>0) have=1;
+X}
+X
+Xunsigned char *take=0;
+X
+Xanext()
+X{
+Xunsigned char c;
+Xif(take)
+X if(*take)
+X  {
+X  int c;
+X  if(*take!='\\') return *take++;
+X  ++take;
+X  if(!*take) return '\\';
+X  else if(*take=='r') c='\r';
+X  else if(*take=='b') c=8;
+X  else if(*take=='n') c=10;
+X  else if(*take=='f') c=12;
+X  else if(*take=='a') c=7;
+X  else if(*take=='\"') c='\"';
+X  else if(*take>='0' && *take<='7')
+X        {
+X        c= *take++-'0';
+X        if(*take>='0' && *take<='7')
+X         {
+X         c=c*8+*take++-'0';
+X         if(*take>='0' && *take<='7') c=c*8+*take++-'0';
+X         }
+X        --take;
+X        }
+X  else c= *take;
+X  ++take;
+X  return c;
+X  }
+X else take=0;
+Xaflush();
+Xif(read(fileno(stdin),&c,1)<1) tsignal(0);
+Xhave=0;
+Xif(record) macroadd(c);
+Xreturn c;
+X}
+X
+Xeputc(c)
+Xunsigned char c;
+X{
+Xobuf[obufp++]=c;
+Xif(obufp==obufsiz) aflush();
+X}
+X
+Xeputs(s)
+Xchar *s;
+X{
+Xwhile(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) aflush();
+X }
+X}
+X
+Xgetsize()
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#else
+Xchar *p;
+X#endif
+X#endif
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X if(getit.ts_lines>=3) height=getit.ts_lines;
+X if(getit.ts_cols>=2) width=getit.ts_cols;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X if(getit.ws_row>=3) height=getit.ws_row;
+X if(getit.ws_col>=2) width=getit.ws_col;
+X }
+X#else
+Xif(p=getenv("ROWS")) sscanf(p,"%d",&height);
+Xif(p=getenv("COLS")) sscanf(p,"%d",&width);
+Xif(height<3) height=24;
+Xif(width<2) width=80;
+X#endif
+X#endif
+X}
+X
+Xtermtype()
+X{
+Xunsigned char entry[1024];
+Xunsigned char area[1024];
+Xunsigned char *foo=area;
+Xunsigned char *x=(unsigned char *)getenv("TERM");
+Xif(!x) goto down;
+Xif(tgetent(entry,x)!=1) goto down;
+Xheight=tgetnum("li");
+Xif(height<3) height=24;
+Xwidth=tgetnum("co");
+Xif(width<2) width=80;
+Xif(!tgetstr("cs",&foo)) scroll=0;
+Xdown:
+Xgetsize();
+X}
+X
+Xshell()
+X{
+Xint x;
+Xchar *s=(char *)getenv("SHELL");
+Xif(!s)
+X {
+X puts("\nSHELL variable not set");
+X return;
+X }
+Xeputs("\nYou are at the command shell.  Type 'exit' to continue editing\r\n");
+Xaclose();
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,0);
+X _exit(0);
+X }
+Xaopen();
+X}
+X
+Xsusp()
+X{
+Xshell();
+X}
+END_OF_FILE
+if test 4419 -ne `wc -c <'asyncxenix.c'`; then
+    echo shar: \"'asyncxenix.c'\" unpacked with wrong size!
+fi
+# end of 'asyncxenix.c'
+fi
+if test -f 'blocks.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'blocks.c'\"
+else
+echo shar: Extracting \"'blocks.c'\" \(3092 characters\)
+sed "s/^X//" >'blocks.c' <<'END_OF_FILE'
+X/* Various memory block functions
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X
+X#include "blocks.h"
+X
+X/* Set block to zero */
+X
+Xunsigned char *bzero(bk,sz)
+Xunsigned char *bk;
+X{
+Xunsigned char *b=bk-1;
+Xif(sz) do b[sz]=0; while(--sz);
+Xreturn bk;
+X}
+X
+X/* Set block to unsigned character */
+X
+Xunsigned char *bset(bk,sz,c)
+Xunsigned char *bk;
+Xunsigned char c;
+X{
+Xunsigned char *b=bk-1;
+Xif(sz) do b[sz]=c; while(--sz);
+Xreturn bk;
+X}
+X
+X/* Move a possibly overlapping block of memory without loosing any data */
+X
+Xunsigned char *bmove(dst,src,sz)
+Xunsigned char *dst;
+Xunsigned char *src;
+X{
+Xif(src==dst || !sz) return dst;
+Xif(src>dst)
+X {
+X unsigned x=0;
+X do dst[x]=src[x]; while(++x, --sz);
+X }
+Xelse
+X {
+X unsigned char *d=dst-1;
+X --src;
+X do d[sz]=src[sz]; while(--sz);
+X } 
+Xreturn dst;
+X}
+X
+X/* Move a block in the forward direction */
+X
+Xunsigned char *bfwrd(dst,src,sz)
+Xunsigned char *dst;
+Xunsigned char *src;
+X{
+Xif(src!=dst && sz)
+X {
+X unsigned x=0;
+X do dst[x]=src[x]; while(++x,--sz);
+X }
+Xreturn dst;
+X}
+X
+X/* Move a block in the backward direction */
+X
+Xunsigned char *bbkwd(dst,src,sz)
+Xunsigned char *dst;
+Xunsigned char *src;
+X{
+Xunsigned char *s=src-1, *d=dst-1;
+Xif(s!=d && sz) do d[sz]=s[sz]; while(--sz);
+Xreturn dst;
+X}
+X
+Xunsigned umin(a,b)
+Xunsigned a,b;
+X{
+Xreturn (a>b)?b:a;
+X}
+X
+Xunsigned umax(a,b)
+Xunsigned a,b;
+X{
+Xreturn (a>b)?a:b;
+X}
+X
+Xint min(a,b)
+X{
+Xreturn (a>b)?b:a;
+X}
+X
+Xint max(a,b)
+X{
+Xreturn (a>b)?a:b;
+X}
+X
+X/* Compare blocks for equality */
+X
+Xint beq(dst,src,sz)
+Xunsigned char *dst;
+Xunsigned char *src;
+X{
+Xunsigned char *d=dst-1, *s=src-1;
+Xif(!sz) return 1;
+Xdo
+X if(d[sz]!=s[sz]) return 0;
+Xwhile(--sz);
+Xreturn 1;
+X}
+X
+X/* Compare blocks for equality case insensitive */
+X
+Xint bieq(dst,src,sz)
+Xunsigned char *dst;
+Xunsigned char *src;
+X{
+Xunsigned char *d=dst, *s=src; int cnt=sz;
+Xif(!cnt) return 1;
+Xdo
+X if(*s>='a' && *s<='z')
+X  {
+X  if(*d>='a' && *d<='z') { if(*(d++)!=*(s++)) return 0; }
+X  else if(*(d++)!=(0x5f&*(s++))) return 0;
+X  }
+X else if(*d>='a' && *d<='z')
+X  {
+X  if(*s>='a' && *s<='z') { if(*(d++)!=*(s++)) return 0; }
+X  else if(*(s++)!=(0x5f&*(d++))) return 0;
+X  }
+X else if(*(d++)!=*(s++)) return 0;
+Xwhile(--cnt);
+Xreturn 1;
+X}
+X
+Xunsigned char *bchr(bk,sz,c)
+Xunsigned char *bk;
+Xunsigned char c;
+X{
+Xunsigned char *s=bk;
+Xint cnt=sz;
+Xif(cnt)
+X do if(*s==c) return s;
+X while(++s, --cnt);
+Xreturn 0;
+X}
+X
+Xunsigned char *brchr(bk,sz,c)
+Xunsigned char *bk, c;
+X{
+Xunsigned char *s=bk+sz;
+Xint cnt=sz;
+Xif(cnt)
+X do if(*(--s)==c) return s;
+X while(--cnt);
+Xreturn 0;
+X}
+END_OF_FILE
+if test 3092 -ne `wc -c <'blocks.c'`; then
+    echo shar: \"'blocks.c'\" unpacked with wrong size!
+fi
+# end of 'blocks.c'
+fi
+if test -f 'blocks.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'blocks.h'\"
+else
+echo shar: Extracting \"'blocks.h'\" \(1012 characters\)
+sed "s/^X//" >'blocks.h' <<'END_OF_FILE'
+X/* Memory block functions header file
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License along with
+XJOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+XMass Ave, Cambridge, MA 02139, USA.  */ 
+X
+Xunsigned char *bzero();
+Xunsigned char *bset();
+Xunsigned char *bmove();
+Xunsigned char *bfwrd();
+Xunsigned char *bbkwd();
+Xunsigned umin();
+Xunsigned umax();
+Xint min();
+Xint max();
+Xint beq();
+Xint bieq();
+Xunsigned char *bchr();
+Xunsigned char *brchr();
+END_OF_FILE
+if test 1012 -ne `wc -c <'blocks.h'`; then
+    echo shar: \"'blocks.h'\" unpacked with wrong size!
+fi
+# end of 'blocks.h'
+fi
+if test -f 'cruddy.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'cruddy.c'\"
+else
+echo shar: Extracting \"'cruddy.c'\" \(3024 characters\)
+sed "s/^X//" >'cruddy.c' <<'END_OF_FILE'
+X/* Cruddy terminal interface - should be very portable though
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version. 
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include "async.h"
+X
+Xint have=0;
+X
+Xeputs(s)
+Xchar *s;
+X{
+Xfputs(s,stdout);
+X}
+X
+Xeputc(c)
+X{
+Xputchar(c);
+X}
+X
+Xvoid tsignal();
+X
+Xsigjoe()
+X{
+Xsignal(SIGHUP,tsignal);
+Xsignal(SIGTERM,tsignal);
+Xsignal(SIGQUIT,SIG_IGN);
+Xsignal(SIGPIPE,SIG_IGN);
+Xsignal(SIGINT,SIG_IGN);
+X}
+X
+Xsignorm()
+X{
+Xsignal(SIGHUP,SIG_DFL);
+Xsignal(SIGTERM,SIG_DFL);
+Xsignal(SIGQUIT,SIG_DFL);
+Xsignal(SIGPIPE,SIG_DFL);
+Xsignal(SIGINT,SIG_DFL);
+X}
+X
+Xaopen()
+X{
+Xfflush(stdout);
+Xsystem("/bin/stty raw -echo");
+X}
+X
+Xaclose()
+X{
+Xfflush(stdout);
+Xsystem("/bin/stty cooked echo");
+X}
+X
+Xaflush()
+X{
+X}
+X
+Xunsigned char *take=0;
+X
+Xanext()
+X{
+Xunsigned char c;
+Xif(take)
+X if(*take)
+X  {
+X  int c;
+X  if(*take!='\\') return *take++;
+X  ++take;
+X  if(!*take) return '\\';
+X  else if(*take=='r') c='\r';
+X  else if(*take=='b') c=8;
+X  else if(*take=='n') c=10;
+X  else if(*take=='f') c=12;
+X  else if(*take=='a') c=7;
+X  else if(*take=='\"') c='\"';
+X  else if(*take>='0' && *take<='7')
+X        {
+X        c= *take++-'0';
+X        if(*take>='0' && *take<='7')
+X         {
+X         c=c*8+*take++-'0';
+X         if(*take>='0' && *take<='7') c=c*8+*take++-'0';
+X         }
+X        --take;
+X        }
+X  else c= *take;
+X  ++take;
+X  return c;
+X  }
+X else take=0;
+Xfflush(stdout);
+Xif(read(fileno(stdin),&c,1)<1) tsignal(0);
+Xif(record) macroadd(c);
+Xreturn c;
+X}
+X
+Xgetsize()
+X{
+X#ifdef TIOCGSIZE
+Xstruct ttysize getit;
+X#else
+X#ifdef TIOCGWINSZ
+Xstruct winsize getit;
+X#else
+Xchar *p;
+X#endif
+X#endif
+X#ifdef TIOCGSIZE
+Xif(ioctl(fileno(stdout),TIOCGSIZE,&getit)!= -1)
+X {
+X if(getit.ts_lines>=3) height=getit.ts_lines;
+X if(getit.ts_cols>=2) width=getit.ts_cols;
+X }
+X#else
+X#ifdef TIOCGWINSZ
+Xif(ioctl(fileno(stdout),TIOCGWINSZ,&getit)!= -1)
+X {
+X if(getit.ws_row>=3) height=getit.ws_row;
+X if(getit.ws_col>=2) width=getit.ws_col;
+X }
+X#else
+Xif(p=getenv("ROWS")) sscanf(p,"%d",&height);
+Xif(p=getenv("COLS")) sscanf(p,"%d",&width);
+Xif(height<3) height=24;
+Xif(width<2) width=80;
+X#endif
+X#endif
+X}
+X
+Xtermtype()
+X{
+Xgetsize();
+X}
+X
+Xshell()
+X{
+Xint x;
+Xchar *s=(char *)getenv("SHELL");
+Xif(!s)
+X {
+X puts("\nSHELL variable not set");
+X return;
+X }
+Xeputs("\nYou are at the command shell.  Type 'exit' to continue editing\r\n");
+Xaclose();
+Xif(x=fork())
+X {
+X if(x!= -1) wait(0);
+X }
+Xelse
+X {
+X signorm();
+X execl(s,s,0);
+X _exit(0);
+X }
+Xaopen();
+X}
+X
+Xsusp()
+X{
+Xshell();
+X}
+END_OF_FILE
+if test 3024 -ne `wc -c <'cruddy.c'`; then
+    echo shar: \"'cruddy.c'\" unpacked with wrong size!
+fi
+# end of 'cruddy.c'
+fi
+if test -f 'joe.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'joe.1'\"
+else
+echo shar: Extracting \"'joe.1'\" \(6072 characters\)
+sed "s/^X//" >'joe.1' <<'END_OF_FILE'
+X.TH JOE 1
+X.SH NAME
+Xjoe \- Joe's Own Editor
+X.SH SYNOPSIS
+X.B joe file
+X.br
+X.BR joe
+X.SH DESCRIPTION
+XJOE is a screen editor designed to be easy to learn for novice users and
+Xpowerfull enough to be usefull for experienced users.  After you invoke the
+Xeditor, you can hit ^K H ('^' mean hold the Ctrl key down while pressing the
+Xfollowing key) to turn on the help text.  From this you should be able to
+Xfigure out how to use the editor.  A few things need further explanation
+Xhowever. 
+X
+XNote that JOE is a student written program and is not supported by WPI or the
+XCCC.  This means that JOE will not be maintained by the CCC staff and that the
+XCCC staff do not have to help you use it.  Use this program at your own risk. 
+XHowever, as long as the author of the program is here at WPI, he will be glad
+Xto help you.  Mail any questions you have to 'rcarter@wpi.wpi.edu'
+X
+X.SH USEAGE
+XJOE uses the "TERM" environment variable and the termcap database to determine
+Xthe height and width of the screen and to determine if the terminal uses
+Xscrolling regions.  Except for these differences the terminal must be
+XANSI/VT100 compatible.  
+X
+XJOE also tries to get the width and the height of the screen from the
+XTIOCGSIZE ioctl if your system supports it and if it reports that its values
+Xare valid.  This allows JOE to use resizable windows.  Unfortunately, the
+Xvalues returned by TIOCGSIZE are occasionally wrong when JOE is used on a
+Xnormal serial terminal.  If you find that this is the case, you can force the
+Xvalues TIOCGSIZE returns by typing the commands: 'stty rows 24' and 'stty cols
+X80'
+X
+XTo customize the help screen or the key bindings, copy the file
+X/usr/local/stusrc/joe/.joerc to your home directory and modify it.  The
+Xcomments at the beginning of the file explain how to do this. 
+X
+XBe sure that the baud rate as reported by stty is correct.  JOE uses this
+Xto optimize its screen writes.  If you're going over a network, set the
+Xbaud rate to your best estimate of the actual througput.  If you're using
+XJOE in an X window, set the baud rate to the highest possible (usually 'stty extb'
+Xor 'stty 38400').
+X
+X^K J reformats the current paragraph.  ^T R can be used to change the right
+Xmargin.  The default is the width of the screen.  If auto-indent mode is set,
+Xindented paragraphs are formated.
+X
+XUse ^K B to set the beginning of a block and ^K K to set the end of a block. 
+XYou can then copy, move, save or delete the marked block.  To turn the
+Xhighlighting off, hit ^K B ^K K (make the beginning and ending the same or
+Xmove the beginning past the ending or move the ending before the beginning).
+X
+X^K O splits a window into two.  You can then use ^K E to load a file into the
+Xnew window.  ^K I shows either one window or it shows all of the windows.  Use
+X^C to eliminate a window.
+X
+XControl characters (0-31, 127) are shown underlined.  Characters above 127 are
+Xshown in inverse.  You can use ` and ^\ to enter control characters or
+Xcharacters with the 7th bit set. 
+X
+XHit ^K F to find text.  You will be prompted to enter the search string. 
+XAfter hitting Return, you will be prompted for options- you can type 1 or more
+Xof:  
+X
+X.br
+X			i	Ignore case
+X.br
+X			b	Backwards
+X.br
+X			r	Replace
+X.br
+X			nnn	Find the nth occurance or do nnn replacements
+X.br
+X
+X		If you hit r, you will also be prompted to enter the
+X		replacement string.
+X
+X		Hit ^L to find the next occurance of the previous search
+X		string (with all the same options except nnn).
+X
+XHit ^K L to goto an entered line number.
+X
+XHit ^K 0 to execute a shell command.  If a block was set, the shell command
+Xgets the block on its standard input and the any output the command writes
+Xto it's stardard output will replace the block.  If a block was not set, any
+Xstandard output is simply inserted into the text at the cursor location.
+X
+XYou may wish to capture the error output from the command instead of its
+Xstandard output.  This may be done by giving appropraite shell modifiers
+Xalong with the command.  For example if you want to run the command 'make
+Xbsd':
+X
+X.br
+X	make bsd			stderr -> screen, stdout -> editor
+X.br
+X	make bsd >&2			stderr -> screen, stdout -> screen
+X.br
+X	make bsd 2>&1			stderr -> editor, stdout -> editor
+X.br
+X	make bsd 3>&1 1>&2 2>&3		stderr -> editor, stdout -> screen
+X.br
+X
+XIf for some reason JOE gets a signal (that it's going to crash or that the
+Xsystem is messing up), it attempts to save all of its modified files into a
+Xfile "DEADJOEnnnn" (where nnnn is the process I.D.) in the current directory. 
+XEdit this file to get your latest modifications back after such an occurance.
+X
+X.SH MODES
+XA number of editing modes are settable with the ^T command:
+X
+X.br
+X	Insert/Overtype
+X.br
+X				When you type characters, they will either be
+X.br
+X				inserted before the existing text or will
+X.br
+X				replace the existing text.
+X
+X.br
+X	Tab Magic on/off
+X.br
+X				When tab magic is on, the column number of
+X.br
+X				characters preceeded by tab characters will
+X.br
+X				automatically be maintained.
+X
+X.br
+X	Word Wrap on/off
+X.br
+X				When word wrap is on, words typed past the
+X.br
+X				right margin will automatically wrap to the
+X.br
+X				left edge of the screen.
+X
+X.br
+X	Autoindent on/off
+X.br
+X				When autoindent is on, new lines will begin
+X.br
+X				with same amount of whitespace from the left
+X.br
+X				edge of the screen.  Also indented paragraphs
+X.br
+X				will be formatted properly.
+X
+X.br
+X	Picture mode on/off
+X.br
+X				When picture mode is on, the right-arrow and
+X.br
+X				down-arrow keys will move freely on the screen.
+X.br
+X				I.E., right arrow will not wrap to the next
+X.br
+X				line and down arrow will not stop at the end
+X.br
+X				of the file.
+X
+X.SH FILES
+X.DT
+X.ta 25n
+X
+X \.joerc 			Initialization file.  JOE looks for
+X.br
+X				this in the current directory, the
+X.br
+X				user's home directory and in the 
+X.br
+X				directory containing JOE
+X
+X.SH RESTRICTIONS
+X
+XThe file size is limited to the system process size limit 
+X
+X.SH BUGS
+XSend bug reports to rcarter@wpi.wpi.edu (Joseph H. Allen).  This should be
+Xvalid to at least January, 1991.  You can also contact me through snail mail:
+X
+X.br
+X		Joseph H. Allen
+X.br
+X		28 Dale Lane
+X.br
+X		Smithtown, N.Y. 11787
+END_OF_FILE
+if test 6072 -ne `wc -c <'joe.1'`; then
+    echo shar: \"'joe.1'\" unpacked with wrong size!
+fi
+# end of 'joe.1'
+fi
+if test -f 'joe.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'joe.c'\"
+else
+echo shar: Extracting \"'joe.c'\" \(68418 characters\)
+sed "s/^X//" >'joe.c' <<'END_OF_FILE'
+X/* JOE - Joe's Own Editor - the bulk of the code is here
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License
+Xalong with JOE; see the file COPYING.  If not, write to
+Xthe Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+X#include <stdio.h>
+X#include <string.h>
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include <errno.h>
+X#include <pwd.h>
+X/* #include <sys/dir.h> */
+Xextern errno;
+X#include "async.h"
+X#include "blocks.h"
+X#include "joe.h"
+Xint width=80;
+Xint height=24;
+Xint scroll=1;
+X
+Xint repeatamnt=1;
+Xint nrepeatamnt;
+X
+Xunsigned char stalin[PATHSIZE];
+X
+Xint smode=0;
+Xint tops=0;
+Xint bots;
+Xint oxpos=0;            /* Current cursor position */
+Xint oypos=0;
+Xint *scrn;            /* Screen buffer address */
+Xunsigned char *help=0;
+Xint helplines=0;
+Xint helpsize=0;
+Xint helpblksize=0;
+X
+Xunsigned char *omsg=0;           /* Pointer to opening message */
+X
+Xdopen()
+X{
+Xint x;
+Xunsigned char buf[30];
+Xscrn=(int *)malloc(width*height*sizeof(int));
+Xfor(x=0;x<width*height;x++) scrn[x]= ' ';
+Xif(scroll)
+X {
+X sprintf(buf,"\033[0m\033[1;%dr\033[H\033[J",height), eputs(buf);
+X bots=height-1;
+X }
+Xelse eputs("\033[0m\033[H\033[J");
+X}
+X
+Xdclose()
+X{
+Xsetregn(0,height-1);
+Xcpos(height-1,0);
+Xattrib(0);
+X}
+X
+Xresize()
+X{
+Xint x;
+Xunsigned char buf[30];
+Xfree(scrn);
+Xscrn=(int *)malloc(width*height*sizeof(int));
+Xfor(x=0;x<width*height;x++) scrn[x]= ' ';
+Xif(scroll)
+X {
+X sprintf(buf,"\033[0m\033[1;%dr\033[H\033[J",height), eputs(buf);
+X bots=height-1;
+X }
+Xelse eputs("\033[0m\033[H\033[J");
+Xsmode=0;
+Xif(wind) wind=helplines;
+Xif(wind>height-3) wind=height-3;
+Xif(wind) hupd=1;
+Xwfit();
+Xupd=1;
+X}
+X
+Xcposs(y,x)
+X{
+Xunsigned char s[9];
+Xif(y>bots || y<tops) setregn(0,height-1);
+Xif(y==oypos)
+X {
+X if(x==oxpos) return;
+X if(x==0)
+X  {
+X  eputc(13);
+X  return;
+X  }
+X if(oxpos>=x+1 && oxpos<=x+4)
+X  {
+X  while(oxpos!=x) eputc(8), x++;
+X  return;
+X  }
+X if(x>=oxpos+1 && x<=oxpos+4)
+X  {
+X  while(x!=oxpos) tputcc(scrn[oypos*width+oxpos++]);
+X  return;
+X  }
+X if(x>oxpos)
+X  sprintf(s,"\033[%dC",x-oxpos);
+X else
+X  sprintf(s,"\033[%dD",oxpos-x);
+X eputs(s);
+X return;
+X }
+Xif(x==oxpos)
+X {
+X if(y>=oypos+1 && y<=oypos+4)
+X  {
+X  while(y!=oypos) /* acheck(), */ eputc(10), oypos++;
+X  return;
+X  }
+X if(y==0 && x==0)
+X  {
+X  eputs("\033[H");
+X  return;
+X  }
+X if(y>oypos)
+X  sprintf(s,"\033[%dB",y-oypos);
+X else
+X  sprintf(s,"\033[%dA",oypos-y);
+X eputs(s);
+X return;
+X }
+Xif(x<3 && y>oypos && y<oypos+5)
+X {
+X while(oypos!=y) ++oypos, eputc('\012');
+X eputc('\015'); oxpos=0;
+X while(x!=oxpos) tputcc(scrn[oypos*width+oxpos++]);
+X return;
+X }
+Xif(x==0 && y==0)
+X {
+X eputs("\033[H");
+X return;
+X }
+Xif(x==0)
+X {
+X sprintf(s,"\033[%dH",y+1);
+X eputs(s);
+X return;
+X }
+Xsprintf(s,"\033[%d;%dH",y+1,x+1);
+Xeputs(s);
+Xreturn;
+X}
+X
+Xcpos(y,x)
+X{
+Xcposs(y,x);
+Xoxpos=x;
+Xoypos=y;
+X}
+X
+Xsetregn(top,bot)
+X{
+Xunsigned char sst[16];
+Xif(top!=tops || bots!=bot)
+X {
+X tops=top;
+X bots=bot;
+X if(scroll)
+X  {
+X  oxpos=0;
+X  oypos=0;
+X  sprintf(sst,"\033[%d;%dr\033[H",top+1,bot+1);
+X  /* I shouldn't need the \033[H, but so many vt100 emulators forget to home
+X   * the cursor after a set scrolling region...
+X   */
+X  eputs(sst);
+X  }
+X }
+X}
+X
+Xattrib(x)
+X{
+Xif(smode== -1) goto clr;
+Xif(!(x&INVERSE) && (smode&INVERSE)) goto clr;
+Xif(!(x&BLINK) && (smode&BLINK)) goto clr;
+Xif(!(x&UNDERLINE) && (smode&UNDERLINE)) goto clr;
+Xif(!(x&BOLD) && (smode&BOLD)) goto clr;
+Xgoto ovr;
+Xclr:
+Xsmode=0;
+Xeputs("\033[m");
+Xovr:
+Xif(x&INVERSE && !(smode&INVERSE)) eputs("\033[7m");
+Xif(x&BLINK && !(smode&BLINK)) eputs("\033[5m");
+Xif(x&UNDERLINE && !(smode&UNDERLINE)) eputs("\033[4m");
+Xif(x&BOLD && !(smode&BOLD)) eputs("\033[1m");
+Xsmode=x;
+X}
+X
+Xint uuu=0;
+Xint cntr=0;
+Xint upd=1;
+Xint hupd=0;
+Xint newy=1;
+Xint helpon=0;
+Xint wind=0;
+Xint xpos=0;
+Xint ypos=0;
+XTXTSIZ saddr=0;
+XTXTSIZ xoffset=0;
+X
+X/* Clear end of line if needed.  i is row number and j is column number */
+X
+Xclreolchk(i,j)
+XTXTSIZ j;
+X{
+Xint *k=scrn+i*width;
+Xint t, jj;
+Xif(j<xoffset) jj=0;
+Xelse
+X if(j>=xoffset+width-1) return;
+X else jj=j-xoffset;
+Xfor(t=width-1;t>=jj;--t) if(k[t]!=' ') goto ohoh;
+Xreturn;
+Xohoh:
+Xif(t==jj)
+X {
+X cpos(i,jj);
+X tputcc(' ');
+X k[jj]=' ';
+X oxpos++;
+X return;
+X }
+Xwhile(t>=jj) k[t--]=' ';
+Xcpos(i,jj);
+Xattrib(0);
+Xeputs("\033[K");
+X}
+X
+X/* Change buffer character to displayable form */
+X
+Xshowas(ch)
+X{
+X#ifdef NOHIGHBIT
+Xif(ch>=128)
+X {
+X ch&=127;
+X ch|=INVERSE;
+X }
+X#endif
+Xif((ch&127)<32)
+X {
+X ch+='@';
+X ch|=UNDERLINE;
+X }
+Xif((ch&127)==127)
+X {
+X ch&=~127;
+X ch|='?'|UNDERLINE;
+X }
+Xreturn ch;
+X}
+X
+Xint udline(i)
+X{
+Xint q=i*width;
+XTXTSIZ j;
+Xint t;
+Xint u;
+Xint ch;
+Xfor(j=0;1;j++)
+X {
+X if(have) return -1;
+X if(fmeof())
+X  {
+X  clreolchk(i++,j);
+X  j=0;
+X  while(i<curwin->wind+curwin->height) clreolchk(i++,j);
+X  return 1;
+X  }
+X ch=fmgetc();
+X if(ch==NL)
+X  {
+X  clreolchk(i,j);
+X  return 0;
+X  }
+X if(ch==TAB)
+X  {
+X  ch=' ';
+X  if(fmnote()-1>=markb && fmnote()<=marke && curbuf==markbuf) ch^=INVERSE;
+X  t=i*width+j-xoffset;
+X  do
+X   {
+X   if(j>=xoffset && j<xoffset+width-1)
+X    {
+X    u=scrn[t];
+X    if(ch!=u || u==-1)
+X     {
+X     cpos(i,(int)(j-xoffset));
+X     scrn[t]=ch;
+X     tputcc(ch);
+X     oxpos++;
+X     }
+X    }
+X   t++;
+X   j++;
+X   } while(j&7);
+X  j--;
+X  }
+X else
+X  {
+X  ch=showas(ch);
+X  if(fmnote()-1>=markb && fmnote()<=marke && curbuf==markbuf) ch^=INVERSE;
+X  t=q+j-xoffset;
+X  if(j>=xoffset && j<xoffset+width-1)
+X   {
+X   u=scrn[t];
+X   if(ch!=u || u==-1)
+X    {
+X    cpos(i,(int)(j-xoffset));
+X    scrn[t]=ch;
+X    tputcc(ch);
+X    oxpos++;
+X    }
+X   }
+X  }
+X }
+X}
+X
+Xint udscrn()
+X{
+Xint i;
+Xint v;
+Xfor(i=ypos;i<curwin->height+curwin->wind;i++)
+X if(v=udline(i)) break;
+Xif(v== -1) return 0;
+Xfmpoint(saddr);
+Xfor(i=curwin->wind+1;i<ypos;i++)
+X if(udline(i)) return 0;
+Xreturn 1;
+X}
+X
+Xdupdate1(fgf)
+X{
+Xint y;
+XTXTSIZ x;
+XTXTSIZ sve=fmnote();
+X
+XTXTSIZ sve1;
+X
+X/* Status line */
+Xstrcpy(stalin,"\\i");
+Xif(gfnam[0]) strcat(stalin,gfnam);
+Xelse strcat(stalin,"(Unnamed)");
+Xif(changed) strcat(stalin," (Modified)");
+Xif(record) strcat(stalin," (Macro recording)");
+Xif(!helpon && strlen(stalin)+21<width+1)
+X {
+X int x=strlen(stalin);
+X while(x<width-20) stalin[x++]=' ';
+X stalin[x]=0;
+X strcat(stalin,"Hit Ctrl-K H for help");
+X }
+Xelse
+X {
+X int x=strlen(stalin);
+X while(x<width+1) stalin[x++]=' ';
+X stalin[x]=0;
+X }
+X
+Xmsgout(curwin->wind,stalin,0,1);
+X
+Xx=getcol();
+Xif(fmnrnl()) fmpoint(fmnote()+1);
+Xsve1=fmnote();
+X
+X/* calculate what screen cursor position should be */
+X
+Xif(x>xoffset+width-2)
+X xpos=width-2, xoffset=x-width+2;
+Xelse
+X if(x<xoffset)
+X  xpos=0, xoffset=x;
+X else
+X  xpos=x-xoffset;
+X
+X/* calculate new y cursor position and point to beginning of screen */
+X
+Xif(newy)
+X {
+X if(fmnote()<=saddr)
+X  {
+X  ypos=curwin->wind+1;
+X  saddr=fmnote();
+X  }
+X else
+X  {
+X  /* is cursor within 24 lines of old beginning of screen */
+X 
+X  for(y=0;y!=curwin->height-2;y++)
+X   {
+X   if(fmnote()==saddr) goto over;
+X   fmrgetc();
+X   if(fmnrnl()) fmpoint(fmnote()+1);
+X   }
+X  if(cntr)
+X   {
+X   for(x=0;x<(curwin->height-1)/2;x++)
+X    {
+X    fmfnl();
+X    y--;
+X    fmgetc();
+X    }
+X   }
+X  over:
+X  cntr=0;
+X  saddr=fmnote();
+X  ypos=y+curwin->wind+1;
+X  }
+X newy=0;
+X }
+X
+X/* Now update screen */
+Xif(have)
+X { if(fgf) cpos(ypos,xpos); }
+Xelse
+X {
+X fmpoint(sve1);
+X if(udscrn()) upd=0;
+X if(fgf) cpos(ypos,xpos);
+X }
+Xfmpoint(sve);
+X}
+X
+Xdupdatehelp()
+X{
+Xint att;
+Xint i,j,c;
+Xunsigned char *from=help;
+Xint *too=scrn;
+Xif(helplines>height-3) wind=height-3;
+Xelse wind=helplines;
+Xfor(i=0;i!=wind;++too, ++i)
+X {
+X j=0; att=0;
+X loop:
+X if(have) return;
+X if(j==width-1)
+X  {
+X  while(*from!='\n') ++from;
+X  ++from;
+X  continue;
+X  }
+X if(*from=='\n')
+X  {
+X  hclreol:
+X  ++from;
+X  cpos(i,j);
+X  eputs("\033[K");
+X  while(j!=width-1) *too++ =' ', ++j;
+X  continue;
+X  }
+X if(*from=='\\')
+X  {
+X  ++from;
+X  if(*from=='\n') goto hclreol;
+X  if(*from=='u')
+X   {
+X   att^=UNDERLINE;
+X   ++from;
+X   goto loop;
+X   }
+X  if(*from=='i')
+X   {
+X   att^=INVERSE;
+X   ++from;
+X   goto loop;
+X   }
+X  }
+X c= *from++ | att;
+X if(c!= *too)
+X  {
+X  cpos(i,j);
+X  tputcc(*too= c);
+X  oxpos++;
+X  }
+X ++too; ++j;
+X goto loop;
+X }
+Xhupd=0;
+X}
+X
+Xint updall=0;
+X
+Xdupdate()
+X{
+Xint xp,yp;
+X
+Xaflush();
+Xif(hupd) dupdatehelp();
+Xif(upd)
+X {
+X int total=height-wind;
+X struct window *x;
+X dupdate1(1);
+X stwin(curwin);
+X x=curwin;
+X curwin=topwin;
+X xp=xpos; yp=ypos;
+X do
+X  {
+X  if((curbuf==x->buffer || updall) && curwin!=x)
+X   {
+X   if(total<=0) break;
+X   ldwin(curwin);
+X   total-=curwin->height;
+X   newy=1;
+X   dupdate1(0);
+X   stwin(curwin);
+X   }
+X  else if(curwin==x)
+X   total-=curwin->height;
+X  }
+X  while(curwin=curwin->next,curwin!=topwin);
+X updall=0;
+X ldwin(x);
+X curwin=x;
+X cpos(ypos=yp,xpos=xp);
+X }
+X}
+X
+Xinvalidate(line)
+X{
+Xint x;
+Xfor(x=0;x<width;x++) scrn[width*line+x]= -1;
+X}
+X
+Xtputcc(c)
+X{
+Xattrib(c);
+Xeputc(c&255);
+X}
+X
+Xint backup=0;
+XFILE *handle;
+Xunsigned char gfnam[PATHSIZE];
+X
+XTXTSIZ bufsiz;		/* Size of buffer */
+XTXTPTR point;		/* The point */
+XTXTPTR buffer;		/* The buffer */
+XTXTPTR filend;		/* First character not in buffer */
+XTXTPTR hole;		/* Beginning of hole */
+XTXTPTR ehole;		/* First character not in hole */
+Xint changed=0;		/* Set when file has been changed */
+Xint nundorecs=0;
+Xstruct undorec
+X {
+X struct undorec *next;
+X TXTSIZ size;
+X TXTSIZ where;
+X unsigned char *buffer;
+X }
+X *undorecs=0;
+Xstruct undorec *undoptr=0;
+Xstruct undorec *redorecs=0;
+Xint undoflag=1;
+X
+Xfmopen()
+X{
+Xbuffer=(unsigned char *)TXTMALLOC(bufsiz=HOLESIZE);
+Xpoint=buffer;
+Xhole=buffer;
+Xehole=buffer+HOLESIZE;
+Xfilend=ehole;
+Xchanged=0;
+Xundorecs=0;
+Xnundorecs=0;
+Xredorecs=0;
+Xundoptr=0;
+X}
+X
+Xfmexpand(amount)
+Xunsigned amount;
+X{
+Xif(filend+amount-buffer>bufsiz)
+X {
+X unsigned char *old=buffer;
+X buffer=(TXTPTR)TXTREALLOC(buffer,bufsiz=(filend+amount+HOLESIZE-buffer));
+X point+=buffer-old;
+X filend+=buffer-old;
+X hole+=buffer-old;
+X ehole+=buffer-old;
+X }
+X}
+X
+Xfmhole()
+X{
+Xif(point==hole) return;
+Xif(point==ehole)
+X {
+X point=hole;
+X return;
+X }
+Xif(point<hole)
+X {
+X bmove(ehole-(hole-point),point,hole-point);
+X ehole-=(hole-point);
+X hole=point;
+X }
+Xelse
+X {
+X bmove(hole,ehole,point-ehole);
+X hole+=point-ehole;
+X ehole=point;
+X point=hole;
+X }
+X}
+X
+Xfmbig(size)
+XTXTSIZ size;
+X{
+Xif(size>fmholesize())
+X {
+X size+=HOLESIZE;
+X fmexpand(size);
+X bmove(ehole+size,ehole,filend-ehole);
+X ehole+=size;
+X filend+=size;
+X }
+X}
+X
+Xint fmfnl()
+X{
+Xwhile(((point==hole)?(point=ehole):point)!=filend)
+X if(*point==NL) return 1;
+X else point++;
+Xreturn 0;
+X}
+X
+Xint fmrnl()
+X{
+Xif(fmrc()==NL) return 1;
+Xwhile((point==ehole?point=hole:point)!=buffer)
+X if(*(--point)==NL) return 1;
+Xreturn 0;
+X}
+X
+Xkillredo()
+X{
+Xstruct undorec *u;
+Xwhile(redorecs)
+X {
+X u=redorecs->next;
+X if(redorecs->buffer) free(redorecs->buffer);
+X free(redorecs);
+X redorecs=u;
+X }
+X}
+X
+Xkillundo()
+X{
+Xstruct undorec *u;
+Xwhile(undorecs)
+X {
+X if(undorecs->buffer) free(undorecs->buffer);
+X u=undorecs->next;
+X free(undorecs);
+X undorecs=u;
+X }
+X}
+X
+Xfminsu(size)
+XTXTSIZ size;
+X{
+Xstruct window *z;
+Xstruct undorec *it;
+Xif(undoflag)
+X {
+X if(redorecs) killredo();
+X if(undorecs && !undorecs->buffer &&
+X    (undorecs->where==fmnote() || undorecs->where+undorecs->size==fmnote()))
+X  undorecs->size+=size;
+X else
+X  {
+X  /* New record */
+X  it=(struct undorec *)malloc(sizeof(struct undorec));
+X  it->next=undorecs;
+X  undorecs=it;
+X  it->size=size;
+X  it->where=fmnote();
+X  it->buffer=0;
+X  ++nundorecs;
+X  if(nundorecs==20)
+X   {
+X   struct undorec *p;
+X   for(it=undorecs;it->next;p=it,it=it->next);
+X   if(it->buffer) free(it->buffer);
+X   free(it);
+X   p->next=0;
+X   }
+X  }
+X }
+Xif(curbuf==markbuf)
+X {
+X if(fmnote()<markb) markb+=size;
+X if(fmnote()<marke) marke+=size;
+X }
+Xz=topwin;
+Xdo
+X {
+X if(z->buffer==curbuf)
+X  {
+X  if(z==curwin)
+X   {
+X   if(fmnote()<saddr) saddr+=size;
+X   }
+X  else
+X   {
+X   if(fmnote()<z->saddr) z->saddr+=size;
+X   if(fmnote()<z->cursor) z->cursor+=size;
+X   }
+X  }
+X z=z->next;
+X }
+X while(z!=topwin);
+X}
+X
+Xundo()
+X{
+Xstruct undorec *u;
+Xif(!undorecs) return;
+Xextend=0;
+Xif(!undoptr) undoptr=undorecs;
+Xif(fmnote()==undoptr->where)
+X {
+X if(undoptr->buffer)
+X  {
+X  undoflag=0;
+X  fminss(undoptr->buffer,undoptr->size);
+X  undoflag=1;
+X  markbuf=curbuf;
+X  markb=fmnote();
+X  marke=markb+undoptr->size;
+X  u=(struct undorec *)malloc(sizeof(struct undorec));
+X  u->next=redorecs;
+X  redorecs=u;
+X  u->size=undoptr->size;
+X  u->buffer=0;
+X  u->where=fmnote();
+X  }
+X else
+X  {
+X  u=(struct undorec *)malloc(sizeof(struct undorec));
+X  u->next=redorecs;
+X  redorecs=u;
+X  u->size=undoptr->size;
+X  u->buffer=(unsigned char *)malloc(undoptr->size);
+X  fmcpy(u->buffer,undoptr->size);
+X  u->where=fmnote();
+X  undoflag=0;
+X  fmdel(undoptr->size);
+X  markb=marke=0;
+X  undoflag=1;
+X  }
+X u=undoptr->next;
+X if(undoptr->buffer) free(undoptr->buffer);
+X free(undoptr);
+X undoptr=undorecs=u;
+X }
+Xelse fmpoint(undoptr->where), newy=1;
+X}
+X
+Xredo()
+X{
+Xstruct undorec *u;
+Xif(!redorecs) return;
+Xextend=0;
+Xfmpoint(redorecs->where), newy=1;
+Xif(redorecs->buffer)
+X {
+X undoflag=0;
+X fminss(redorecs->buffer,redorecs->size);
+X undoflag=1;
+X markbuf=curbuf;
+X markb=fmnote();
+X marke=markb+redorecs->size;
+X u=(struct undorec *)malloc(sizeof(struct undorec));
+X u->next=undorecs;
+X undorecs=undoptr=u;
+X u->size=redorecs->size;
+X u->buffer=0;
+X u->where=fmnote();
+X }
+Xelse
+X {
+X u=(struct undorec *)malloc(sizeof(struct undorec));
+X u->next=undorecs;
+X undorecs=undoptr=u;
+X u->size=redorecs->size;
+X u->buffer=(unsigned char *)malloc(redorecs->size);
+X fmcpy(u->buffer,redorecs->size);
+X u->where=fmnote();
+X undoflag=0;
+X fmdel(redorecs->size);
+X markb=marke=0;
+X undoflag=1;
+X }
+Xu=redorecs->next;
+Xif(redorecs->buffer) free(redorecs->buffer);
+Xfree(redorecs);
+Xredorecs=u;
+X}
+X
+Xfmdelu(size)
+XTXTSIZ size;
+X{
+Xstruct window *z;
+Xstruct undorec *it;
+Xif(undoflag)
+X {
+X if(redorecs) killredo();
+X if(undorecs && undorecs->buffer && (undorecs->where==fmnote()))
+X  {
+X  /* Add to end */
+X  undorecs->buffer=(unsigned char *)realloc(undorecs->buffer,
+X  undorecs->size+size);
+X  fmcpy(undorecs->buffer+undorecs->size,size);
+X  undorecs->size+=size;
+X  }
+X else if(undorecs && undorecs->buffer && (undorecs->where==fmnote()+size))
+X  {
+X  /* Add to beginning */
+X  undorecs->buffer=(unsigned char *)realloc(
+X  undorecs->buffer,undorecs->size+size);
+X  bbkwd(undorecs->buffer+size,undorecs->buffer,undorecs->size);
+X  fmcpy(undorecs->buffer,size);
+X  undorecs->size+=size;
+X  undorecs->where-=size;
+X  }
+X else
+X  {
+X  /* New record */
+X  it=(struct undorec *)malloc(sizeof(struct undorec));
+X  it->next=undorecs;
+X  undorecs=it;
+X  it->size=size;
+X  it->where=fmnote();
+X  it->buffer=(unsigned char *)malloc(size);
+X  fmcpy(it->buffer,size);
+X  ++nundorecs;
+X  if(nundorecs==20)
+X   {
+X   struct undorec *p;
+X   for(it=undorecs;it->next;p=it,it=it->next);
+X   if(it->buffer) free(it->buffer);
+X   free(it);
+X   p->next=0;
+X   }
+X  }
+X }
+Xif(markbuf==curbuf)
+X {
+X if(fmnote()<markb) markb-=umin(size,markb-fmnote());
+X if(fmnote()<marke) marke-=umin(size,marke-fmnote());
+X }
+Xz=topwin;
+Xdo
+X {
+X if(curbuf==z->buffer)
+X  {
+X  if(z==curwin)
+X   {
+X   if(fmnote()<saddr) saddr-=umin(size,saddr-fmnote());
+X   }
+X  else
+X   {
+X   if(fmnote()<z->saddr) z->saddr-=umin(size,z->saddr-fmnote());
+X   if(fmnote()<z->cursor) z->cursor-=umin(size,z->cursor-fmnote());
+X   }
+X  }
+X z=z->next;
+X }
+X while(z!=topwin);
+X}
+X
+Xfmdel(x)
+XTXTSIZ x;
+X{
+Xfmhole();
+Xfmdelu(x);
+Xehole+=x;
+Xchanged=1;
+X}
+X
+Xfminss(string,size)
+Xunsigned char *string;
+Xunsigned size;
+X{
+Xfminsu(size);
+Xfmhole();
+Xif(size>fmholesize()) fmbig(size);
+Xbmove(hole,string,size);
+Xhole+=size;
+Xchanged=1;
+X}
+X
+Xfmcpy(string,size)
+Xunsigned char *string;
+X{
+Xfmhole();
+Xbbkwd(string,ehole,size);
+X}
+X
+Xint fmcmp(string,size)
+Xunsigned char *string;
+Xint size;
+X{
+Xunsigned char *x;
+Xif(point==hole) point=ehole;
+Xif(hole>point && hole<point+size && hole!=ehole)
+X {
+X if(fmcmp(string,hole-point)) return 1;
+X else
+X  {
+X  x=point;
+X  point=ehole;
+X  if(fmcmp(string+(hole-x),size-(hole-x)))
+X   {
+X   point=x;
+X   return 1;
+X   }
+X  else
+X   {
+X   point=x;
+X   return 0;
+X   }
+X  }
+X }
+Xelse
+X {
+X x=point;
+X do
+X  if(*(x++)!=*(string++)) return 1;
+*** Cut here
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

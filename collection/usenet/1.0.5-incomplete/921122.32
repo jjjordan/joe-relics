@@ -1,0 +1,381 @@
+Xref: funic comp.unix.bsd:8352 comp.lang.tcl:1794 alt.sources:4942
+Newsgroups: comp.unix.bsd,comp.lang.tcl,alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!menudo.uh.edu!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Subject: Patches to get Tcl 6.4 & Tk 2.3 up under 386BSD 0.1
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Date: Thu, 19 Nov 1992 04:55:22 GMT
+Message-ID: <Bxy5oG.AnI@NeoSoft.com>
+Lines: 371
+
+Here are the patches to get Tcl 6.4, Extended Tcl 6.4c and the
+Tk X-windows scripting environment working on 386BSD.
+Go to sprite.berkeley.edu and get tcl6.4.tar.Z and
+tclX6.4c.tar.Z.  Also get tk2.3.tar.Z if you have X-windows.
+Create a tcl6.4 directory, cd to it, and unpack the two (or three)
+tar archives.   You should get tcl6.4 and tclX6.4c (and tk2.3) directories.
+
+Save off this patch, then do a "patch -p0 <patchfile".  Then cd to
+the tcl6.4 subdirectory and do a "csh config" and a "make", then 
+cd to tclX6.4c and do a make.
+
+The Tk X-windows toolkit extensions for Tcl compile up without
+a peep.  No patches necessary.
+
+Unpack tk2.3 in the top-level tcl6.4 directory if you have X, then
+cd to tclX6.4c, edit Config.mk to comment in the line that
+reads TCL_TK_SHELL, and do a "make".  It should produce "wish", the 
+windowing shell, linked in with Tcl and Extended Tcl.
+
+"make install" in tclX6.4c will install Extended Tcl.  Copy 
+tcl6.4/library and subdirectories into /usr/local/lib/tcl,
+and tk2.3/library and subdirectories into /usr/local/lib/tk.
+Check out the voluminous docs included the the release.
+
+Tcl fails a couple of the standard tests, and quite a few of the
+extended tests, so there are definitely problems.  But this is enough
+to get you up and running with a great scripting environment for X.
+
+*** tcl6.4/tclEnv.c.orig	Wed Nov 18 20:08:13 1992
+--- tcl6.4/tclEnv.c	Wed Nov 18 20:16:18 1992
+***************
+*** 56,63 ****
+  			    Tcl_Interp *interp, char *name1, char *name2,
+  			    int flags));
+  static int		FindVariable _ANSI_ARGS_((char *name, int *lengthPtr));
+! void			setenv _ANSI_ARGS_((char *name, char *value));
+! void			unsetenv _ANSI_ARGS_((char *name));
+  
+  /*
+   *----------------------------------------------------------------------
+--- 56,62 ----
+  			    Tcl_Interp *interp, char *name1, char *name2,
+  			    int flags));
+  static int		FindVariable _ANSI_ARGS_((char *name, int *lengthPtr));
+! void			unsetenv _ANSI_ARGS_((const char *name));
+  
+  /*
+   *----------------------------------------------------------------------
+***************
+*** 197,207 ****
+   *----------------------------------------------------------------------
+   */
+  
+! void
+! setenv(name, value)
+!     char *name;			/* Name of variable whose value is to be
+! 				 * set. */
+!     char *value;		/* New value for variable. */
+  {
+      int index, length, nameLength;
+      char *p;
+--- 196,203 ----
+   *----------------------------------------------------------------------
+   */
+  
+! int
+! setenv(const char *name, const char *value, int overwrite)
+  {
+      int index, length, nameLength;
+      char *p;
+***************
+*** 217,223 ****
+       * the name exists, free its old entry.
+       */
+  
+!     index = FindVariable(name, &length);
+      if (index == -1) {
+  	if ((length+2) > environSize) {
+  	    char **newEnviron;
+--- 213,219 ----
+       * the name exists, free its old entry.
+       */
+  
+!     index = FindVariable((char *)name, &length);
+      if (index == -1) {
+  	if ((length+2) > environSize) {
+  	    char **newEnviron;
+***************
+*** 254,260 ****
+       */
+  
+      for (eiPtr= firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
+! 	(void) Tcl_SetVar2(eiPtr->interp, "env", name, p+1, TCL_GLOBAL_ONLY);
+      }
+  }
+  
+--- 250,256 ----
+       */
+  
+      for (eiPtr= firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
+! 	(void) Tcl_SetVar2(eiPtr->interp, "env", (char *)name, p+1, TCL_GLOBAL_ONLY);
+      }
+  }
+  
+***************
+*** 277,283 ****
+  
+  void
+  unsetenv(name)
+!     char *name;			/* Name of variable to remove. */
+  {
+      int index, dummy;
+      char **envPtr;
+--- 273,279 ----
+  
+  void
+  unsetenv(name)
+!     const char *name;			/* Name of variable to remove. */
+  {
+      int index, dummy;
+      char **envPtr;
+***************
+*** 381,387 ****
+       */
+  
+      if (flags & TCL_TRACE_WRITES) {
+! 	setenv(name2, Tcl_GetVar2(interp, "env", name2, TCL_GLOBAL_ONLY));
+      }
+  
+      if (flags & TCL_TRACE_UNSETS) {
+--- 377,383 ----
+       */
+  
+      if (flags & TCL_TRACE_WRITES) {
+! 	setenv(name2, Tcl_GetVar2(interp, "env", name2, TCL_GLOBAL_ONLY), 1);
+      }
+  
+      if (flags & TCL_TRACE_UNSETS) {
+*** tclX6.4c/Config.mk.orig	Wed Nov 18 22:25:39 1992
+--- tclX6.4c/Config.mk	Wed Nov 18 20:23:16 1992
+***************
+*** 25,31 ****
+  # them to us (tcl-project@neosoft.com).  At the end of this file is a
+  # description of all the flags that can be set in the config file.
+  #
+! TCL_CONFIG_FILE=scoodt2.0
+  
+  #==============================================================================
+  #
+--- 25,31 ----
+  # them to us (tcl-project@neosoft.com).  At the end of this file is a
+  # description of all the flags that can be set in the config file.
+  #
+! TCL_CONFIG_FILE=386bsd
+  
+  #==============================================================================
+  #
+*** /dev/null	Wed Nov 18 21:20:01 1992
+--- tclX6.4c/config/386bsd	Wed Nov 18 22:23:25 1992
+***************
+*** 0 ****
+--- 1,14 ----
++ #------------------------------------------------------------------------------
++ # 386BSD
++ #------------------------------------------------------------------------------
++ #------------------------------------------------------------------------------
++ #
++ SYS_DEP_FLAGS=-DTCL_HAVE_SETLINEBUF -DTCL_32_BIT_RANDOM -DTCL_POSIX_SIG -DTCL_TM_GMTOFF -DTCL_IEEE_FP_MATH
++ LIBS=-lm
++ RANLIB_CMD=ranlib
++ MCS_CMD=true
++ SUPPORT_FLAGS=-DTCL_HAS_TM_ZONE
++ TCL_TK_LIBS= -lX11 -lm
++ 
++ TCL_MAN_SEPARATOR=
++ 
+*** tclX6.4c/Makefile.orig	Wed Nov 18 20:26:06 1992
+--- tclX6.4c/Makefile	Wed Nov 18 20:30:52 1992
+***************
+*** 19,26 ****
+  #------------------------------------------------------------------------------
+  #
+  
+! include Config.mk
+! include config/$(TCL_CONFIG_FILE)
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+--- 19,26 ----
+  #------------------------------------------------------------------------------
+  #
+  
+! .include "Config.mk"
+! .include "config/$(TCL_CONFIG_FILE)"
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+***************
+*** 45,54 ****
+  tcl: TCLX_MAKES
+  
+  TCLX_MAKES: libtcl.a
+! 	cd ucbsrc;    $(MAKE) -$(MAKEFLAGS) all
+! 	cd osSupport; $(MAKE) -$(MAKEFLAGS) all
+! 	cd tclsrc;    $(MAKE) -$(MAKEFLAGS) all
+! 	cd src;       $(MAKE) -$(MAKEFLAGS) all
+  
+  
+  # Copy the UCB libtcl.a file from where it was built.  Force the other
+--- 45,54 ----
+  tcl: TCLX_MAKES
+  
+  TCLX_MAKES: libtcl.a
+! 	cd ucbsrc;    $(MAKE) $(MAKEFLAGS) all
+! 	cd osSupport; $(MAKE) $(MAKEFLAGS) all
+! 	cd tclsrc;    $(MAKE) $(MAKEFLAGS) all
+! 	cd src;       $(MAKE) $(MAKEFLAGS) all
+  
+  
+  # Copy the UCB libtcl.a file from where it was built.  Force the other
+*** tclX6.4c/osSupport/Makefile.orig	Wed Nov 18 20:32:11 1992
+--- tclX6.4c/osSupport/Makefile	Wed Nov 18 20:33:24 1992
+***************
+*** 16,23 ****
+  #------------------------------------------------------------------------------
+  #
+  
+! include ../Config.mk
+! include ../config/$(TCL_CONFIG_FILE)
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+--- 16,23 ----
+  #------------------------------------------------------------------------------
+  #
+  
+! .include "../Config.mk"
+! .include "../config/$(TCL_CONFIG_FILE)"
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+***************
+*** 30,36 ****
+  all: made.tmp
+  
+  made.tmp: $(SUPPORT_OBJS)
+! 	$(AR) cr ../libtcl.a $(SUPPORT_OBJS)
+  	touch made.tmp
+  
+  #------------------------------------------------------------------------------
+--- 30,36 ----
+  all: made.tmp
+  
+  made.tmp: $(SUPPORT_OBJS)
+! 	-$(AR) cr ../libtcl.a $(SUPPORT_OBJS)
+  	touch made.tmp
+  
+  #------------------------------------------------------------------------------
+*** tclX6.4c/src/Makefile.orig	Wed Nov 18 20:34:07 1992
+--- tclX6.4c/src/Makefile	Wed Nov 18 20:34:13 1992
+***************
+*** 19,26 ****
+  #------------------------------------------------------------------------------
+  #
+  
+! include ../Config.mk
+! include ../config/$(TCL_CONFIG_FILE)
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+--- 19,26 ----
+  #------------------------------------------------------------------------------
+  #
+  
+! .include "../Config.mk"
+! .include "../config/$(TCL_CONFIG_FILE)"
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+*** tclX6.4c/src/tclXfcntl.c.orig	Wed Nov 18 20:41:39 1992
+--- tclX6.4c/src/tclXfcntl.c	Wed Nov 18 20:48:51 1992
+***************
+*** 201,207 ****
+--- 201,218 ----
+       */
+  
+  #ifdef _IONBF
++ 
++ #  ifdef __SNBF
+      if (otherAttr & ATTR_NOBUF) {
++         interp->result = (filePtr->f->_flags & __SNBF) ? "1" : "0";
++         return TCL_OK;
++     }
++     if (otherAttr & ATTR_LINEBUF) {
++         interp->result = (filePtr->f->_flags & __SLBF) ? "1" : "0";
++         return TCL_OK;
++     }
++ #  else
++     if (otherAttr & ATTR_NOBUF) {
+          interp->result = (filePtr->f->_flag & _IONBF) ? "1" : "0";
+          return TCL_OK;
+      }
+***************
+*** 209,214 ****
+--- 220,226 ----
+          interp->result = (filePtr->f->_flag & _IOLBF) ? "1" : "0";
+          return TCL_OK;
+      }
++ #  endif
+  #else
+      if (otherAttr & ATTR_NOBUF) {
+          interp->result = (filePtr->f->_flags & _SNBF) ? "1" : "0";
+*** tclX6.4c/src/tclXsignal.c.orig	Wed Nov 18 21:14:25 1992
+--- tclX6.4c/src/tclXsignal.c	Wed Nov 18 21:14:34 1992
+***************
+*** 298,303 ****
+--- 298,306 ----
+  {
+  #ifdef TCL_POSIX_SIG
+      struct sigaction currentState;
++ #  ifndef SIG_ERR
++ #    define SIG_ERR (void(*)())-1
++ #  endif
+  
+      if (sigaction (signalNum, NULL, &currentState) < 0)
+          return SIG_ERR;
+*** tclX6.4c/tclsrc/Makefile.orig	Wed Nov 18 20:34:26 1992
+--- tclX6.4c/tclsrc/Makefile	Wed Nov 18 20:34:48 1992
+***************
+*** 17,24 ****
+  #------------------------------------------------------------------------------
+  #
+  
+! include ../Config.mk
+! include ../config/$(TCL_CONFIG_FILE)
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+--- 17,24 ----
+  #------------------------------------------------------------------------------
+  #
+  
+! .include "../Config.mk"
+! .include "../config/$(TCL_CONFIG_FILE)"
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+*** tclX6.4c/ucbsrc/Makefile.orig	Wed Nov 18 20:29:51 1992
+--- tclX6.4c/ucbsrc/Makefile	Wed Nov 18 20:30:14 1992
+***************
+*** 18,25 ****
+  #
+  
+  
+! include ../Config.mk
+! include ../config/$(TCL_CONFIG_FILE)
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+--- 18,25 ----
+  #
+  
+  
+! .include "../Config.mk"
+! .include "../config/$(TCL_CONFIG_FILE)"
+  SHELL=/bin/sh
+  
+  #------------------------------------------------------------------------------
+-- 
+-- Email info@NeoSoft.com for info on getting interactive Internet access.
+"Turn on your hot tub by email now.  Ask me how."

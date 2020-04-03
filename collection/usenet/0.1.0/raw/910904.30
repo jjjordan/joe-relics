@@ -1,0 +1,518 @@
+Xref: funic alt.sources:2338 comp.lang.perl:5112 news.software.readers:476
+Path: funic!fuug!mcsun!uunet!zaphod.mps.ohio-state.edu!think.com!mintaka!bloom-beacon!bloom-picayune.mit.edu!athena.mit.edu!jik
+From: jik@athena.mit.edu (Jonathan I. Kamens)
+Newsgroups: alt.sources,comp.lang.perl,news.software.readers
+Subject: preserving .newsrc on new NNTP server
+Message-ID: <1991Aug30.210122.9477@athena.mit.edu>
+Date: 30 Aug 91 21:01:22 GMT
+Sender: news@athena.mit.edu (News system)
+Followup-To: comp.lang.perl
+Organization: Massachusetts Institute of Technology
+Lines: 505
+Nntp-Posting-Host: pit-manager.mit.edu
+
+
+  I spent the summer working across the country in California, and it was
+faster to read news locally than to get it over the network from MIT, so I
+shifted to the NNTP server at UCSC.  I did so by creating a new .newsrc with
+the same subscribed and unsubscribed groups as my original, and then catching
+up in all the subscribed groups.  That is a suboptimal method.
+
+  When I came back here this week, I decided to come up with a better one.  So
+I wrote the scripts in the shar appended to the end of this message.  There
+are four files, in the shar, nntp.pl, newsrc-to-message-id.pl,
+message-id-to-newsrc.pl, and merge-newsrcs.pl.
+
+  Nntp.pl is a bare-bones of the NNTP commands I needed to do what I wanted to
+do.  It isn't complete by any stretch of the imagination, nor is it
+particularly robust, but it does the job.  It depends on Randal Schwartz's
+"chat2.pl," which has been posted again recently in this newsgroup and is also
+available from perl archive sites.  Please don't ask me to mail it to you --
+find it in comp.lang.perl or write to Randal :-).
+
+  Newsrc-to-message-id.pl reads a .newsrc file and converts it into a file
+that lists Message-ID's instead of article numbers, by talking to the NNTP
+server to figure out the Message-ID's.  See the script itself for more
+information.
+
+  Message-id-to-newsrc.pl does the reverse transformation, presumably on a
+different NNTP server.
+
+  Merge-newsrcs.pl isn't directly related to this conversion process, but I
+found it useful anyway.  It reads multiple .newsrc files and merges the lists
+of read articles for the various newsgroups in the various files.  I used it
+to merge my converted UCSC .newsrc back into my MIT .newsrc from before the
+summer.
+
+  These scripts are a one-day hack, and I didn't spent gobs of time designing
+before I coded, so there may be faster ways to do some of the things I've
+done, and there may be some bugs I didn't notice.  If you find either of these
+things, or if you have other suggestions or improvements, please let me know.
+
+-- 
+Jonathan Kamens			              USnail:
+MIT Project Athena				11 Ashford Terrace
+jik@Athena.MIT.EDU				Allston, MA  02134
+Office: 617-253-8085			      Home: 617-782-0710
+-- 
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  nntp.pl merge-newsrcs.pl message-id-to-newsrc.pl
+#   newsrc-to-message-id.pl
+# Wrapped by jik@pit-manager on Fri Aug 30 16:46:20 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'nntp.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'nntp.pl'\"
+else
+echo shar: Extracting \"'nntp.pl'\" \(2724 characters\)
+sed "s/^X//" >'nntp.pl' <<'END_OF_FILE'
+X# "nntp.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Version$
+X
+X# This file needs Randal Schwartz's "chat2.pl".  It is by no means a
+X# complete implementation of NNTP, nor is it even a reasonable
+X# implementation :-).  I just implemented what I needed to make it
+X# possible for me to do the actual task I was working on.
+X# 
+X# If you make improvements or additions to this file, I would
+X# appreciate it if you would forward them back to me.
+X
+Xpackage nntp;
+X
+Xrequire 'chat2.pl';
+X
+X
+X## $connection = &nntp'open('ucbvax.berkeley.edu')
+X
+Xsub open {
+X    local($server) = $_[0];
+X    return undef if (! (local($name, $aliases, $port) = 
+X			getservbyname("nntp", "tcp")));
+X    local($connection) = &chat'open_port($server, $port);
+X    &chat'expect($connection, 60, '^2.*\r\n', '$connection', 
+X		 '^[45].. (.*)\r\n', 
+X		 "print STDERR \"Connecting to $server: \$1\n\"; undef", 
+X		 'TIMEOUT', 'undef',
+X		 'EOF', 'undef');
+X}
+X
+X
+X## ($count, $first, $last) = &nntp'group($connection, 'comp.lang.perl')
+X
+Xsub group {
+X    return () if (! &chat'print($_[0], "GROUP $_[1]\r\n"));
+X    &chat'expect($_[0], 60, "^2[^ ]* ([^ ]+) ([^ ]+) ([^ ]+) (.*)\r\n",
+X		 '($1, $2, $3)', '^[45].. (.*)\r\n', 
+X		 "print STDERR \"$_[1]: \$1\n\"; ()",
+X		 'TIMEOUT', '()',
+X		 'EOF', '()');
+X}
+X
+X
+X## %headers = &nntp'xhdr($connection, 'message-id', $valid_xhdr_list)
+X## 
+X## The $valid_xhdr_list can be a message ID in angle braces, or a
+X## single article, or a range of articles separated by a dash.
+X## 
+X## The keys in the returned array are either the Message ID's or
+X## article numbers that were requested, and the values are the header 
+X## values.
+X
+Xsub xhdr {
+X    local($connection, $field, $list) = @_;
+X    local($line, %headers);
+X
+X    return () if (! &chat'print($connection, "XHDR $field $list\r\n"));
+X
+X    if (&chat'expect($connection, 60,
+X		    '^2.. .*\r\n', '1',
+X		    '^[45].. .*\r\n', '0',
+X		    'TIMEOUT', '0',
+X		    'EOF', '0') == 0) {
+X	return ();
+X    }
+X
+X    %headers = ();
+X
+X    while ($line = &chat'expect($connection, 60,
+X				'^(..+)\r\n', '$1',
+X				'^([^\\.].*)\r\n', '$1',
+X				'^\\.\r\n', 'undef',
+X				'TIMEOUT', 'undef',
+X				'EOF', 'undef')) {
+X	local($key, $value) = split(/ /, $line, 2);
+X	$headers{$key} = $value;
+X    }
+X
+X    %headers;
+X}
+X
+X## &nntp'close($connection)
+X
+Xsub close {
+X    &chat'print($_[0], "QUIT\r\n");
+X    &chat'close($_[0]);
+X}
+END_OF_FILE
+if test 2724 -ne `wc -c <'nntp.pl'`; then
+    echo shar: \"'nntp.pl'\" unpacked with wrong size!
+fi
+# end of 'nntp.pl'
+fi
+if test -f 'merge-newsrcs.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'merge-newsrcs.pl'\"
+else
+echo shar: Extracting \"'merge-newsrcs.pl'\" \(2214 characters\)
+sed "s/^X//" >'merge-newsrcs.pl' <<'END_OF_FILE'
+X#!/usr/local/bin/perl
+X
+X# "merge-newsrcs.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Version$
+X
+X# This program reads .newsrc files and merges the lists of read
+X# articles in each newsgroup in each file.
+X# 
+X# If a newsgroup is subscribed in one file and unsubscribed in
+X# another, the subscription wins out.
+X
+X%assoc = ();
+X%assocsub = ();
+X@ordered = ();
+X$hash = 0;
+X
+Xwhile ($_ = $ARGV[0], /^-/) {
+X    shift;
+X    if (/^-hash$/) {
+X	$hash++;
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X
+Xwhile (<>) {
+X    if ($hash && (($hash++ % 10) == 0)) {
+X	local($|) = 1;
+X	print STDERR "#";
+X    }
+X    next if (! /^(.*)([:!]) *(.*)$/);
+X    chop;
+X    if (! $assoc{$1}) {
+X	$assoc{$1} = $3;
+X	$assocsub{$1} = $2;
+X	push(@ordered, $1);
+X	next;
+X    }
+X    elsif ($3 ne "") {
+X	$assocsub{$1} = $2 if ($2 eq ":"); # subscribed wins over unsubscribed
+X	$assoc{$1} = &merge($assoc{$1}, $3);
+X    }
+X}
+X
+Xwhile ($group = shift @ordered) {
+X    if ($assoc{$group} ne "") {
+X	printf "$group$assocsub{$group} $assoc{$group}\n";
+X    }
+X    else {
+X	printf "$group$assocsub{$group}\n";
+X    }
+X}
+X
+Xsub merge {
+X    local(@ranges, $range, $merged, $last, $new, $newer);
+X    
+X    @ranges = split(/,/, @_[0]);
+X    push(@ranges, split(/,/, @_[1]));
+X
+X    foreach $range (@ranges) {
+X	if ($range =~ /-/) {
+X	    $range = sprintf("%6d-%6d", $`, $');
+X	}
+X	else {
+X	    $range = sprintf("%6d-%6d", $range, $range);
+X	}
+X    }
+X
+X    $merged = shift @ranges;
+X
+X    while ($range = shift @ranges) {
+X	($merged =~ /......$/) && ($last = $&);
+X	($range =~ /-/) && (($new, $newer) = ($`, $'));
+X	if ($new <= $last + 1) {
+X	    if ($newer > $last) {
+X		$merged =~ s/......$//;
+X		$range =~ s/^.......//;
+X		$merged = $merged . $range;
+X	    }
+X	}
+X	else {
+X	    $merged = $merged . "," . $range;
+X	}
+X    }
+X
+X    $merged =~ s/(......)-\1/$1/g;
+X    $merged =~ s/ //g;
+X    
+X    $merged;
+X}
+END_OF_FILE
+if test 2214 -ne `wc -c <'merge-newsrcs.pl'`; then
+    echo shar: \"'merge-newsrcs.pl'\" unpacked with wrong size!
+fi
+chmod +x 'merge-newsrcs.pl'
+# end of 'merge-newsrcs.pl'
+fi
+if test -f 'message-id-to-newsrc.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'message-id-to-newsrc.pl'\"
+else
+echo shar: Extracting \"'message-id-to-newsrc.pl'\" \(2961 characters\)
+sed "s/^X//" >'message-id-to-newsrc.pl' <<'END_OF_FILE'
+X#!/usr/local/bin/perl
+X
+X# "message-id-to-newsrc.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Version$
+X
+X# This script reads the output of the 'newsrc-to-message-id.pl'
+X# script and turns it back into a .newsrc file.
+X# 
+X# The server to use to convert Message-ID's back into article numbers
+X# can be specified using $NNTPSERVER or the '-server' command line
+X# flag.
+X
+Xrequire 'nntp.pl';
+X
+Xwhile ($_ = $ARGV[0], /^-/) {
+X    shift;
+X    if (/^-server$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$ENV{'NNTPSERVER'} = shift(@ARGV);
+X	next;
+X    }
+X    if (/^-flush$/) {
+X	$| = 1;
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X	
+Xdie "No NNTP server specified!\n" if (! $ENV{'NNTPSERVER'});
+X
+X$connection = &nntp'open($ENV{'NNTPSERVER'});
+Xdie "Could not connect to news server: $!\n" if (! defined($connection));
+X
+X%byid = ();
+X$newsgroup = undef;
+X$subbed = undef;
+X@articles = ();
+X@stats = ();
+X%xref = ();
+X
+Xwhile (<>) {
+X    if (/^(.*)([:!])$/) {
+X
+X	# This is a new group.
+X	# If there's an old current group, deal with it.
+X
+X	&output() if $newsgroup;
+X	$newsgroup = $1;
+X	$subbed = $2;
+X	@articles = ();
+X	%byid = ();
+X
+X	# Make sure the group is valid
+X
+X	@stats = &nntp'group($connection, $newsgroup);
+X	if (@stats == ()) {
+X	    # It isn't, at this site, so we undef it.
+X	    $newsgroup = $subbed = undef;
+X	}
+X	next;
+X    }
+X
+X    # At this point, what we've got must be a message ID.
+X
+X    next if (! defined($newsgroup));
+X
+X    chop;
+X
+X    if (%byid != ()) {
+X	push(@articles, $byid{$_}) if (defined($byid{$_}));
+X	next;
+X    }
+X    elsif (((%xref = &nntp'xhdr($connection, 'xref', $_)) != ()) &&
+X	   ($xref{$_} =~ / $newsgroup:([^ ]+)/)) {
+X	push(@articles, $1);
+X	next;
+X    }
+X    else {
+X	local(%bynumber, $number);
+X	%bynumber = &nntp'xhdr($connection, 'message-id',
+X			       "$stats[1]-$stats[2]");
+X	if (%bynumber != ()) {
+X	    foreach $number (keys(%bynumber)) {
+X		$byid{$bynumber{$number}} = $number;
+X	    }
+X	}
+X	push(@articles, $byid{$_}) if (defined($byid{$_}));
+X    }
+X}
+X
+X&output() if $newsgroup;
+X
+Xsub output {
+X    print "$newsgroup$subbed ";
+X    if (@articles) {
+X	local($first, $last, $new);
+X	@articles = sort byval @articles;
+X	$first = $last = shift @articles;
+X	while ($new = shift @articles) {
+X	    if ($new > $last + 1) {
+X		if ($last > $first) {
+X		    print "$first-$last,";
+X		}
+X		else {
+X		    print "$first,";
+X		}
+X		$first = $last = $new;
+X		next;
+X	    }
+X	    else {
+X		$last = $new;
+X		next;
+X	    }
+X	}
+X	if ($last > $first) {
+X	    print "$first-$last\n";
+X	}
+X	else {
+X	    print "$first\n";
+X	}
+X    }
+X    else {
+X	print "\n";
+X    }
+X}
+X    
+Xsub byval { $a <=> $b; }
+END_OF_FILE
+if test 2961 -ne `wc -c <'message-id-to-newsrc.pl'`; then
+    echo shar: \"'message-id-to-newsrc.pl'\" unpacked with wrong size!
+fi
+chmod +x 'message-id-to-newsrc.pl'
+# end of 'message-id-to-newsrc.pl'
+fi
+if test -f 'newsrc-to-message-id.pl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'newsrc-to-message-id.pl'\"
+else
+echo shar: Extracting \"'newsrc-to-message-id.pl'\" \(1798 characters\)
+sed "s/^X//" >'newsrc-to-message-id.pl' <<'END_OF_FILE'
+X#!/usr/local/bin/perl
+X
+X# "newsrc-to-message-id.pl"
+X# 
+X# Copyright (c) 1991 by Jonathan Kamens (jik@athena.mit.edu).
+X# 
+X# This file may be freely redistributed as long as this entire
+X# comment (up to the first blank line below) stays on it, and as long
+X# as you don't try to make any money distributing it.
+X# 
+X# Furthermore, if you make any changes to it and then redistribute
+X# it, please mark in some ways the changes you have made my version,
+X# and, if possible, forward the changes back to me.
+X# 
+X# $Version$
+X
+X# This script reads a .newsrc file.  The output consists of the list
+X# of newsgroups with ! or : after them to indicate whether they are
+X# subscribed or not, and then on subsequent lines, the Message-ID's
+X# of read messages on the specified (either by $NNTPSERVER) or by the
+X# command line flag '-server') NNTP server.
+X# 
+X# This output can then be fed into the 'message-id-to-newsrc.pl'
+X# script to turn it back into a .newsrc for another NNTP server.
+X
+Xrequire 'nntp.pl';
+X
+Xwhile ($_ = $ARGV[0], /^-/) {
+X    shift;
+X    if (/^-server$/) {
+X	die "Missing argument to \"$_\".\n" if (@ARGV == 0);
+X	$ENV{'NNTPSERVER'} = shift(@ARGV);
+X	next;
+X    }
+X    die "Unknown argument \"$_\".\n";
+X}
+X	
+Xdie "No NNTP server specified!\n" if (! $ENV{'NNTPSERVER'});
+X
+X$connection = &nntp'open($ENV{'NNTPSERVER'});
+X
+Xwhile (<>) {
+X    if (/^(.*)([:!]) (.*)$/) {
+X	local($group, $sub) = ($1, $2);
+X	local(@ranges) = split(/,/, $3);
+X	local(@group) = &nntp'group($connection, $group);
+X	if (! @group) {
+X	    print STDERR "Bogus group \"$group\"?\n";
+X	    next;
+X	}
+X	print "$group$sub\n";
+X	local($range, @ids);
+X	foreach $range (@ranges) {
+X	    if (%ids = &nntp'xhdr($connection, 'message-id', $range)) {
+X		local($id);
+X		foreach $id (values(%ids)) {
+X		    print "$id\n";
+X		}
+X	    }
+X	}
+X    }
+X}
+X	
+X&nntp'close($connection);
+END_OF_FILE
+if test 1798 -ne `wc -c <'newsrc-to-message-id.pl'`; then
+    echo shar: \"'newsrc-to-message-id.pl'\" unpacked with wrong size!
+fi
+chmod +x 'newsrc-to-message-id.pl'
+# end of 'newsrc-to-message-id.pl'
+fi
+echo shar: End of shell archive.
+exit 0

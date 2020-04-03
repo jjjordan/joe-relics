@@ -1,0 +1,504 @@
+Path: funic!fuug!mcsun!uunet!mitech!gjc
+From: gjc@mitech.com (George J. Carrette)
+Newsgroups: alt.sources
+Subject: Crashme version 1.4, test system robustness and security
+Message-ID: <1604@mitech.com>
+Date: 29 Aug 91 17:16:39 GMT
+Organization: Mitech Corporation, Concord MA
+Lines: 495
+
+Note: This is a test of operatin system robustness.
+Crashme version 1.4
+
+If this program can crash your system then it is quite possible
+that it is either a trivial non-handled condition like a floating
+point exception, 
+
+OR: an improperly handled exception condition that represents a serious
+    SECURITY HOLE in the operating system.
+
+This program *does* cause a crash on a popular operating system on a
+popular hardware platform which represents a security hole that
+can allow any user to gain root access!
+
+When this program was first posted there was merely the speculation
+that this might be the case. (That it could find security holes).
+
+Now that it is a known fact that crashme has "found" (by a random search of the
+machine instruction-set-sequence space) such a security "hole" it can
+be recommended that ANY CRASH this program causes CANNOT BE DISMISSED as
+a TRIVIAL EVENT.
+
+(Yes, the CERT people at CMU.EDU have been advised as to the exact
+problem. 'nuff said about that here).
+
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents: crashme.1
+#           crashme.c
+#           makefile
+#           ! The next two are the VMS-Specific makefile
+#           descrip.mms
+#           crashme.opt
+#           
+# Wrapped by GJC on Thu Aug 29 10:13:38 1991
+# using Minishar version 1.0 (George J. Carrette 26-JUN-91)
+#
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f crashme.1 -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"crashme.1\"
+else
+echo shar: Extracting \"crashme.1\" \(2010 characters\)
+sed "s/^X//" >crashme.1 <<'END_OF_crashme.1'
+X.TH CRASHME 1C LOCAL 
+X.SH NAME
+Xcrashme \- test operating environment software robustness
+X.SH SYNOPSIS
+X.B crashme
+X[NBYTES] [SRAND] [NTRYS] [NSUB]
+X.SH DESCRIPTION
+X.I crashme
+Xis a very simple program that tests the operating environment's
+Xrobustness by invoking random data as if it were a procedure.
+XThe standard signals are caught and handled with a setjmp back
+Xto a loop which will try again to produce a fault by executing
+Xrandom data.
+X
+X.RE
+X.SS COMMAND LINE OPTIONS
+X.TP 8
+X.BI [NBYTES]
+XThe
+X.I [NBYTES]
+Xshould be an integer, specifying the size of the random data string
+Xin bytes. If given negative then the bytes are printed instead of
+Xbeing executed. If given with an explicit plus sign then the
+Xstorage for the bytes is freshly malloc'ed each time. This can have an
+Xeffect on machines with seperate I and D cache mechanisms.
+X.TP
+X.BI [SRAND]
+XThe 
+X.I [SRAND]
+Xis an input seed to the random number generator, passed to srand.
+X.TP
+X.BI [NTRIES]
+XThe
+X.I [NTRIES]
+Xis how many times to loop before exiting normally from the program.
+X.TP
+X.BI [NSUB]
+XThe
+X.I [NSUB] is optional, the number of vfork subprocesses running at once.
+XIf given as negative the number of vfork subprocesses to run, one after
+Xanother. If given as a time hrs:mns:scs (hours, minutes, seconds) then
+Xone subprocess will be run to completion, followed by another, until
+Xthe time limit has been reached. 
+X
+XThe SRAND argument is incremented by one for each subprocess.
+X
+X.SH EXAMPLE
+XThis is a suggested test, to run it for a least an hour.
+X
+Xcrashme +2000 666 100 1:00:00
+X
+X.SH FILES
+Xcrashme.c
+X.PD
+X.SH DIAGNOSTICS
+XWhen a signal is caught the number and nature of the signal is indicated.
+X.SH BUGS
+XNot all signals are caught, and the state of the user program/process
+Xenviroment can be sufficiently damaged such that the program terminates
+Xbefore going through all [NTRIES] operations.
+X
+XBeware: This program can crash your computer if the
+Xoperating system or hardware of same is buggy. User data may be lost.
+X.SH AUTHOR
+XGeorge J Carrette. GJC\@MITECH.COM
+X
+END_OF_crashme.1
+if test 2010 -ne `wc -c <crashme.1`; then
+    echo shar: \"crashme.1\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f crashme.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"crashme.c\"
+else
+echo shar: Extracting \"crashme.c\" \(10084 characters\)
+sed "s/^X//" >crashme.c <<'END_OF_crashme.c'
+X/* crashme: Create a string of random bytes and then jump to it.
+X            crashme <nbytes> <srand> <ntrys> [nsub] */
+X
+Xchar *crashme_version = "1.4 29-AUG-1991";
+X
+X/*
+X *             COPYRIGHT (c) 1990, 1991 BY       *
+X *  GEORGE J. CARRETTE, CONCORD, MASSACHUSETTS.  *
+X *             ALL RIGHTS RESERVED               *
+X
+XPermission to use, copy, modify, distribute and sell this software
+Xand its documentation for any purpose and without fee is hereby
+Xgranted, provided that the above copyright notice appear in all copies
+Xand that both that copyright notice and this permission notice appear
+Xin supporting documentation, and that the name of the author
+Xnot be used in advertising or publicity pertaining to distribution
+Xof the software without specific, written prior permission.
+X
+XTHE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+XALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+XHE BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+XANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+XWHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+XARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+XSOFTWARE.
+X
+XA signal handler is set up so that in most cases the machine exception
+Xgenerated by the illegal instructions, bad operands, etc in the procedure
+Xmade up of random data are caught; and another round of randomness may
+Xbe tried. Eventually a random instruction may corrupt the program or
+Xthe machine state in such a way that the program must halt. This is
+Xa test of the robustness of the hardware/software for instruction
+Xfault handling.
+X
+XNote: Running this program just a few times, using total CPU time of
+Xless than a few seconds SHOULD NOT GIVE YOU ANY CONFIDENCE in system
+Xrobustness. Having it run for hours, with tens of thousands of cases
+Xwould be a different thing.
+X
+XComments may be addressed to the author at GJC@MITECH.COM
+X
+XSee the documentation in crashme.1 or read this code for a description
+Xof command line arguments to this program.
+X
+XVersion Date         Description
+X----------------------------------------------------------------------
+X 1.0    early 1990   initial hack.
+X 1.1    19-SEP-1990  added more signals and an alarm to abort looping.
+X 1.2    25-JUN-1991  added [nsub] to vfork multiple subprocesses of self.
+X 1.3    14-AUG-1991  +nbytes malloc option, and -nsub option.
+X 1.4    29-AUG-1991  fix +nbytes (subproc). Add time-driven nprocs. SIGINT.
+X
+X
+XSuggested test: At least let the thing run the length of your lunch break,
+Xin this case 1 hour, 10 minutes, and 30 seconds.
+X
+X  crashme +2000 666 100 1:10:30
+X
+X
+X                        CRASH REPORTS
+X
+XDate,               Machine              Crashme        Reported 
+XCrashme Ver   Make    Model OS Version   Arguments      by:        
+X------------------------------------------------------------------------------
+X10-JUL-90 1.0 SUN     4/110 4.1          1000 20 200    GJC@paradigm.com
+X10-JUL-90 1.0 SUN     4/280 4.0.3        1000 20 200    GJC@paradigm.com
+X31-JUL-90 1.0 DIGITAL DECstation 3100    100 10 10000   GAVRON@ARIZONA.EDU
+X31-JUL-90 1.0 IBM     RT                 100 10 10000   GAVRON@ARIZONA.EDU
+X 1-AUG-90 1.0 DIGITAL DECstation 5000    10000 230 1000 hudgens@scri.fsu.edu
+X 3-AUG-90 1.0 Alliant FX/2800                           SJA@SIRIUS.HUT.FI
+X27-JUN-91 1.2 SUN     4/110 4.1.1        10 1000 10     LPH@PARADIGM.COM   
+X27-JUN-91 1.2 SUN     4/110 4.1.1        1000 20 200 10 LPH@PARADIGM.COM   
+X29-JUN-91 1.2 SUN     4/40C 4.1.1        9 29748 5877 4 jon@uk.ac.oxford.robots
+X29-JUN-91 1.2 SUN     4/60 4.1.1         9 29748 5877 4 jon@uk.ac.oxford.robots
+X29-JUN-91 1.2 SUN     4/100 4.1.1        9 29748 5877 4 jon@uk.ac.oxford.robots
+X29-JUN-91 1.2 SUN     4/65 4.1.1         9 29748 5877 4 jon@uk.ac.oxford.robots
+X18-JUL-91 1.2 SGI     Iris4d Unix 3.3.2  1000 $$ 1000 4 tsacas@ilog.ilog.fr
+X29-JUL-91 1.1 IBM     RS/6000 AIX 1.3    script         brandis@inf.ethz.ch
+X
+XNotes: Crashme V1.0 {1000 20 200} used to down the SUN 4/110. V1.2 does *not*
+Xcrash SUNOS 4.1.1 on the same arguments. Although using the extra argument
+Xfor subprocesses it will crash, with the console reporting:
+X"Bad Trap, Bad Kernel Read Fault, Bus error. Reboot" 
+X
+XScript means invoking file with many calls to crashme such as this:
+X#/bin/csh
+Xcrashme 1020 234 500 &
+Xcrashme 394 38484 5723 &
+Xcrashme 3784 474 474 &
+Xcrashme 437 4747 38 &
+Xcrashme 47848 4745 123 &
+Xcrashme 4747 4747 3463 &
+Xcrashme 474 46464 262 &
+Xcrashme 37 3644 3723 &
+Xcrashme 374 46464 22 &
+Xcrashme 3747 464 363 &
+Xcrashme 347 4747 44 &
+Xcrashme 37374 374 66 &
+Xcrashme 3737 474 4444 &
+X
+XThe 4-argument case of crashme could likely do as well as executing
+Xa script.
+X
+X*/
+X
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include <setjmp.h>
+X#include <time.h>
+X
+Xlong nbytes,nseed,ntrys;
+Xlong malloc_flag = 0;
+Xunsigned char *the_data;
+Xchar *note_buffer;
+Xchar *notes;
+X
+Xnote()
+X{strcat(note_buffer,"\n");
+X fputs(note_buffer,stdout);}
+X
+Xjmp_buf again_buff;
+X
+Xvoid (*badboy)();
+X
+Xvoid again_handler(sig, code, scp, addr)
+X     int sig, code;
+X     struct sigcontext *scp;
+X     char *addr;
+X{char *ss;
+X switch(sig)
+X   {case SIGILL: ss =   " illegal instruction"; break;
+X    case SIGTRAP: ss =   " trace trap"; break;
+X    case SIGFPE: ss =   " arithmetic exception"; break;
+X    case SIGBUS: ss =  " bus error"; break;
+X    case SIGSEGV: ss =  " segmentation violation"; break;
+X    case SIGIOT: ss = " IOT instruction"; break;
+X    case SIGEMT: ss = " EMT instruction"; break;
+X    case SIGALRM: ss = " alarm clock"; break;
+X    case SIGINT:  ss = " interrupt"; break;
+X    default: ss = "";}
+X sprintf(notes,"Got signal %d%s",sig,ss);
+X note();
+X longjmp(again_buff,3);}
+X 
+Xset_up_signals()
+X{signal(SIGILL,again_handler);
+X signal(SIGTRAP,again_handler);
+X signal(SIGFPE,again_handler);
+X signal(SIGBUS,again_handler);
+X signal(SIGSEGV,again_handler);
+X signal(SIGIOT,again_handler);
+X signal(SIGEMT,again_handler);
+X signal(SIGALRM,again_handler);
+X signal(SIGINT,again_handler);}
+X
+Xcompute_badboy()
+X{long j,n;
+X n = (nbytes < 0) ? - nbytes : nbytes;
+X if (malloc_flag == 1)
+X   {the_data = (unsigned char *) malloc(n);
+X    badboy = (void (*)()) the_data;}
+X for(j=0;j<n;++j) the_data[j] = (rand() >> 7) & 0xFF;
+X if (nbytes < 0)
+X   {sprintf(notes,"Dump of %ld bytes of data",n);
+X    note();
+X    for(j=0;j<n;++j)
+X      {fprintf(stdout,"%3d",the_data[j]);
+X       if ((j % 20) == 19) putc('\n',stdout); else putc(' ',stdout);}
+X    putc('\n',stdout);}}
+X
+Xtry_one_crash()
+X{if (nbytes > 0)
+X   (*badboy)();
+X else if (nbytes == 0)
+X   while(1);}
+X
+Xchar *subprocess_ind = "subprocess";
+X 
+Xmain(argc,argv)
+X     int argc; char **argv;
+X{long nsubs,hrs,mns,scs,tflag;
+X note_buffer = (char *) malloc(512);
+X notes = note_buffer;
+X if ((argc == 6) &&
+X     (strcmp(argv[5],subprocess_ind) == 0))
+X   {sprintf(note_buffer,"Subprocess %s: ",argv[4]);
+X    notes = note_buffer + strlen(note_buffer);
+X    sprintf(notes,"starting");
+X    note();
+X    old_main(4,argv);}
+X else if (argc == 4)
+X   old_main(4,argv);
+X else if (argc == 5)
+X   {if (strchr(argv[4],':'))
+X      {sscanf(argv[4],"%d:%d:%d",&hrs,&mns,&scs);
+X       tflag = 1;
+X       nsubs = (((hrs * 60) + mns) * 60) + scs;
+X       sprintf(notes,"Subprocess run for %d seconds (%d %02d:%02d:%02d)\n",
+X	       nsubs, hrs / 24, hrs % 24,mns,scs);}
+X    else
+X      {tflag = 0;
+X       nsubs = atol(argv[4]);
+X       sprintf(notes,"Creating %d crashme subprocesses",nsubs);}
+X    note();
+X    vfork_main(tflag,nsubs,argv[0],argv[1],atol(argv[2]),argv[3]);}
+X else
+X   {sprintf(notes,"crashme <nbytes> <srand> <ntrys> [nsub]");
+X    note();}}
+X
+Xold_main(argc,argv)
+X     int argc;
+X     char **argv;
+X{sprintf(notes,"Crashme: (c) Copyright 1990, 1991 George J. Carrette");
+X note();
+X sprintf(notes,"Version: %s",crashme_version);
+X note();
+X nbytes = atol(argv[1]);
+X if (argv[1][0] == '+') malloc_flag = 1;
+X nseed = atol(argv[2]);
+X ntrys = atol(argv[3]);
+X sprintf(notes,"crashme %ld %ld %ld",nbytes,nseed,ntrys);
+X note();
+X if (malloc_flag == 0)
+X   {the_data = (unsigned char *) malloc((nbytes < 0) ? -nbytes : nbytes);
+X    badboy = (void (*)()) the_data;
+X    sprintf(notes,"Badboy at %d. 0x%X",badboy,badboy);
+X    note();}
+X srand(nseed);
+X badboy_loop();}
+X
+Xbadboy_loop()
+X{int i;
+X for(i=0;i<ntrys;++i)
+X   {compute_badboy();
+X    if (malloc_flag == 1)
+X      sprintf(notes,"try %ld, Badboy at %d. 0x%X",i,badboy,badboy);
+X    else
+X      sprintf(notes,"try %ld",i);
+X    note();
+X    if (setjmp(again_buff) == 3)
+X      {sprintf(notes,"Barfed");
+X       note();}
+X    else
+X      {set_up_signals();
+X       alarm(10);
+X       try_one_crash();
+X       sprintf(notes,"didn't barf!");
+X       note();}}}
+X
+Xvfork_main(tflag,nsubs,cmd,nb,sr,nt)
+X     long tflag,nsubs,sr;
+X     char *cmd,*nb,*nt;
+X{long j,status,pid,n,seq,total_time,dys,hrs,mns,scs;
+X char arg2[20],arg4[20];
+X time_t before_time,after_time;
+X if (tflag == 1)
+X   {seq = 1;
+X    n = 100000000;}
+X else if (nsubs < 0)
+X   {n = -nsubs;
+X    seq = 1;}
+X else
+X   {n = nsubs;
+X    seq = 0;}
+X time(&before_time);
+X for(j=0;j<n;++j)
+X   {sprintf(arg2,"%d",sr+j);
+X    sprintf(arg4,"%d",j+1);
+X    status = vfork();
+X    if (status == 0)
+X      {status = execl(cmd,cmd,nb,arg2,nt,arg4,subprocess_ind,0);
+X       if (status == -1)
+X	 {perror(cmd);
+X	  exit(1);}}
+X    else if (status < 0)
+X      perror(cmd);
+X    else
+X      {sprintf(notes,"pid = %d 0x%X",status,status);
+X       note();
+X       if (seq == 1)
+X	 while((pid = wait(&status)) > 0)
+X	   {sprintf(notes,"pid %d 0x%X exited with status %d",pid,pid,status);
+X	    note();}
+X       if (tflag == 1)
+X	 {time(&after_time);
+X	  total_time = after_time - before_time;
+X	  if (total_time >= nsubs)
+X	    {sprintf(notes,"Time limit reached after run %d\n",j+1);
+X	     note();
+X	     break;}}}}
+X if (seq == 0)
+X   while((pid = wait(&status)) > 0)
+X     {sprintf(notes,"pid %d 0x%X exited with status %d",pid,pid,status);
+X      note();}
+X time(&after_time);
+X total_time = after_time - before_time;
+X scs = total_time;
+X mns = scs / 60;
+X hrs = mns / 60;
+X dys = hrs / 24;
+X scs = scs % 60;
+X mns = mns % 60;
+X hrs = hrs % 24;
+X sprintf(notes,
+X	 "Test complete, total real time: %d seconds (%d %02d:%02d:%02d)\n",
+X	 total_time,dys,hrs,mns,scs);
+X note();}
+END_OF_crashme.c
+if test 10084 -ne `wc -c <crashme.c`; then
+    echo shar: \"crashme.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f makefile -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"makefile\"
+else
+echo shar: Extracting \"makefile\" \(82 characters\)
+sed "s/^X//" >makefile <<'END_OF_makefile'
+Xcrashme:	crashme.o
+X	cc -o crashme crashme.o
+Xcrashme.o: crashme.c
+X	cc -c crashme.c
+END_OF_makefile
+if test 82 -ne `wc -c <makefile`; then
+    echo shar: \"makefile\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f descrip.mms -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"descrip.mms\"
+else
+echo shar: Extracting \"descrip.mms\" \(419 characters\)
+sed "s/^X//" >descrip.mms <<'END_OF_descrip.mms'
+X! VMS MAKEFILE (for MMS)
+X!
+X
+XCFLAGS = /LIST/SHOW=(NOSOURCE)/MACHINE/OPTIMIZE=(NOINLINE)/STANDARD=PORTABLE
+X
+Xcrashme.exe depends_on crashme.obj
+X link crashme.obj,crashme.opt/opt
+X ! re-execute the next line in your superior process:
+X crashme == "$" + f$env("DEFAULT") + "CRASHME"
+X
+Xcrashme.shar depends_on crashme.1,crashme.c,makefile,descrip.mms,crashme.opt,-
+X                        shar.db
+X minishar crashme.shar shar.db
+END_OF_descrip.mms
+if test 419 -ne `wc -c <descrip.mms`; then
+    echo shar: \"descrip.mms\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f crashme.opt -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"crashme.opt\"
+else
+echo shar: Extracting \"crashme.opt\" \(84 characters\)
+sed "s/^X//" >crashme.opt <<'END_OF_crashme.opt'
+X! VMS LINKER OPTIONS FILE
+XIDENTIFICATION = "CRASHME V1.2"
+XSYS$LIBRARY:VAXCRTL/SHARE
+END_OF_crashme.opt
+if test 84 -ne `wc -c <crashme.opt`; then
+    echo shar: \"crashme.opt\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of shell archive.
+exit 0

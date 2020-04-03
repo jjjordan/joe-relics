@@ -1,0 +1,56 @@
+Organization: Carnegie Mellon, Pittsburgh, PA
+Path: funic!fuug!mcsun!uunet!cis.ohio-state.edu!news.sei.cmu.edu!fs7.ece.cmu.edu!crabapple.srv.cs.cmu.edu!andrew.cmu.edu!tm8t+
+Newsgroups: alt.sources
+Message-ID: <gf4Fu0O00WB7EcL1RX@andrew.cmu.edu>
+Date: Mon, 23 Nov 1992 13:10:08 -0500 
+From: Tod McQuillin <tm8t+@andrew.cmu.edu>
+Subject: Zap a user
+Lines: 47
+
+Recently one of our (ever watchful for ways to improve efficiency)
+machine room operators came to me and asked if there was a way to
+automate the procedure of knocking users off the system.  Frequently
+people would call him and say "My terminal is frozen, can you kill all
+my proceses?".
+
+Now, of course the correct procedure is probably to educate the users
+better, but there are a zillion of them and this isn't always
+practical.  So the operators are trained in this method:
+
+Type who and see what tty the user is using.  Then do ps -txx and see
+the process list.  Then kill each process.  Needless to say this is
+time-consuming and boring, so I wrote a shell script to help him out.
+
+It takes as an argument the tty on which to wreak havoc.  Then it
+presents a list of the processes running there and asks permission to
+zap them.
+
+Granted, this doesn't score too many points in the way of hack value,
+and many of us I'm sure could write a similar script in 5 minutes, but
+for those who aren't so adept, this could serve as a valuable addition
+to the shell script library, so I posted it anyway.  At the very least
+it could serve as an educational example to people just learning shell
+programming.
+
+-----Cut Here--------------------
+#!/bin/sh
+
+echo "Killing all processes on /dev/tty$1"
+procs=`ps -t$1 | tail +2`
+echo "Kill these processes:
+$procs"
+while true; do
+  echo -n "Yes or no (Y/N)? "
+  read answer
+  case $answer in
+    [yY]*) kill -TERM `echo "$procs" | cut -c1-5`
+      exit 0
+      ;;
+    [nN]*) echo "Nothing was killed"
+      exit 0
+      ;;
+    *) echo "Unknown answer!"
+      ;;
+  esac
+done
+

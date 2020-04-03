@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 9 of 10
+Message-ID: <By2Moo.L6s@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:53:11 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part9
+
+X
+aELEMENT(*vadel(vary,pos,n))
+aELEMENT(*vary);
+int pos,n;
+{
+if(pos>=aLEN(vary)) return vary;
+if(pos+n>=aLen(vary)) return vatrunc(vary,pos);
+mfwrd(vary+pos,vary+pos+n,aLen(vary)-(pos+n)+1);
+aLen(vary)-=n;
+return vary;
+}
+X
+int _acmp(a,b)
+aELEMENT(*a);
+aELEMENT(*b);
+{
+return acmp(*a,*b);
+}
+X
+aELEMENT(*vasort(ary,len))
+aELEMENT(*ary);
+int len;
+{
+if(!ary || !len) return ary;
+qsort(ary,len,sizeof(aCAST),_acmp);
+return ary;
+}
+X
+int vabsearch(ary,len,el)
+aELEMENT(*ary);
+aELEMENT(el);
+int len;
+{
+int x,y,z;
+if(!ary || !len) return 0;
+y=len;
+x=0;
+z=~0;
+while(z!=(x+y)/2)
+X {
+X z=(x+y)/2;
+X switch(acmp(el,ary[z]))
+X  {
+X case  1: x=z; break;
+X case -1: y=z; break;
+X case  0: return z;
+X  }
+X }
+return y;
+}
+X
+int vafirst(ary,len,el)
+aELEMENT(*ary);
+aELEMENT(el);
+int len;
+{
+int x;
+if(!ary || !len) return ~0;
+for(x=0;x!=len;++x) if(!acmp(ary[x],el)) return x;
+return ~0;
+}
+X
+int valast(ary,len,el)
+aELEMENT(*ary);
+aELEMENT(el);
+int len;
+{
+int x=len;
+if(!ary || !len) return ~0;
+do
+X {
+X --x;
+X if(!acmp(ary[x],el)) return x;
+X }
+X while(x);
+return ~0;
+}
+X
+int vacmpn(a,alen,b,blen)
+aELEMENT(*a);
+aELEMENT(*b);
+int alen, blen;
+{
+int x,l;
+int t;
+if(!a && !b) return 0;
+if(!a) return -1;
+if(!b) return 1;
+if(alen>blen) l=aLen(a);
+else l=blen;
+for(x=0;x!=l;++x) if(t=acmp(a[x],b[x])) return t;
+if(alen>blen) return  1;
+if(alen<blen) return -1;
+return 0;
+}
+X
+int vacmp(a,b)
+aELEMENT(*a);
+aELEMENT(*b);
+{
+return vacmpn(av(a),av(b));
+}
+X
+int vaa(a,alen,b,blen)
+aELEMENT(*a);
+aELEMENT(*b);
+int alen, blen;
+{
+int x;
+if(!a && !b) return 0;
+if(!a || !b) return ~0;
+if(alen<blen) return ~0;
+if(!blen) return 0;
+for(x=0;x!=alen-blen;++x) if(!vacmpn(a,blen,b,blen)) return x;
+return ~0;
+}
+X
+int vascan(a,alen,b,blen)
+aELEMENT(*a);
+aELEMENT(*b);
+int alen, blen;
+{
+int x;
+for(x=0;x!=alen;++x)
+X {
+X int z=vabsearch(b,blen,a[x]);
+X if(z<blen && !acmp(b[z],a[x])) return x;
+X }
+return ~0;
+}
+X
+int vaspan(a,alen,b,blen)
+aELEMENT(*a);
+aELEMENT(*b);
+int alen, blen;
+{
+int x;
+for(x=0;x!=alen;++x)
+X {
+X int z=vabsearch(b,blen,a[x]);
+X if(z==blen || acmp(b[z],a[x])) break;
+X }
+return x;
+}
+X
+aELEMENT(*vawords(a,s,len,sep,seplen))
+aELEMENT(*a);
+char *s, *sep;
+int len, seplen;
+{
+int x;
+if(!a) a=vamk(10);
+else a=vatrunc(a,0);
+loop:
+x=vsspan(s,len,sep,seplen);
+s+=x; len-=x;
+if(len)
+X {
+X x=vsscan(s,len,sep,seplen);
+X if(x!= ~0)
+X  {
+X  a=vaadd(a,vsncpy(vsmk(x),0,s,x));
+X  s+=x; len-=x;
+X  if(len) goto loop;
+X  }
+X else a=vaadd(a,vsncpy(vsmk(len),0,s,len));
+X }
+return a;
+}
+X
+aELEMENT(*vaiwords(a,s,len,inc,inclen))
+aELEMENT(*a);
+char *s, *inc;
+int len, inclen;
+{
+int x;
+if(!a) a=vamk(10);
+else a=vatrunc(a,0);
+loop:
+x=vsscan(s,len,inc,inclen);
+s+=x; len-=x;
+if(len)
+X {
+X x=vsspan(s,len,inc,inclen);
+X if(x!= ~0)
+X  {
+X  a=vaadd(a,vsncpy(vsmk(x),0,s,x));
+X  s+=x; len-=x;
+X  if(len) goto loop;
+X  }
+X else a=vaadd(a,vsncpy(vsmk(len),0,s,len));
+X }
+return a;
+}
+SHAR_EOF
+chmod 0600 va.c ||
+echo 'restore of va.c failed'
+Wc_c="`wc -c < 'va.c'`"
+test 6830 -eq "$Wc_c" ||
+	echo 'va.c: original size 6830, current size' "$Wc_c"
+fi
+# ============= va.h ==============
+if test -f 'va.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping va.h (File already exists)'
+else
+echo 'x - extracting va.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'va.h' &&
+/* Variable length arrays of strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iva
+#define _Iva
+X
+#include "config.h"
+#include "vs.h"
+X
+/* Functions and global variable you have to define.  Replace these with
+X * macros or defines here if they are not to be actual functions 
+X */
+X
+#define aELEMENT(a) char *a
+#define aCAST char *
+/* aELEMENT(adup()); */
+#define adup(s) vsdup(s)
+/* aELEMENT(adel()); */
+#define adel(s) vsrm(s)
+/* int acmp(); */
+#define acmp(a,b) vscmp((a),(b))
+/* extern aELEMENT(ablank); */
+#define ablank NULL
+/* extern aELEMENT(aterm); */
+#define aterm NULL
+X
+/************************/
+/* Creation/Destruction */
+/************************/
+X
+/* aELEMENT(*vamk(int len));
+X * Create a variable length array.  Space for 'len' elements is preallocated.
+X */
+aELEMENT(*vamk());
+X
+/* void varm(aELEMENT(*vary));
+X * Free an array and everything which is in it.  Does nothing if 'vary' is
+X * 0.
+X */
+void varm();
+X
+/********************/
+/* Space management */
+/********************/
+X
+/* int aSIZ(aELEMENT(*vary));
+X * int aSiz(aELEMENT(*vary));
+X * Access size part of array.  This int indicates the number of elements which
+X * can fit in the array before realloc needs to be called.  It does not include
+X * the extra space needed for the terminator and the header.
+X *
+X * aSIZ returns 0 if you pass it 0.  aSiz does not do this checking,
+X * but can be used as an lvalue.
+X */
+#define aSIZ(a) ((a)?*((int *)(a)-2):0)
+#define aSiz(a) (*((int *)(a)-2))
+X
+/* int aLEN(aELEMENT(*vary));
+X * int aLen(aELEMENT(*vary));
+X * Access length part of array.  This int indicates the number of elements
+X * currently in the array (not including the terminator).  This should be
+X * used primarily for reading the size of the array.  It can be used for
+X * setting the size of the array, but it must be used with care since it
+X * does not eliminate elements (if the size decreases) or make sure there's
+X * enough room (if the size increases).  See vensure and vtrunc.
+X *
+X * aLEN return a length of zero if 'vary' is 0.
+X * aLen doesn't do this checking, but can be used as an lvalue
+X */
+#define aLEN(a) ((a)?*((int *)(a)-1):0)
+#define aLen(a) (*((int *)(a)-1))
+X
+/* int alen(aELEMENT(*ary));
+X * Compute length of char or variable length array by searching for termination
+X * element.  Returns 0 if 'vary' is 0.
+X */
+int alen();
+X
+/* aELEMENT(*vaensure(aELEMENT(*vary),int len));
+X * Make sure there's enough space in the array for 'len' elements.  Whenever
+X * vaensure reallocs the array, it allocates 25% more than the necessary
+X * minimum space in anticipation of future expansion.  If 'vary' is 0,
+X * it creates a new array.
+X */
+aELEMENT(*vaensure());
+X
+/* aELEMENT(*vazap(aELEMENT(*vary),int pos,int n));
+X * Destroy n elements from an array beginning at pos.  Is ok if pos/n go
+X * past end of array.  This does not change the aLEN() value of the array.
+X * This does nothing and returns 0 if 'vary' is 0.  Note that this
+X * function does not actually write to the array.  This does not stop if
+X * a aterm is encountered.
+X */
+aELEMENT(*vazap());
+X
+/* aELEMENT(*vatrunc(aELEMENT(*vary),int len));
+X * Truncate array to indicated size.  This zaps or expands with blank elements
+X * and sets the LEN() of the array.  A new array is created if 'vary' is 0.
+X */
+aELEMENT(*vatrunc());
+X
+/************************************/
+/* Function which write to an array */
+/************************************/
+X
+/* aELEMENT(*vafill(aELEMENT(*vary),int pos,aELEMENT(el),int len));
+X * Set 'len' element of 'vary' beginning at 'pos' to duplications of 'el'.
+X * Ok, if pos/len are past end of array.  If 'vary' is 0, a new array is
+X * created.
+X *
+X * This does not zap previous values.  If you need that to happen, call
+X * vazap first.  It does move the terminator around properly though.
+X */
+aELEMENT(*vafill());
+X
+/* aELEMENT(*vancpy(aELEMENT(*vary),int pos,aELEMENT(*array),int len));
+X * Copy 'len' elements from 'array' onto 'vary' beginning at position 'pos'.
+X * 'array' can be a normal char array since the length is passed seperately.  The
+X * elements are copied, not duplicated.  A new array is created if 'vary' is
+X * 0.  This does not zap previous elements.
+X */
+aELEMENT(*vancpy());
+X
+/* aELEMENT(*vandup(aELEMENT(*vary),int pos,aELEMENT(*array),int len));
+X * Duplicate 'len' elements from 'array' onto 'vary' beginning at position
+X * 'pos'.  'array' can be a char array since its length is passed seperately.  A
+X * new array is created if 'vary' is 0.
+X */
+aELEMENT(*vandup());
+X
+/* aELEMENT(*vafield(aELEMENT(*vary),int pos,int len));
+X * Make sure a field exists at 'pos' of length 'len'.  If there isn't one,
+X * 'vary' is extended with blank elements.  This does not eliminate elements
+X * which already exist in the field.  Use vazap for that.
+X */
+aELEMENT(*vafield());
+X
+/* aELEMENT(*vadup(aELEMENT(*vary)));
+X * Duplicate array.  This is just a functionalized version of:
+X *
+X *   vandup(NULL,0,vary,aLEN(vary));
+X *
+X * but since you need to be able to refer to this particular function by
+X * address often it's given here.
+X *
+X * (actually, there's bazillions of these simple combinations of the above
+X * functions and the macros of the next section.  You'll probably want to make
+X * functionalized instances of the ones you use most often - especially since
+X * the macros aren't safe).
+X */ 
+aELEMENT(*vadup());
+X
+/* aELEMENT(*vaset(aELEMENT(*vary),int pos,aELEMENT(element)));
+X * Set an element in an array.  Any value of 'pos' is valid.  A new array
+X * is created if 'vary' is 0.  The previous contents of the position is
+X * deleted.    This does not duplicate 'element'.  If you need 'element'
+X * duplicated, call: vaset(vary,pos,adup(element));
+X */
+aELEMENT(*_vaset());
+X
+#define vaset(v,p,el)  \
+X (!(v) || (p)>aLen(v) || (p)==aLen(v) && (p)==aSiz(v) ?  \
+X  _vaset((v),(p),(el)) \
+X : \
+X  ((p)==aLen(v) ? \
+X   ((v)[(p)+1]=(v)[p], (v)[p]=(el), aLen(v)=(p)+1, (v)) \
+X  : \
+X   (adel((v)[p]), (v)[p]=(el), (v)) \
+X  ) \
+X )   
+X
+/* aELEMENT(*vaadd(aELEMENT(*vary),aELEMENT(element)));
+X * Concatenate a single element to the end of 'vary'.  A new array is created
+X * if 'vary' is 0.  This does not duplicate element: call
+X * vaadd(vary,adup(element));  If you need it duplicated.
+X */
+#define vaadd(v,el) \
+X (!(v) || aLen(v)==aSiz(v) ? \
+X  _vaset((v),aLEN(v),(el)) \
+X : \
+X  ((v)[aLen(v)+1]=(v)[aLen(v)], (v)[aLen(v)]=(el), \
+X   aLen(v)=aLen(v)+1, (v)) \
+X )
+X
+/**************************************/
+/* Functions which read from an array */
+/**************************************/
+X
+/* These macros are used to generate the address/size pairs which get
+X * passed to the functions of the previous section.
+X */
+X
+/* { aELEMENT(*),int } av(aELEMENT(*array));
+X * Return array,size pair.  Uses aLEN to get size.
+X */
+#define av(a) (a),aLEN(a)
+X
+/* { aELEMENT(*),int } az(aELEMENT(*array));
+X * Return array,size pair.  Uses alen to get size.
+X */
+#define az(a) (a),alen(a)
+X
+/* { aELEMENT(*),int } ac(aELEMENT(*array));
+X * Return array,size pair.  Uses 'sizeof' to get size.
+X */
+#define ac(a) (a),(sizeof(a)/sizeof(aCAST))
+X
+/* { aELEMENT(*),int } arest(aELEMENT(*vary),int pos);
+X * Return array,size pair of rest of array beginning at pos.  If
+X * pos is past end of array, gives size of 0.
+X */
+#define arest(a,p) ((a)+(p)),(((p)>aLEN(a))?0:aLen(a)-(p))
+X
+/* { aELEMENT(*),int } apart(aELEMENT(*vary),int pos,int len);
+X * Return array,size pair of 'len' elements of array beginning with pos.  If
+X * pos is past end of array, gives size of 0.  If pos+len is past end of array,
+X * returns number of elements to end of array.
+X */
+#define apart(a,p,l) \
+X ((a)+(p)),((p)>=aLEN(a)?0:((p)+(l)>aLen(a)?aLen(a)-(p):(l)))
+X
+/* aELEMENT(vaget(aELEMENT(*vary),int pos));
+X * Get an element from an array.  Any value of pos is valid; if it's past the
+X * end of the array or if 'vary' is 0, the terminator is returned.  This
+X * does not make a duplicate of the returned element.  If you want that, pass
+X * the return value of this to adup.
+X */
+#define vaget(a,p) ((p)>=aLEN(a)?aterm:(a)[p])
+X
+/**********************/
+/* Insertion/Deletion */
+/**********************/
+X
+/* aELEMENT(*vains(aELEMENT(*vary),int pos,int n));
+X * Insert n empty slots into the array.  If 'pos' >= the length of the array,
+X * the array is simply extended.  The new slots are not set to anything.
+X * This does not set the elements in the created hole to any particular
+X * value: use vafill if you need that to occur.
+X */
+aELEMENT(*vains());
+X
+/* aELEMENT(*vadel(aELEMENT(*vary),int pos,int n));
+X * Delete n slots from the array.  This does not zap the elements first; call
+X * vazap first if you need this to happen.
+X */
+aELEMENT(*vadel());
+X
+/*************************/
+/* Searching and Sorting */
+/*************************/
+X
+/* aELEMENT(*vasort(aELEMENT(*ary),int len))
+X * Sort the elements of an array (char or variable length) using qsort().
+X */
+aELEMENT(*vasort());
+X
+/* int vabsearch(aELEMENT(*ary),int len,aELEMENT(element));
+X * Do a binary search on a sorted variable length or char array.  Returns position
+X * of matching element or the position where the element should be if it was
+X * not found.  (You should test with acmp to find out which).
+X *
+X * Hmm... this should really indicate whether or not the element was found.
+X */
+int vabsearch();
+X
+/* int vafirst(aELEMENT(*ary),int len,aELEMENT(element));
+X * Find offset to first matching element in 'vary' or return ~0 if not found.
+X */
+int vafirst();
+X
+/* int valast(aELEMENT(*ary),int len,aELEMENT(element));
+X * Find offset to last matching element in 'vary' or return ~0 if none found.
+X */
+int valast();
+X
+/* int vaa(aELEMENT(*a),int alen,aELEMENT(*b),int blen);
+X * Do a substring search on 'a'.  Return offset from 'a' to first matching
+X * occurance of 'b' in 'a' or return ~0 if none found.
+X */
+int vaa();
+X
+/* int vacmpn(aELEMENT(*a),int alen,aELEMENT(*b),int blen);
+X *
+X * Compare two arrays using acmp.  If 'a' > 'b', return 1.  If 'a' == 'b',
+X * return 0.  If 'a' < 'b', return -1.  Longer strings are > shorter ones if
+X * their beginning match.
+X */
+int vacmpn();
+X
+/* int vacmp(aELEMENT(*a),aELEMENT(*b));
+X *
+X * Functionalized version of: vacmpn(av(a),av(b));
+X */
+int vacmp();
+X
+/* int vascan(aELEMENT(*a),int alen,aELEMENT(*b),int blen);
+X * Find offset of first matching element in 'a' which matches any
+X * of the elements passed in 'b'.  Array 'b' must be sorted.
+X *
+X * Hmm... this really needs to return what the found element is.
+X */
+int vascan();
+X
+/* int vaspan(aELEMENT(*a),int alen,aELEMENT(*b),int blen);
+X * Find offset of first matching element in 'a' which does not match any
+X * of the elements passed in 'b'.  Array 'b' must be sorted.
+X */
+int vaspan();
+X
+/* aELEMENT(*vawords(aELEMENT(*a),char *s,int len,char *sep,int seplen));
+X * Generate list of strings out of words in 's' seperated with the characters
+X * in 'sep'.  The characters in 'sep' must be sorted.
+X */
+aELEMENT(*vawords());
+X
+/* aELEMENT(*vaiwords(aELEMENT(*a),char *s,int len,char *sep,int seplen));
+X * Same as above, but you give the characters to be included in the words
+X * instead of the seperators.
+X */
+aELEMENT(*vaiwords());
+X
+#endif
+SHAR_EOF
+chmod 0600 va.h ||
+echo 'restore of va.h failed'
+Wc_c="`wc -c < 'va.h'`"
+test 11674 -eq "$Wc_c" ||
+	echo 'va.h: original size 11674, current size' "$Wc_c"
+fi
+# ============= vfile.c ==============
+if test -f 'vfile.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping vfile.c (File already exists)'
+else
+echo 'x - extracting vfile.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'vfile.c' &&
+/* Software virtual memory system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "config.h"
+#include "vs.h"
+#include "blocks.h"
+#include "heap.h"
+#include "queue.h"
+#include "pathfunc.h"
+#include "toomany.h"
+#include "random.h"
+#include "vfile.h"
+X
+static VFILE vfiles={{&vfiles,&vfiles}};	/* Known vfiles */
+static VPAGE *freepages=0;	/* Linked list of free pages */
+static VPAGE *htab[HTSIZE];	/* Hash table of page headers */
+static long curvalloc=0;	/* Amount of memory in use */
+static long maxvalloc= ILIMIT;	/* Maximum allowed */
+char *vbase;			/* Data first entry in vheader refers to */
+VPAGE **vheaders=0;		/* Array of header addresses */
+static int vheadsz=0;		/* No. entries allocated to vheaders */
+X
+void vflsh()
+{
+VPAGE *vp;
+VPAGE *vlowest;
+long addr;
+VFILE *vfile;
+int x;
+for(vfile=vfiles.link.next;
+X    vfile!=&vfiles;
+X    vfile=vfile->link.next)
+X {
+X loop:
+X addr= MAXLONG;
+X vlowest=0;
+X for(x=0;x!=HTSIZE;x++)
+X  for(vp=htab[x];vp;vp=vp->next)
+X   if(vp->addr<addr && vp->dirty && vp->vfile==vfile && !vp->count)
+X    addr=vp->addr, vlowest=vp;
+X if(vlowest)
+X  {
+X  if(!vfile->name) vfile->name=mktmp("/tmp/");
+X  if(!vfile->fd)
+X   {
+X   vfile->fd=Fopen(vfile->name);
+X   }
+X  Fseek(vfile->fd,addr);
+X  if(addr+PGSIZE>vsize(vfile))
+X   {
+X   Fwrite(vfile->fd,vlowest->data,(int)(vsize(vfile)-addr));
+X   vfile->size=vsize(vfile);
+X   }
+X  else
+X   {
+X   Fwrite(vfile->fd,vlowest->data,PGSIZE);
+X   if(addr+PGSIZE>vfile->size) vfile->size=addr+PGSIZE;
+X   }
+X  vlowest->dirty=0;
+X  goto loop;
+X  }
+X }
+}
+X
+void vflshf(vfile)
+VFILE *vfile;
+{
+VPAGE *vp;
+VPAGE *vlowest;
+long addr;
+int x;
+loop:
+addr= MAXLONG;
+vlowest=0;
+for(x=0;x!=HTSIZE;x++)
+X for(vp=htab[x];vp;vp=vp->next)
+X  if(vp->addr<addr && vp->dirty && vp->vfile==vfile && !vp->count)
+X   addr=vp->addr, vlowest=vp;
+if(vlowest)
+X {
+X if(!vfile->name) vfile->name=mktmp("/tmp/");
+X if(!vfile->fd)
+X  {
+X  vfile->fd=Fopen(vfile->name);
+X  }
+X Fseek(vfile->fd,addr);
+X if(addr+PGSIZE>vsize(vfile))
+X  {
+X  Fwrite(vfile->fd,vlowest->data,(int)(vsize(vfile)-addr));
+X  vfile->size=vsize(vfile);
+X  }
+X else
+X  {
+X  Fwrite(vfile->fd,vlowest->data,PGSIZE);
+X  if(addr+PGSIZE>vfile->size) vfile->size=addr+PGSIZE;
+X  }
+X vlowest->dirty=0;
+X goto loop;
+X }
+}
+X
+char *vlock(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+VPAGE *vp, *pp;
+int x,y;
+int ofst=(addr&(PGSIZE-1));
+addr-=ofst;
+X
+for(vp=htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)];vp;vp=vp->next)
+X if(vp->vfile==vfile && vp->addr==addr) return ++vp->count, vp->data+ofst;
+X
+if(freepages)
+X {
+X vp=freepages;
+X freepages=vp->next;
+X goto gotit;
+X }
+X
+if(curvalloc+PGSIZE<=maxvalloc)
+X {
+X vp=(VPAGE *)malloc(sizeof(VPAGE)*INC);
+X if(vp)
+X  {
+X  vp->data=(char *)memalign(PGSIZE,PGSIZE*INC);
+X  if(vp->data)
+X   {
+X   int q;
+X   curvalloc+=PGSIZE*INC;
+X   if(!vheaders)
+X    vheaders=(VPAGE **)malloc((vheadsz=INC)*sizeof(VPAGE *)),
+X    vbase=vp->data;
+X   else
+X    if(vp->data<vbase)
+X     {
+X     VPAGE **t=vheaders;
+X     int amnt=(physical(vbase)-physical(vp->data))>>LPGSIZE;
+X     vheaders=(VPAGE **)malloc((amnt+vheadsz)*sizeof(VPAGE *));
+X     mcpy(vheaders+amnt,t,vheadsz*sizeof(VPAGE *));
+X     vheadsz+=amnt;
+X     vbase=vp->data;
+X     free(t);
+X     }
+X    else if(((physical(vp->data+PGSIZE*INC)-physical(vbase))>>LPGSIZE)>vheadsz)
+X     {
+X     vheaders=(VPAGE **)realloc(vheaders,
+X      (vheadsz=(((physical(vp->data+PGSIZE*INC)-physical(vbase))>>LPGSIZE)))*sizeof(VPAGE *));
+X     }
+X   for(q=1;q!=INC;++q)
+X    {
+X    vp[q].next=freepages;
+X    freepages=vp+q;
+X    vp[q].data=vp->data+q*PGSIZE;
+X    vheader(vp->data+q*PGSIZE)=vp+q;
+X    }
+X   vheader(vp->data)=vp;
+X   goto gotit;
+X   }
+X  free(vp);
+X  vp=0;
+X  }
+X }
+X
+for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+X for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+X  if(!vp->count && !vp->dirty)
+X   {
+X   pp->next=vp->next;
+X   goto gotit;
+X   }
+vflsh();
+for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+X for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+X  if(!vp->count && !vp->dirty)
+X   {
+X   pp->next=vp->next;
+X   goto gotit;
+X   }
+write(2,"Out of memory\r\n",15);
+exit(1);
+X
+gotit:
+vp->addr=addr;
+vp->vfile=vfile;
+vp->dirty=0;
+vp->count=1;
+vp->next=htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)];
+htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)]=vp;
+X
+if(addr<vfile->size)
+X {
+X if(!vfile->fd)
+X  {
+X  vfile->fd=Fopen(vfile->name);
+X  }
+X Fseek(vfile->fd,addr);
+X if(addr+PGSIZE>vfile->size)
+X  {
+X  Fread(vfile->fd,vp->data,(int)(vfile->size-addr));
+X  mset(vp->data+vfile->size-addr,0,PGSIZE-(int)(vfile->size-addr));
+X  }
+X else Fread(vfile->fd,vp->data,PGSIZE);
+X }
+else mset(vp->data,0,PGSIZE);
+X
+return vp->data+ofst;
+}
+X
+VFILE *vtmp()
+{
+VFILE *new=(VFILE *)malloc(sizeof(VFILE));
+new->fd= 0;
+new->name=0;
+new->alloc=0;
+new->size=0;
+new->left=0;
+new->lv=0;
+new->vpage=0;
+new->flags=1;
+new->vpage1=0;
+new->addr= -1;
+return enqueb(VFILE,link,&vfiles,new);
+}
+X
+VFILE *vopen(name)
+char *name;
+{
+VFILE *new=(VFILE *)malloc(sizeof(VFILE));
+new->name=vsncpy(NULL,0,sz(name));
+new->fd=Fopen(name);
+if(!new->fd)
+X {
+X fprintf(stderr,"Couldn\'t open \'%s\'\n",name);
+X free(new);
+X return 0;
+X }
+new->size=new->fd->size;
+new->alloc=new->size;
+new->left=0;
+new->lv=0;
+new->vpage=0;
+new->flags=0;
+new->vpage1=0;
+new->addr= -1;
+return enqueb(VFILE,link,&vfiles,new);
+}
+X
+void vclose(vfile)
+VFILE *vfile;
+{
+VPAGE *vp, *pp;
+int x;
+if(vfile->name)
+X {
+X if(vfile->flags) unlink(vfile->name);
+X else vflshf(vfile);
+X vsrm(vfile->name);
+X }
+if(vfile->fd) Fclose(vfile->fd);
+free(deque(VFILE,link,vfile));
+for(x=0;x!=HTSIZE;x++)
+X for(pp=(VPAGE *)(htab+x), vp=pp->next;vp;)
+X  if(vp->vfile==vfile)
+X   {
+X   pp->next=vp->next;
+X   vp->next=freepages;
+X   freepages=vp;
+X   vp=pp->next;
+X   }
+X  else pp=vp, vp=vp->next;
+}
+X
+/* this is now broken */
+void vlimit(amount)
+long amount;
+{
+VPAGE *vp, *pp;
+int x,y;
+maxvalloc=amount;
+while(curvalloc>maxvalloc)
+X if(freepages)
+X  {
+X  vp=freepages;
+X  freepages=vp->next;
+X  free(vp->data);
+X  free(vp);
+X  curvalloc-=PGSIZE;
+X  }
+X else
+X  {
+X  again:
+X  for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+X   for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+X    if(!vp->count && !vp->dirty)
+X     {
+X     pp->next=vp->next;
+X     free(vp->data);
+X     free(vp);
+X     if((curvalloc-=PGSIZE)<=maxvalloc) return;
+X     goto again;
+X     }
+X  vflsh();
+X  again1:
+X  for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+X   for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+X    if(!vp->count && !vp->dirty)
+X     {
+X     pp->next=vp->next;
+X     free(vp->data);
+X     free(vp);
+X     if((curvalloc-=PGSIZE)<=maxvalloc) return;
+X     goto again1;
+X     }
+X  return;
+X  }
+}
+X
+long valloc(vfile,size)
+VFILE *vfile;
+long size;
+{
+long start=vsize(vfile);
+vfile->alloc=start+size;
+if(vfile->lv)
+X {
+X if(vheader(vfile->vpage)->addr+PGSIZE>vfile->alloc)
+X  vfile->lv=PGSIZE-(vfile->alloc-vheader(vfile->vpage)->addr);
+X else vfile->lv=0;
+X }
+return start;
+}
+X
+void vseek(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+vfile->alloc=vsize(vfile);
+if(addr>vfile->alloc) vfile->alloc=addr;
+if(!vfile->vpage) vfile->vpage=vlock(vfile,addr&~(long)(PGSIZE-1));
+else if(vheader(vfile->vpage)->addr!=(addr&~(long)(PGSIZE-1)))
+X {
+X vunlock(vfile->vpage);
+X vfile->vpage=vlock(vfile,addr&~(long)(PGSIZE-1));
+X }
+vfile->bufp=vfile->vpage+(addr&(PGSIZE-1));
+vfile->left=vfile->vpage+PGSIZE-vfile->bufp;
+if(vheader(vfile->vpage)->addr+PGSIZE>vfile->alloc)
+X vfile->lv=PGSIZE-(vfile->alloc-vheader(vfile->vpage)->addr);
+else vfile->lv=0;
+}
+X
+int _vrgetc(vfile)
+VFILE *vfile;
+{
+if(vtell(vfile)==0) return MAXINT;
+vseek(vfile,vtell(vfile)-1);
+++vfile->bufp;
+--vfile->left;
+return vrgetc(vfile);
+}
+X
+int _vgetc(vfile)
+VFILE *vfile;
+{
+if(vtell(vfile)==vsize(vfile)) return MAXINT;
+vseek(vfile,vtell(vfile));
+return vgetc(vfile);
+}
+X
+int nmvgetc(v) VFILE *v; { return vgetc(v); } 
+X
+int _vputc(vfile,c)
+VFILE *vfile;
+char c;
+{
+vseek(vfile,vtell(vfile));
+return vputc(vfile,c);
+}
+X
+short vgetw(vfile)
+VFILE *vfile;
+{
+short w;
+if(vtell(vfile)+2>vsize(vfile)) return -1;
+w=vgetc(vfile);
+w+=((short)vgetc(vfile)<<8);
+return w;
+}
+X
+short vputw(vfile,w)
+VFILE *vfile;
+short w;
+{
+vputc(vfile,w);
+vputc(vfile,w>>8);
+return w;
+}
+X
+long vgetl(vfile)
+VFILE *vfile;
+{
+long w;
+if(vtell(vfile)+4>vsize(vfile)) return -1;
+w=vgetc(vfile);
+w+=((long)vgetc(vfile)<<8);
+w+=((long)vgetc(vfile)<<16);
+w+=((long)vgetc(vfile)<<24);
+return w;
+}
+X
+long vputl(vfile,w)
+VFILE *vfile;
+long w;
+{
+vputc(vfile,w);
+vputc(vfile,w>>8);
+vputc(vfile,w>>16);
+vputc(vfile,w>>24);
+return w;
+}
+X
+int _rc(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+if(vfile->vpage1) vunlock(vfile->vpage1);
+vfile->vpage1=vlock(vfile,vfile->addr=(addr&~(long)(PGSIZE-1)));
+return rc(vfile,addr);
+}
+X
+int _wc(vfile,addr,c)
+VFILE *vfile;
+long addr;
+char c;
+{
+if(addr+1>vsize(vfile)) valloc(vfile,addr+1-vsize(vfile));
+if(vfile->vpage1) vunlock(vfile->vpage1);
+vfile->vpage1=vlock(vfile,vfile->addr=(addr&~(long)(PGSIZE-1)));
+return wc(vfile,addr,c);
+}
+X
+short rw(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+short c;
+if(addr+2>vsize(vfile)) return -1;
+c=rc(vfile,addr);
+c+=((short)rc(vfile,addr+1)<<8);
+return c;
+}
+X
+short ww(vfile,addr,c)
+VFILE *vfile;
+long addr;
+short c;
+{
+if(addr+2>vsize(vfile)) valloc(vfile,addr+2-vsize(vfile));
+wc(vfile,addr,c);
+wc(vfile,addr+1,c>>8);
+return c;
+}
+X
+long rl(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+long c;
+if(addr+4>vsize(vfile)) return -1;
+c=rc(vfile,addr);
+c+=((long)rc(vfile,addr+1)<<8);
+c+=((long)rc(vfile,addr+2)<<16);
+c+=((long)rc(vfile,addr+3)<<24);
+return c;
+}
+X
+long wl(vfile,addr,c)
+VFILE *vfile;
+long addr;
+long c;
+{
+if(addr+4>vsize(vfile)) valloc(vfile,addr+4-vsize(vfile));
+wc(vfile,addr,c);
+wc(vfile,addr+1,c>>8);
+wc(vfile,addr+2,c>>16);
+wc(vfile,addr+3,c>>24);
+return c;
+}
+X
+void vread(v,blk,size)
+VFILE *v;
+char *blk;
+int size;
+{
+long addr=vtell(v);
+char *src;
+int x;
+while(size)
+X {
+X src=vlock(v,addr);
+X x=PGSIZE-(addr&(PGSIZE-1));
+X if(x>=size)
+X  {
+X  vseek(v,addr+size);
+X  mcpy(blk,src,size);
+X  vunlock(src);
+X  return;
+X  }
+X size-=x;
+X addr+=x;
+X mcpy(blk,src,x);
+X blk+=x;
+X vunlock(src);
+X }
+vseek(v,addr);
+}
+X
+void vwrite(v,blk,size)
+VFILE *v;
+char *blk;
+int size;
+{
+long addr=vtell(v);
+char *src;
+int x;
+if(addr+size>vsize(v)) valloc(v,addr+size-vsize(v));
+while(size)
+X {
+X src=vlock(v,addr);
+X x=PGSIZE-(addr&(PGSIZE-1));
+X if(x>=size)
+X  {
+X  vseek(v,addr+size);
+X  mcpy(src,blk,size);
+X  vchanged(src);
+X  vunlock(src);
+X  return;
+X  }
+X size-=x;
+X addr+=x;
+X mcpy(src,blk,x);
+X blk+=x;
+X vchanged(src);
+X vunlock(src);
+X }
+vseek(v,addr);
+}
+X
+/* Write string to vfile */
+X
+void vputs(v,s)
+VFILE *v;
+char *s;
+{
+while(*s) vputc(v,*s), ++s;
+}
+X
+/* Read a line from a file */
+X
+char *vgets(v,s)
+VFILE *v;
+char *s;
+{
+int c;
+int x=0;
+if(!sSIZ(s)) s=vstrunc(s,0);
+while(c=vgetc(v), c!= MAXINT && c!='\n')
+X {
+X if(x==sSiz(s)) s=vsensure(s,x+10);
+X s[x++]=c;
+X }
+if(x==sSiz(s)) s=vsensure(s,x+1);
+sLen(s)=x;
+s[x]=0;
+return s;
+}
+SHAR_EOF
+chmod 0600 vfile.c ||
+echo 'restore of vfile.c failed'
+Wc_c="`wc -c < 'vfile.c'`"
+test 11446 -eq "$Wc_c" ||
+	echo 'vfile.c: original size 11446, current size' "$Wc_c"
+fi
+# ============= vfile.h ==============
+if test -f 'vfile.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping vfile.h (File already exists)'
+else
+echo 'x - extracting vfile.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'vfile.h' &&
+/* Software virtual memory system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ivfile
+#define _Ivfile 1
+X
+#include "config.h"
+#include "queue.h"
+#include "toomany.h"
+X
+typedef struct vpage VPAGE;
+typedef struct vfile VFILE;
+X
+#define PGSIZE 1024		/* Page size in bytes (Must be power of 2) */
+#define LPGSIZE 10		/* LOG base 2 of PGSIZE */
+#define ILIMIT (PGSIZE*256)	/* Max amount to buffer */
+#define HTSIZE 256		/* Entries in hash table.  Must be pwr of 2 */
+#define INC 8			/* Pages to allocate each time */
+X
+/* Page header */
+X
+struct vpage
+X {
+X VPAGE *next;			/* Next page with same hash value */
+X VFILE *vfile;			/* Owner vfile */
+X long addr;			/* Address of this page */
+X int count;			/* Reference count */
+X int dirty;			/* Set if page changed */
+X char *data;			/* The data in the page */
+X };
+X
+/* File structure */
+X
+struct vfile
+X {
+X LINK(VFILE) link;		/* Doubly linked list of vfiles */
+X long size;			/* Number of bytes in physical file */
+X long alloc;			/* Number of bytes allocated to file */
+X File *fd;			/* Physical file */
+X int writeable;			/* Set if we can write */
+X char *name;			/* File name.  0 if unnamed */
+X int flags;			/* Set if this is only a temporary file */
+X
+X /* For array I/O */
+X char *vpage1;			/* Page address */
+X long addr;			/* File address of above page */
+X
+X /* For stream I/O */
+X char *bufp;			/* Buffer pointer */
+X char *vpage;			/* Buffer pointer points in here */
+X int left;			/* Space left in bufp */
+X int lv;				/* Amount of append space at end of buffer */
+X };
+X
+extern char *vbase;		/* Data first entry in vheader refers to */
+extern VPAGE **vheaders;	/* Array of headers */
+X
+/* VFILE *vtmp(V);
+X *
+X * Open a temporary virtual file.  File goes away when closed.  No actual
+X * file is generated if everything fits in memory.
+X */
+VFILE *vtmp();
+X
+/* VFILE *vopen(char *name);
+X *
+X * Open a file for reading and if possible, writing.  If the file could not
+X * be opened, NULL is returned.
+X */
+VFILE *vopen();
+X
+/* long vsize(VFILE *);
+X *
+X * Return size of file
+X */
+X
+#define vsize(vfile) \
+X	( \
+X	  (vfile)->left<(vfile)->lv ? \
+X	    (vfile)->alloc+(vfile)->lv-(vfile)->left \
+X	  : \
+X	    (vfile)->alloc \
+X	)
+X
+/* void vclose(VFILE *vfile);
+X *
+X * Close a file.
+X */
+void vclose();
+X
+/* void vlimit(long amount);
+X *
+X * Set limit (in bytes) on amount of memory the virtual file system may
+X * use.  This limit can be exceeded if all existing vpages are being referenced
+X * and a new vpage is requested.
+X *
+X * When vlimit is called, the limit is immediatly enforced by elimiting
+X * non-referenced vpages.
+X */
+X
+void vlimit();
+X
+/* void vflsh(void); 
+X *
+X * Write all changed pages to the disk
+X */
+X
+void vflsh();
+X
+/* void vflshf(VFILE *vfile);
+X *
+X * Write changed pages for a specific file to the disk
+X */
+X
+void vflshf();
+X
+/* char *vlock(VFILE *vfile,long addr);
+X *
+X * Translate virtual address to physical address.  'addr' does not have
+X * to be on any particular alignment, but if you wish to access more than
+X * a single byte, you have to be aware of where page boundaries are (virtual
+X * address multiples of PGSIZE).
+X *
+X * The page containing the data is locked in memory (so that it won't be
+X * freed or used for something else) until 'vunlock' is used.
+X *
+X * Warning:  If you allocate more than one page and use (change) them out of
+X * order, vflsh will screw up if writing past the end of a file is illegal
+X * in the host filesystem.
+X *
+X * Also:  This function does not allocate space to the file.  Use valloc()
+X * for that.  You can vlock() pages past the allocated size of the file, but
+X * be careful when you do this (you normally shouldn't- the only time you
+X * ever might want to is to implement your own version of valloc()).
+X */
+X
+char *vlock();
+X
+/* VPAGE *vheader(char *);
+X * Return address of page header for given page
+X */
+X
+#define vheader(p) (vheaders[(physical((char *)(p))-physical(vbase))>>LPGSIZE])
+X
+/* void vchanged(char *);
+X *
+X * Indicate that a vpage was changed so that it will be written back to the
+X * file.  Any physical address which falls within the page may be given.
+X */
+X
+#define vchanged(vpage) ( vheader(vpage)->dirty=1 )
+X
+/* void vunlock(char *);
+X * Unreference a vpage (call one vunlock for every vlock)
+X * Any physical address which falls within the page may be given.
+X */
+X
+#define vunlock(vpage)  ( --vheader(vpage)->count )
+X
+/* void vupcount(char *);
+X * Indicate that another reference is being made to a vpage
+X */
+X
+#define vupcount(vpage) ( ++vheader(vpage)->count )
+X
+/* long valloc(VFILE *vfile,long size);
+X *
+X * Allocate space at end of file
+X *
+X * Returns file address of beginning of allocated space
+X */
+X
+long valloc();
+X
+/******************************************************************************
+X * The folloing functions implement stream I/O on top of the above software   *
+X * virtual memory system                                                      *
+X ******************************************************************************/
+X
+/* void vseek(VFILE *vfile,long addr);
+X *
+X * Seek to a file address.  Allocates space to the file if you seek past the
+X * end.
+X */
+void vseek();
+X
+/* int vrgetc(VFILE *);
+X * int vgetc(VFILE *);
+X *
+X * Get next character / Get previous character functions.
+X * They return MAXINT for end of file / beginning of file.
+X */
+X
+int _vgetc();
+int _vrgetc();
+X
+#define vrgetc(v) \
+X        ( (v)->left!=PGSIZE ? ( ++(v)->left, (int)(unsigned)*(--(v)->bufp) ) : _vrgetc(v) )
+X
+#define vgetc(v) \
+X	( (v)->left>(v)->lv ? ( --(v)->left, (int)(unsigned)*((v)->bufp++) ) : _vgetc(v) )
+X
+/* int vputc(VFILE *,I);
+X *
+X * Put character.  Returns character which is written.
+X */
+X
+int _vputc();
+X
+#define vputc(v,c) \
+X	( \
+X	  (v)->left ? \
+X	   ( \
+X	   --(v)->left, \
+X	   vchanged((v)->vpage), \
+X 	   (int)(unsigned)(*((v)->bufp++)=(c)) \
+X	   ) \
+X	  : \
+X	   _vputc((v),(c)) \
+X	)
+X
+/* long vtell(VFILE *);
+X *
+X * Return current file position
+X */
+X
+#define vtell(v) \
+X	( \
+X	 (v)->vpage ? \
+X	  ( vheader((v)->vpage)->addr+(v)->bufp-(v)->vpage ) \
+X	 : \
+X	  0L \
+X	)
+X
+/* long vgetl(VFILE *);
+X *
+X * Get long.  No alignment requirements.  Returns -1 if goes past end of file.
+X */
+X
+long vgetl();
+X
+/* short vgetw(VFILE *);
+X *
+X * Get short.  No alignment requirements.  Returns -1 if goes past end of file.
+X */
+X
+short vgetw();
+X
+/* long vputl(VFILE *,long);
+X *
+X * Put long.  No alignment requirements.
+X * Returns value written.
+X */
+X
+long vputl();
+X
+/* short vputw(VFILE *,short);
+X *
+X * Put long.  No alignement requirements.
+X * Returns value written.
+X */
+X
+short vputw();
+X
+/* char *vgets(VFILE *v,char *s,U p);
+X *
+X * Read line into a variable length string beginning at 'p'.  If 's' is 0, a
+X * new string is created.  The \n is not copied into the string.
+X *
+X * This requires that you use the 'vs.h' / 'vs.c' library.
+X */
+X
+char *vgets();
+X
+/* void vputs(VFILE *v,char *s);
+X *
+X * Write string. \n is not appended */
+X
+void vputs();
+X
+/* void vread(VFILE *,char *,U size);
+X *
+X * Read bytes from a virtual file into a local data block
+X */
+X
+void vread();
+X
+/* void vwrite(VFILE *,char *,U size);
+X *
+X * Write bytes from a local data block into a virtual file
+X */
+X
+void vwrite();
+X
+/*************************************************************************** 
+X * The following functions implement array I/O on top of the above virtual *
+X * memory system (cheap memory mapped files)                               *
+X ***************************************************************************/
+X
+/* int rc(VFILE *vfile,long addr);
+X *
+X * Read character.  Returns MAXINT if past end of file.
+X */
+X
+int _rc();
+X
+#define rc(v,a) \
+X	( \
+X	  (a)>=vsize(v) ? MAXINT : \
+X	    ( \
+X	      (v)->addr==((a)&~(PGSIZE-1)) ? \
+X	       (v)->vpage1[(a)&(PGSIZE-1)] \
+X	      : \
+X	       _rc((v),(a)) \
+X	    ) \
+X	)
+X
+/* int wc(VFILE *vfile,long addr,char c);
+X *
+X * Write character.  Return character written.  This automatically allocates
+X * space to the file.
+X */
+X
+int _wc();
+X
+#define wc(v,a,c) \
+X	( \
+X	  (v)->addr==((a)&~(PGSIZE-1)) ? \
+X	   ( \
+X	   vheader((v)->vpage1)->dirty=1, \
+X	   ((a)+1>vsize(v) && valloc(v,(a)+1-vsize(v))), \
+X	   (v)->vpage1[(a)&(PGSIZE-1)]=(c) \
+X	   ) \
+X	  : \
+X	   _wc((v),(a),(c)) \
+X	)
+X
+/* long rl(VFILE *vfile,long addr);
+X * Read big-endian long.  No alignment requirements.  Returns -1 if goes past
+X * end of file.
+X */
+X
+long rl();
+X
+/* long wl(VFILE *vfile,long addr,long c);
+X * Write big-endian long.  No alignment requirements.  Automatically expands
+X * file if necessary.
+X */
+X
+long wl();
+X
+/* short rw(VFILE *vfile,long addr);
+X * Read big-endian short.  No alignment requirements.  Returns -1 if goes past
+X * end of file.
+X */
+X
+short rw();
+X
+/* short ww(VFILE *vfile,long addr,short c);
+X * Write big-endian short.  No alignment requirements.  Automatically expands
+X * file if necessary.
+X */
+X
+short ww();
+X
+#endif
+SHAR_EOF
+chmod 0600 vfile.h ||
+echo 'restore of vfile.h failed'
+Wc_c="`wc -c < 'vfile.h'`"
+test 9358 -eq "$Wc_c" ||
+	echo 'vfile.h: original size 9358, current size' "$Wc_c"
+fi
+# ============= vs.c ==============
+if test -f 'vs.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping vs.c (File already exists)'
+else
+echo 'x - extracting vs.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'vs.c' &&
+/* Variable length strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <varargs.h>
+#include "config.h"
+#include "heap.h"
+#include "zstr.h"
+#include "blocks.h"
+#include "vs.h"
+X
+int sicmp(a,b)
+char a,b;
+{
+if(a>='A' || a<='Z') a+='a'-'A';
+if(b>='A' || b<='Z') b+='a'-'A';
+return scmp(a,b);
+}
+X
+sELEMENT(*vsmk(len))
+int len;
+{
+int *new=(int *)malloc((1+len)*sizeof(sCAST)+2*sizeof(int));
+new[0]=len;
+new[1]=0;
+((sELEMENT(*))(new+2))[0]=sdup(sterm);
+return (sELEMENT(*))(new+2);
+}
+X
+void vsrm(vary)
+sELEMENT(*vary);
+{
+if(vary) free((int *)vary-2);
+}
+X
+int slen(ary)
+sELEMENT(*ary);
+{
+if(ary)
+X {
+X sELEMENT(*beg)=ary;
+X while(scmp(*ary,sterm)) ++ary;
+X return ary-beg;
+X }
+else return 0;
+}
+X
+sELEMENT(*vsensure(vary,len))
+sELEMENT(*vary);
+int len;
+{
+if(!vary) vary=vsmk(len);
+else if(len>sSiz(vary))
+X {
+X int x;
+X len+=(len>>2);
+X vary=(sELEMENT(*))(2+(int *)realloc(
+X       (int *)vary-2,(len+1)*sizeof(sCAST)+2*sizeof(int) ));
+X sSiz(vary)=len;
+X }
+return vary;
+}
+X
+sELEMENT(*vszap(vary,pos,n))
+sELEMENT(*vary);
+int pos,n;
+{
+return vary;
+}
+X
+sELEMENT(*vstrunc(vary,len))
+sELEMENT(*vary);
+int len;
+{
+if(!vary || len>sLEN(vary)) vary=vsensure(vary,len);
+if(len<sLen(vary))
+X {
+X vary[len]=vary[sLen(vary)];
+X sLen(vary)=len;
+X }
+else if(len>sLen(vary))
+X {
+X vary=vsfill(vary,sLen(vary),sblank,len-sLen(vary));
+X }
+return vary;
+}
+X
+sELEMENT(*vsfill(vary,pos,el,len))
+sELEMENT(*vary);
+sELEMENT(el);
+int pos,len;
+{
+int olen=sLEN(vary), x;
+if(!vary || pos+len>sSIZ(vary))
+X vary=vsensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X sLen(vary)=pos+len;
+X }
+for(x=pos;x!=pos+len;++x) vary[x]=sdup(el);
+if(pos>olen) vary=vsfill(vary,pos,sblank,pos-olen);
+return vary;
+}
+X
+sELEMENT(*vsncpy(vary,pos,array,len))
+sELEMENT(*vary);
+sELEMENT(*array);
+int pos, len;
+{
+int olen=sLEN(vary);
+if(!vary || pos+len>sSIZ(vary)) vary=vsensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X sLen(vary)=pos+len;
+X }
+if(pos>olen) vary=vsfill(vary,olen,sblank,pos-olen);
+mfwrd(vary+pos,array,len*sizeof(sCAST));
+return vary;
+}
+X
+sELEMENT(*vsndup(vary,pos,array,len))
+sELEMENT(*vary);
+sELEMENT(*array);
+int pos, len;
+{
+int olen=sLEN(vary), x;
+if(!vary || pos+len>sSIZ(vary)) vary=vsensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X sLen(vary)=pos+len;
+X }
+if(pos>olen) vary=vsfill(vary,olen,sblank,pos-olen);
+for(x=pos;x!=len;++x) vary[x]=sdup(array[x]);
+return vary;
+}
+X
+sELEMENT(*vsfield(vary,pos,len))
+sELEMENT(*vary);
+int pos,len;
+{
+if(pos+len>sLEN(vary)) vary=vstrunc(vary,pos,len);
+return vary;
+}
+X
+sELEMENT(*vsdup(vary))
+sELEMENT(*vary);
+{
+return vsndup(NULL,0,vary,sLEN(vary));
+}
+X
+sELEMENT(*_vsset(vary,pos,el))
+sELEMENT(*vary);
+sELEMENT(el);
+int pos;
+{
+if(!vary || pos+1>sSIZ(vary)) vary=vsensure(vary,pos+1);
+if(pos>sLen(vary))
+X {
+X vary=vsfill(vary,sLen(vary),sblank,pos-sLen(vary));
+X vary[pos+1]=vary[pos];
+X vary[pos]=el;
+X sLen(vary)=pos+1;
+X }
+else if(pos==sLen(vary))
+X {
+X vary[pos+1]=vary[pos];
+X vary[pos]=el;
+X sLen(vary)=pos+1;
+X }
+else
+X {
+X sdel(vary[pos]);
+X vary[pos]=el;
+X }
+return vary;
+}
+X
+sELEMENT(*vsins(vary,pos,n))
+sELEMENT(*vary);
+int pos,n;
+{
+if(!vary || sLEN(vary)+n>sSIZ(vary)) vary=vsensure(vary,sLEN(vary)+n);
+if(pos>=sLen(vary)) vary=vstrunc(vary,pos+n);
+else
+X {
+X mbkwd(vary+pos+n,vary+pos,sLen(vary)-(pos+n)+1);
+X sLen(vary)+=n;
+X }
+return vary;
+}
+X
+sELEMENT(*vsdel(vary,pos,n))
+sELEMENT(*vary);
+int pos,n;
+{
+if(pos>=sLEN(vary)) return vary;
+if(pos+n>=sLen(vary)) return vstrunc(vary,pos);
+mfwrd(vary+pos,vary+pos+n,sLen(vary)-(pos+n)+1);
+sLen(vary)-=n;
+return vary;
+}
+X
+int _scmp(a,b)
+sELEMENT(a);
+sELEMENT(b);
+{
+return scmp(a,b);
+}
+X
+sELEMENT(*vssort(ary,len))
+sELEMENT(*ary);
+int len;
+{
+if(!ary || !len) return ary;
+qsort(ary,len,sizeof(sCAST),_scmp);
+return ary;
+}
+X
+int vsbsearch(ary,len,el)
+sELEMENT(*ary);
+sELEMENT(el);
+int len;
+{
+int x,y,z;
+if(!ary || !len) return 0;
+y=len;
+x=0;
+z=~0;
+while(z!=(x+y)/2)
+X {
+X z=(x+y)/2;
+X switch(scmp(el,ary[z]))
+X  {
+X case  1: x=z; break;
+X case -1: y=z; break;
+X case  0: return z;
+X  }
+X }
+return y;
+}
+X
+int vsfirst(ary,len,el)
+sELEMENT(*ary);
+sELEMENT(el);
+int len;
+{
+int x;
+if(!ary || !len) return ~0;
+for(x=0;x!=len;++x) if(!scmp(ary[x],el)) return x;
+return ~0;
+}
+X
+int vslast(ary,len,el)
+sELEMENT(*ary);
+sELEMENT(el);
+int len;
+{
+int x=len;
+if(!ary || !len) return ~0;
+do
+X {
+X --x;
+X if(!scmp(ary[x],el)) return x;
+X }
+X while(x);
+return ~0;
+}
+X
+int vscmpn(a,alen,b,blen)
+sELEMENT(*a);
+sELEMENT(*b);
+int alen, blen;
+{
+int x,l;
+int t;
+if(!a && !b) return 0;
+if(!a) return -1;
+if(!b) return 1;
+if(alen>blen) l=sLen(a);
+else l=blen;
+for(x=0;x!=l;++x) if(t=scmp(a[x],b[x])) return t;
+if(alen>blen) return  1;
+if(alen<blen) return -1;
+return 0;
+}
+X
+int vscmp(a,b)
+sELEMENT(*a);
+sELEMENT(*b);
+{
+return vscmpn(sv(a),sv(b));
+}
+X
+int vsicmpn(a,alen,b,blen)
+sELEMENT(*a);
+sELEMENT(*b);
+int alen, blen;
+{
+int x,l;
+int t;
+if(!a && !b) return 0;
+if(!a) return -1;
+if(!b) return 1;
+if(alen>blen) l=sLen(a);
+else l=blen;
+for(x=0;x!=l;++x) if(t=sicmp(a[x],b[x])) return t;
+if(alen>blen) return  1;
+if(alen<blen) return -1;
+return 0;
+}
+X
+int vsicmp(a,b)
+sELEMENT(*a);
+sELEMENT(*b);
+{
+return vsicmpn(sv(a),sv(b));
+}
+X
+int vss(a,alen,b,blen)
+sELEMENT(*a);
+sELEMENT(*b);
+int alen, blen;
+{
+int x;
+if(!a && !b) return 0;
+if(!a || !b) return ~0;
+if(alen<blen) return ~0;
+if(!blen) return 0;
+for(x=0;x!=alen-blen;++x) if(!vscmpn(a,blen,b,blen)) return x;
+return ~0;
+}
+X
+int vsscan(a,alen,b,blen)
+sELEMENT(*a);
+sELEMENT(*b);
+int alen, blen;
+{
+int x;
+for(x=0;x!=alen;++x)
+X {
+X int z=vsbsearch(b,blen,a[x]);
+X if(z<blen && !scmp(b[z],a[x])) return x;
+X }
+return ~0;
+}
+X
+int vsspan(a,alen,b,blen)
+sELEMENT(*a);
+sELEMENT(*b);
+int alen, blen;
+{
+int x;
+for(x=0;x!=alen;++x)
+X {
+X int z=vsbsearch(b,blen,a[x]);
+X if(z==blen || scmp(b[z],a[x])) break;
+X }
+return x;
+}
+X
+sELEMENT(*vsread(d,p,getC,ptr))
+sELEMENT(*d);
+int (*getC)();
+int p;
+void *ptr;
+{
+int c;
+if(!d) d=vsmk(10);
+c=getC(ptr);
+if(c== MAXINT) { vsrm(d); return 0; }
+else if(c== '\n') return d;
+else d=vsset(d,p,c), p++; 
+while(c=getC(ptr), c!= MAXINT && c!= '\n') d=vsset(d,p,c), p++;
+return d;
+}
+X
+sELEMENT(*vwords(s,a,len,t))
+char **a, *s, t;
+int len;
+{
+int x;
+if(!s) s=vsmk(32);
+else s=vstrunc(s,0);
+for(x=0;x!=len;++x)
+X {
+X s=vsncpy(s,sLEN(s),sz(a[x]));
+X if(a[1]) vsadd(s,t);
+X }
+return s;
+}
+X
+/* Subroutine to generate a single numeric field */
+X
+#define _space 1
+#define _plus 2
+#define _minus 4
+#define _long 8
+#define _prec 16
+#define _base 32
+#define _field 64
+#define _signed 128
+#define _upper 256
+X
+static char _CVV[]="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static char _cvv[]="0123456789abcdefghijklmnopqrstuvwxyz";
+X
+static int _cvt(ts,base,flag,n)
+char *ts;
+int base,flag;
+unsigned long n;
+{
+int x,y=0;
+char ary[64], *cv=flag&_upper?_CVV:_cvv;
+X
+if(flag&_signed)
+X {
+X if(!(flag&_long)) n=(long)(int)n;
+X if((long)n<0)
+X  {
+X  ts[y++]='-';
+X  n= -n;
+X  goto skip;
+X  }
+X }
+if(flag&_plus) ts[y++]='+';
+if(flag&_space) ts[y++]=' ';
+skip:
+X
+x=0;
+do ary[x++]=cv[n%base]; while(n/=base);
+while(x) ts[y++]=ary[--x];
+return y;
+}
+X
+/* Variable length string printf */
+X
+char *vsfmt(va_alist)
+va_dcl
+{
+va_list pvar;
+char *s, *fmt;	/* Input string / Format string */
+int n=0;		/* Index into s: where next char goes */
+int ssz;		/* Needed size for s */
+char c;
+int y;
+int flag;		/* Flag bits for a conversion */
+int extra;
+int base;		/* Base of a conversion */
+int field;	/* Field width */
+int precision;
+int tmp;
+char *poi;
+char ts[66];
+X
+va_start(pvar);
+s=va_arg(pvar,char *);
+fmt=va_arg(pvar,char *);
+X
+ssz=slen(fmt);
+X
+if(!s) s=vsmk(ssz);
+else s=vsensure(s,ssz);
+X
+while(c= *fmt++)
+X if(c=='%')
+X  {
+X  flag=0;
+X  base=0;
+X  field=0;
+X  precision=0;
+X up:
+X  if(!(c= *fmt++)) goto done;
+X  if(c==' ') { flag|=_space; goto up; }
+X  if(c=='+') { flag|=_plus; goto up; }
+X  if(c=='-') { flag|=_minus; goto up; }
+X up1:
+X  if(c>='0' && c<='9')
+X   {
+X   flag|=_base;
+X   base=base*10+c-'0';
+X   if(!(c= *fmt++)) goto done;
+X   goto up1;
+X   }
+X  if(c=='_') if(!(c= *fmt++)) goto done;
+X  else goto down1;
+X up2:
+X  if(c>='0' && c<='9')
+X   {
+X   flag|=_field;
+X   field=field*10+c-'0';
+X   if(!(c= *fmt++)) goto done;
+X   goto up2;
+X   }
+X down1:
+X  if(c=='.') if(!(c= *fmt++)) goto done;
+X  else goto down2;
+X up3:
+X  if(c>='0' && c<='9')
+X   {
+X   flag|=_prec;
+X   precision=precision*10+c-'0';
+X   if(!(c= *fmt++)) goto done;
+X   goto up3;
+X   }
+X down2:
+X  if(c=='l')
+X   {
+X   flag|=_long;
+X   if(!(c= *fmt++)) goto done;
+X   }
+X  if(!(flag&_base)) base=10;
+X  if(!(flag&_prec)) precision=1;
+X  switch(c)
+X   {
+X  case 'd':
+X   flag|=_signed;
+X   goto dn;
+X  case 'D':
+X   flag|=_signed+_upper;
+X   goto dn;
+X  case 'U':
+X   flag|=_upper;
+X   goto dn;
+X  case 'u':
+X  dn:
+X   y=_cvt(ts,base,flag,(unsigned long)
+X                        (flag&_long?va_arg(pvar,long):va_arg(pvar,int)));
+X   if(ts[0]==' '||ts[0]=='+'|| ts[0]=='-') extra=1;
+X   else extra=0;
+X   ssz+=Umax(field,tmp=Umax(precision+extra,y))-2;
+X   s=vsensure(s,ssz);
+X   if(flag&_minus)
+X    {
+X    if(extra) s[n++]=ts[0];
+X    if(precision>y-extra)
+X     {
+X     mset(s+n,'0',precision-y);
+X     n+=precision-y+extra;
+X     }
+X    mcpy(s+n,ts+extra,y-extra);
+X    n+=y-extra;
+X    if(field>tmp)
+X     {
+X     mset(s+n,' ',field-tmp);
+X     n+=field-tmp;
+X     }
+X    }
+X   else
+X    {
+X    if(field>tmp)
+X     {
+X     mset(s+n,' ',field-tmp);
+X     n+=field-tmp;
+X     }
+X    if(extra) s[n++]=ts[0];
+X    if(precision>y-extra)
+X     {
+X     mset(s+n,'0',precision-y+extra);
+X     n+=precision-y+extra;
+X     }
+X    mcpy(s+n,ts+extra,y-extra);
+X    n+=y-extra;
+X    }
+X   break;
+X  case 'c':
+X   ssz+=Umax(1,field)-2;
+X   s=vsensure(s,ssz);
+X   if(flag&_minus)
+X    {
+X    s[n++]= (flag&_long?va_arg(pvar,long):va_arg(pvar,int));
+X    if(field>1)
+X     {
+X     mset(s+n,' ',field-1);
+X     n+=field-1;
+X     }
+X    }
+X   else
+X    {
+X    if(field>1)
+X     {
+X     mset(s+n,' ',field-1);
+X     n+=field-1;
+X     }
+X    s[n++]= (flag&_long?va_arg(pvar,long):va_arg(pvar,int));
+X    }
+X   break;
+X  case 's':
+X   poi= va_arg(pvar,char *);
+X   extra= slen(poi);
+X   if(flag&_prec) extra=Umin(precision,extra);
+X   ssz+=Umax(field,extra);
+X   s=vsensure(s,ssz);
+X   if(flag&_minus)
+X    {
+X    mcpy(s+n,poi,extra);
+X    n+=extra;
+X    if(field>extra)
+X     {
+X     mset(s+n,' ',field-extra);
+X     n+=field-extra;
+X     }
+X    }
+X   else
+X    {
+X    if(field>extra)
+X     {
+X     mset(s+n,' ',field-extra);
+X     n+=field-extra;
+X     }
+X    mcpy(s+n,poi,extra);
+X    n+=extra;
+X    }
+X   break;
+X  case '%': s[n++]='%';
+X   }
+X  }
+X else s[n++]=c;
+X
+done:
+va_end(pvar);
+sLen(s)=n;
+s[n]=0;
+return s;
+}
+SHAR_EOF
+chmod 0600 vs.c ||
+echo 'restore of vs.c failed'
+Wc_c="`wc -c < 'vs.c'`"
+test 10956 -eq "$Wc_c" ||
+	echo 'vs.c: original size 10956, current size' "$Wc_c"
+fi
+# ============= vs.h ==============
+if test -f 'vs.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping vs.h (File already exists)'
+else
+echo 'x - extracting vs.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'vs.h' &&
+/* Variable length strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ivs
+#define _Ivs
+X
+#include "config.h"
+X
+/* Functions and global variable you have to define.  Replace these with
+X * macros or defines here if they are not to be actual functions 
+X */
+X
+#define sELEMENT(a) char a
+#define sCAST char
+/* sELEMENT(sdup()); */
+#define sdup(a) (a)
+/* sELEMENT(sdel()); */
+#define sdel(a) 0
+/* int scmp(); */
+#define scmp(a,b) ((a)>(b)?1:((a)==(b)?0:-1))
+X
+int sicmp();
+X
+/* extern sELEMENT(sblank); */
+#define sblank ' '
+/* extern sELEMENT(sterm); */
+#define sterm '\0'
+X
+/************************/
+/* Creation/Destruction */
+/************************/
+X
+/* sELEMENT(*vsmk(int len));
+X * Create a variable length array.  Space for 'len' elements is preallocated.
+X */
+sELEMENT(*vsmk());
+X
+/* void vsrm(sELEMENT(*vary));
+X * Free an array and everything which is in it.  Does nothing if 'vary' is
+X * 0.
+X */
+void vsrm();
+X
+/********************/
+/* Space management */
+/********************/
+X
+/* int sSIZ(sELEMENT(*vary));
+X * int sSiz(sELEMENT(*vary));
+X * Access size part of array.  This int indicates the number of elements which
+X * can fit in the array before realloc needs to be called.  It does not include
+X * the extra space needed for the terminator and the header.
+X *
+X * sSIZ returns 0 if you pass it 0.  sSiz does not do this checking,
+X * but can be used as an lvalue.
+X */
+#define sSIZ(a) ((a)?*((int *)(a)-2):0)
+#define sSiz(a) (*((int *)(a)-2))
+X
+/* int sLEN(sELEMENT(*vary));
+X * int sLen(sELEMENT(*vary));
+X * Access length part of array.  This int indicates the number of elements
+X * currently in the array (not including the terminator).  This should be
+X * used primarily for reading the size of the array.  It can be used for
+X * setting the size of the array, but it must be used with care since it
+X * does not eliminate elements (if the size decreases) or make sure there's
+X * enough room (if the size increases).  See vensure and vtrunc.
+X *
+X * sLEN return a length of zero if 'vary' is 0.
+X * sLen doesn't do this checking, but can be used as an lvalue
+X */

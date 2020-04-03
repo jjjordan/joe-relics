@@ -1,0 +1,823 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!ornl!sunova!linac!pacific.mps.ohio-state.edu!zaphod.mps.ohio-state.edu!magnus.acs.ohio-state.edu!usenet.ins.cwru.edu!agate!netsys!ibmpcug!rachel.ibmpcug.co.uk!gtoal
+From: gtoal@rachel.ibmpcug.co.uk (Graham Toal)
+Subject: [386BSD] Source: hacked man that works on .Z man pages
+Organization: The IBM PC User Group, Harrow, England
+Date: Thu, 19 Nov 1992 03:07:25 GMT
+Message-ID: <Bxy0oE.EJA@ibmpcug.co.uk>
+Followup-To: alt.sources.d
+Sender: news@ibmpcug.co.uk (News System Administration)
+Nntp-Posting-Host: rachel.ibmpcug.co.uk
+Lines: 811
+
+Archive-name: bsd386/zman.shar
+
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	README
+#	man.c
+#	pathnames.h
+#	config.c
+#
+echo x - README
+sed 's/^X//' >README << 'END-of-README'
+XThis is a *very* quick hack to man to allow you to compress all the
+Xman pages with unix compress and still be able to read them.
+X
+XJust go to /usr/man and do   compress */*.0 */*/*.0
+X
+XThere will be a lot of linked man pages that compress refuses to touch.
+XEither leave them as is (I did) or unlink them, compress one by hand,
+Xand relink all the .Z versions.  (Pref '-s' so you can see in future
+Xwhich files were linked to what)
+X
+XI hope I haven't broken it.  Seems to work on everything I've tried.
+X
+XI started from the net2 man only because that's the only one I could
+Xfind unpacked anywhere - the bsd src distribution is too big for me
+Xto unpack on my machine (hey - if I had space, I wouldn't be compressing
+Xthe man pages, right?)  If the 386bsd man is changed in any way from
+Xthe net2 man, you'll have to fold in the mods yourself.
+X
+XIn the places in the code where I've been dirty, I've put comments
+Xtelling people what to change if they want to spend the time to do
+Xthe job properly.
+X
+XThis was a two-hour hack for my own benefit; if anyone else finds it
+Xuseful they're welcome to it.  I won't be supporting it after this.
+XIdeally the .Z compression should be done transparently by the filing
+Xsystem, which I think is how bsd4.4 will do it? - in which case this
+Xhack will be redundant.
+X
+XGraham Toal <gtoal@gtoal.com>
+XPS Create a directory /usr/local/src/man/man for this, and
+Xln -s /usr/local/src/man/man/man /usr/bin/man to install it.
+XBuild this with cc -o man man.c config.c
+X[config.c is straight off the net2 tape - only man.c and pathnames.h were
+Xhacked]
+END-of-README
+echo x - man.c
+sed 's/^X//' >man.c << 'END-of-man.c'
+X/*
+X * Copyright (c) 1987 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X
+X/* A hack to man.c to allow compressed man pages - simply go to
+X   /usr/share/man as root and compress *<slash>*.0 *<slash>*<slash>*.0
+X   -- don't worry too much about the ones it doesn't compress because of
+X   multiple links.  */
+X
+X#ifndef lint
+Xchar copyright[] =
+X"@(#) Copyright (c) 1987 Regents of the University of California.\n\
+X All rights reserved.\n";
+X#endif /* not lint */
+X
+X#ifndef lint
+Xstatic char sccsid[] = "@(#)man.c	5.24 (Berkeley) 7/21/90";
+X#endif /* not lint */
+X
+X#include <sys/param.h>
+X#include <sys/file.h>
+X#include <errno.h>
+X#include <stdio.h>
+X#include <ctype.h>
+X#include <string.h>
+X#include <stdlib.h>
+X#include <unistd.h> /* For mktemp */
+X#include "pathnames.h"
+X
+Xextern int errno;
+X
+Xint f_all, f_cat, f_how, f_where;
+Xchar *command, *machine, *p_augment, *p_path, *pager, *progname;
+Xextern char **arorder, *pathbuf;
+X
+Xtypedef struct strlist {
+X	char *fname;
+X	struct strlist *next;
+X} STRLIST;
+X
+XSTRLIST *delete_list = NULL;
+X
+Xvoid *
+Xqueue_delete(fname)
+Xchar *fname;
+X{
+X	STRLIST *l;
+X	l = malloc(sizeof(STRLIST));
+X	if (l == NULL) enomem();
+X	l->fname = malloc(strlen(fname)+1);
+X	if (l->fname == NULL) enomem();
+X	strcpy(l->fname, fname);
+X	l->next = delete_list; delete_list = l;
+X}
+X
+Xvoid delete_temps(void)
+X{
+X	while (delete_list != NULL) {
+X		remove(delete_list->fname);
+X		free(delete_list->fname);
+X		delete_list = delete_list->next;
+X	}
+X}
+X
+XFILE *
+Xmanopen(fname)
+Xchar *fname;
+X{
+X	FILE *fp;
+X	int l = strlen(fname);
+X	if ((l > 2) && (strcmp(fname+l-2, ".Z") == 0)) {
+X		/* Should really look up env var first and stick in a variable */
+X		command = malloc(strlen(_PATH_ZCAT)+1+strlen(fname)+1);
+X		if (command == NULL) enomem();
+X		sprintf(command, "%s %s", _PATH_ZCAT, fname);
+X		/* should really do a check_zcat() like check_pager() -
+X		   but why bother.  1) it had better be there if people
+X		   have gone around compressing man pages, and 2) the
+X		   popen() will fail cleanly enough to give some sort
+X		   of error message...  Another alternative is my ZFILE *
+X		   interface which allows a zfopen(filename, mode)
+X		   and does all the decompressin itself without popen(),
+X		   but again, since this is for 386bsd and we always
+X		   have popen(), why bother? */
+X		if ((fp = popen(command, "r")) == NULL) {
+X			(void)fprintf(stderr, "man: %s: %s\n", fname, strerror(errno));
+X			exit(1);
+X		}
+X	} else if ((fp = fopen(fname, "r")) == NULL) {
+X		(void)fprintf(stderr, "man: %s: %s\n", fname, strerror(errno));
+X		exit(1);
+X	} else {
+X	}
+X	if (command != NULL) free(command); command = NULL;
+X	return(fp);
+X}
+X
+Xint
+Xmain(argc, argv)
+X	int argc;
+X	register char **argv;
+X{
+X	extern char *optarg;
+X	extern int optind;
+X	int ch, res;
+X	char *section[2], *check_pager(), *getpath(), **getorder(), *tmp;
+X
+X	atexit(delete_temps);
+X	progname = "man";
+X	while ((ch = getopt(argc, argv, "-acfhkM:m:P:w")) != EOF)
+X		switch((char)ch) {
+X		case 'a':
+X			f_all = 1;
+X			break;
+X		case 'c':
+X		case '-':		/* deprecated */
+X			f_cat = 1;
+X			break;
+X		case 'h':
+X			f_how = 1;
+X			break;
+X		case 'm':
+X			p_augment = optarg;
+X			break;
+X		case 'M':
+X		case 'P':		/* backward compatibility */
+X			p_path = optarg;
+X			break;
+X		/*
+X		 * "man -f" and "man -k" are backward compatible, undocumented
+X		 * ways of calling whatis(1) and apropos(1).
+X		 */
+X		case 'f':
+X			jump(argv, "-f", "whatis");
+X			/* NOTREACHED */
+X		case 'k':
+X			jump(argv, "-k", "apropos");
+X			/* NOTREACHED */
+X		case 'w':
+X			f_all = f_where = 1;
+X			break;
+X		case '?':
+X		default:
+X			usage();
+X		}
+X	argv += optind;
+X
+X	if (!*argv)
+X		usage();
+X
+X	if (!f_cat && !f_how)
+X		if (!isatty(1))
+X			f_cat = 1;
+X		else if (pager = getenv("PAGER"))
+X			pager = check_pager(pager);
+X		else
+X			pager = _PATH_PAGER;
+X
+X	if (!(machine = getenv("MACHINE")))
+X		machine = MACHINE;
+X
+X	/* see if checking in a specific section */
+X	if (argc > 1 && getsection(*argv)) {
+X		section[0] = *argv++;
+X		section[1] = (char *)NULL;
+X	} else {
+X		section[0] = "_default";
+X		section[1] = (char *)NULL;
+X	}
+X
+X	arorder = getorder();
+X	if (p_path || (p_path = getenv("MANPATH"))) {
+X		char buf[MAXPATHLEN], **av;
+X
+X		tmp = strtok(p_path, ":"); 
+X		while (tmp) {
+X			(void)sprintf(buf, "%s/", tmp);
+X			for (av = arorder; *av; ++av)
+X                		cadd(buf, strlen(buf), *av);
+X			tmp = strtok((char *)NULL, ":"); 
+X		}
+X		p_path = pathbuf;
+X	} else if (!(p_path = getpath(section)) && !p_augment) {
+X		(void)fprintf(stderr,
+X			"man: no place to search for those manual pages.\n");
+X		exit(1);
+X	}
+X
+X	for (; *argv; ++argv) {
+X		if (p_augment)
+X			res = manual(p_augment, *argv);
+X		res = manual(p_path, *argv);
+X		if (res || f_where)
+X			continue;
+X		(void)fprintf(stderr,
+X		    "man: no entry for %s in the manual.\n", *argv);
+X		exit(1);
+X	}
+X
+X	/* use system(3) in case someone's pager is "pager arg1 arg2" */
+X	if (command)
+X		(void)system(command);
+X	exit(0);
+X}
+X
+X/*
+X * manual --
+X *	given a path, a directory list and a file name, find a file
+X *	that matches; check ${directory}/${dir}/{file name} and
+X *	${directory}/${dir}/${machine}/${file name}.
+X */
+Xmanual(path, name)
+X	char *path, *name;
+X{
+X	register int res;
+X	register char *end;
+X	char fname[MAXPATHLEN + 1];
+X
+X	for (res = 0;; path = end + 1) {
+X		if (!*path)				/* foo: */
+X			break;
+X		if (end = index(path, ':')) {
+X			if (end == path + 1)		/* foo::bar */
+X				continue;
+X			*end = '\0';
+X		}
+X		(void)sprintf(fname, "%s/%s.0", path, name);
+X		if (access(fname, R_OK)) {
+X			(void)sprintf(fname, "%s/%s.0.Z", path, name);
+X			if (access(fname, R_OK)) {
+X				(void)sprintf(fname, "%s/%s/%s.0", path, machine, name);
+X				if (access(fname, R_OK)) {
+X					(void)sprintf(fname, "%s/%s/%s.0.Z", path, machine, name);
+X					if (access(fname, R_OK)) {
+X						continue;
+X					}
+X				}
+X			}
+X		}
+X
+X		if (f_where)
+X			(void)printf("man: found in %s.\n", fname);
+X		else if (f_cat)
+X			cat(fname);
+X		else if (f_how)
+X			how(fname);
+X		else
+X			add(fname);
+X		if (!f_all)
+X			return(1);
+X		res = 1;
+X		if (!end)
+X			break;
+X		*end = ':';
+X	}
+X	return(res);
+X}
+X
+X/*
+X * how --
+X *	display how information
+X */
+Xhow(fname)
+X	char *fname;
+X{
+X	register FILE *fp;
+X
+X	register int lcnt, print;
+X	register char *p;
+X	char buf[BUFSIZ];
+X
+X	if (!(fp = manopen(fname))) {
+X		(void)fprintf(stderr, "man: %s: %s\n", fname, strerror(errno));
+X		exit(1);
+X	}
+X#define	S1	"SYNOPSIS"
+X#define	S2	"S\bSY\bYN\bNO\bOP\bPS\bSI\bIS\bS"
+X#define	D1	"DESCRIPTION"
+X#define	D2	"D\bDE\bES\bSC\bCR\bRI\bIP\bPT\bTI\bIO\bON\bN"
+X	for (lcnt = print = 0; fgets(buf, sizeof(buf), fp);) {
+X		if (!strncmp(buf, S1, sizeof(S1) - 1) ||
+X		    !strncmp(buf, S2, sizeof(S2) - 1)) {
+X			print = 1;
+X			continue;
+X		} else if (!strncmp(buf, D1, sizeof(D1) - 1) ||
+X		    !strncmp(buf, D2, sizeof(D2) - 1))
+X			return;
+X		if (!print)
+X			continue;
+X		if (*buf == '\n')
+X			++lcnt;
+X		else {
+X			for(; lcnt; --lcnt)
+X				(void)putchar('\n');
+X			for (p = buf; isspace(*p); ++p);
+X			(void)fputs(p, stdout);
+X		}
+X	}
+X	(void)fclose(fp);
+X}
+X/*
+X * cat --
+X *	cat out the file
+X */
+Xcat(fname)
+X	char *fname;
+X{
+X	register int n;
+X	FILE *fp;
+X	char buf[BUFSIZ];
+X
+X	fp = manopen(fname);
+X	for (;;) {
+X		n = fread(buf, 1, sizeof(buf), fp);
+X		if (n <= 0) break;
+X		if (fwrite(buf, 1, n, stdout) != n) {
+X			(void)fprintf(stderr,
+X			    "man: write: %s\n", strerror(errno));
+X			exit(1);
+X		}
+X	}
+X	(void)fclose(fp);
+X}
+X
+X/*
+X * add --
+X *	add a file name to the list for future paging
+X */
+Xadd(fname)
+X	char *fname;
+X{
+X	static u_int buflen;
+X	static int len;
+X	static char *cp;
+X	int flen;
+X
+X	if (!command) {
+X		if (!(command = malloc(buflen = 1024)))
+X			enomem();
+X		len = strlen(strcpy(command, pager));
+X		cp = command + len;
+X	}
+X	/* If filename ends in .Z, decompress it and more the tmp file */
+X	flen = strlen(fname);
+X	if (strcmp(fname+flen-2, ".Z") == 0) {
+X		/* These local arrays should be off the heap, but this
+X		   is one of those quick hack programs that works and
+X		   I can't be bothered.  Someone else do it if it's a
+X		   problem.  Sorry folks. */
+X		char temp[256];
+X		char cmnd[256];
+X		char rootname[256];
+X		char *s;
+X		s = fname+flen-2-1;
+X		for (;;) {
+X			if (s == fname) break;
+X			if (*(s-1) == '/') break;
+X			s -= 1;
+X		}
+X		strcpy(rootname, s); rootname[strlen(rootname)-2] = '\0';
+X		sprintf(temp, "/tmp/%s.XXXX", rootname);
+X		(void)mktemp(temp);
+X		queue_delete(temp);
+X		sprintf(cmnd, "%s %s > %s", _PATH_ZCAT, fname, temp);
+X		system(cmnd);
+X		free(fname);
+X		fname = malloc(strlen(temp)+1); if (fname == NULL) enomem();
+X		strcpy(fname, temp);
+X		/* And queue temp file for deletion */
+X	}
+X	flen = strlen(fname);
+X	if (len + flen + 2 > buflen) {		/* +2 == space, EOS */
+X		if (!(command = realloc(command, buflen += 1024)))
+X			enomem();
+X		cp = command + len;
+X	}
+X	*cp++ = ' ';
+X	len += flen + 1;			/* +1 = space */
+X	(void)strcpy(cp, fname);
+X	cp += flen;
+X}
+X
+X/*
+X * check_pager --
+X *	check the user supplied page information
+X */
+Xchar *
+Xcheck_pager(name)
+X	char *name;
+X{
+X	register char *p;
+X	char *save;
+X
+X	/*
+X	 * if the user uses "more", we make it "more -s"; watch out for
+X	 * PAGER = "mypager /usr/ucb/more"
+X	 */
+X	for (p = name; *p && !isspace(*p); ++p);
+X	for (; p > name && *p != '/'; --p);
+X	if (p != name)
+X		++p;
+X
+X	/* make sure it's "more", not "morex" */
+X	if (!strncmp(p, "more", 4) && (!p[4] || isspace(p[4]))){
+X		save = name;
+X		/* allocate space to add the "-s" */
+X		if (!(name =
+X		    malloc((u_int)(strlen(save) + sizeof("-s") + 1))))
+X			enomem();
+X		(void)sprintf(name, "%s %s", save, "-s");
+X	}
+X	return(name);
+X}
+X
+X/*
+X * jump --
+X *	strip out flag argument and jump
+X */
+Xjump(argv, flag, name)
+X	char **argv, *name;
+X	register char *flag;
+X{
+X	register char **arg;
+X
+X	argv[0] = name;
+X	for (arg = argv + 1; *arg; ++arg)
+X		if (!strcmp(*arg, flag))
+X			break;
+X	for (; *arg; ++arg)
+X		arg[0] = arg[1];
+X	execvp(name, argv);
+X	(void)fprintf(stderr, "%s: Command not found.\n", name);
+X	exit(1);
+X}
+X
+X/*
+X * usage --
+X *	print usage message and die
+X */
+Xusage()
+X{
+X	(void)fprintf(stderr,
+X	    "usage: man [-ac] [-M path] [-m path] [section] title ...\n");
+X	exit(1);
+X}
+END-of-man.c
+echo x - pathnames.h
+sed 's/^X//' >pathnames.h << 'END-of-pathnames.h'
+X/*
+X * Copyright (c) 1989 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X *
+X *	@(#)pathnames.h	5.4 (Berkeley) 6/1/90
+X */
+X
+X#define	_PATH_MANCONF	"/etc/man.conf"
+X#define	_PATH_PAGER	"/usr/bin/more -s"
+X#define	_PATH_WHATIS	"whatis.db"
+X#define	_PATH_ZCAT	"/usr/bin/zcat"
+END-of-pathnames.h
+echo x - config.c
+sed 's/^X//' >config.c << 'END-of-config.c'
+X/*
+X * Copyright (c) 1989 The Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms, with or without
+X * modification, are permitted provided that the following conditions
+X * are met:
+X * 1. Redistributions of source code must retain the above copyright
+X *    notice, this list of conditions and the following disclaimer.
+X * 2. Redistributions in binary form must reproduce the above copyright
+X *    notice, this list of conditions and the following disclaimer in the
+X *    documentation and/or other materials provided with the distribution.
+X * 3. All advertising materials mentioning features or use of this software
+X *    must display the following acknowledgement:
+X *	This product includes software developed by the University of
+X *	California, Berkeley and its contributors.
+X * 4. Neither the name of the University nor the names of its contributors
+X *    may be used to endorse or promote products derived from this software
+X *    without specific prior written permission.
+X *
+X * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+X * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+X * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+X * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+X * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+X * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+X * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+X * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+X * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+X * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+X * SUCH DAMAGE.
+X */
+X
+X#ifndef lint
+Xstatic char sccsid[] = "@(#)config.c	5.6 (Berkeley) 3/1/91";
+X#endif /* not lint */
+X
+X#include <sys/param.h>
+X#include <stdio.h>
+X#include <errno.h>
+X#include <string.h>
+X#include <stdlib.h>
+X#include <pwd.h>
+X#include "pathnames.h"
+X
+X#define	MAXLINE		1024
+X
+Xextern char *progname;
+Xchar *pathbuf, **arorder;
+X
+Xstatic FILE *cfp;
+X
+X/*
+X * getpath --
+X *	read in the configuration file, calling a function with the line
+X *	from each matching section.
+X */
+Xchar *
+Xgetpath(sects)
+X	char **sects;
+X{
+X	register char **av, *p;
+X	size_t len;
+X	char line[MAXLINE];
+X	static int openconfig();
+X
+X	openconfig();
+X	while (fgets(line, sizeof(line), cfp)) {
+X		if (!index(line, '\n')) {
+X			(void)fprintf(stderr, "%s: config line too long.\n",
+X			    progname);
+X			exit(1);
+X		}
+X		p = strtok(line, " \t\n");
+X		if (!p || *p == '#')
+X			continue;
+X		for (av = sects; *av; ++av)
+X			if (!strcmp(p, *av))
+X				break;
+X		if (!*av)
+X			continue;
+X		while (p = strtok((char *)NULL, " \t\n")) {
+X			len = strlen(p);
+X			if (p[len - 1] == '/')
+X				for (av = arorder; *av; ++av)
+X                			cadd(p, len, *av);
+X			else
+X				cadd(p, len, (char *)NULL);
+X		}
+X	}
+X	return(pathbuf);
+X}
+X
+Xcadd(add1, len1, add2)
+Xchar *add1, *add2;
+Xregister size_t len1;
+X{
+X	static size_t buflen;
+X	static char *bp, *endp;
+X	register size_t len2;
+X
+X	len2 = add2 ? strlen(add2) : 0;
+X	if (!bp || bp + len1 + len2 + 2 >= endp) {
+X		if (!(pathbuf = realloc(pathbuf, buflen += 1024)))
+X			enomem();
+X		if (!bp)
+X			bp = pathbuf;
+X		endp = pathbuf + buflen;
+X	}
+X	bcopy(add1, bp, len1);
+X	bp += len1;
+X	if (len2) {
+X		bcopy(add2, bp, len2);
+X		bp += len2;
+X	}
+X	*bp++ = ':';
+X	*bp = '\0';
+X}
+X
+Xstatic
+Xopenconfig()
+X{
+X	if (cfp) {
+X		rewind(cfp);
+X		return;
+X	}
+X	if (!(cfp = fopen(_PATH_MANCONF, "r"))) {
+X		(void)fprintf(stderr, "%s: no configuration file %s.\n",
+X		    progname, _PATH_MANCONF);
+X		exit(1);
+X	}
+X}
+X
+Xchar **
+Xgetdb()
+X{
+X	register char *p;
+X	int cnt, num;
+X	char **ar, line[MAXLINE];
+X
+X	ar = NULL;
+X	num = 0;
+X	cnt = -1;
+X	openconfig();
+X	while (fgets(line, sizeof(line), cfp)) {
+X		if (!index(line, '\n')) {
+X			(void)fprintf(stderr, "%s: config line too long.\n",
+X			    progname);
+X			exit(1);
+X		}
+X		p = strtok(line, " \t\n");
+X#define	WHATDB	"_whatdb"
+X		if (!p || *p == '#' || strcmp(p, WHATDB))
+X			continue;
+X		while (p = strtok((char *)NULL, " \t\n")) {
+X			if (cnt == num - 1 &&
+X			    !(ar = realloc(ar, (num += 30) * sizeof(char **))))
+X				enomem();
+X			if (!(ar[++cnt] = strdup(p)))
+X				enomem();
+X		}
+X	}
+X	if (ar) {
+X		if (cnt == num - 1 &&
+X		    !(ar = realloc(ar, ++num * sizeof(char **))))
+X			enomem();
+X		ar[++cnt] = NULL;
+X	}
+X	return(ar);
+X}
+X
+Xchar **
+Xgetorder()
+X{
+X	register char *p;
+X	int cnt, num;
+X	char **ar, line[MAXLINE];
+X
+X	ar = NULL;
+X	num = 0;
+X	cnt = -1;
+X	openconfig();
+X	while (fgets(line, sizeof(line), cfp)) {
+X		if (!index(line, '\n')) {
+X			(void)fprintf(stderr, "%s: config line too long.\n",
+X			    progname);
+X			exit(1);
+X		}
+X		p = strtok(line, " \t\n");
+X#define	SUBDIR	"_subdir"
+X		if (!p || *p == '#' || strcmp(p, SUBDIR))
+X			continue;
+X		while (p = strtok((char *)NULL, " \t\n")) {
+X			if (cnt == num - 1 &&
+X			    !(ar = realloc(ar, (num += 30) * sizeof(char **))))
+X				enomem();
+X			if (!(ar[++cnt] = strdup(p)))
+X				enomem();
+X		}
+X	}
+X	if (ar) {
+X		if (cnt == num - 1 &&
+X		    !(ar = realloc(ar, ++num * sizeof(char **))))
+X			enomem();
+X		ar[++cnt] = NULL;
+X	}
+X	return(ar);
+X}
+X
+Xgetsection(sect)
+X	char *sect;
+X{
+X	register char *p;
+X	char line[MAXLINE];
+X
+X	openconfig();
+X	while (fgets(line, sizeof(line), cfp)) {
+X		if (!index(line, '\n')) {
+X			(void)fprintf(stderr, "%s: config line too long.\n",
+X			    progname);
+X			exit(1);
+X		}
+X		p = strtok(line, " \t\n");
+X		if (!p || *p == '#')
+X			continue;
+X		if (!strcmp(p, sect))
+X			return(1);
+X	}
+X	return(0);
+X}
+X
+Xenomem()
+X{
+X	(void)fprintf(stderr, "%s: %s\n", progname, strerror(ENOMEM));
+X	exit(1);
+X}
+END-of-config.c
+exit
+

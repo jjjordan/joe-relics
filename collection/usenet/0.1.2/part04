@@ -1,0 +1,2347 @@
+Path: funic!fuug!mcsun!unido!ira.uka.de!chx400!ieee.org!sdd.hp.com!caen!garbo.ucc.umass.edu!m2c!wpi.WPI.EDU!rcarter
+From: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Newsgroups: alt.sources
+Subject: JOE Version 0.1.2: Part 4 of 4
+Message-ID: <1992Jan23.110747.17130@wpi.WPI.EDU>
+Date: 23 Jan 92 11:07:47 GMT
+Sender: rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen))
+Organization: Kadath Tours, Inc.
+Lines: 2337
+
+
+*** Cut here
+Xswitch(query(s))
+X {
+X case 'i':
+X case 'I':
+X case 'o':
+X case 'O':
+X  ioverwrite();
+X  break;
+X case 'W':
+X case 'w':
+X  iwrap();
+X  break;
+X case 'a':
+X case 'A':
+X  iautoind();
+X  break;
+X case 't':
+X case 'T':
+X  itabmagic();
+X  break;
+X case 'p':
+X case 'P':
+X  ipic();
+X  break;
+X case 'r':
+X case 'R':
+X  setrmargin();
+X }
+X}
+X
+X/* Center the current line */
+X
+Xctrlin()
+X{
+XTXTSIZ x;
+Xint tmp=pic;
+Xint y;
+Xunfill();
+Xbol();
+Xwhile(y=fmrc(), y==' ' || y=='\t') fmdel(1);
+Xeol();
+Xx=fmnote();
+Xbol();
+Xif(x-fmnote()>rmargin) return;
+Xy=(rmargin/2)-(x-fmnote())/2;
+Xwhile(y--) fminsc(' ');
+Xpic=1;
+Xudnarw();
+Xpic=tmp;
+X}
+X
+X/* Reformat a paragraph */
+X
+Xreformat()
+X{
+XTXTSIZ tmp,idt,idt1,b,e,cur,ncur= -1;
+Xunsigned char ch;
+X
+Xcur=fmnote();		/* Save cursor position */
+X
+X/* First, determine indentation on current or first non-blank line */
+X
+Xup:
+Xidt=calcs();
+Xif(fmeof()) return;     /* Not if at end of file */
+Xif(fmrc()==NL)  /* Ignore any blank lines */
+X {
+X dnarw();
+X goto up;
+X }
+Xbol();
+X
+X/* Now find beginning of paragraph */
+X/* It will be indicated by a change of indentation or a blank line or bof */
+X
+Xwhile(fmnote())         /* Beginning is at bof */
+X {
+X uparw();
+X idt1=calcs();
+X if(fmrc()==NL) /* Beginning is blank line */
+X  {
+X  bol();
+X  dnarw();
+X  break;
+X  }
+X bol();
+X if(idt1>idt) break;
+X if(idt1<idt)
+X  {
+X  dnarw();
+X  break;
+X  }
+X }
+X
+X/* Point is now at beginning of paragraph (hopefully) */
+X/* Set the mark */
+X
+Xb=fmnote();
+X
+Xidt=calcs(); bol();	/* Save indentation level of first line of paragraph */
+X
+X/* Now move to after end of paragraph */
+Xwhile(1)
+X {
+X tmp=fmnote();
+X dnarw();
+X if(fmnote()==tmp)      /* Paragraph ends on end of file */
+X  {
+X  eol();
+X  fminsc(NL);		/* Stick in a NL */
+X  fmgetc();
+X  extend=0;		/* I don't think I have to do this but... */
+X  break;
+X  }
+X idt1=calcs();
+X if(fmrc()==NL)		/* Paragraph ends on blank line */
+X  {
+X  bol();
+X  break;
+X  }
+X bol();
+X if(idt1>idt) break;    /* Paragraph ends when indentation increases */
+X }
+X
+X/* Point now after end of paragraph, cut paragraph */
+Xe=fmnote();
+X
+X/* Now reinsert paragraph in a nice way */
+X
+Xif(e>b)
+X {
+X unsigned oldwrap=wrap;
+X unsigned oldoverwrite=overwrite;
+X unsigned oldauto=autoind;
+X unsigned flag=0;
+X unsigned char ccc=0;
+X TXTSIZ ppp=b; 
+X undoflag=0;
+X overwrite=0;
+X wrap=1;
+X while(ppp!=e)
+X  {
+X  tmp=fmnote();
+X  fmpoint(ppp);
+X  if(ppp>=cur && ncur== -1) ncur=tmp;
+X  ppp++;
+X  ch=fmrc();
+X  fmpoint(tmp);
+X  if(ch==NL) ch=' ';
+X  if(ch==' ' || ch==TAB)
+X   {
+X   if(flag==0) itype(ch);
+X   else if(flag==1 && ch!='\t')
+X     {
+X     itype(' ');
+X     if(!(ccc=='.' || ccc==':' || ccc=='?' || ccc=='!' || ccc=='\"' ||
+X          ccc==';')) flag=2;
+X     }
+X   else if(ch=='\t') itype('\t');
+X   }
+X  else
+X   {
+X   flag=1;
+X   itype(ch);
+X   }
+X  ccc=ch;
+X  }
+X autoind=0;
+X if(flag) itype(NL);
+X /* Make undo record for entered paragraph */
+X  {
+X  /* New record */
+X  struct undorec *it=(struct undorec *)malloc(sizeof(struct undorec));
+X  if(redorecs) killredo();
+X  it->next=undorecs;
+X  undorecs=it;
+X  it->size=fmnote()-e;
+X  it->where=e;
+X  it->buffer=0;
+X  ++nundorecs;
+X  if(nundorecs==20)
+X   {
+X   struct undorec *p;
+X   for(it=undorecs;it->next;p=it,it=it->next);
+X   if(it->buffer) free(it->buffer);
+X   free(it);
+X   p->next=0;
+X   }
+X  }
+X
+X undoflag=1;
+X wrap=oldwrap;
+X overwrite=oldoverwrite;
+X autoind=oldauto;
+X fmpoint(b);
+X fmdel(e-b);
+X fmpoint(ncur-(e-b));
+X newy=1;
+X }
+X}
+X
+Xkillword()
+X{
+Xunsigned char ch;
+Xch=fmrc();
+Xif(((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) && !fmeof())
+X do
+X  {
+X  delch();
+X  ch=fmrc();
+X  } while (((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) && !fmeof());
+Xelse
+X if((ch==' ' || ch==TAB || ch==NL) && !fmeof())
+X  do
+X   {
+X   delch();
+X   ch=fmrc();
+X   } while (!fmeof() && (ch==' ' || ch==NL || ch==TAB));
+Xelse
+X if(ch>='0' && ch<='9' && !fmeof())
+X  do
+X   {
+X   delch();
+X   ch=fmrc();
+X   } while (!fmeof() && ch>='0' && ch<='9');
+Xelse delch();
+X}
+X
+Xbackword()
+X{
+Xunsigned char ch;
+Xif(fmnote())
+X {
+X fmpoint(fmnote()-1);
+X ch=fmgetc();
+X if((ch>='a' && ch<='z') || (ch>='A' && ch <='Z'))
+X  {
+Xup:
+X  backs();
+X  if(fmnote())
+X   {
+X   fmpoint(fmnote()-1);
+X   ch=fmrc();
+X   fmgetc();
+X   if((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) goto up;
+X   }
+X  }
+X else if(ch==' ' || ch==TAB || ch==NL)
+X   {
+Xup1:
+X   backs();
+X   if(fmnote())
+X    {
+X    fmpoint(fmnote()-1);
+X    ch=fmrc();
+X    fmgetc();
+X    if(ch==' ' || ch==TAB || ch==NL) goto up1;
+X    }
+X   }
+X else if(ch>='0' && ch<='9')
+X   {
+Xup2:
+X   backs();
+X   if(fmnote())
+X    {
+X    fmpoint(fmnote()-1);
+X    ch=fmrc();
+X    fmgetc();
+X    if(ch>='0' && ch<='9') goto up2;
+X    }
+X   }
+X else backs();
+X }
+X}
+X
+Xword()
+X{
+Xint c;
+Xif(fmnote()==fmsize()) return 0;
+Xc=fmrc();
+Xif(c>='a' && c<='z') return 1;
+Xif(c>='A' && c<='Z') return 1;
+Xif(c>='0' && c<='9') return 1;
+Xreturn 0;
+X}
+X
+Xwrdl()
+X{
+Xextend=0;
+Xnewy=1;
+Xif(!fmnote()) return;
+Xfmrgetc();
+Xwhile(!word())
+X {
+X if(!fmnote()) return;
+X fmrgetc();
+X }
+Xwhile(word())
+X {
+X if(!fmnote()) return;
+X fmrgetc();
+X }
+Xfmgetc();
+X}
+X
+Xwrdr()
+X{
+Xextend=0;
+Xnewy=1;
+Xwhile(!word())
+X {
+X if(fmnote()==fmsize()) return;
+X fmgetc();
+X }
+Xwhile(word())
+X {
+X if(fmnote()==fmsize()) return;
+X fmgetc();
+X }
+X}
+X
+Xunsigned char lft[]="{[(<`";
+Xunsigned char rht[]="}])>'";
+X
+Xgotomatching()
+X{
+XTXTSIZ cur=fmnote(),cnt;
+Xunsigned char c;
+Xint x;
+Xextend=0;
+Xif(fmeof()) return;
+Xc=fmrc();
+Xfor(x=0;x!=strlen(lft);++x)
+X if(lft[x]==c)
+X  {
+X  cnt=0;
+X  while(!fmeof())
+X   {
+X   c=fmgetc();
+X   if(lft[x]==c) ++cnt;
+X   if(rht[x]==c)
+X    if(!--cnt)
+X     {
+X     newy=1;
+X     fmrgetc();
+X     return;
+X     }
+X   }
+X  fmpoint(cur);
+X  return;
+X  }
+X else if(rht[x]==c)
+X  {
+X  cnt=1;
+X  while(fmnote())
+X   {
+X   c=fmrgetc();
+X   if(rht[x]==c) ++cnt;
+X   if(lft[x]==c)
+X    if(!--cnt)
+X     {
+X     newy=1;
+X     return;
+X     }
+X   }
+X  fmpoint(cur);
+X  return;
+X  }
+X}
+X
+Xint setindent()
+X{
+XTXTSIZ idt,idt1,cur=fmnote(),tmp;
+Xif(curbuf==markbuf && cur>=markb && cur<marke) return 1;
+Xmarkbuf=curbuf; markb=0; marke=0;
+X/* Find beginning */
+Xidt=calcs();
+Xif(fmeof()) goto done;
+Xif(fmrc()==NL) goto done;
+Xwhile(fmnrnl())
+X {
+X idt1=calcs();
+X/* if(fmrc()!=NL) if(idt1<idt) Use this line instead of one below for
+X   setindent to ignore blank lines */
+X if(fmrc()==NL || idt1<idt)
+X  {
+X  if(fmfnl()) fmgetc();
+X  break;
+X  }
+X }
+X/* Point is now at beginning of block (hopefully) */
+X/* Set the mark */
+Xmarkb=fmnote();
+X
+Xwhile(fmfnl())
+X {
+X fmgetc();
+X idt1=calcs();
+X/* if(fmrc()!=NL) if(idt1<idt) Use this line instead of one below for
+X   setindent to ignore blank lines */
+X if(fmrc()==NL || idt1<idt)
+X  {
+X  bol();
+X  break;
+X  }
+X }
+Xmarke=fmnote();
+Xdone: fmpoint(cur);
+Xreturn 0;
+X} 
+X 
+Xindentr()
+X{
+XTXTSIZ cur=fmnote(),tmp;
+Xif(!setindent()) return;
+Xfmpoint(markb);
+Xwhile(fmnote()<marke)
+X {
+X calcs();
+X if(fmeof()) break;
+X if(fmrc()!=NL)
+X  {
+X  if(fmnote()<=cur) ++cur;
+X  fminsc(' ');
+X  }
+X if(fmfnl()) fmgetc();
+X else break;
+X }
+Xdone: fmpoint(cur);
+Xreturn;
+X}
+X
+Xindentl()
+X{
+XTXTSIZ cur=fmnote(),idt,tmp;
+Xif(!setindent()) return;
+Xfmpoint(markb);
+Xwhile(fmnote()<marke)
+X {
+X idt=calcs();
+X if(fmeof()) break;
+X if(fmrc()!=NL) if(!idt) goto done;
+X if(fmfnl()) fmgetc();
+X else break;
+X }
+Xfmpoint(markb);
+Xwhile(fmnote()<marke)
+X {
+X calcs();
+X if(fmeof()) break;
+X if(fmrc()!=NL)
+X  {
+X  if(fmnote()<=cur) --cur;
+X  fmrgetc();
+X  fmdel(1);
+X  }
+X if(fmfnl()) fmgetc();
+X else break;
+X }
+Xdone: fmpoint(cur);
+Xreturn;
+X}
+X
+Xstruct window *curwin;
+Xstruct buffer *curbuf;
+Xstruct window *topwin;
+X
+Xldbuf(zuffer)
+Xstruct buffer *zuffer;
+X{
+Xif(zuffer==curbuf) return;
+Xcurbuf=zuffer;
+Xbackup=zuffer->backup;
+Xstrcpy(gfnam,zuffer->gfnam);
+Xbufsiz=zuffer->bufsiz;
+Xbuffer=zuffer->buf;
+Xfilend=zuffer->filend;
+Xhole=zuffer->hole;
+Xehole=zuffer->ehole;
+Xchanged=zuffer->changed;
+Xundorecs=zuffer->undorecs;
+Xnundorecs=zuffer->nundorecs;
+Xredorecs=zuffer->redorecs;
+Xundoptr=0;
+X}
+X
+Xldbuf1(zuffer)
+Xstruct buffer *zuffer;
+X{
+Xcurbuf=zuffer;
+Xbackup=zuffer->backup;
+Xstrcpy(gfnam,zuffer->gfnam);
+Xbufsiz=zuffer->bufsiz;
+Xbuffer=zuffer->buf;
+Xfilend=zuffer->filend;
+Xhole=zuffer->hole;
+Xehole=zuffer->ehole;
+Xchanged=zuffer->changed;
+Xundorecs=zuffer->undorecs;
+Xredorecs=zuffer->redorecs;
+Xnundorecs=zuffer->nundorecs;
+Xundoptr=0;
+X}
+X
+Xstbuf(zuffer)
+Xstruct buffer *zuffer;
+X{
+Xzuffer->backup=backup;
+Xstrcpy(zuffer->gfnam,gfnam);
+Xzuffer->bufsiz=bufsiz;
+Xzuffer->buf=buffer;
+Xzuffer->filend=filend;
+Xzuffer->hole=hole;
+Xzuffer->ehole=ehole;
+Xzuffer->changed=changed;
+Xzuffer->undorecs=undorecs;
+Xzuffer->nundorecs=nundorecs;
+Xzuffer->redorecs=redorecs;
+Xundoptr=0;
+X}
+X
+Xldwin(window)
+Xstruct window *window;
+X{
+Xsaddr=window->saddr;
+Xxoffset=window->xoffset;
+Xpic=window->pic;
+Xautoind=window->autoind;
+Xoverwrite=window->overwrite;
+Xwrap=window->wrap;
+Xtabmagic=window->tabmagic;
+Xrmargin=window->rmargin;
+Xextend=window->extend;
+Xldbuf1(window->buffer);
+Xfmpoint(window->cursor);
+X}
+X                                   
+Xstwin(window)
+Xstruct window *window;
+X{ 
+Xwindow->saddr=saddr;
+Xwindow->xoffset=xoffset;
+Xwindow->pic=pic;
+Xwindow->autoind=autoind;
+Xwindow->overwrite=overwrite;
+Xwindow->wrap=wrap;
+Xwindow->tabmagic=tabmagic;
+Xwindow->rmargin=rmargin;
+Xwindow->extend=extend;
+Xwindow->cursor=fmnote();
+Xstbuf(window->buffer);
+X}
+X
+Xwfit()
+X{
+Xstruct window *x;
+Xint total;
+Xupdall=1;
+Xnewy=1;
+Xup:
+Xtotal=height-wind;
+Xfor(x=topwin;1;x=x->next)
+X {
+X if(x->height<3) x->height=3;
+X if(curwin==x && total>=3) break;
+X if(total<3) goto in;
+X total-=x->height;
+X if(total<0)
+X  {
+X  in:
+X  topwin=topwin->next;
+X  goto up;
+X  }
+X }
+Xfor(x=topwin,total=wind;1;x=x->next)
+X {
+X x->wind=total;
+X if(x->height<3) x->height=3;
+X total+=x->height;
+X if(total>=height || x->next==topwin)
+X  {
+X  total-=x->height;
+X  x->height=height-total;
+X  return;
+X  }
+X }
+X}
+X
+Xwnext()
+X{
+Xstwin(curwin);
+Xcurwin=curwin->next;
+Xldwin(curwin);
+Xwfit();
+X}
+X
+Xwprev()
+X{
+Xstwin(curwin);
+Xcurwin=curwin->prev;
+Xldwin(curwin);
+Xwfit();
+X}
+X
+Xwexplode()
+X{
+Xstruct window *x;
+Xint y;
+Xif(curwin->height!=height-wind)
+X { /* Make curwin only */
+X topwin=curwin;
+X x=topwin;
+X do
+X  {
+X  x->height=height-wind;
+X  x->wind=wind;
+X  x=x->next;
+X  }
+X  while(x!=topwin);
+X newy=1;
+X }
+Xelse
+X { /* Show all windows */
+X x=topwin; y=0;
+X do y++, x=x->next; while(x!=topwin);
+X if((height-wind)/y<3) y=3;
+X else y=(height-wind)/y;
+X x=topwin;
+X do x->height=y, x=x->next; while(x!=topwin);
+X wfit();
+X }
+X}
+X
+Xwgrow()
+X{
+Xif(curwin->wind+curwin->height==height)
+X {
+X if(curwin->wind!=wind) if(curwin->prev->height>3)
+X  curwin->prev->height--, curwin->height++, curwin->wind--, updall=1;
+X }
+Xelse
+X {
+X if(curwin->next->height>3)
+X  curwin->height++, curwin->next->wind++, curwin->next->height--, updall=1;
+X }
+Xnewy=1;
+X}
+X
+Xwshrink()
+X{
+Xif(curwin->wind+curwin->height==height)
+X {
+X if(curwin->wind!=wind) if(curwin->height>3)
+X curwin->height--, curwin->prev->height++, curwin->wind++, updall=1;
+X }
+Xelse
+X {
+X if(curwin->height>3)
+X curwin->height--, curwin->next->wind--, curwin->next->height++, updall=1;
+X }
+Xnewy=1;
+X}
+X
+Xwsplit()
+X{
+Xstruct window *new;
+Xif(curwin->height<6) return;
+Xnew=(struct window *)malloc(sizeof(struct window));
+Xnew->buffer=curbuf;
+Xstwin(new);
+Xnew->next=curwin->next;
+Xnew->prev=curwin;
+Xcurwin->next->prev=new;
+Xcurwin->next=new;
+Xif(curwin->height&1)
+X {
+X curwin->height/=2;
+X new->height=curwin->height+1;
+X }
+Xelse
+X {
+X curwin->height/=2;
+X new->height=curwin->height;
+X }
+Xif(curwin->hheight&1)
+X {
+X curwin->hheight/=2;
+X new->hheight=curwin->hheight+1;
+X }
+Xelse
+X {
+X curwin->hheight/=2;
+X new->hheight=curwin->hheight;
+X }
+Xnew->wind=curwin->wind+curwin->height;
+Xcurwin=new;
+Xcurbuf->count++;
+Xupdall=1;
+Xnewy=1;
+X}
+X
+Xwedit()
+X{
+Xunsigned char gfnam1[PATHSIZE];
+Xunsigned char sting[PATHSIZE];
+Xint c;
+Xstruct window *x;
+Xstwin(curwin);
+Xif(curbuf->count==1 && curbuf->changed)
+X {
+X c=askyn("Do you really want to throw away this file?"); 
+X if(c=='N') return;
+X if(c== -1) return;
+X }
+Xgfnam1[0]=0;
+Xif(!getl("File to edit",gfnam1)) return;
+Xfixpath(gfnam1);
+Xx=topwin;
+Xdo
+X {
+X if(!strcmp(gfnam1,x->buffer->gfnam))
+X  {
+X  if(curbuf->count==1)
+X   {
+X   killredo();
+X   killundo();
+X   free(curbuf->buf), free(curbuf);
+X   if(curbuf==markbuf) markbuf=0;
+X   }                           
+X  else 
+X   curbuf->count--;
+X  curwin->buffer=x->buffer;
+X  curwin->buffer->count++;
+X  ldbuf(x->buffer);
+X  bof();
+X  return;
+X  }
+X x=x->next;
+X }
+X while(x!=topwin);
+Xstrcpy(gfnam,gfnam1);
+Xstmode(gfnam);
+Xif(curbuf->count==1) free(curbuf->buf),
+X                             free(curbuf);
+Xelse curbuf->count--;
+Xcurwin->buffer=(struct buffer *)malloc(sizeof(struct buffer));
+Xcurbuf=curwin->buffer;
+Xcurbuf->count=1;
+Xfmopen();
+Xbof();
+Xhandle=fopen(gfnam1,"r");
+Xif(handle)
+X {
+X if(!fminsfil(handle))
+X  {
+X  sprintf(sting,"\\iError loading file %s\\i",gfnam1);
+X  msg(sting);
+X  }
+X changed=0;
+X newy=1;
+X fclose(handle);
+X }
+Xelse
+X {
+X newy=1;
+X upd=1;
+X if(errno==ENOENT)
+X  {
+X  dupdate();
+X  msgout(curwin->wind+1,"New File",0,0);
+X  cpos(curwin->wind+1,0);
+X  backup=1;
+X  }
+X else
+X  {
+X  dupdate();
+X  msgout(curwin->wind+1,"\\iError opening file\\i",0,1);
+X  cpos(curwin->wind+1,0);
+X  }
+X dokey(anext());
+X return;
+X }
+X}
+X
+Xrtn()
+X{
+Xtype(NL);
+X}
+X
+Xstquote()
+X{
+Xquoteflg=1;
+X}
+X
+Xstquote8th()
+X{
+Xquote8th=1;
+X}
+X
+XCMD kkm[73]=
+X{
+X {"uparw",0,uuparw},
+X {"rtarw",0,urtarw},
+X {"ltarw",0,ultarw},
+X {"dnarw",0,udnarw},
+X {"eol",0,eol},
+X {"pgdn",0,pgdn},
+X {"bol",0,bol},
+X {"pgup",0,pgup},
+X {"ctrlin",0,ctrlin},
+X {"setbeg",0,setbeg},
+X {"cpyblk",0,cpyblk},
+X {"saveit",0,saveit},
+X {"wedit",0,wedit},
+X {"findfirst",0,findfirst},
+X {"findnext",0,findnext},
+X {"wgrow",0,wgrow},
+X {"thelp",0,thelp},
+X {"wexplode",0,wexplode},
+X {"reformat",0,reformat},
+X {"setend",0,setend},
+X {"findline",0,findline},
+X {"moveblk",0,moveblk},
+X {"wnext",0,wnext},
+X {"wprev",0,wprev},
+X {"wsplit",0,wsplit},
+X {"insfil",0,insfil},
+X {"wshrink",0,wshrink},
+X {"bof",0,bof},
+X {"eof",0,eof},
+X {"writeblk",0,writeblk},
+X {"exsave",0,exsave},
+X {"delblk",0,delblk},
+X {"push",0,push},
+X {"suspend",0,suspend},
+X {"eexit",0,eexit},
+X {"delch",0,delch},
+X {"inss",0,inss},
+X {"backs",0,backs},
+X {"type",0,type},
+X {"rtn",0,rtn},
+X {"backword",0,backword},
+X {"rewrite",0,rewrite},
+X {"mode",0,mode},
+X {"killword",0,killword},
+X {"wrdr",0,wrdr},
+X {"dellin",0,dellin},
+X {"wrdl",0,wrdl},
+X {"stquote8th",0,stquote8th},
+X {"stquote",0,stquote},
+X {"gotomatching",0,gotomatching},
+X {"indentl",0,indentl},
+X {"indentr",0,indentr},
+X {"undo",0,undo},
+X {"redo",0,redo},
+X {"killlin",0,killlin},
+X {"deleol",0,deleol},
+X {"ioverwrite",0,ioverwrite},
+X {"iwrap",0,iwrap},
+X {"iautoind",0,iautoind},
+X {"itabmagic",0,itabmagic},
+X {"ipic",0,ipic},
+X {"ooverwrite",0,ooverwrite},
+X {"owrap",0,owrap},
+X {"oautoind",0,oautoind},
+X {"otabmagic",0,otabmagic},
+X {"opic",0,ipic},
+X {"setrnargin",0,setrmargin},
+X {"cmdblk",0,cmdblk},
+X {"repeat",0,repeat},
+X {"macrob",0,macrob},
+X {"macroe",0,macroe},
+X {"macrodo",0,macrodo},
+X {"wait",0,waite}
+X };
+X
+XCONTEXT km={0, "main", 0, 73, kkm};
+X
+X/** Key sequence processing functions **/
+X
+Xstruct kmap *curmap;
+Xint quoteflg=0;
+Xint quote8th=0;
+X
+Xint record=0;
+Xunsigned char *kmacro=0;
+Xint kmacrox=0;
+Xint kmacrosz=0;
+X
+Xint macroadd(c)
+Xunsigned char c;
+X{
+Xif(kmacrox+3>=kmacrosz) 
+X if(kmacro) kmacro=(unsigned char *)realloc(kmacro,kmacrosz+=10);
+X else kmacro=(unsigned char *)malloc(kmacrosz=10);
+Xif(c=='\\')
+X {
+X kmacro[kmacrox++]='\\';
+X kmacro[kmacrox++]='\\';
+X }
+Xelse
+X kmacro[kmacrox++]=c;
+Xkmacro[kmacrox]=0;
+X}
+X
+Xmacrob()
+X{
+Xkmacrox=0;
+Xrecord=1;
+X}
+X
+Xmacroe()
+X{
+Xrecord=0;
+X}
+X
+Xint inmacro=0;
+X
+Xmacrodo()
+X{
+Xint z=repeatamnt;
+Xif(record) return;
+Xif(inmacro) return;
+Xinmacro=1;
+Xrepeatamnt=1;
+Xnrepeatamnt=1;
+Xtake=kmacro;
+Xwaite();
+Xrepeatamnt=z;
+Xinmacro=0;
+X}
+X
+Xint dokey(k)
+Xunsigned char k;
+X{
+Xint above=curmap->len;
+Xint below=0;
+Xint new;
+Xstruct kmap *r;
+Xif(quoteflg)
+X {
+X quoteflg=0;
+X if(k>='@' && k<='_') k-='@';
+X if(k>='a' && k<='z') k-='`';
+X if(k=='?') k=127;
+X type(k);
+X goto abcd;
+X }
+Xgoto in;
+Xdo
+X {
+X new=(above+below)/2;
+X if((curmap->keys[new].k&KEYMASK)==k)
+X  if(curmap->keys[new].k&KEYSUB)
+X   {
+X   curmap=(KMAP *)(curmap->keys[new].n);
+X   return Kaccept;
+X   }
+X  else
+X   {
+X   int h=height, w=width, zz, rpt=repeatamnt;
+X   getsize();
+X   if(h!=height || w!=width) resize();
+X   r=curmap;
+X   curmap=km.kmap;
+X   nrepeatamnt=1;
+X   while(rpt--)
+X    {
+X    if(rpt>1 && have)
+X     {
+X     anext();
+X     msg("Repeat aborted");
+X     undoptr=0;
+X     break;
+X     }
+X    for(zz=0;r->keys[new].n[zz]!= -1;zz+=2)
+X     {
+X     if(r->keys[new].n[zz])
+X      {
+X      take=(unsigned char *)r->keys[new].n[zz+1];
+X      }
+X     else
+X      {
+X      if(km.cmd[r->keys[new].n[zz+1]].func!=redo &&
+X         km.cmd[r->keys[new].n[zz+1]].func!=undo) undoptr=0;
+X      km.cmd[r->keys[new].n[zz+1]].func(k);
+X      if(leave) goto abcd;
+X      }
+X     }
+X    }
+X   abcd:
+X   repeatamnt=nrepeatamnt;
+X   if(!leave)
+X    {
+X    if(!uuu) upd=1;
+X    else uuu=0;
+X    dupdate();
+X    }
+X   return 0;
+X   }
+X else if((curmap->keys[new].k&KEYMASK)>k)
+X  {
+X  above=new;
+X  in:
+X  if(above==below) break;
+X  }
+X else if(below==new) break;
+X else below=new;
+X } while(1);
+Xcurmap=km.kmap;
+Xreturn Kbad;
+X}
+X
+Xedit()
+X{
+Xnewy=1;
+Xdupdate();
+Ximsg();
+Xdokey(anext());
+Xif(leave) return;
+Xupd=1;
+Xnewy=1;
+Xdo
+X dokey(anext());
+X while(!leave);
+X}
+X
+Xint waite()
+X{
+Xwhile(take && *take)
+X {
+X dokey(anext());
+X if(leave) break;
+X }
+X}
+X
+Xstruct mpair
+X {
+X struct mpair *next;
+X unsigned char *s;
+X int wrap;
+X int autoind;
+X int pic;
+X int overwrite;
+X int tabmagic;
+X TXTSIZ rmargin;
+X };
+X
+Xstruct mpair *mpairs=0;
+X
+Xstmode(name)
+Xunsigned char *name;
+X{
+Xint x=strlen(name);
+Xstruct mpair *mp=mpairs;
+Xwhile(mp)
+X if(!strcmp(mp->s,name+x-strlen(mp->s)))
+X  {
+X  autoind=mp->autoind;
+X  wrap=mp->wrap;
+X  overwrite=mp->overwrite;
+X  pic=mp->pic;
+X  tabmagic=mp->tabmagic;
+X  rmargin=mp->rmargin;
+X  break;
+X  }
+X else mp=mp->next;
+X}
+X
+Xint process(name,cmds)
+Xunsigned char *name;
+XCONTEXT *cmds;
+X{
+XCONTEXT *context=0;
+Xunsigned char buf[PATHSIZE];
+XKMAP *kmap;
+XFILE *fd=fopen(name,"r");
+Xint x,y,n,z,macrox,macrosize,*macro,macroc;
+Xif(!fd) return -1;
+Xprintf("Processing keymap file %s ...",name);
+Xfflush(stdout);
+Xwhile(fgets(buf,256,fd))
+X {
+X if(buf[0]=='{')
+X  {
+X  up:
+X  if(!fgets(buf,256,fd)) break;
+X  if(buf[0]=='}') continue;
+X  if(helpsize+strlen(buf)>helpblksize)
+X   {
+X   if(help) help=(unsigned char *)realloc(help,helpblksize+strlen(buf)+320);
+X   else help=(unsigned char *)malloc(strlen(buf)+320);
+X   helpblksize+=strlen(buf)+320;
+X   }
+X  strcat(help,buf);
+X  helpsize=strlen(help);
+X  ++helplines;
+X  goto up;
+X  }
+X if(buf[0]=='*')
+X  {
+X  struct mpair *mp=(struct mpair *)calloc(sizeof(struct mpair),1);
+X  int c=0;
+X  mp->next=mpairs;
+X  mp->rmargin=76;
+X  mpairs=mp;
+X  for(x=0;buf[x];x++)
+X   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n')
+X    {
+X    c=buf[x];
+X    buf[x]=0;
+X    break;
+X    }
+X  mp->s=strdupp(buf+1);
+X  buf[x]=c;
+X  while(buf[x])
+X   if(buf[x]!=' ' && buf[x]!='\t' && buf[x]!='\n') break;
+X   else x++;
+X  while(buf[x] && buf[x]!=' ' && buf[x]!='\t' && buf[x]!='\n')
+X   {
+X   switch(buf[x])
+X    {
+X   case 'O':
+X   case 'o': mp->overwrite=1;
+X   break;
+X   case 'W':
+X   case 'w': mp->wrap=1;
+X   break;
+X   case 'a':
+X   case 'A': mp->autoind=1;
+X   break;
+X   case 'p':
+X   case 'P': mp->pic=1;
+X   break;
+X   case '0': case '1': case '2': case '3': case '4': case '5': case '6':
+X   case '7': case '8': case '9':
+X   mp->rmargin=buf[x++]-'0';
+X   while(buf[x]>='0' && buf[x]<='9') mp->rmargin=mp->rmargin*10+buf[x++]-'0';
+X   --x;
+X   break;
+X   case 't':
+X   case 'T': mp->tabmagic=1;
+X    }
+X   x++;
+X   }
+X  continue;
+X  }
+X if(buf[0]==':' && buf[1]!=' ' && buf[1]!='\t')
+X  {
+X  for(x=0;buf[x];x++)
+X   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n')
+X    {
+X    buf[x]=0;
+X    break;
+X    }
+X  context=cmds;
+X  while(strcmp(buf+1,context->name))
+X   {
+X   context=context->next;
+X   if(!context)
+X    {
+X    printf("Unknown context name in keyboard file\n");
+X    return -1;
+X    }
+X   }
+X  continue;
+X  }
+X for(x=0;buf[x];x++) if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n' ||
+X                        buf[x]==',') break;
+X if(buf[0]==' ' || buf[0]=='\t' || buf[0]=='\n' || !buf[x]) continue;
+X if(!context)
+X  {
+X  printf("No context selected for key\n");
+X  return -1;
+X  }
+X if(buf[0]=='\"')
+X  {
+X  int q;
+X  x=0;
+X  for(q= ++x;buf[q];++q)
+X   if(buf[q]=='\"' && buf[q-1]!='\\' || buf[q]=='\n') break;
+X  macroc=buf[q]; buf[q]=0;
+X  macro=(int *)malloc(sizeof(int)*2);
+X  macrosize=2;
+X  macrox=0;
+X  macro[macrox++]=1;
+X  macro[macrox++]=(int)strdupp(buf+x);
+X  buf[q]=macroc;
+X  if(macroc=='\"') x=q+1;
+X  else x=q;
+X  }
+X else
+X  {
+X  macroc=buf[x];
+X  buf[x]=0;
+X  for(y=0;y!=context->size;y++)
+X    if(!strcmp(context->cmd[y].name,buf)) goto foundit;
+X  printf("Key function not found %s\n",buf);
+X  continue;
+X  foundit:
+X
+X  macro=(int *)malloc(sizeof(int)*2);
+X  macro[0]=0;
+X  macro[1]=y;
+X  macrox=2;
+X  macrosize=2;
+X  buf[x]=macroc;
+X  }
+X
+X fn:
+X if(buf[x]==',')
+X  if(buf[++x]=='\"')
+X   {
+X   int q;
+X   for(q= ++x;buf[q];++q)
+X    if(buf[q]=='\"' && buf[q-1]!='\\' || buf[q]=='\n') break;
+X   macroc=buf[q]; buf[q]=0;
+X   if(macrox==macrosize) macro=(int *)realloc(macro,sizeof(int)*(macrosize+=2));
+X   macro[macrox++]=1;
+X   macro[macrox++]=(int)strdupp(buf+x);
+X   buf[q]=macroc;
+X   if(macroc=='\"') x=q+1;
+X   else x=q;
+X   goto fn;
+X   }
+X  else
+X   {
+X   int q;
+X   for(q=x;buf[q];++q) if(buf[q]=='\t' || buf[q]==' ' || buf[q]==',') break;
+X   macroc=buf[q]; buf[q]=0;
+X   for(y=0;y!=context->size;++y)
+X    if(!strcmp(context->cmd[y].name,buf+x)) goto ff;
+X   printf("Key function not found %s\n",buf+x);
+X   free(macro);
+X   continue;
+X   ff:
+X   if(macrox==macrosize) macro=(int *)realloc(macro,sizeof(int)*(macrosize+=2));
+X   macro[macrox++]=0;
+X   macro[macrox++]=y;
+X   buf[q]=macroc; x=q;
+X   goto fn;
+X   }
+X
+X if(macrox==macrosize) macro=(int *)realloc(macro,sizeof(int)*(++macrosize));
+X macro[macrox]= -1;
+X 
+X kmap=0;
+X n= -1;
+X for(;buf[x];x++) if(buf[x]!=' ' && buf[x]!='\t') break;
+X while(1)
+X  {
+X  int c;
+X  if(buf[x]==' ') x++;
+X  if(!buf[x]) break;
+X  if(buf[x]=='\n' || buf[x]==' ' || buf[x]=='\t') break;
+X  /* Got Next key */
+X  x++;
+X  if(buf[x-1]=='^')
+X   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n' || !buf[x]) c='^';
+X   else if(buf[x]=='?') c=127, x++;
+X   else c=(buf[x]&0x1f), x++;
+X  else if((buf[x-1]&0x5f)=='S' && (buf[x]&0x5f)=='P') c=' ', x++;
+X  else c=buf[x-1];
+X  /* Add it as if it were a submap */
+X  if(!kmap)
+X   {
+X   if(!(kmap=context->kmap))
+X    {
+X    kmap=(KMAP *)malloc(sizeof(KMAP));
+X    kmap->keys=(KEY *)malloc(4*sizeof(KEY));
+X    kmap->size=4;
+X    kmap->len=0;
+X    context->kmap=kmap;
+X    }
+X   }
+X  else
+X   if(kmap->keys[n].k&KEYSUB) kmap=(KMAP *)(kmap->keys[n].n);
+X   else
+X    {
+X    kmap->keys[n].n=(int *)malloc(sizeof(KMAP));
+X    kmap->keys[n].k|=KEYSUB;
+X    kmap=(KMAP *)(kmap->keys[n].n);
+X    kmap->keys=(KEY *)malloc(4*sizeof(KEY));
+X    kmap->len=0;
+X    kmap->size=4;
+X    }
+X  for(n=0;n!=kmap->len;n++)
+X   if((kmap->keys[n].k&KEYMASK)==c) goto sub;
+X   else if((kmap->keys[n].k&KEYMASK)>c) break;
+X  if(kmap->len==kmap->size)
+X   kmap->keys=(KEY *)realloc(kmap->keys,sizeof(KEY)*(kmap->size+=8));
+X  for(z=kmap->len;z!=n;z--) kmap->keys[z]=kmap->keys[z-1];
+X  kmap->len++;
+X  kmap->keys[n].k=c;
+X  kmap->keys[n].n=macro;
+X  sub:;
+X  }
+X }
+Xfclose(fd);
+Xprintf("done\n");
+Xreturn 0;
+X}
+X
+Xint main(argc,argv)
+Xunsigned char *argv[];
+X{
+Xif(process(KEYMAP,&km))
+X {
+X unsigned char *hh=(unsigned char *)getenv("HOME");
+X if(!hh) goto in;
+X strcpy(gfnam,hh);
+X strcat(gfnam,"/");
+X strcat(gfnam,KEYMAP);
+X if(process(gfnam,&km))
+X  {
+X  in:
+X  if(process(KEYDEF,&km))
+X   {
+X   printf("Couldn't open keymap\n");
+X   return 1;
+X   }
+X  }
+X }
+Xcurmap=km.kmap;
+Xif(argc>2)
+X {
+X fputs("\nIllegal number of command line arguments",stderr);
+X fputs("\nEditor Command Format:  joe [filename]\n",stderr);
+X return 0;
+X }
+Xtermtype();
+Xcurwin=(struct window *)malloc(sizeof(struct window));
+Xtopwin=curwin;
+Xcurwin->next=curwin;
+Xcurwin->prev=curwin;
+Xmarkbuf=0;
+Xcurwin->height=height;
+Xcurwin->wind=0;
+Xcurwin->buffer=(struct buffer *)malloc(sizeof(struct buffer));
+Xcurbuf=curwin->buffer;
+Xcurbuf->count=1;
+Xsigjoe();
+Xaopen();
+Xdopen();
+Xfmopen();
+Xbof();
+Xoptions=0;
+Xsstring[0]=0;
+Xrstring[0]=0;
+Xleave=0;
+X
+Xrmargin=width-4;
+Xtabmagic=0;
+Xwrap=1;
+Xautoind=0;
+Xoverwrite=0;
+Xpic=0;
+Xstmode("");
+X
+Xgfnam[0]=0;
+X
+Xif(argc==2)
+X {
+X strcpy(gfnam,argv[1]);
+X stmode(gfnam);
+X handle=fopen(argv[1],"r");
+X if(handle)
+X  {
+X  if(!fminsfil(handle))
+X   omsg=(unsigned char *)"\\iError reading file\\i";
+X  else
+X   changed=0;
+X  fclose(handle);
+X  }
+X else
+X  {
+X  if(errno==ENOENT)
+X   {
+X   omsg=(unsigned char *)"New File";
+X   backup=1;
+X   }
+X  else
+X   omsg=(unsigned char *)"\\iError opening file\\i";
+X  }
+X }
+Xelse omsg=(unsigned char *)"New File";
+Xedit();
+Xaclose();
+Xsignorm();
+Xreturn 0;
+X}
+X
+Xtsignal(sig)
+X{
+Xunsigned char nam[PATHSIZE];
+Xlong tim=time(0);
+Xstruct window *orig=curwin;
+Xsprintf(nam,"%s%d",ABORT,getpid());
+Xhandle=fopen(nam,"a");
+Xfmpoint(0);
+Xfprintf(handle,"\n*** Files in JOE when it aborted on %s",ctime(&tim));
+Xif(sig) fprintf(handle,"*** JOE was aborted by the signal %d\n",sig);
+Xelse fprintf(handle,"*** JOE was aborted because stdin closed\n");
+Xif(gfnam[0]) fprintf(handle,"*** FILE: %s\n",gfnam);
+Xelse fprintf(handle,"*** FILE: (Unnamed)\n");
+Xfmsave(handle,fmsize());
+Xfflush(handle);
+Xcurbuf->count=0;
+Xdo
+X {
+X stwin(curwin);
+X curwin=curwin->next;
+X ldwin(curwin);
+X if(curbuf->count)
+X  {
+X  fmpoint(0);
+X  if(gfnam[0]) fprintf(handle,"*** FILE: %s\n",gfnam);
+X  else fprintf(handle,"*** FILE: (Unnamed)\n");
+X  fmsave(handle,fmsize());
+X  fflush(handle);
+X  curbuf->count=0;
+X  }
+X }
+X while(curwin!=orig);
+Xfclose(handle);
+X_exit(1);
+X}
+END_OF_FILE
+if test 68418 -ne `wc -c <'joe.c'`; then
+    echo shar: \"'joe.c'\" unpacked with wrong size!
+fi
+# end of 'joe.c'
+fi
+if test -f 'joe.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'joe.h'\"
+else
+echo shar: Extracting \"'joe.h'\" \(17768 characters\)
+sed "s/^X//" >'joe.h' <<'END_OF_FILE'
+X/* JOE header file
+X   Copyright (C) 1991 Joseph H. Allen
+X
+XThis file is part of JOE (Joe's Own Editor)
+X
+XJOE is free software; you can redistribute it and/or modify it under the terms
+Xof the GNU General Public License as published by the Free Software
+XFoundation; either version 1, or (at your option) any later version.  
+X
+XJOE is distributed in the hope that it will be useful, but WITHOUT ANY
+XWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+XA PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+XYou should have received a copy of the GNU General Public License along with
+XJOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+XMass Ave, Cambridge, MA 02139, USA.  */ 
+X
+X/* File characteristics */
+X
+X#define NL '\n'			/* End of line character */
+X#define TAB '\t'		/* Tab character */
+X#define TABWIDTH 8		/* Tab width */
+X#define NOHIGHBIT		/* Comment this out to send characters with
+X				   high bit set to terminal as is.  See
+X				   the function 'showas'. */
+X
+X/* Types used in the file buffer */
+X
+Xtypedef unsigned char * TXTPTR;	/* Pointer to text in the buffer */
+Xtypedef unsigned TXTSIZ;	/* Integer to hold size of file */
+X#define TXTFREE(a) free(a)	/* Free a buffer */
+X#define TXTMALLOC(a) malloc(a)	/* Allocate a buffer */
+X#define TXTREALLOC(a,b) realloc((a),(b))	/* Reallocate a buffer */
+X
+X/* File names and characteristics */
+X
+X#define PATHSIZE 256		/* Maximum path length */
+X#define KEYMAP ".joerc"		/* Keymap file */
+X/* #define KEYDEF "/usr/bin/.joerc"	Default keymap file */
+X#define ABORT "DEADJOE"		/* Aborted file */
+X
+X/* The current file buffer */
+X/* When you change windows, these variables get stored in the 'struct buffer'
+X   associated with the old window and are load with the values in the
+X   'struct buffer' for the new window */
+X
+Xextern TXTSIZ bufsiz;		/* Size of malloc block buffer is in */
+Xextern TXTPTR point;		/* The point (cursor) */
+Xextern TXTPTR buffer;		/* The buffer */
+Xextern TXTPTR filend;		/* First char not in buffer */
+Xextern TXTPTR hole;		/* Address of hole */
+Xextern TXTPTR ehole;		/* First char not in hole */
+Xextern int changed;		/* Set if buffer changed */
+Xextern int backup;		/* Set if backup file has been made */
+Xextern unsigned char gfnam[PATHSIZE];
+X				/* Current edit file name.  "" for unnamed */
+X
+X#define HOLESIZE 1024		/* Amount file buffer grows by */
+X
+X/*******************************************************/
+X/* Basic file buffer manipulation functions and macros */
+X/*******************************************************/
+X
+Xint fminsu();		/* fminsu(size) Adjust pointers by amnt inserted */
+Xint fmdelu();		/* fmdelu(size) Adjust pointers by amount deleted */ 
+X/* The pointers the above two functions currently update include:
+X	The pointer to start of each window which references the current
+X	buffer.
+X
+X	The pointer to cursor in each window which reference the current
+X	buffer but not the one for the current window.
+X
+X	The begin & end pointers to the marked block if they are in the
+X	current buffer.
+X*/
+X
+X/* Return size of hole */
+X
+X#define fmholesize() (ehole-hole)
+X
+X/* Read character at the point */
+X
+X#define fmrc() (point==hole?*(point=ehole):*point)
+X
+X/* Overtype character at the point */
+X
+X#define fmwc(c) (((point==hole)?point=ehole:0),((point==filend)?(fmexpand(1),\
+Xfilend++):0),*point=(c),changed=1)
+X
+X/* Read character at point and advance point */
+X
+X#define fmgetc() ((point==hole)?(point=ehole+1,*ehole):*(point++))
+X
+X/* Overtype character at point and advance point */
+X
+X#define fmputc(c) (((point==hole)?point=ehole:0),((point==filend)?(fmexpand(1),\
+Xfilend++):0),*(point++)=(c),changed=1)
+X
+X/* Insert character at point */
+X
+X#define fminsc(c) ( fminsu(1), \
+X(point!=hole?fmhole():0), (hole==ehole?fmbig(1):0),\
+X*(hole++)=(c), changed=1)
+X
+X/* Return the byte offset from the beginning of the buffer to the point */
+X
+X#define fmnote() ((point>=ehole)?(point-buffer)-(ehole-hole):point-buffer)
+X
+X/* Return the size of the file in the buffer */
+X
+X#define fmsize() ((filend-buffer)-(ehole-hole))
+X
+X/* Return true if the point is at the end of the file */
+X
+X#define fmeof() ((point==hole)?(ehole==filend):(point==filend))
+X
+X/* Position the point to a byte offset from the beginning of the file */
+X
+X#define fmpoint(x) (point=buffer+(x), (point>hole)?(point+=ehole-hole):0)
+X
+X/* Retreat the point and then read the character that's there */
+X
+X#define fmrgetc() (point==ehole?*(point=hole-1):*(--point))
+X
+X/* Position the point to the next NL or the end of the file.  If the point
+X   is already at a NL, it is set to the next NL. Return 0 if not found, 1
+X   if found */
+X
+X#define fmnnl() (fmeof()?0:(fmgetc(),fmfnl()))
+X
+X/* Set the point to the beginning of the file or the previous NL.  If the
+X   point is already at a NL, it is set to the one before it.  Return 0 if
+X   not found, 0 if found */
+X
+X#define fmnrnl() (fmnote()?(fmrgetc(),fmrnl()):0)
+X
+Xint fmopen();			/* fmopen() Initialize current edit buffer */
+Xint fmexpand();			/* fmexpand(amount) Make buffer bigger */
+Xint fmhole();			/* fmhole() Move hole to point */
+Xint fmbig();			/* fmbig(size) Make hole at least size */
+Xint fmfnl();			/* Find first NL.  Returns 0 if not found */
+X				/* If at an NL already, point is not moved */
+Xint fmrnl();			/* Find NL in reverse.  Rtns 0 if not found */
+X				/* If at an NL already, point is not moved */
+Xint fminss();			/* fminss(blk,size) Insert a block at point */
+Xint fmcmp();			/* fmcmp(blk,size) return 0 if matching */
+Xint tupp();			/* tupp(c) Convert char to uppercase */
+Xint fmicmp();			/* Same as fmcmp but ignore case */
+Xint fmsave();			/* fmsave(FILE,size) Save at point in file */
+Xint fminsfil();			/* fminsfil(FILE) Insert file at point */
+X
+X/******************/
+X/* Terminal stuff */
+X/******************/
+X
+X/* Terminal characteristics (terminal must be vt100ish) */
+X
+Xextern int width;		/* Screen width */
+Xextern int height;		/* Screen height */
+Xextern int scroll;		/* Set if terminal has scrolling regions */
+X
+X/* Terminal state */
+X
+Xextern int smode;		/* Current character attributes */
+Xextern int tops;		/* Scroll region top (-1 for unknown) */
+Xextern int bots;		/* Scroll region bottem */
+Xextern int oxpos;		/* Cursor position */
+Xextern int oypos;
+Xextern int *scrn;		/* Screen buffer
+X					-1 means unknown character
+X					0 - 255 means known character
+X				*/
+X
+Xextern unsigned char *omsg;	/* Opening message */
+Xint dopen();                        /* Open display (clear it, allocate scrn,
+X				   etc.) */
+Xint dclose();                       /* dclose(s) Show final message and close
+X				   display */
+X
+Xint cposs();			/* cpos(row,col) Set cursor position */
+Xint cpos();				/* cpos(row,col) Set cursor position and
+X				   update ox/oypos */
+Xint setregn();			/* setregn(top,bot) Set scroll region */
+X
+Xint attrib();			/* attrib(mask) Set attributes */
+X#define INVERSE 256
+X#define BLINK 512
+X#define UNDERLINE 1024
+X#define BOLD 2048
+X
+X/*****************/
+X/* Screen update */
+X/*****************/
+X
+X/* Flags which high-level edit functions set to control the screen
+X   update.  All three are initialized to 0 before an edit function
+X   is executed */
+X
+Xextern int uuu;			/* Set is no screen update needed */
+Xextern int cntr;		/* Set to center cursor to middle of
+X				   screen if the screen will scroll
+X				   (for search/replace) */
+Xextern int newy;		/* Set if row changed */
+Xextern int updall;		/* Set to update all windows, not just
+X				   the ones with same buffer */
+X
+X/* Flags which indicate the current progress of a screen update (I.E., so
+X   we can continue if user interrupts screen update) */
+X
+Xextern int upd;			/* Set if a screen update should be done */
+Xextern int hupd;		/* Set if a help update should be done */
+X
+Xextern int helpon;		/* Set if help screen is on */
+Xextern int wind;		/* Number of help lines */
+X
+Xextern int xpos;		/* Requested x & y positions (as determined */
+Xextern int ypos;		/* by scroll calculator: dupdate1 */
+X
+Xextern TXTSIZ saddr;		/* Byte offset to first char of first screen
+X				   line (of current window) */
+Xextern TXTSIZ xoffset;		/* Cols current window is scrolled to right */
+Xextern TXTSIZ extend;		/* Column number if past end of line or in
+X				   tab stop */
+X
+X/* Functions for doing screen update */
+X
+Xint clreolchk();		/* clreolchk(lin,col) Clear to end of line if needed */
+Xint udline();		/* udline(lin) Update a single line.  Return true
+X			   EOF reached */
+Xint udscrn();		/* Update screen (returns true if it finished) */
+Xint dupdate1();		/* dupdate1(flg) Recalculate cursor, scroll & update
+X			   screen (sets cursor position if flg is set) */
+Xint dupdatehelp();		/* Update help */
+Xint dupdate();		/* Update help and screen */
+Xint invalidate();		/* invalidate(lin) Invalidate a line so it gets upd. */
+X
+X/****************/
+X/* Window Stuff */
+X/****************/
+X
+X/* Each file that's edited has a 'struct buffer' associated with it.
+X   This stores the buffer variables when the buffer is not the current
+X   buffer (I.E., when the cursor is in a window for another file).
+X*/
+X
+Xstruct buffer
+X {
+X int count;		/* Reference count (No. windows into this buffer) */
+X TXTSIZ bufsiz;		/* Size of malloc block buffer is in */
+X TXTPTR buf;		/* The buffer */
+X TXTPTR filend;		/* First char not in buffer */
+X TXTPTR hole;		/* Address of hole */
+X TXTPTR ehole;		/* First char not in hole */
+X int changed;		/* Set if buffer changed */
+X int backup;		/* Set if backup file has been made */
+X unsigned char gfnam[PATHSIZE];	/* Current edit file name.  "" for unnamed */
+X struct undorec *undorecs;
+X struct undorec *redorecs;
+X int nundorecs;
+X };
+X
+X/* Each window has a 'struct window' associated with it */
+X
+Xstruct window
+X {
+X struct window *next;	/* Doubly linked list of windows */
+X struct window *prev;
+X
+X struct buffer *buffer;	/* The buffer this window looks at */
+X
+X /* Screen variables for each window */
+X
+X TXTSIZ saddr;		/* Byte offset to first character of first line in
+X 			   window */
+X TXTSIZ xoffset;	/* No. columns the screen is scrolled to the right */
+X
+X /* Window size */
+X
+X int wind;         /* Starting screen line */
+X			/* wind is not the same as 'wind' the number of
+X			   help lines */
+X int height;       /* Height of window */
+X int hheight;      /* Height before help turned on */
+X
+X /* Edit modes */
+X
+X int pic;
+X int autoind;
+X int overwrite;
+X int wrap;
+X int tabmagic;
+X TXTSIZ rmargin;
+X
+X /* Cursor position */
+X
+X TXTSIZ extend;		/* Column number if cursor is past end of line or
+X 			   if it's in a tab stop */
+X TXTSIZ cursor;		/* Byte offset (in buffer) to the cursor */
+X
+X };
+X
+Xextern struct window *wfirst;	/* Doubly linked list of windows */
+Xextern struct window *wlast;
+X
+Xextern struct window *curwin;	/* Current window */
+Xextern struct buffer *curbuf;	/* Current buffer */
+Xextern struct window *topwin;	/* First window on the screen */
+X
+X/* Keyboard and command table handler */
+X
+Xtypedef struct key KEY;
+Xstruct key
+X {
+X int k;                 /* Key value */
+X int *n;                /* Command number or submap address */
+X };
+X
+Xtypedef struct kmap KMAP;
+Xstruct kmap
+X {
+X int len;          /* Number of KEY entries */
+X int size;         /* Size of malloc block */
+X KEY *keys;             /* KEYs.  Sorted. */
+X };
+X
+X/* Masks & bits for k */
+X
+X#define KEYMASK 0x7fff
+X#define KEYSUB 0x8000	/* Set for submap */
+X
+X/* A command entry */
+X
+Xtypedef struct cmd CMD;
+Xstruct cmd
+X {
+X char *name;
+X int flag;
+X int (*func)();
+X };
+X
+X/* A context (group of related commands) */
+X
+Xtypedef struct context CONTEXT;
+Xstruct context
+X {
+X CONTEXT *next;		/* List of all contexts */
+X char *name;		/* Name of this context */
+X KMAP *kmap;		/* Top level keymap for this context */
+X int size;		/* Number of entries in this context */
+X CMD *cmd;		/* The entries themselves (sorted) */
+X };
+X
+Xint dokey();		/* dokey(c) Execute next key */
+Xextern int quoteflg;	/* Set if next key is quoted */
+Xextern int quote8th;	/* Set if next key is quoted */
+X
+X/* dokey() Return values */
+X
+X#define Kaccept -1	/* Key accepted but not executed */
+X#define Kbad -2		/* Bad key */
+X/* dokey() used to return a function number; now it executes the function
+X   itself so the return values are meaningless */
+X
+X/* Messages and queries */
+X
+X/* These are all hacks because they return/check for exact key values
+X   and don't know about the key table.  Someday a key 'context' should
+X   be added for these
+X*/
+X
+Xint getl();		/* getl(prompt,line) Get a line of input */
+X			/* Returns: -1 if user hits ^L
+X				     1 if user hits \n or \r
+X				     0 if user hits ^C
+X			    (yes this is a stupid hack)
+X			*/
+X
+Xint msg();			/* msg(s) Show a message until user hits a key */
+X
+Xint askyn();		/* askyn(s) Yes/No question 
+X			Returns: 'Y', 'N' or -1 for ^C */
+X
+Xint query();		/* query(s) Show message, wait for user to hit a key,
+X			   then return key. */
+X
+Xint nquery();		/* nquery(s) Same as query but leave cursor on
+X			   edit screen */
+Xint imsg();                 /* imsg() Show opening message */
+X
+X/*******************************************/
+X/* High-level edit functions and variables */
+X/*******************************************/
+X
+X/* Edit modes */
+X
+Xextern int pic;			/* Set for picture mode */
+Xextern int autoind;		/* Set for autoindent */
+Xextern int overwrite;		/* Set for overwrite */
+Xextern int wrap;		/* Set for autowrap */
+Xextern int tabmagic;		/* Set for magical tabs */
+Xextern TXTSIZ rmargin;		/* Current right margin */
+X
+X/****************************/
+X/* Search and replace stuff */
+X/****************************/
+X
+X/* Search & replace options */
+X
+X#define s_ignore 1		/* Ignore case */
+X#define s_backwards 2		/* Search backwards */
+X#define s_replace 4		/* Replace */
+X#define s_regex 8		/* Regular expression search */
+X
+Xextern int options;		/* Search options */
+Xextern unsigned char sstring[PATHSIZE];	/* Search string */
+Xextern unsigned char rstring[PATHSIZE];	/* Replace string */
+Xextern int len;			/* Length of search string */
+X
+X/**********/
+X/* Blocks */
+X/**********/
+X
+Xextern TXTSIZ markb;		/* Begining of block */
+Xextern TXTSIZ marke;		/* End of block */
+Xextern struct buffer *markbuf;	/* Buffer block is in or 0 for no block */
+X
+X/**************************************/
+X/* High level edit function utilities */
+X/**************************************/
+X
+Xextern int leave;		/* Edit function sets this to leave the editor
+X				   after the function returns */
+X
+Xint dnarw();			/* Move cursor to next line */
+X				/* Column number is preserved */
+XTXTSIZ calcs();			/* Calculate number of whitespace columns
+X				   at beginning of line.  Cursor is left
+X				   at first non-whitespace character */
+Xint saveit1();			/* saveit1(s) Save buffer in file & clear
+X				   changed */
+Xint itype();
+Xint ltarw();			/* Move cursor left (goes to end of previous
+X				   line if at beginning of line) */
+Xint uparw();			/* Move cursor up (preserves column) */
+Xint rtarw();                        /* Move cursor right (goes to beginning of
+X				   next line if at end of line) */
+X
+X/* Return current column number of cursor */
+X
+X#define getcol() (extend?extend:getrcol())
+X
+XTXTSIZ getrcol();		/* Get column number of point */
+Xint gocol();			/* gocol(col) Set cursor (point/extend) to
+X				   column number */
+Xint unfill();			/* Remove trailing spaces from line */
+Xint fillup();                       /* Fill to extend position (use this only
+X				   if extend if past end of line, not for
+X				   if extend is in tab stop) */
+X
+Xint search();			/* Execute a search.  Returns 1 if found,
+X				   0 if not */
+X
+X/* Window functions */
+X
+Xint ldwin();			/* ldwin(window) load window */
+Xint stwin();			/* stwin(window) save window */
+Xint ldbuf();			/* ldbuf(buf) load buf if it's not already */
+Xint ldbuf1();			/* ldbuf1(buf) load buf always */
+Xint stbuf();			/* stbuf(buf) store buffer */
+Xint wfit();			/* make sure the current window is on screen */
+X
+X/* High Level (user) edit functions */
+X
+Xint wnext();			/* goto next window */
+Xint wprev();			/* goto previous window */
+Xint wexplode();			/* show 1 or all windows */
+Xint wgrow();			/* make window bigger */
+Xint wshrink();			/* make window smaller */
+Xint wedit();			/* edit a new file */
+Xint wsplit();			/* Split window into 2 */
+X
+Xint rewrite();			/* Rewrite screen */
+Xint thelp();			/* Toggle help screen */
+Xint bof();			/* Goto beginning of file */
+Xint eof();			/* Goto end of file */
+Xint bol();			/* Goto beginning of line */
+Xint eol();				/* Goto end of line */
+Xint urtarw();			/* Move cursor right (scroll if need to) */
+Xint ultarw();
+Xint uuparw();
+Xint udnarw();
+Xint delch();			/* Delete character */
+Xint type();				/* type(c) type a character */
+Xint inss();				/* insert a space */
+Xint backs();			/* backspace */
+Xint eexit();			/* Exit & abort */
+Xint pgup();				/* 1/2 Page up */
+Xint pgdn();				/* 1/2 Page down */
+Xint deleol();			/* Erase end of line */
+Xint dellin();			/* Erase entire line */
+Xint exsave();			/* Save and exit */
+Xint saveit();			/* Save current file */
+Xint findline();			/* Goto line No. */
+Xint findfirst();			/* Find some text */
+Xint findnext();			/* Find next occurance */
+Xint setbeg();			/* Set beginning of block */
+Xint setend();			/* Set end of block */
+Xint writeblk();			/* Write block to file */
+Xint moveblk();			/* Move block to point */
+Xint cpyblk();			/* Copy block to point */
+Xint delblk();			/* Delete block */
+Xint insfil();			/* Insert a file */
+Xint push();				/* Execute a shell */
+Xint mode();				/* Change edit mode */
+Xint ctrlin();			/* Center current line */
+Xint reformat();			/* Reformat current paragraph */
+Xint killword();			/* Delete word */
+Xint backword();			/* Delete word to the left */
+Xint wrdl();				/* goto previous word */
+Xint wrdr();				/* goto next word */
+Xint macrob();
+Xint macroe();
+Xint macrodo();
+Xint edit();				/* Main edit loop */
+Xint waite();
+Xint macroadd();
+Xextern FILE *handle;		/* File handle used for many various things */
+Xextern TXTSIZ added;		/* Number of chars autoindent added
+X				(obsolete?) */
+X
+X/* Portable strdup() */
+X
+X#define strdupp(x) ((unsigned char *)strcpy((unsigned char *)malloc(strlen(x)+1),(x)))
+END_OF_FILE
+if test 17768 -ne `wc -c <'joe.h'`; then
+    echo shar: \"'joe.h'\" unpacked with wrong size!
+fi
+# end of 'joe.h'
+fi
+if test -f '.joerc' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'.joerc'\"
+else
+echo shar: Extracting \"'.joerc'\" \(7749 characters\)
+sed "s/^X//" >'.joerc' <<'END_OF_FILE'
+X                          Initializtaion file for JOE
+X
+X JOE looks for this file in:
+X        1 - Current directory
+X        2 - User's home directory
+X        3 - /usr/bin  (or whatever KEYDEF was set to in the Makefile)
+X 
+X Comments:
+X   Any line beginning with whitespace is a comment line.  At least 2
+X   characters of whitespace past the end of a line also begin a comment.
+X
+X FIRST SECTION:  File name dependant mode settings
+X
+X Each line with '*' in the first column indicates the modes which should be
+X set for a particular extension (or ending actually).  If there are more than
+X one of these lines which match a particular file name, then the last line
+X which matches the name is the one which is chosen.
+X
+X Here is a list of characters.  Each sets a particular mode.  If the character
+X is missing, then the mode shown in the parenthasis is set.
+X
+X		a	autoindent (no auto indent)
+X		o	overwrite  (insert)
+X		p	picture mode (no picture mode)
+X		w	word wrap (no word wrap)
+X		t	tab magic (no tab magic)
+X		nnn	right margin (default is 76)
+X
+X Here are the file name dependant mode setting lines:
+X
+X*		wt76		Default for unknown extensions.  This line
+X				must appear first.
+X*.c		at76		C programs
+X*.h		at76		C header files
+X*.p		at76		Pascal programs
+X*.f		at76		Fortran programs
+X*.joerc		at76		This file
+X
+X SECOND SECTION:  Lines between the { and the } are the on-line help text.  Use
+X \u to turn underline on or off.  Use \i to turn inverse on or off.  Use \\
+X to display \
+X
+X{
+X\i   Help Screen    turn off with ^KH                                            \i
+X\i \i\uGO\u \uTO\u              \uDELETE\u    \uMISC\u      \uBLOCK\u    \uFIND\u     \uQUOTE\u    \uWINDOW\u     \i \i
+X\i \i^B left  ^F right ^D single ^T  mode   ^KB mark ^KF text `  Ctrl  ^KO split  \i \i
+X\i \i^Z word  ^X word  ^W >word  ^R  retype ^KK end  ^L  next ^\\ bit-7 ^KI 1 / all\i \i
+X\i \i^A edge  ^E edge  ^O word<  ^KA center ^KC copy ^KL line \uFILE\u     ^KP up     \i \i
+X\i \i^P up    ^N down  ^J >line  ^KJ format ^KM move \uEXIT\u     ^KD save ^KN down   \i \i
+X\i \i^U page  ^V page  ^Y line   ^KZ shell  ^KW save ^KX save ^KR read ^KG grow   \i \i
+X\i \i^KU top ^KV end   ^K- undo  ^K, indnt< ^KY kill ^C abort/         ^KT shrink \i \i
+X\i \i^G matching ([<{` ^K+ redo  ^K. indnt> ^K0 subst   close window  ^KE get file\i \i
+X\i \i\uMACROS\u: ^K[ record ^K] stop ^K/ play ^K= repeat                              \i \i
+X}
+X
+X THIRD SECTION:  Key sequence to command bindings.  Use ^@ to ^_ and ^? to
+X specify control characters.  Use 'sp' specify the space character.
+X
+X A simple macro facility is provided:  commands separated by commas (no
+X whitespace) are executed sequentially.  For example:
+X 
+X bof,eol	^K 5			Goto end of first line
+X
+X Also, a quoted string may be placed in the command list to supply keyboard
+X input.  Inside the string: \\=\, \"=", and \r=return.  For example:
+X 
+X "\r",saveit,wsplit,"m.out\r",wedit,setbeg,setend,"make\r",cmdblk	^K 2
+X
+X Will save the file in the current window, make a new window, run "make" in a
+X shell and place the results in the new window when ^K 2 is pressed.
+X
+X Note how the quoted strings appear before the commands which require them.  A
+X special command 'wait' types any previous string in as if from the keyboard.
+X
+X For example:  "Hello\r",wait		^K 7
+X Types "Hello" into the edit buffer when ^K 7 is pressed.
+X
+X:main
+Xbacks		^H			Backspace
+Xbacks		^?
+Xbackword	^O			Backspace word
+Xbof		^K U			Move cursor to beginning of file
+Xbof		^K ^U
+Xbof		^K u
+Xbol		^A			Move cursor to beginning of line
+Xbol		^[ [ H
+Xbol		^K ^[ [ H
+Xbol		^[ O P
+Xbol		^K ^[ O P
+Xcmdblk		^K 0			Pipe a marked block through a command
+Xcpyblk		^K C			Copy previously marked block
+Xcpyblk		^K ^C
+Xcpyblk		^K c
+Xctrlin		^K A			Center line
+Xctrlin		^K ^A
+Xctrlin		^K a
+Xdelblk		^K Y			Delete previously marked block
+Xdelblk		^K ^Y
+Xdelblk		^K y
+Xdelch		^D			Delete character
+X deleol		^J			Delete to end of line
+Xdellin		^Y			Delete entire line
+Xdnarw		^N			Move cursor down
+Xdnarw		^[ [ B
+Xdnarw		^[ O B
+Xdnarw		^K ^[ [ B
+Xdnarw		^K ^[ O B
+Xeexit		^C			Exit (window/file)
+Xeexit		^K Q
+Xeexit		^K q
+Xeof		^K V			Move cursor to end of file
+Xeof		^K ^V
+Xeof		^K v
+Xeol		^E			Move cursor to end of line
+Xeol		^[ [ F
+Xeol		^K ^[ [ F
+Xeol		^[ O S
+Xeol		^K ^[ O S
+Xexsave		^K X			Save & exit
+Xexsave		^K ^X
+Xexsave		^K x
+Xfindfirst	^K F			Find text
+Xfindfirst	^K ^F
+Xfindfirst	^K f
+Xfindnext	^L			Find next
+Xfindline	^K L			Goto line number
+Xfindline	^K ^L
+Xfindline	^K l
+Xgotomatching	^G
+Xindentl		^K ,			Indent left
+Xindentr		^K .			Indent right
+Xinsfil		^K R			Insert a file
+Xinsfil		^K ^R
+Xinsfil		^K r
+X inss		^G			Insert a space
+Xinss		^[ [ L
+Xinss		^K ^[ [ L
+Xkilllin		^J			Emacs-style kill line
+Xkillword	^W			Delete word under cursor
+Xltarw		^B			Move cursor left
+Xltarw		^[ [ D
+Xltarw		^K ^[ [ D
+Xltarw		^[ O D
+Xltarw		^K ^[ O D
+Xmacrob		^K [
+Xmacroe		^K ]
+Xmacrodo		^K /
+Xmode		^T			Change mode
+X ooverwrite				Overwrite mode off
+X owrap					Word wrap off
+X otabmagic				Tab magic off
+X oautoind				Auto-indent off
+X opic					Picture mode off
+X ioverwrite				Overwrite on/off
+X iwrap					Word wrap on/off
+X itabmagic				Tab Magic on/off
+X iautoind				Auto-indent on/off
+X ipic					Picture mode on/off
+X setrmargin				Set right margin
+Xmoveblk		^K M			Move previously marked block
+Xmoveblk		^K ^M
+Xmoveblk		^K m
+Xpgdn		^V			Move cursor 1/2 page down
+Xpgdn		^[ [ G
+Xpgdn		^K ^[ [ G
+Xpgdn		^[ [ 6 ~
+Xpgdn		^K ^[ [ 6 ~
+Xpgup		^U			Move cursor 1/2 page up
+Xpgup		^[ [ I
+Xpgup		^K ^[ [ I
+Xpgup		^[ [ 5 ~
+Xpgup		^K ^[ [ 5 ~
+X push		^K Z			Push to a shell
+X push		^K ^Z
+X push		^K z
+Xsuspend		^K Z			Suspend the editor or push to a shell
+Xsuspend		^K ^Z			if system doesn't have job control
+Xsuspend		^K z
+Xredo		^K +			Redo
+Xreformat	^K J			Reformat paragraph
+Xreformat	^K ^J
+Xreformat	^K j
+Xrepeat		^K =			Repeat
+Xrewrite		^R			Retype screen
+Xrtarw		^F			Move cursor right
+Xrtarw		^[ [ C
+Xrtarw		^K ^[ [ C
+Xrtarw		^[ O C
+Xrtarw		^K ^[ O C
+Xrtn		^M			The return key
+Xsaveit		^K D			Save file
+Xsaveit		^K ^D
+Xsaveit		^K d
+Xsaveit		^K S
+Xsaveit		^K s
+Xsetbeg		^K B			Set beginning of block
+Xsetbeg		^K ^B
+Xsetbeg		^K b
+Xsetend		^K K			Set end of block
+Xsetend		^K ^K
+Xsetend		^K k
+Xstquote		`			Next character is a control character
+Xstquote8th	^\			Next character has 7th bit set
+Xthelp		^K H			Toggle help text on/off
+Xthelp		^K ^H
+Xthelp		^K h
+Xthelp		^[ [ 2 8 ~
+Xthelp		^K ^[ [ 2 8 ~
+Xundo		^K -			Undelete
+Xuparw		^P			Move cursor up
+Xuparw		^[ [ A
+Xuparw		^K ^[ [ A
+Xuparw		^[ O A
+Xuparw		^K ^[ O A
+Xwedit		^K E			Edit another file
+Xwedit		^K ^E
+Xwedit		^K e
+Xwexplode	^K I			Show 1 or all windows
+Xwexplode	^K ^I
+Xwexplode	^K i
+Xwgrow		^K G			Grow window
+Xwgrow		^K ^G
+Xwgrow		^K g
+Xwnext		^K N			Goto next window
+Xwnext		^K ^N
+Xwnext		^K n
+Xwprev		^K P			Goto previous window
+Xwprev		^K ^P
+Xwprev		^K p
+Xwrdl		^Z			Move to previous word
+Xwrdl		^[ O Q
+Xwrdl		^K ^[ O Q
+Xwrdr		^X			Move to next word
+Xwrdr		^[ O R
+Xwrdr		^K ^[ O R
+Xwriteblk	^K W			Write previously marked block to a file
+Xwriteblk	^K ^W
+Xwriteblk	^K w
+Xwshrink		^K T			Shrink window
+Xwshrink		^K ^T
+Xwshrink		^K t
+Xwsplit		^K O			Split window
+Xwsplit		^K ^O
+Xwsplit		^K o
+Xtype		^I			Tab
+Xtype		sp			Typable characters
+Xtype		!
+Xtype		"
+Xtype		#       
+Xtype		$
+Xtype		%
+Xtype		&
+Xtype		'
+Xtype		(
+Xtype		)
+Xtype		*
+Xtype		+
+Xtype		,
+Xtype		-
+Xtype		.
+Xtype		/
+Xtype		0
+Xtype		1
+Xtype		2
+Xtype		3
+Xtype		4
+Xtype		5
+Xtype		6
+Xtype		7
+Xtype		8
+Xtype		9
+Xtype		:
+Xtype		;
+Xtype		<
+Xtype		=
+Xtype		>
+Xtype		?
+Xtype		@
+Xtype		A
+Xtype		B
+Xtype		C
+Xtype		D
+Xtype		E
+Xtype		F
+Xtype		G
+Xtype		H
+Xtype		I
+Xtype		J
+Xtype		K
+Xtype		L
+Xtype		M
+Xtype		N
+Xtype		O
+Xtype		P
+Xtype		Q
+Xtype		R
+Xtype		S
+Xtype		T
+Xtype		U
+Xtype		V
+Xtype		W
+Xtype		X
+Xtype		Y
+Xtype		Z
+Xtype		[
+Xtype		\
+Xtype		]
+Xtype		^
+Xtype		_
+Xtype		a
+Xtype		b
+Xtype		c
+Xtype		d
+Xtype		e
+Xtype		f
+Xtype		g
+Xtype		h
+Xtype		i
+Xtype		j
+Xtype		k
+Xtype		l
+Xtype		m
+Xtype		n
+Xtype		o
+Xtype		p
+Xtype		q
+Xtype		r
+Xtype		s
+Xtype		t
+Xtype		u
+Xtype		v
+Xtype		w
+Xtype		x
+Xtype		y
+Xtype		z
+Xtype		{
+Xtype		|
+Xtype		}
+Xtype		~
+END_OF_FILE
+if test 7749 -ne `wc -c <'.joerc'`; then
+    echo shar: \"'.joerc'\" unpacked with wrong size!
+fi
+# end of '.joerc'
+fi
+echo shar: End of shell archive.
+exit 0
+*** Cut here
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

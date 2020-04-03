@@ -1,0 +1,1233 @@
+Path: funic!fuug!mcsun!ukc!axion!uzi-9mm.fulcrum.bt.co.uk!cat.fulcrum.bt.co.uk!cnix!klaus
+From: klaus@cnix.uucp (klaus u schallhorn)
+Newsgroups: alt.sources
+Subject: psroff/troff/laserjet hpcl -> fax and others (2 of 4)
+Message-ID: <1991Aug29.131953.8954@cnix.uucp>
+Date: 29 Aug 91 13:19:53 GMT
+Sender: klaus@cnix.uucp (klaus u schallhorn)
+Organization: pionier publications
+Lines: 1223
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 2 (of 4)."
+# Contents:  ./hpp.c
+# Wrapped by klaus@cnix on Thu Aug 29 14:00:47 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './hpp.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hpp.c'\"
+else
+echo shar: Extracting \"'./hpp.c'\" \(25627 characters\)
+sed "s/^X//" >'./hpp.c' <<'END_OF_FILE'
+X/*
+X    Copyright 1989, 1990, 1991 Chris Lewis
+X    All Rights Reserved
+X
+X    Permission to copy and further distribute is freely given provided
+X    this copyright notice remains intact, that this software is not
+X    sold for profit, that credit is given, and that sources will be made
+X    available on request.
+X
+X    This software is a subset of Psroff 3.0.  See the LICENSE file
+X    in Psroff 3.0 for more details, or contact:
+X
+X	Chris Lewis
+X	Box 124
+X	Dunrobin, Ontario
+X	Canada K0A 1T0
+X	(613) 832-0541
+X
+X    Function: interprets HPLJ sequences.
+X */
+X
+X#ifndef	lint
+Xstatic char SCCSID[] =
+X    "@(#)hpp.c %I% Copyright %E% %U%";
+X#endif
+X
+X#include "hptopbm.h"
+X
+X#define	XSIZE		(RITE_MARGIN+8)*30
+X#define	YSIZE		(PAGE_LEN*50)+50
+X
+X#define	dbprintf(x)	if (verbose) printf x
+X#define	ESCAPE	0x1b
+X
+X#define	TRANSFER	1
+X#define	TRANSPARENT	2
+X#define	FONTHEADER	3
+X#define	DOWNLOAD	4
+X
+X#define	ABSOLUTE	0
+X#define	RELATIVE	1
+X
+X#define	MAC_BUFSIZE	4096
+X
+X#ifdef	FAXPAK
+Xstruct	FAXCONFIG fc;
+Xint	blah = 0;
+X#endif
+X
+Xunion	t {
+X    char a[2];
+X    short b;
+X};
+Xint	smallend;
+X
+Xtypedef int(*FUNC)();
+X
+Xint	firstchar = 0;
+Xint	lastchar = 0xff;
+Xint	lastschar;
+Xint	lastfontid = -1;
+Xint	verbose = 0;
+Xint	plotch = 0;
+Xint	rast = 0, rast_org = 0;
+Xint	characteristic = 1;
+Xint	ps_symset = 0;
+Xint	dotted = 0;
+Xint	pbmpage = 0;
+Xint	movetype = 0;
+Xint	mac_ctr = 0;
+Xint	need_mac_end_call = 0;
+Xint	have_auto_macro = -1;
+Xint	builtin = -1;
+X
+Xint	ps_pointsize = 10;
+Xint	ps_style = 1;
+Xint	ps_stroke = 0;
+Xint	ps_tface = 5;
+Xint	ps_spacing = 0;
+Xint	genps = 0;
+X
+XFILE	*out = (FILE *) NULL;
+XFILE	*txtout = (FILE *) NULL;
+XFILE	*infp = (FILE *) NULL;
+Xchar	*PGM;
+Xextern	int errno;
+X
+Xchar pbmname[256], pbmtname[256];
+Xuchar McBuffer[MAC_BUFSIZE], *CurMc, *CurMc_Ptr, *CurMc_End, *rs_get_macro();
+X
+Xdouble	curX = 0, curY = 0;
+X
+Xshort	pts[] = {6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 36, 4, 4};
+X
+Xvoid	exit();
+X
+Xint	(*getchar_func)();
+Xint	getc_only(),		/* get input from file */
+X    getc_copy(),		/* get it from file AND copy to macro */
+X    mgetc(),		/* get it from stashed away macro */
+X    auto_getc();		/* same, but exec on every page */
+X
+Xchar	*fchcont[] = {
+X    "Delete all fonts",
+X    "Delete all temporary fonts",
+X    "Delete last font ID specified",
+X    "Delete last font ID and char code",
+X    "Make Temp font",
+X    "Make Perm font",
+X    "Copy/Assign",
+X    NULL
+X};
+X
+Xchar *spcont[] = {
+X    "Fixed",
+X    "Proportional",
+X    NULL
+X};
+X
+Xchar *stcont[] = {
+X    "Upright",
+X    "Italic",
+X    NULL
+X};
+X
+Xchar *tfcont[] = {
+X    "Line Printer",
+X    "Pica",
+X    "Elite",
+X    "Courier",
+X    "Helvetica",
+X    "Times Roman",
+X    "Gothic",
+X    "Script",
+X    "Prestige Elite",
+X    "Caslon",
+X    "Orator",
+X    NULL
+X};
+X
+Xchar *sgcont[] = {
+X    "Left-most position",
+X    "Current Cursor",
+X    NULL
+X};
+X
+Xchar *pscont[] = {
+X    "Disable",
+X    "Enable",
+X    NULL
+X};
+X
+X
+Xint	movex(),movey(), papinctrl(), movedx(), movedy();
+Xint	spset(), psset(), styset(), strset(), tfset();
+Xint	macro_id(), macro_ctl();
+Xint	rs_lpi(), rs_plen(), rs_mtop(),
+X	create_fnthdr(), rs_dpi(), rs_graphxy(),
+X	rs_pitch(), rs_tlen(), rs_mleft(), rs_mright(),
+X	rs_vmi(), rs_row(), rs_col(), rs_ul(), rs_thru(),
+X	rs_hmi(), rs_lterm(), rs_setpitch(),
+X	rs_fc_ctl(), rs_stack(), rs_hsize(), rs_hdsize(),
+X	rs_vsize(), rs_vdsize(), rs_pid(), rs_prnpat();
+X
+Xstruct intlist {
+X    char *code;
+X    char *name;
+X    char **parmnames;
+X    FUNC exec;
+X    FUNC rastfunc;
+X} intlist[] = {
+X
+X/*	code	name			parnam	exec	rastfunc   */
+X
+X    {"&lO",	"Orientation"	/* don't want to go into landscaping */ },
+X    {"(sP",	"Primary Spacing",	spcont, spset },
+X    {"(sH",	"Primary Pitch",	NULL,	NULL,	rs_pitch },
+X    {"(sV",	"Primary Point Size",	NULL,	psset },
+X    {"(sS",	"Primary Style",	stcont,	styset },
+X    {"(sB",	"Primary Stroke",	NULL,	strset },
+X    {"(sT",	"Primary Typeface",	tfcont,	tfset },
+X    {")sP",	"Secondary Spacing",	spcont,	spset },
+X    {")sH",	"Secondary Pitch" },
+X    {")sV",	"Secondary Point Size" },
+X    {")sS",	"Secondary Style",	stcont },
+X    {")sB",	"Secondary Stroke" },
+X    {")sT",	"Secondary Typeface" },
+X    {"&lP",	"Page Length",		NULL,	NULL,	rs_plen },
+X    {"&lE",	"Top Margin",		NULL,	NULL,	rs_mtop },
+X    {"&lF",	"Text Length",		NULL,	NULL,	rs_tlen },
+X    {"&aL",	"Left Margin",		NULL,	NULL,	rs_mleft },
+X    {"&aM",	"Right Margin",		NULL,	NULL,	rs_mright },
+X    {"&lC",	"Motion Index",		NULL,	NULL,	rs_vmi },
+X    {"&lD",	"Lines/Inch",		NULL,	NULL,	rs_lpi },
+X    {"*tR",	"Resolution",		NULL,	NULL,	rs_dpi },
+X    {"*rA",	"Start Graphics",	sgcont,	NULL,	rs_graphxy },
+X    {"*bW",	"Transfer" },
+X    {"*rB",	"End Graphics" },
+X    {"&aR",	"Move to Row",		NULL,	NULL,	rs_row },
+X    {"&aC",	"Move to Column",	NULL,	NULL,	rs_col },
+X    {"&aH",	"Move to Column (Decipoints)",NULL,movedx },
+X    {"&aV",	"Move to Row (Decipoints)",NULL,movedy },
+X    {"&dD",	"Underline on",		NULL,	NULL,	rs_ul },
+X    {"&d@",	"Underline off",	NULL,	NULL,	rs_ul },
+X    {"&pX",	"Transparent Print",	NULL,	NULL,	rs_thru },
+X    {"&lL",	"Perf Skip", 		pscont },
+X    {"&kH",	"HMI",			NULL,	NULL,	rs_hmi },
+X    {"&kS",	"Font Pitch",		NULL,	NULL,	rs_setpitch },
+X    {"&kG",	"Line Termination",	NULL,	NULL,	rs_lterm },
+X    {"&sC",	"Line Wrap" },
+X    {"&lX",	"Number of Copies" },
+X    {"&lH",	"Paper Input Control",	NULL,	papinctrl },
+X    {"*pX",	"Horizontal cursor (dots)",NULL,movex },
+X    {"*pY",	"Vertical cursor (dots)",NULL,	movey },
+X    {"*cD",	"Font ID" },
+X    {"*cE",	"Character Code" },
+X    {"*cF",	"Font/Char control",	fchcont,NULL,	rs_fc_ctl },
+X    {")sW",	"Create Font Header" },
+X    {"(sW",	"Download Character" },
+X    {"&fY",	"Macro ID",		NULL,	NULL,	macro_id },
+X    {"&fX",	"Macro control",	NULL,	NULL,	macro_ctl },
+X    {"&fS",	"Push/Pop",		NULL,	NULL,	rs_stack },
+X    {"*cA",	"Horizontal Rule/Pattern Size",NULL,NULL, rs_hsize },
+X    {"*cH",	"Horizontal Rule/Pattern Size",NULL,NULL, rs_hdsize },
+X    {"*cB",	"Vertical Rule/Pattern Size",NULL,NULL,	rs_vsize },
+X    {"*cV",	"Vertical Rule/Pattern Size",NULL,NULL,	rs_vdsize },
+X    {"*cP",	"Print Rule/Pattern"	,NULL,	NULL,	rs_prnpat },
+X    {"*cG",	"Grey scale/pattern id",NULL,	NULL,	rs_pid },
+X    {"&lT",	"Job offset control" },
+X    {NULL,NULL}
+X};
+X
+Xunion {
+X    struct fontdesc b_fd;
+X    struct download b_dl;
+X    char b_buffer[2048];
+X} buffer;
+X
+X#ifndef	lint
+Xdie(va_alist)
+Xva_dcl {
+X    va_list args;
+X    char *fmt;
+X    int e;
+X
+X    e = errno;	/* save him just in case */
+X    va_start(args);
+X    fmt = va_arg(args, char *);
+X#ifndef	LOG
+X    if (e)
+X	fprintf(stderr,"%s: {%02d} ", PGM, errno);
+X    else fprintf(stderr,"%s: ",PGM);
+X    vfprintf(stderr, fmt, args);
+X#else
+X    if (e)
+X	printf("%s: {%02d} ", PGM, errno);
+X    else printf("%s: ",PGM);
+X    vprintf(fmt, args);
+X#endif
+X    va_end(args);
+X    exit(e);
+X}
+X#else
+X/*VARARGS*/
+Xdie(){}
+X#endif
+X
+Xgetc_only() {
+X    return(getc(infp));
+X}
+X
+Xgetc_copy() {
+X    int c;
+X
+X    if ((c = getc(infp)) != EOF) {
+X	McBuffer[mac_ctr++] = c;
+X	if (mac_ctr == MAC_BUFSIZE) {
+X	    mac_download(MAC_BUFSIZE, McBuffer);
+X	    mac_ctr = 0;
+X	}
+X    }
+X    return(c);
+X}
+X
+Xmgetc() {
+X    int c;
+X
+X    c = *CurMc_Ptr++;
+X    if (CurMc_Ptr == CurMc_End) {
+X	getchar_func = getc_only;
+X	if (need_mac_end_call) {
+X	    rs_call_macro(RESTORE);
+X	    need_mac_end_call = FALSE;
+X	}
+X    }
+X    return(c);
+X}
+X
+Xauto_getc() {
+X    if (CurMc_Ptr == CurMc_End)
+X	return(EOF);
+X    return(*CurMc_Ptr++);
+X}
+X
+Xreadhex(len)
+Xint len; {
+X    while(len--)
+X	(void)(*getchar_func)();
+X}
+X
+Xinterp(prefix, anchor, number, suffix)
+Xchar prefix, anchor, suffix;
+Xdouble number; {
+X    int multi;
+X    register int i;
+X    char lookup[4];
+X
+X    dbprintf(("ESC%c%c%g%c\n", prefix, anchor, number, suffix));
+X
+X    if (islower(suffix))
+X	suffix = toupper(suffix);
+X
+X    sprintf(lookup, "%c%c%c", prefix, anchor, suffix);
+X    for (i = 0; intlist[i].code; i++) {
+X	if (0 == strcmp(intlist[i].code, lookup)) {
+X	    dbprintf(("%s:", intlist[i].name));
+X	    if (intlist[i].parmnames) {
+X		int j, ii;
+X		ii = (int)number;
+X		for (j = 0; j < ii; j++)
+X		    if (!intlist[i].parmnames[j])
+X			break;
+X
+X		if (intlist[i].parmnames[j])
+X		    dbprintf((" %s\n", intlist[i].parmnames[j]));
+X		else
+X		    dbprintf((" %d\n", (int) number));
+X	    }
+X	    else
+X		dbprintf ((" %g\n", number));
+X
+X	    if (intlist[i].exec)
+X		(*intlist[i].exec)(number);
+X	    if (rast && intlist[i].rastfunc)
+X		(*intlist[i].rastfunc)(number);
+X	    break;
+X	}
+X    }
+X
+X    multi = 0;
+X    /* For parsing variable length ones */
+X    switch(prefix) {
+X	case '*':
+X	    if (anchor == 'b' && suffix == 'W')
+X		multi = TRANSFER;
+X	    break;
+X	case '&':
+X	    if (anchor == 'p' && suffix == 'X')
+X		multi = TRANSPARENT;
+X	    break;
+X	case ')':
+X	    if (anchor == 's' && suffix == 'W')
+X		multi = FONTHEADER;
+X	    break;
+X	case '(':
+X	    if (anchor == 's' && suffix == 'W')
+X		multi = DOWNLOAD;
+X	    break;
+X    }
+X
+X    if (prefix == '*' && anchor == 'c' && suffix == 'E')
+X	lastschar = number;
+X
+X    if (prefix == '*' && anchor == 'c' && suffix == 'D')
+X	lastfontid = number;
+X    if (multi)
+X	readdesc(multi, (int) number);
+X}
+X
+Xshort canon(v)
+Xshort v; {
+X    if (smallend)
+X	return(((v & 0xff) << 8) | ((v&0xff00) >> 8));
+X    return(v);
+X}
+X
+Xreaddesc(type, bytecount)
+Xint type; int bytecount; {
+X    int points;
+X    char *typeface;
+X    char *style;
+X    char filename[1000];
+X
+X    switch(type) {
+X
+X	default:
+X	    readhex(bytecount);
+X	    break;
+X	case DOWNLOAD:
+X	    if (fread((char *) &buffer, 1, bytecount, infp) != bytecount)
+X		die("fread error in readdesc\n");
+X
+X	    if ((!rast) && (builtin < 0)) {
+X		sprintf(filename, BINFILE, lastfontid);
+X		if (out)
+X		    fclose(out);
+X		if ((out = fopen(filename, "a")) == NULL)
+X		    die("can't open %s\n", filename);
+X
+X		sprintf(filename, DESCFILE, lastfontid);
+X		if (txtout)
+X		    fclose(txtout);
+X		if ((txtout = fopen(filename, "a")) == NULL)
+X		    die("can't open %s\n", filename);
+X	    }
+X
+X	    if (lastschar >= firstchar && lastschar <= lastchar) {
+X		if (txtout) {
+X		    fprintf(txtout, "Character: %c\n", lastschar);
+X		    fprintf(txtout, "  orientation: %d\n",
+X			buffer.b_dl.dl_orientation);
+X		    fprintf(txtout, "  leftoffset: %d\n",
+X			canon(buffer.b_dl.dl_leftoffset));
+X		    fprintf(txtout, "  topoffset: %d\n",
+X			canon(buffer.b_dl.dl_topoffset));
+X		    fprintf(txtout, "  charwidth: %d\n",
+X			canon(buffer.b_dl.dl_charwidth));
+X		    fprintf(txtout, "  charheight: %d\n",
+X			canon(buffer.b_dl.dl_charheight));
+X		    fprintf(txtout, "  deltax: %d\n",
+X			canon(buffer.b_dl.dl_deltax));
+X#ifdef	PLOT
+X		    if (plotch)
+X			plotchars(txtout, &buffer.b_dl);
+X#endif
+X		}
+X	    }
+X
+X	    if ((!rast) && out) {
+X		fprintf(out, "\033*c%dE", lastschar);
+X		fprintf(out, "\033(s%dW", bytecount);
+X		if (fwrite((char *) &buffer, 1, bytecount, out) != bytecount)
+X		    die("fwrite error in readdesc\n");
+X	    }
+X	    if (rast)
+X		char_download(lastschar,lastfontid,
+X		    (int)canon(buffer.b_dl.dl_leftoffset),
+X		    (int)canon(buffer.b_dl.dl_topoffset),
+X		    (int)canon(buffer.b_dl.dl_charwidth),
+X		    (int)canon(buffer.b_dl.dl_charheight),
+X		    (int)canon(buffer.b_dl.dl_deltax),
+X		    (uchar*)&buffer);
+X	    break;
+X
+X	case FONTHEADER:
+X	    if (txtout)
+X		fclose(txtout);
+X	    if (out)
+X		fclose(out);
+X
+X	    if (fread((char *) &buffer, 1, bytecount, infp) != bytecount)
+X		die("fread error in readdesc");
+X
+X	    points = (double) canon(buffer.b_fd.fd_height) * 72 / 4 / 300 + .5;
+X
+X	    switch(buffer.b_fd.fd_typeface) {
+X
+X		case 0: typeface = "Line Printer"; break;
+X		case 1: typeface = "Pica"; break;
+X		case 2: typeface = "Elite"; break;
+X		case 3: typeface = "Courier"; break;
+X		case 4: typeface = "Helvetica"; break;
+X		case 5: typeface = "Times-Roman"; break;
+X		case 6: typeface = "Gothic"; break;
+X		case 7: typeface = "Script"; break;
+X		case 8: typeface = "Prestige"; break;
+X		case 9: typeface = "Caslon"; break;
+X		case 10: typeface = "Orator"; break;
+X		default: typeface = "			   ";
+X		    sprintf(typeface, "T%d", buffer.b_fd.fd_typeface);
+X		    break;
+X	    }
+X	    switch(buffer.b_fd.fd_style) {
+X
+X		case 0:	style = "Upright";	break;
+X		case 1: style = "Italic";	break;
+X
+X	    }
+X
+X	    if ((!rast) && (builtin < 0)) {
+X
+X		sprintf(filename, BINFILE, lastfontid);
+X		if ((out = fopen(filename, "w")) == NULL)
+X		    die("can't open %s\n", filename);
+X
+X		sprintf(filename, DESCFILE, lastfontid);
+X		if ((txtout = fopen(filename, "w")) == NULL)
+X		    die("can't open %s\n", filename);
+X
+X		fprintf(out, "\033)s%dW", bytecount);
+X		if (fwrite((char *) &buffer, 1, bytecount, out) != bytecount)
+X		    die("fwrite error in readdesc\n");
+X
+X		if (txtout) {
+X		    fprintf(txtout, "Height: %d\n", canon(buffer.b_fd.fd_height));
+X		    fprintf(txtout, "  Points (rounded): %d\n", points);
+X		    fprintf(txtout, "  Points (floating): %.2f\n",
+X			(double) canon(buffer.b_fd.fd_height) * 72 / 4 / 300);
+X		    fprintf(txtout, "Pitch: %d\n", canon(buffer.b_fd.fd_pitch));
+X		    fprintf(txtout, "  Pitch (chars/inch): %d\n",
+X			4 * 300 / canon(buffer.b_fd.fd_pitch));
+X		    if (buffer.b_fd.fd_fixedprop)
+X			fprintf(txtout, "Proportional width font\n");
+X		    else fprintf(txtout, "Fixed width font\n");
+X		    fprintf(txtout, "Stroke weight: %d\n", buffer.b_fd.fd_weight);
+X		    fprintf(txtout, "Style: %d; (%s)\n", buffer.b_fd.fd_style,
+X			style);
+X		    fprintf(txtout, "Typeface: %d; (%s)\n", buffer.b_fd.fd_typeface,
+X			typeface);
+X		    fprintf(txtout, "Symset: %04x; (%d%c)\n",
+X			canon(buffer.b_fd.fd_symset),
+X			canon(buffer.b_fd.fd_symset) >> 5,
+X			(canon(buffer.b_fd.fd_symset) & 0x1f) + 'A' - 1);
+X
+X		    fprintf(txtout, "Type: %x\n", buffer.b_fd.fd_type);
+X		    fprintf(txtout, "Base: %d\n", canon(buffer.b_fd.fd_base));
+X		    fprintf(txtout, "Cellwidth: %d\n", canon(buffer.b_fd.fd_cellwidth));
+X		    fprintf(txtout, "Cellheight: %d\n", canon(buffer.b_fd.fd_cellheight));
+X		    fprintf(txtout, "Orientation: %d\n", buffer.b_fd.fd_orientation);
+X		    fprintf(txtout, "Height: %d\n", canon(buffer.b_fd.fd_height));
+X		}
+X	    } else { /* convert to dots moved per char */
+X		create_fnthdr(
+X		    (int)buffer.b_fd.fd_orientation,
+X		    (int)canon(buffer.b_fd.fd_symset),
+X		    (int)buffer.b_fd.fd_fixedprop,
+X		    (int)canon(buffer.b_fd.fd_pitch),
+X		    (int)buffer.b_fd.fd_style,
+X		    (int)buffer.b_fd.fd_weight,
+X		    (int)buffer.b_fd.fd_typeface,
+X		    ((double) canon(buffer.b_fd.fd_height) * 72 / 4 / 300));
+X	    }
+X	    break;
+X	case TRANSFER:
+X	    if (fread((char *) &buffer, 1, bytecount, infp) != bytecount)
+X		die("fread error in readdesc\n");
+X	    if (rast)
+X		rs_pix((uchar*)&buffer, bytecount);
+X    }
+X}
+X
+X/*	We've got ESC<prefix><anchor>
+X *	read number/suffix pairs
+X */
+Xmultisequence(prefix, anchor)
+Xchar prefix, anchor;
+X{
+X    int c, neg, seendot;
+X    double v;
+X
+X    for (;;) {
+X	v = 0;
+X	seendot = 0;
+X	neg = 1;
+X	movetype = ABSOLUTE;
+X	while (isdigit(c = (*getchar_func)()) ||
+X	    (c == '.') || (c == '-') || (c == '+')) {
+X
+X	    if (c == '+') {
+X		movetype = RELATIVE;
+X		continue;
+X	    }
+X
+X	    if (c == '.') {
+X		seendot = 10;
+X		continue;
+X	    }
+X
+X	    if (c == '-') {
+X		neg *= -1;
+X		movetype = RELATIVE;
+X		continue;
+X	    }
+X
+X	    if (seendot) {
+X		v += (double) (c - '0') / seendot;
+X		seendot *= 10;
+X	    }
+X	    else
+X		v = v * 10 + c - '0';
+X
+X	}
+X	v *= neg;
+X	interp(prefix, anchor, v, c);
+X	if (!islower(c))
+X	    break;
+X    }
+X    movetype = ABSOLUTE;
+X}
+X
+Xreadescape() {
+X    int c, v;
+X
+X    c = (*getchar_func)();
+X    switch(c) {
+X	case '9':
+X	    dbprintf(("Clear Margins\n"));
+X	    if (rast)
+X		lr_default();
+X	    return;
+X	case '=':
+X	    dbprintf(("Half linefeed\n"));
+X	    if (rast)
+X		half_linefeed();
+X	    return;
+X	case 'E':
+X	    dbprintf(("Reset\n"));
+X	    if (rast_org) {
+X		if (pbmpage)
+X		    pbmeject(TRUE);
+X		else pbmnewpage(TRUE);
+X		clearfonts(TEMPORARY);
+X		rs_del_macros(TEMPORARY,0);
+X		getchar_func = getc_only;
+X	    }
+X	    return;
+X	case 'z':
+X	    dbprintf(("Self test\n"));
+X	    return;
+X	case 'Y':
+X	    dbprintf(("Display functions on\n"));
+X	    return;
+X	case 'Z':
+X	    dbprintf(("Display functions off\n"));
+X	    return;
+X	case ')':
+X	    c = (*getchar_func)();
+X	    if (isdigit(c)) {
+X		v = 0;
+X		while(isdigit(c)) {
+X		    v = v * 10 + c - '0';
+X		    c = (*getchar_func)();
+X		}
+X		switch(c) {
+X		case 'X':
+X		    dbprintf(("Secondary font %d\n", v));
+X		    if (rast)
+X			rs_font(v,SECONDARY);
+X		    break;
+X		case '@':
+X		    dbprintf(("Secondary font value %d\n", v));
+X		    break;
+X		default:
+X		    dbprintf(("HUH ESC)%d%c\n", v, c));
+X		}
+X		return;
+X	    }
+X	    multisequence(')', c);
+X	    return;
+X	case '(':
+X	    c = (*getchar_func)();
+X	    if (isdigit(c) || (c == 'X' || c == '@')) {
+X		v = 0;
+X		while(isdigit(c)) {
+X		    v = v * 10 + c - '0';
+X		    c = (*getchar_func)();
+X		}
+X		switch(c) {
+X		    case 'X':
+X			dbprintf(("Primary font %d\n", v));
+X			if (rast)
+X			    rs_font(v,PRIMARY);
+X			if (genps)
+X			    ps_font(v, pts[v&0xf]);
+X			break;
+X		    case '@':
+X			dbprintf(("Primary font value %d\n", v));
+X			break;
+X		    default:
+X			dbprintf(("Symbol set: %d%c\n", v, c));
+X			if (rast)
+X			    rs_symset(v*32+c-64);
+X			ps_symset = c;
+X		}
+X		return;
+X	    }
+X	    multisequence('(', c);
+X	    return;
+X	case '&':
+X	    c = (*getchar_func)();
+X	    multisequence('&', c);
+X	    return;
+X	case '*':
+X	    c = (*getchar_func)();
+X	    multisequence('*', c);
+X	    return;
+X	default:
+X	    dbprintf(("Huh? %02x\n", c));
+X	    return;
+X    }
+X}
+X
+Xmain(argc, argv)
+Xint argc; char **argv; {
+X    int c;
+X
+X    int resdone = 0;
+X
+X    extern char *optarg;
+X    extern int optind;
+X
+X#if	!defined(BIGEND) && !defined(SMALLEND)
+X    union t ta;
+X    ta.a[0] = 0x01;
+X    ta.a[1] = 0x02;
+X    smallend = ((ta.b&0xff) == 0x01);
+X#endif
+X
+X    errno = 0;
+X    if ((PGM = strrchr(argv[0], '/')) != NULL)
+X	++PGM;
+X    else PGM = argv[0];
+X
+X#ifdef	FAXPAK
+X    if (read_defaults(&fc) || read_config(&fc))
+X	exit(1);
+X#endif
+X
+X    getchar_func = getc_only;
+X    infp = stdin;
+X
+X    pbmname[0] = '\0';
+X    while((c = getopt(argc, argv, "r:d:pvcV")) != EOF)
+X	switch(c) {
+X#ifdef	PS
+X	    case 'p':
+X		genps++;
+X		break;
+X#endif
+X	    case 'v':
+X		verbose++;
+X		break;
+X	    case 'V':
+X		printf("%s\n", VERSION);
+X		exit(0);
+X	    case 'c':
+X		plotch++;
+X		break;
+X	    case 'd': {
+X		double x, y;
+X
+X		switch (sscanf(optarg, "%f,%f", &x, &y)) {
+X		    case 0:
+X			fprintf(stderr, "%s: bad -d option %s\n", PGM, optarg);
+X			exit(1);
+X		    case 1:
+X			y = x;
+X		    case 2:
+X			rs_rastsize(x, x);
+X			break;
+X		}
+X
+X		resdone++;
+X		
+X		break;
+X	    }
+X	    case 'r':
+X		rast_org = ++rast;
+X		strcpy(pbmname, optarg);
+X		break;
+X	    case '?':
+X		fprintf(stderr, "usage: hpinterp [-dx[,y]][-p][-v][-c][-rpbm]< file\n");
+X		exit(1);
+X	}
+X    
+X    if (!resdone) {
+X
+X	if (!strcmp(PGM,	"hp2hifax"))
+X	    rs_rastsize(	204.15, 195.58);
+X	else if (!strcmp(PGM,	"hp2lofax"))
+X	    rs_rastsize(	204.15, 97.79);
+X	else if (!strcmp(PGM,	"hp2sun"))
+X	    rs_rastsize(	 84.0,  84.0);
+X	else if (!strcmp(PGM,	"hp2e24"))
+X	    rs_rastsize(	 180.0, 180.0);
+X	else
+X	    rs_rastsize(         300.0, 300.0);	/* be prepared just in case */
+X    }
+X
+X    if (rast) {
+X	if (pbmname[0] == '\0')
+X	    die("need an output file name\n");
+X	make_bitmap(XSIZE,YSIZE);
+X    }
+X
+X    if (genps)
+X	ps_init();
+X    hptoany();	/* to allow recursion */
+X
+X    if (out)
+X	fclose(out);
+X    if (txtout)
+X	fclose(txtout);
+X    if (rast && dotted)
+X	pbmeject(FALSE);
+X    if (genps)
+X	ps_endemit();
+X    exit(0);
+X/*NOTREACHED*/
+X}
+X
+Xhptoany() {
+X    int c;
+X
+X    while ((c = (*getchar_func)()) != EOF) {
+X	if (c == ESCAPE)
+X	    readescape();
+X	else {
+X
+X	    if (isprint(c)) {
+X		dbprintf(("Char: %c\n", c));
+X	    } else {
+X		dbprintf(("Char: 0x%02x\n", c));
+X	    }
+X
+X	    if (rast) {
+X		if (c == '\n')
+X		    movetype = RELATIVE;
+X
+X		if (c == '\f')
+X		    pbmeject(TRUE);
+X		else prt_hpchr(c);
+X		movetype = ABSOLUTE;
+X	    }
+X	    if (genps)
+X		ps_emitchar(c);
+X	}
+X    }
+X}
+X
+Xmovex(num)
+Xdouble num; {
+X    curX = num;
+X    if (rast)
+X	rs_X(curX);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xmovey(num)
+Xdouble num; {
+X    curY = num;
+X    if (rast)
+X	rs_Y(curY,FALSE);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xmovedx(num)
+Xdouble num; {
+X    curX = num * 300.0 / 720.0;
+X    if (rast)
+X	rs_X(curX);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xmovedy(num)
+Xdouble num; {
+X    curY = num * 300.0 / 720.0;
+X    if (rast)
+X	rs_Y(curY,TRUE);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xpapinctrl(num)
+Xdouble num; {
+X    if (num == 0) {
+X	if (rast)
+X	    pbmeject(TRUE);
+X	if (genps) {
+X	    ps_endemit();
+X	    printf("showpage\n");
+X	}
+X    }
+X}
+X
+Xspset(num)
+Xdouble num; {
+X    ps_spacing = num;
+X    characteristic = 1;
+X    if (rast)
+X	rs_spacing((int)num);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xpsset(num)
+Xdouble num; {
+X    characteristic = 1;
+X    ps_pointsize = num;
+X    if (rast)
+X	rs_points(num);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xstyset(num)
+Xdouble num; {
+X    characteristic = 1;
+X    ps_style = num;
+X    if (rast)
+X	rs_style((int)num);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xstrset(num)
+Xdouble num;
+X{
+X    characteristic = 1;
+X    ps_stroke = num;
+X    if (rast)
+X	rs_stroke((int)num);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xtfset(num)
+Xdouble num; {
+X    characteristic = 1;
+X    ps_tface = num;
+X    if (rast)
+X	rs_typeface((int)num);
+X    if (genps)
+X	ps_endemit();
+X}
+X
+Xmacro_id(n)
+Xdouble n; {
+X    if (rast)
+X	rs_macro_id(n);
+X}
+X
+Xmacro_ctl(n)
+Xdouble n; {
+X    int len;
+X
+X    if (!rast_org)
+X	return;
+X
+X    switch((int)n) {
+X	case 0:	rast = 0;
+X	    getchar_func = getc_copy;
+X	    mac_ctr = 0;
+X	    rs_mac_startdef();
+X	    break;
+X	case 1:	rast = rast_org;
+X	    getchar_func = getc_only;
+X	    if (mac_ctr)
+X		mac_download(mac_ctr, McBuffer);
+X	    rs_mac_enddef();
+X	    break;
+X	case 2:	CurMc = CurMc_Ptr = rs_get_macro(&len);
+X	    if (len > 0)
+X	    {
+X		getchar_func = mgetc;
+X		CurMc_End = CurMc + len;
+X	    }
+X	    break;
+X	case 3:	CurMc = CurMc_Ptr = rs_get_macro(&len);
+X	    if (len > 0) {
+X		getchar_func = mgetc;
+X		CurMc_End = CurMc + len;
+X		rs_call_macro(SAVE);
+X		need_mac_end_call = TRUE;
+X	    }
+X	    break;
+X	case 4:	have_auto_macro = rs_auto_enable(TRUE);	break;
+X	case 5:	have_auto_macro = rs_auto_enable(FALSE);break;
+X	case 6: rs_del_macros(TEMPORARY,PERMANENT);	break;
+X	case 7:	rs_del_macros(TEMPORARY,FALSE);		break;
+X	case 8: rs_del_macro();				break;
+X	case 9:	rs_makemtype(TEMPORARY);		break;
+X	case 10:rs_makemtype(PERMANENT);		break;
+X    }
+X}
+X
+Xpbmeject(newpage)
+Xint newpage; {
+X    int olddot;
+X
+X    olddot = dotted;
+X    if (dotted) {
+X	if (!pbmpage)
+X	    pbmnewpage(TRUE);
+X	end_bitmap(pbmtname);
+X    }
+X    if (newpage)
+X	pbmnewpage(olddot);
+X}
+X
+Xpbmnewpage(inc)
+Xint inc; {
+X    int (*old_func)();
+X
+X    sprintf(pbmtname,"%s.%d",pbmname,pbmpage);
+X    pbmpage += inc;
+X    if (have_auto_macro > -1) {
+X	old_func = getchar_func;
+X	getchar_func = auto_getc;
+X	rs_auto();
+X	getchar_func = old_func;
+X    }
+X}
+X
+Xloadbuiltin(fontname)
+Xchar *fontname; {
+X    char fname[256];
+X    static FILE *fload, *old_infp;
+X    static int (*old_func)();
+X
+X#ifdef	FAXPAK
+X    sprintf(fname, "%s/hplib/%s", fc.faxlib, fontname);
+X#else
+X    sprintf(fname, BUILTINDIR, LIBDIR, fontname);
+X#endif
+X    if ((fload = fopen(fname, "r")) == NULL)
+X	die("have some difficulty opening %s\n",fname);
+X    old_infp = infp;
+X    old_func = getchar_func;
+X    getchar_func = getc_only;
+X    infp = fload;
+X    hptoany();			/* load the font */
+X    fclose(fload);
+X    infp = old_infp;
+X    getchar_func = old_func;
+X}
+X
+X#ifdef	PLOT
+Xplotchars(f, dl)
+Xstruct download *dl;
+XFILE *f; {
+X    short x, y, bx, by, bytes, byteindex, bitindex, bit;
+X    uchar *data;
+X
+X    data = (uchar *)dl;
+X    data += sizeof(struct download);
+X    bytes = (canon(dl->dl_charwidth) + 7) / 8;
+X    for (y = 0; y < canon(dl->dl_charheight); y++) {
+X    fprintf(f, "        ");
+X    for (x = 0; x < (canon(dl->dl_charwidth) + canon(dl->dl_leftoffset));
+X	x++) {
+X        bx = x - canon(dl->dl_leftoffset);
+X        by = y;
+X        if (bx >= 0) {
+X	byteindex = bytes * by + bx / 8;
+X	bitindex = (7 - (bx % 8));
+X	if (data[byteindex] & (1 << bitindex))
+X	    bit = 'X';
+X	else
+X	    bit = ' ';
+X        } else
+X	bit = ' ';
+X        if (x == 0 && y == canon(dl->dl_topoffset))
+X	bit = '+';
+X        if (bit == ' ' && y == canon(dl->dl_topoffset))
+X	bit = '=';
+X        fputc(bit, f);
+X    }
+X    fputc('\n',f);
+X    }
+X}
+X#endif
+X
+X/*	Postscript driver */
+X
+Xps_font(v, p)
+Xint v, p; {
+X    ps_endemit();
+X    characteristic = 0;
+X    printf("/f%d findfont %d scalefont setfont\n", v, p);
+X}
+X
+Xps_init() {
+X    printf("/M { moveto } def\n");
+X    printf("/S { show } def\n");
+X}
+X
+Xint	emitting = 0;
+X
+X#define	TMS	"Times-Roman", "Times-Italic", "Times-Bold", "Times-BoldItalic"
+X#define COUR	"Courier", "Courier-Oblique", "Courier-Bold",\
+X    "Courier-BoldOblique"
+X#define HELV	"Helvetica", "Helvetica-Oblique", "Helvetica-Bold",\
+X    "Helvetica-BoldOblique"
+X
+X#define	LAST	7
+X
+Xchar	*fonts[LAST][4] = {{COUR}, {COUR}, {COUR}, {COUR},
+X	      {HELV}, {TMS}, {COUR}};
+X
+Xselchar() {
+X    int idx = 0;
+X    char *p;
+X
+X#ifdef	NEVER
+X    printf("ps_pointsize: %d\n", ps_pointsize);
+X    printf("ps_style: %d\n", ps_style);
+X    printf("ps_stroke: %d\n", ps_stroke);
+X    printf("ps_symset: %d\n", ps_symset);
+X    printf("ps_tface: %d\n", ps_tface);
+X    printf("ps_spacing: %d\n", ps_spacing);
+X#endif
+X    if (ps_tface == 4101)	/* CG Roman on LJ III */
+X	ps_tface = 5;
+X    if (ps_tface == 4148)	/* CG Univers (Helvetica like) Roman on LJ III */
+X	ps_tface = 4;
+X    if (ps_tface >= LAST || ps_tface < 0)
+X	ps_tface = 3;
+X    idx = 0;
+X    if (ps_stroke > 0)
+X	idx = 2;
+X    if (ps_style != 0)
+X	idx++;
+X    if (ps_symset == 'M')
+X	p = "Symbol";
+X    else p = fonts[ps_tface][idx];
+X    printf("/%s findfont %d scalefont setfont\n", p, ps_pointsize);
+X    characteristic = 0;
+X}
+X
+Xps_emitchar(c)
+Xint c; {
+X    if (!genps)
+X	return;
+X
+X    if (characteristic)
+X	selchar();
+X
+X    if (!emitting)
+X	printf("%g %g M(", curX * 72 / 300, (72 * 11) - (curY * 72 / 300));
+X
+X    emitting = 1;
+X
+X    switch(c) {
+X	case '(':
+X	case ')':
+X	case '\\':
+X	    printf("\\%c", c);
+X	    break;
+X	default:
+X	    if (c > ' ' && c < 0x7e)
+X		printf("%c", c);
+X	    else printf("\\%03o", c&0xff);
+X	    break;
+X    }
+X}
+X
+Xps_endemit() {
+X    if (emitting)
+X	printf(")S\n");
+X    emitting = 0;
+X}
+X
+X#ifdef	SELDOM	/* not used */
+Xprinthex(buf, n)
+Xchar *buf; int n; {
+X    int i;
+X
+X    dbprintf(("SEQ:"));
+X    for (i = 0; i < n; i++) {
+X	if (isprint(buf[i]))
+X	    putchar(buf[i]);
+X	else {
+X	    dbprintf(("\\%02x", buf[i]));
+X	}
+X    }
+X    dbprintf(("\n"));
+X}
+X#endif
+X
+END_OF_FILE
+if test 25627 -ne `wc -c <'./hpp.c'`; then
+    echo shar: \"'./hpp.c'\" unpacked with wrong size!
+fi
+# end of './hpp.c'
+fi
+echo shar: End of archive 2 \(of 4\).
+cp /dev/null ark2isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+George Orwell was an Optimist

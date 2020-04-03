@@ -1,0 +1,1714 @@
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!think.com!cass.ma02.bull.com!melb.bull.oz.au!sjg
+From: sjg@melb.bull.oz.au (Simon J Gerraty)
+Newsgroups: alt.sources
+Subject: nntpbatch: NNTP XBATCH client and server patches Part01/02
+Message-ID: <1992Jan24.051041.27273@melb.bull.oz.au>
+Date: 24 Jan 92 05:10:41 GMT
+Followup-To: alt.sources.d
+Organization: Bull HN Information Systems Australia
+Lines: 1704
+
+
+Archive-name: nntpbatch/Part01
+Submitted-by: sjg@melb.bull.oz.au (Simon J. Gerraty)
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 1 (of 2)."
+# Contents:  ChangeLog INSTALL MANIFEST Makefile README README.XBATCH
+#   get_tcp_conn.c get_tcp_conn.h nntpbatch.1 nntpbatch.h nntpqueue.sh
+#   shlock.c sysexits.h viaxbatch xmitauth.c
+# Wrapped by sjg@taureau on Fri Jan 24 16:06:13 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f ChangeLog -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"ChangeLog\"
+else
+echo shar: Extracting \"ChangeLog\" \(560 characters\)
+sed "s/^X//" >ChangeLog <<'END_OF_ChangeLog'
+XFri Jan 24 10:23:24 1992  Simon J Gerraty  (sjg at taureau)
+X
+X	* updated xbatch.patch for NNTP-1.5.11, re-arranged the README
+X	files a little.
+X
+X	* replaced nntpqueue.csh with nntpqueue.sh which is a bit more
+X	flexible.
+X
+X	* nntpbatch now exits with EX_NOPERM if xbatch transfer privleges
+X	are deinied.
+X
+X	* removed all trace of the mmap() useage as it is inappropriate to
+X	this program. 
+X
+XThu Jan 23 15:58:03 1992  Simon J Gerraty  (sjg at taureau)
+X
+X	* remote.c:
+X	Do a normal fread/fwrite in sendfile when MMAP is not defined so
+X	that we don't garble the data.
+X
+X
+END_OF_ChangeLog
+if test 560 -ne `wc -c <ChangeLog`; then
+    echo shar: \"ChangeLog\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f INSTALL -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"INSTALL\"
+else
+echo shar: Extracting \"INSTALL\" \(2386 characters\)
+sed "s/^X//" >INSTALL <<'END_OF_INSTALL'
+XINSTALL
+X
+XIt is assumed that your NNTP source is in $NNTP, and that
+Xnntpbatch et al were unpacked in $NNTP/nntpbatch  
+X
+XTo start using XBATCH you must:
+X
+X1/	Build a modified NNTPD at the receiving end.
+X
+X	cd $NNTP
+X	patch -s -p0 < nntpbatch/xbatch.patch
+X
+X	If you are using nntp-1.5.11 all should be fine.
+X	If you are using another version, expect some rejects.
+X	examine any rejects - they will mostly be as a result of
+X	sccs_id lines in the patch or line numbers being too far
+X	out for patch's liking.
+X
+X	Once you are happy that the changes have been made:
+X
+X	     make server
+X	     cp server/nntd to where_ever (save the previous one!)
+X
+X	Edit NNTP_ACCESS.  Sites that should be allowed to use
+X	XBATCH must have their readperm start with a capital X
+X	or B.  That is:
+X
+X	   ladcgw.ladc.bull.com	Xfer	no
+X	   brahman.syd.bull.oz.au	Both	post
+X
+X2/	Build and install the client software at the sending
+X	site(s).
+X
+X	Edit $NNTP/nntpbatch/Makefile to ensure correct
+X	libraries are used.  It ships ready for a Bull DPX/2.
+X
+X		make
+X
+X	install nntpbatch and shlock somewhere appropriate such
+X	as NEWSBIN/nntp.  Install viaxbatch in NEWSBIN/batch.
+X
+X	To use XBATCH to send news batches to
+X	brahman.syd.bull.oz.au which calls itself just brahman
+X	for news purposes:
+X
+X	In NEWSCTL/sys
+X
+X		brahman:all/all:f:
+X
+X	Update NEWSCTL/batchparms to use viaxbatch eg:
+X
+X		# batchparms - taureau.melb.bull.oz.au
+X		#
+X		# default via ACSnet 
+X		#
+X		# site		size	queue	builder	muncher	sender
+X		# ----		----	-----	-------	-------	------
+X		/default/	100000	20	batcher	comp16	viaacsnet
+X		#
+X		brahman		100000	10	batcher	compzoo	viaxbatch
+X
+X	Create the directory /usr/spool/nntp and
+X	/usr/spool/nntp/brahman
+X	In the file /usr/spool/nntp/brahman/FQDN enter either
+X	the hosts fully qualified domain name or an IP address:
+X
+X		brahman.syd.bull.oz.au
+X
+X	Note the FQDN file is only needed where the news name
+X	(brahman) is not sufficient to guarantee a TCP
+X	connection.
+X
+X	Now arrange for cron(8) to invoke nntpqueue.sh on a
+X	regular basis (install it in NEWSBIN/nntp).
+X
+X	nntpqueue.sh will look for batches spooled by viaxbatch
+X	in the /usr/spool/nntp/brahman queue directory and
+X	invoke nntpbatch to send them.
+X
+X	If nntpd on brahman refuses permission to use XBATCH,
+X	nntpqueue.sh will detect this and create the lock file
+X	/usr/spool/nntp/brahman/XBATCH_denied which will prevent
+X	any further attempts to send batches until it is
+X	removed.
+X
+X	
+END_OF_INSTALL
+if test 2386 -ne `wc -c <INSTALL`; then
+    echo shar: \"INSTALL\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f MANIFEST -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"MANIFEST\"
+else
+echo shar: Extracting \"MANIFEST\" \(778 characters\)
+sed "s/^X//" >MANIFEST <<'END_OF_MANIFEST'
+X   File Name		Archive #	Description
+X-----------------------------------------------------------
+X ChangeLog                 1	Change history
+X INSTALL                   1	what to do...
+X MANIFEST                  1	This shipping list
+X Makefile                  1	
+X README                    1	
+X README.XBATCH             1	description of nntpd changes
+X get_tcp_conn.c            1	
+X get_tcp_conn.h            1	
+X nntpbatch.1               1	manual page
+X nntpbatch.c               2	
+X nntpbatch.h               1	
+X nntpqueue.sh              1	driver script
+X remote.c                  2	
+X shlock.c                  1	
+X sysexits.h                1	
+X viaxbatch                 1	install in NEWSBIN/batch
+X xbatch.patch              2	patch for nntp-1.5.11
+X xmitauth.c                1	
+END_OF_MANIFEST
+if test 778 -ne `wc -c <MANIFEST`; then
+    echo shar: \"MANIFEST\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f Makefile -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"Makefile\"
+else
+echo shar: Extracting \"Makefile\" \(1627 characters\)
+sed "s/^X//" >Makefile <<'END_OF_Makefile'
+X#
+X# Makefile for NNTPBATCH version 2
+X#
+X
+X# be sure to set these correctly
+XNEWSBIN=/usr/local/lib/newsbin
+X# where nntpbatch et al live
+XDESTDIR=${NEWSBIN}/nntp
+X# for the Bull DPX/2
+XLIBS	= -linet
+X#LIBS	=
+X
+XDEFS	=
+XDGB	= -O
+X
+XSRVRSRC = nntpbatch.c remote.c get_tcp_conn.c xmitauth.c ../server/fakesyslog.c ../server/strcasecmp.c
+X
+XSRVROBJ = nntpbatch.o remote.o get_tcp_conn.o xmitauth.o fakesyslog.o strcasecmp.o
+X
+XSRVRINC = ../common/conf.h ../common/nntp.h nntpbatch.h get_tcp_conn.h \
+X	sysexits.h ../common/nntp.h ../server/fakesyslog.h
+X
+XSRCS	= ${SRVRSRC}
+X
+X
+XCFLAGS	= ${DBG} ${DEFS}
+X
+Xall:	nntpbatch shlock
+X
+Xnntpbatch: ${SRVROBJ} ${SRVRINC}
+X	${CC} ${CFLAGS} -o nntpbatch ${SRVROBJ} ${LIBS}
+X
+Xshlock: shlock.c
+X	cc ${CFLAGS} -o shlock shlock.c
+X
+X${SRVROBJ}: ${SRVRINC}
+X
+Xinstall: nntpbatch shlock
+X	cp nntpbatch ${DESTDIR}/nntpbatch
+X	cp nntpqueue.sh ${DESTDIR}/nntpqueue.sh
+X	cp shlock ${DESTDIR}/shlock
+X	chmod 755 ${DESTDIR}/nntpbatch
+X	chmod 755 ${DESTDIR}/nntpqueue.sh
+X	chmod 755 ${DESTDIR}/shlock
+X	cp viaxbatch ${NEWSBIN}/batch
+X	chmod 755 ${NEWSBIN}/batch/viaxbatch
+X
+Xlint:
+X	lint ${SRVRSRC}
+X
+Xclean:
+X	-rm -f *.o nntpbatch shlock make*.out a.out
+X
+Xdistrib: clean
+X	rm -rf RCS save tags
+X
+Xcheck:
+X	ci -l *.[ch] Makefile
+X
+Xtags:	${SRVRSRC} ${SRVRINC}
+X	ctags ${SRVRSRC} ${SRVRINC}
+X
+Xfakesyslog.o: ../server/fakesyslog.c ../server/fakesyslog.h
+X	${CC} ${CFLAGS} -c ../server/fakesyslog.c
+X
+Xstrcasecmp.o: ../server/strcasecmp.c 
+X	${CC} ${CFLAGS} -c ../server/strcasecmp.c
+X
+Xnntpbatch.o: nntpbatch.c nntpbatch.h ../common/conf.h
+X
+Xget_tcp_conn.o: get_tcp_conn.c get_tcp_conn.h ../common/conf.h
+X
+Xremote.o: remote.c nntpbatch.h get_tcp_conn.h ../common/conf.h
+END_OF_Makefile
+if test 1627 -ne `wc -c <Makefile`; then
+    echo shar: \"Makefile\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f README -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"README\"
+else
+echo shar: Extracting \"README\" \(1720 characters\)
+sed "s/^X//" >README <<'END_OF_README'
+XREADME	92-01-24	Simon J Gerraty <sjg@melb.bull.oz.au>
+X
+XThis archive contains the XBATCH extention to NNTP and the
+XNNTPBATCH client that makes use of it.  NNTPBATCH was originally
+Xdeveloped by Frank Mayhar from nntpxmit by Erik Fair, Mel
+XPleasant, et al.  The server mods are my fault :-)
+X
+XXBATCH allows transfer of complete batches via NNTP.
+XThe batches are not intererated by nntp in any way at all.  They
+Xare simply received and enqueued for injection into news.
+X
+XThe aim is of course to be able to transfer compressed batches
+Xvia NNTP.  This is handy if you get the bulk of your news from a
+Xsingle feed or if network bandwidth is of concern.
+X
+Xtaureau.melb.bull.oz.au receives news from ladcgw.ladc.bull.com
+X(LA) via a NNTP.  The link at times is very slow and sometimes
+Xunreliable.  At one stage we had to severely restrict the feed
+Xto be able to transfer a days worth of news within 24 hours!
+XUsing compressed batches via XBATCH, the same amount of news
+Xis typically transferred in 2-3 hours.
+X
+XThe xbatch client software was originally developed by Frank
+XMayhar <fmayhar@hermes.ladc.bull.com>, it has been enhanced with
+Xa new driver script (in Bourne shell this time :-) that skips
+Xtrying a site if XBATCH permission has been denied.
+X
+XThe functionality provided by XBATCH will (hopefully) soon be
+Xreplaced by the BATCH command of the NNTP v2 specification.
+XXBATCH is simple to install and is dedicated to the Public
+XDomain in the hope it should prove a useful interim solution to
+Xthose with slow or unreliable IP links.
+X
+XSee README.XBATCH for more details about the NNTP changes.
+XSee nntpbatch.1 for details of the client.
+XSee INSTALL for further instructions.
+X
+XPlease report bugs/problems to me sjg@melb.bull.oz.au
+END_OF_README
+if test 1720 -ne `wc -c <README`; then
+    echo shar: \"README\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f README.XBATCH -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"README.XBATCH\"
+else
+echo shar: Extracting \"README.XBATCH\" \(3835 characters\)
+sed "s/^X//" >README.XBATCH <<'END_OF_README.XBATCH'
+XXBATCH README
+X
+XThe file xbatch.patch contains patches to 
+X./common/nntp.h
+X./server/help.c
+X./server/access.c
+X./server/batch.c
+X./server/serve.c
+X
+Xthat implement a new NNTP server command XBATCH.
+X[xbatch.patch has been updated to suit NNTP-1.5.11]
+X
+XXBATCH allows transfer of complete batches via NNTP.
+XThe batches are not intererated by nntp in any way at all.  They
+Xare simply received and enqueued for injection into news.
+X
+XThe aim is of course to be able to transfer compressed batches
+Xvia NNTP.  XBATCH achieves this admirably.  There has been
+Xdiscussion in the news about the benefits of compressed batches
+Xvs ihave/sendme etc.  The concensus seemed to be that compressed
+Xbatches were not needed.  However it seemed to me that most folk
+Xholding that opinion were probably at sites with nice fast
+Xreliable IP links.
+X
+Xtaureau.melb.bull.oz.au receives news from ladcgw.ladc.bull.com
+X(LA) via a NNTP.  The link at times is very slow and sometimes
+Xunreliable.  At one stage we had to severely restrict the feed
+Xto be able to transfer a days worth of news within 24 hours!
+XUsing compressed batches via XBATCH, the same amount of news
+Xis typically transferred in 2-3 hours.
+X
+XIf the NNTP_ACCESS file entry read/xfer permission starts
+Xwith a capital letter then NNTPD will allow XBATCH.  That is:
+X
+Xladcgw.ladc.bull.com	Xfer	no
+Xbrahman.syd.bull.oz.au	Both	post
+X
+Xboth represent sites allowed to XBATCH, whereas:
+X
+Xladcgw.ladc.bull.com	xfer	no
+Xbrahman.syd.bull.oz.au	both	post
+X
+Xdenies XBATCH permission - even though normal nntpxmit is
+Xallowed.
+X
+XNNTPD does not fork newsrun each time in enqueues a batch (using
+Xxbatch the normal NNTPD behavior remains for normal usage).
+X
+XThe xbatch client software was originally developed by Frank
+XMayhar <fmayhar@hermes.ladc.bull.com>, it has been enhanced with
+Xa new driver script (in Bourne shell this time :-) that skips
+Xtrying a site if XBATCH permission has been denied.
+X
+XThe functionality provided by XBATCH will (hopefully) soon be
+Xreplaced by the BATCH command of the NNTP v2 specification.
+XXBATCH is simple to install and is dedicated to the Public
+XDomain in the hope it should prove a useful interim solution to
+Xthose with slow or unreliable IP links.
+X
+XBelow is the description of xbatch from the source:
+X
+XNAME:
+X     xbatch - accept complete batches
+X
+XSYNOPSIS:
+X     xbatch size
+X     
+XDESCRIPTION:
+X     This function receives complete batches from the client 
+X     and injects them into the Cnews input queue.  It uses 
+X     the same enqueue() routine as the normal 
+X     batch_input_article().   However, for efficiency this 
+X     routine disables the exec'ing of "newsrun".
+X
+X     xbatch takes a single argument "nbytes" which is the 
+X     size in bytes of the batch to be transfered.  NNTP is 
+X     expected to simpy copy and enqueue this many bytes from 
+X     stdin. 
+X     
+X     Using xbatch, the time taken to transfer news from 
+X     ladcgw.ladc.bull.com to taureau.melb.bull.oz.au 
+X     is reduced by a number of hours.
+X     
+X     The possible? client/server conversations look like:
+X     C: XBATCH nbytes
+X     S: 339 Ok
+X     C: sends "nbytes" of data
+X     S: 239 Batch transfered successfully.
+X     
+X     The client has the option of sending another batch.
+X     
+X     C: XBATCH nbytes
+X     S: 339 Ok
+X     C: sends "nbytes" of data
+X     S: 436 xbatch failed: [extra data]
+X     
+X     The client can try to re-send the current batch.
+X     The following can happen any time, and may well occur 
+X     after a failed transfer.
+X     
+X     C: XBATCH nbytes
+X     S: 400 xbatch failed: [extra data], goodbye.
+X
+X     The client should call back later.
+X     
+X     C: XBATCH nbytes
+X     S: 449 Sorry, you are not allowed to transfer batches.
+X     
+X     The client should not bother trying again.
+X
+X     Please send copies of updates to this code to:
+X     <sjg@melb.bull.oz.au>
+X     
+XRETURN VALUE:
+X     None
+X
+X
+X
+END_OF_README.XBATCH
+if test 3835 -ne `wc -c <README.XBATCH`; then
+    echo shar: \"README.XBATCH\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f get_tcp_conn.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"get_tcp_conn.c\"
+else
+echo shar: Extracting \"get_tcp_conn.c\" \(7304 characters\)
+sed "s/^X//" >get_tcp_conn.c <<'END_OF_get_tcp_conn.c'
+X/*
+X** Routines to open a TCP connection
+X**
+X** New version that supports the old (pre 4.2 BSD) socket calls,
+X** and systems with the old (pre 4.2 BSD) hostname lookup stuff.
+X** Compile-time options are:
+X**
+X**	USG		- you're on System III/V (you have my sympathies)
+X**	NONETDB		- old hostname lookup with rhost()
+X**	OLDSOCKET	- different args for socket() and connect()
+X**
+X** Erik E. Fair <fair@ucbarpa.berkeley.edu>
+X**
+X*/
+X
+X#include "../common/conf.h"
+X#include <sys/types.h>
+X#include <sys/socket.h>
+X#include <netinet/in.h>
+X#include <ctype.h>
+X#include <stdio.h>
+X#include "get_tcp_conn.h"
+X#ifndef	NONETDB
+X#include <netdb.h>
+X#endif	/* NONETDB */
+X
+Xextern	int	errno;
+Xextern	char	*Pname;
+Xextern	char	*errmsg();
+X#ifndef	htons
+Xextern	u_short	htons();
+X#endif	/* htons */
+X#ifndef	NONETDB
+Xextern	char	*inet_ntoa();
+Xextern	u_long	inet_addr();
+X#else
+X/*
+X * inet_addr for EXCELAN (which does not have it!)
+X *
+X */
+Xu_long
+Xinet_addr(cp)
+Xregister char	*cp;
+X{
+X	u_long val, base, n;
+X	register char c;
+X 	u_long octet[4], *octetptr = octet;
+X#ifndef	htonl
+X	extern	u_long	htonl();
+X#endif	/* htonl */
+Xagain:
+X	/*
+X	 * Collect number up to ``.''.
+X	 * Values are specified as for C:
+X	 * 0x=hex, 0=octal, other=decimal.
+X	 */
+X	val = 0; base = 10;
+X	if (*cp == '0')
+X		base = 8, cp++;
+X	if (*cp == 'x' || *cp == 'X')
+X		base = 16, cp++;
+X	while (c = *cp) {
+X		if (isdigit(c)) {
+X			val = (val * base) + (c - '0');
+X			cp++;
+X			continue;
+X		}
+X		if (base == 16 && isxdigit(c)) {
+X			val = (val << 4) + (c + 10 - (islower(c) ? 'a' : 'A'));
+X			cp++;
+X			continue;
+X		}
+X		break;
+X	}
+X	if (*cp == '.') {
+X		/*
+X		 * Internet format:
+X		 *	a.b.c.d
+X		 *	a.b.c	(with c treated as 16-bits)
+X		 *	a.b	(with b treated as 24 bits)
+X		 */
+X		if (octetptr >= octet + 4)
+X			return (-1);
+X		*octetptr++ = val, cp++;
+X		goto again;
+X	}
+X	/*
+X	 * Check for trailing characters.
+X	 */
+X	if (*cp && !isspace(*cp))
+X		return (-1);
+X	*octetptr++ = val;
+X	/*
+X	 * Concoct the address according to
+X	 * the number of octet specified.
+X	 */
+X	n = octetptr - octet;
+X	switch (n) {
+X
+X	case 1:				/* a -- 32 bits */
+X		val = octet[0];
+X		break;
+X
+X	case 2:				/* a.b -- 8.24 bits */
+X		val = (octet[0] << 24) | (octet[1] & 0xffffff);
+X		break;
+X
+X	case 3:				/* a.b.c -- 8.8.16 bits */
+X		val = (octet[0] << 24) | ((octet[1] & 0xff) << 16) |
+X			(octet[2] & 0xffff);
+X		break;
+X
+X	case 4:				/* a.b.c.d -- 8.8.8.8 bits */
+X		val = (octet[0] << 24) | ((octet[1] & 0xff) << 16) |
+X		      ((octet[2] & 0xff) << 8) | (octet[3] & 0xff);
+X		break;
+X
+X	default:
+X		return (-1);
+X	}
+X	val = htonl(val);
+X	return (val);
+X}
+X
+Xchar *
+Xinet_ntoa(in)
+Xstruct in_addr in;
+X{
+X	static char address[20];
+X
+X	sprintf(address, "%u.%u.%u.%u",
+X			 (in.s_addr>>24)&0xff,
+X			 (in.s_addr>>16)&0xff,
+X			 (in.s_addr>>8 )&0xff,
+X			 (in.s_addr    )&0xff);
+X	return(address);
+X}
+X#endif	/* NONETDB */
+X
+X#ifdef	USG
+Xvoid
+Xbcopy(s, d, l)
+Xregister caddr_t s, d;
+Xregister int l;
+X{
+X	while (l-- > 0)	*d++ = *s++;
+X}
+X#endif	/* USG */
+X
+X/*
+X** Take the name of an internet host in ASCII (this may either be its
+X** official host name or internet number (with or without enclosing
+X** backets [])), and return a list of internet addresses.
+X**
+X** returns NULL for failure to find the host name in the local database,
+X** or for a bad internet address spec.
+X*/
+Xu_long **
+Xname_to_address(host)
+Xchar	*host;
+X{
+X	static	u_long	*host_addresses[2];
+X	static	u_long	haddr;
+X
+X	if (host == (char *)NULL) {
+X		return((u_long **)NULL);
+X	}
+X
+X	host_addresses[0] = &haddr;
+X	host_addresses[1] = (u_long *)NULL;
+X
+X	/*
+X	** Is this an ASCII internet address? (either of [10.0.0.78] or
+X	** 10.0.0.78). We get away with the second test because hostnames
+X	** and domain labels are not allowed to begin in numbers.
+X	** (cf. RFC952, RFC882).
+X	*/
+X	if (*host == '[' || isdigit(*host)) {
+X		char	namebuf[128];
+X		register char	*cp = namebuf;
+X
+X		/*
+X		** strip brackets [] or anything else we don't want.
+X		*/
+X		while(*host != '\0' && cp < &namebuf[sizeof(namebuf)]) {
+X			if (isdigit(*host) || *host == '.')
+X				*cp++ = *host++;	/* copy */
+X			else
+X				host++;			/* skip */
+X		}
+X		*cp = '\0';
+X		haddr = inet_addr(namebuf);
+X		return(&host_addresses[0]);
+X	} else {
+X#ifdef	NONETDB
+X		extern	u_long	rhost();
+X
+X		/* lint is gonna bitch about this (comparing an unsigned?!) */
+X		if ((haddr = rhost(&host)) == FAIL)
+X			return((u_long **)NULL);	/* no such host */
+X		return(&host_addresses[0]);
+X#else
+X		struct hostent	*hstp = gethostbyname(host);
+X
+X		if (hstp == NULL) {
+X			return((u_long **)NULL);	/* no such host */
+X		}
+X
+X		if (hstp->h_length != sizeof(u_long))
+X			abort();	/* this is fundamental */
+X#ifndef	h_addr
+X		/* alignment problems (isn't dbm wonderful?) */
+X		bcopy((caddr_t)hstp->h_addr, (caddr_t)&haddr, sizeof(haddr));
+X		return(&host_addresses[0]);
+X#else
+X		return((u_long **)hstp->h_addr_list);
+X#endif	/* h_addr */
+X#endif	/* NONETDB */
+X	}
+X}
+X
+X/*
+X** Get a service port number from a service name (or ASCII number)
+X**
+X** Return zero if something is wrong (that's a reserved port)
+X*/
+X#ifdef	NONETDB
+Xstatic struct Services {
+X	char	*name;
+X	u_short	port;
+X} Services[] = {
+X	{"nntp",	IPPORT_NNTP},		/* RFC977 */
+X	{"smtp",	IPPORT_SMTP},		/* RFC821 */
+X	{"name",	IPPORT_NAMESERVER},	/* RFC881, RFC882, RFC883 */
+X	{"time",	IPPORT_TIMESERVER},	/* RFC868 */
+X	{"echo",	IPPORT_ECHO},		/* RFC862 */
+X	{"discard",	IPPORT_DISCARD},	/* RFC863 */
+X	{"daytime",	IPPORT_DAYTIME},	/* RFC867 */
+X	{"login",	IPPORT_LOGINSERVER},	/* N/A - 4BSD specific */
+X};
+X#endif	/* NONETDB */
+X
+Xu_short
+Xgservice(serv, proto)
+Xchar	*serv, *proto;
+X{
+X	if (serv == (char *)NULL || proto == (char *)NULL)
+X		return((u_short)0);
+X
+X	if (isdigit(*serv)) {
+X		return(htons((u_short)(atoi(serv))));
+X	} else {
+X#ifdef	NONETDB
+X		register int	i;
+X
+X		for(i = 0; i < (sizeof(Services) / sizeof(struct Services)); i++) {
+X			if (strcmp(serv, Services[i].name) == 0)
+X				return(htons(Services[i].port));
+X		}
+X		return((u_short)0);
+X#else
+X		struct servent	*srvp = getservbyname(serv, proto);
+X
+X		if (srvp == (struct servent *)NULL)
+X			return((u_short)0);
+X		return((u_short)srvp->s_port);
+X#endif	/* NONETDB */
+X	}
+X}
+X
+X/*
+X** given a host name (either name or internet address) and service name
+X** (or port number) (both in ASCII), give us a TCP connection to the
+X** requested service at the requested host (or give us FAIL).
+X*/
+Xget_tcp_conn(host, serv)
+Xchar	*host, *serv;
+X{
+X	register int	sock;
+X	u_long	**addrlist;
+X	struct sockaddr_in	sadr;
+X#ifdef	OLDSOCKET
+X	struct sockproto	sp;
+X
+X	sp.sp_family	= (u_short)AF_INET;
+X	sp.sp_protocol	= (u_short)IPPROTO_TCP;
+X#endif	/* OLDSOCKET */
+X
+X	if ((addrlist = name_to_address(host)) == (u_long **)NULL) {
+X		return(NOHOST);
+X	}
+X
+X	sadr.sin_family = (u_short)AF_INET;	/* Only internet for now */
+X	if ((sadr.sin_port = gservice(serv, "tcp")) == 0)
+X		return(NOSERVICE);
+X
+X	for(; *addrlist != (u_long *)NULL; addrlist++) {
+X		bcopy((caddr_t)*addrlist, (caddr_t)&sadr.sin_addr,
+X			sizeof(sadr.sin_addr));
+X
+X#ifdef	OLDSOCKET
+X		if ((sock = socket(SOCK_STREAM, &sp, (struct sockaddr *)NULL, 0)) < 0)
+X			return(FAIL);
+X
+X		if (connect(sock, (struct sockaddr *)&sadr) < 0) {
+X#else
+X		if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+X			return(FAIL);
+X
+X		if (connect(sock, (struct sockaddr *)&sadr, sizeof(sadr)) < 0) {
+X#endif	/* OLDSOCKET */
+X			int	e_save = errno;
+X
+X			fprintf(stderr, "%s: %s [%s]: %s\n", Pname, host,
+X				inet_ntoa(sadr.sin_addr), errmsg(errno));
+X			(void) close(sock);	/* dump descriptor */
+X			errno = e_save;
+X		} else
+X			return(sock);
+X	}
+X	return(FAIL);
+X}
+END_OF_get_tcp_conn.c
+if test 7304 -ne `wc -c <get_tcp_conn.c`; then
+    echo shar: \"get_tcp_conn.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f get_tcp_conn.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"get_tcp_conn.h\"
+else
+echo shar: Extracting \"get_tcp_conn.h\" \(596 characters\)
+sed "s/^X//" >get_tcp_conn.h <<'END_OF_get_tcp_conn.h'
+X/*
+X** Return codes from get_tcp_conn().
+X*/
+X#ifndef	FAIL
+X#define FAIL		(-1)		/* routine failed */
+X#endif
+X#define	NOHOST		(FAIL-1)	/* no such host */
+X#define	NOSERVICE	(FAIL-2)	/* no such service */
+X
+X#ifndef NULL
+X#define	NULL	0
+X#endif
+X
+X#ifdef USG	/* brain-dead USG compilers can't deal with typedef */
+X#define bcopy(a,b,c)   memcpy(b,a,c)
+X#ifndef M_XENIX
+X#ifndef dgux
+X#define	u_long	unsigned long
+X#define	u_short	unsigned short
+X#endif
+X#endif
+X#endif
+X
+X#ifdef	EXCELAN
+X#define	NONETDB
+X#define	OLDSOCKET
+X#endif
+X
+X#ifdef	NONETDB
+X#define	IPPORT_NNTP	119		/* NNTP is on TCP port 119 */
+X#endif	/* NONETDB */
+END_OF_get_tcp_conn.h
+if test 596 -ne `wc -c <get_tcp_conn.h`; then
+    echo shar: \"get_tcp_conn.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f nntpbatch.1 -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"nntpbatch.1\"
+else
+echo shar: Extracting \"nntpbatch.1\" \(3557 characters\)
+sed "s/^X//" >nntpbatch.1 <<'END_OF_nntpbatch.1'
+X.TH NNTPBATCH 1 netnews/NNTP
+X.SH NAME
+X.I nntpbatch
+X\- transmit netnews batches to a remote NNTP server using the XBATCH extension
+X.SH SYNOPSIS
+X.I nntpbatch
+X[
+X.B \-d
+X]
+X[
+X.B \-s
+X]
+X[
+X.B \-T
+X]
+X[
+X.B \-F
+X]
+X[
+X.B \-D
+X] hostname file [file ...]
+X.SH DESCRIPTION
+X.PP
+X.I Nntpbatch
+Xoffers netnews batches [RFC850] named on the command line to a remote NNTP (Network News Transfer Protocol,
+X[RFC977]) server, using the XBATCH extension.
+X.PP
+XThe command line arguments are processed sequentially, and the flags
+Xcan thus be toggled several times during one invocation of the
+Xprogram, by giving the options more than once.
+XThe options are:
+X.IP  "hostname file [file ...]"
+XThe name of the remote host, followed by the names of files containing batches destined for that host.
+XThe hostname may be an internet address in dotted
+Xformat (e.g. 10.2.0.78, [10.0.0.78]).  If the -F flag was given, hostname may be omitted.
+X.IP -s
+XToggles reporting of transfer statistics (how many articles we
+Xoffered them, how many they accepted, etc).
+X.br
+XDefault is
+X.B ON.
+X.IP -d
+XToggles DEBUG output on stderr.
+XThis can be used to see exactly what the two systems are saying to
+Xeach other, except for the actual article text.
+X.br
+XDefault is
+X.B OFF.
+X.PP
+XThe next options set the underlying transport protocol that
+X.I nntpbatch
+Xuses.
+XThe NNTP specification assumes a TCP-style transport protocol
+Xunderlies it (i.e. a reliable, flow-controlled, full-duplex byte
+Xstream).
+X.I Nntpbatch
+Xassumes that after doing some magic to get a descriptor, 
+Xit can do read(2) and write(2) calls (and use stdio) to move data
+Xand check for errors.
+XBy default, 
+X.I nntpbatch
+Xwill use TCP/IP (DoD Internet Protocol suite).
+X.IP -T
+XSets transport protocol to TCP/IP for all remaining
+Xtransfers (unless reset by other transport flags).
+XDefault transport.
+X.IP -D
+XSets transport protocol to DECNET for all remaining
+Xtransfers (unless reset by other transport flags).
+X.IP -F
+XThis says that the hostname is a file descriptor number, already
+Xopen to a remote server (with some reliable protocol underneath)
+Xthat was passed to
+X.I nntpbatch
+Xthrough a fork(2).
+X.SH "THEORY OF OPERATION"
+X.PP
+X.I Nntpbatch
+Ximplements batches transmission using the XBATCH extension to NNTP,
+Xby Simon Gerraty (sjg@melb.bull.oz.au).
+XRoughly, the protocol is
+X.IP 1.
+Xstat the batch file
+Xand send the command XBATCH <batch size in bytes> to the remote.
+X.IP 2.
+XThe remote will then say either "I'm ready for the batch" or indicate some sort of failure.
+X.IP 3.
+XIf the response was positive,
+X.I nntpbatch
+Xsends the batch, as a stream of bytes.  Note that it does not use SMTP [RFC821] text transmission conventions
+X(i.e. CRLF line terminators, and dot escaping).  Care must therefore be taken to send exactly the number of bytes specified in the XBATCH command.
+X.IP 4.
+X.I Nntpbatch
+Xwaits for the remote to say whether the batch was successfully
+Xaccepted or not.
+XIf the transfer failed (whether due to network problems or to a problem with the NNTP server),
+X.I nntpbatch
+Xwill abort, keeping the batch file for a future transmission attempt.  Otherwise, the batch file is deleted and nntpbatch process the next batch.
+X.SH RETURNS
+X.I Nntpbatch
+Xexits with a good status unless the remote site refuses permission to use XBATCH.
+X.SH FILES
+X/tmp/nntpbatchXXXXXX
+X.SH AUTHOR
+XFrank Mayhar (fmayhar@hermes.ladc.bull.com) and 
+X.br
+XSimon Gerraty (sjg@melb.bull.oz.au)
+X.SH "SEE ALSO"
+Xinews(1),
+X.br
+XRFC977 \- Network News Transfer Protocol (NNTP),
+X.br
+XRFC850 \- USENET Article Format standard,
+X.br
+XRFC821 \- Simple Mail Transfer Protocol (SMTP),
+X.SH BUGS
+X.PP
+XNone.  (Ha!)
+END_OF_nntpbatch.1
+if test 3557 -ne `wc -c <nntpbatch.1`; then
+    echo shar: \"nntpbatch.1\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f nntpbatch.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"nntpbatch.h\"
+else
+echo shar: Extracting \"nntpbatch.h\" \(1298 characters\)
+sed "s/^X//" >nntpbatch.h <<'END_OF_nntpbatch.h'
+X/*
+X** Random stuff needed for nntpxmit
+X**
+X** This file also contains a lot of assumptions about what features
+X** are available on the local system - if something is not working
+X** to your liking, look them over carefully.
+X*/
+X
+X#ifdef SIGRET
+X#undef SIGRET
+X#endif
+X#define SIGRET void	/* Newfangled signal() returns void, old returns int */
+X
+Xtypedef	SIGRET	(*ifunp)();	/* pointer to function that returns */
+X				/* whatever signal() returns */
+X
+X#define	dprintf	if (Debug) fprintf
+X
+X#ifdef TIMEOUT
+X#undef TIMEOUT
+X#endif
+X#define	TIMEOUT	3600		/* seconds to read timeout in sfgets */
+X
+X#ifndef	TRUE
+X#define	TRUE	1
+X#define	FALSE	0
+X#endif
+X
+X/* in goodbye() wait (or not) for QUIT response */
+X#define	WAIT		TRUE
+X#define	DONT_WAIT	FALSE
+X
+X/* in lockfd(), blocking, or non_blocking */
+X#define	BLOCK		FALSE
+X#define	DONT_BLOCK	TRUE
+X
+X#ifndef FAIL
+X#define	FAIL		(-1)
+X#endif
+X
+X
+X/* DECNET support is only there if the DECNET compile-time option defined */
+X#define	T_IP_TCP	1	/* transport is IP/TCP */
+X#define	T_DECNET	2	/* transport is DECNET */
+X#define	T_FD		3	/* transport is a descriptor */
+X
+X/* for syslog, if we compile it in */
+X#define	L_DEBUG		1
+X#define	L_INFO		2
+X#define	L_NOTICE	3
+X#define	L_WARNING	4
+X
+X
+X#ifdef	BSD_42			/* look at all these goodies we get! */
+X#define	FTRUNCATE
+X#define	RELSIG
+X#endif	/* BSD4_2 */
+X
+END_OF_nntpbatch.h
+if test 1298 -ne `wc -c <nntpbatch.h`; then
+    echo shar: \"nntpbatch.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f nntpqueue.sh -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"nntpqueue.sh\"
+else
+echo shar: Extracting \"nntpqueue.sh\" \(2554 characters\)
+sed "s/^X//" >nntpqueue.sh <<'END_OF_nntpqueue.sh'
+X#!/bin/sh
+X#
+X# NAME:
+X#	nntpqueue - process batches queued for a remote site
+X#
+X# SYNOPSIS:
+X#	nntpqueue [host ...]
+X#
+X# DESCRIPTION:
+X#	This is a bourne shell version of the original
+X#	nntpqueue.csh script. 
+X#
+X#	This version is designed to conform with the normal
+X#	C-News environment and is more flexible.
+X#
+X#	The viaxbatch script simply spools prepared batches to
+X#	$NNTPSPOOL/$host 
+X#	This script should be run on a regular basis to process
+X#	the batches thus queued.  It can be provided a list of
+X#	hosts to process on the commandline (default is all
+X#	subdirs of $NNTPSPOOL).  For each $host:
+X#
+X#	If the file XBATCH_denied is present the host is
+X#	skipped.  If there are no queued batches ie. [0-9]* then
+X#	the host is skipped.  Otherwise if the queue is not
+X#	locked by another process, nntpbatch is invoked to
+X#	transmit the batches to the remote site.
+X#
+X#	If nntpbatch exits with a bad status it is because the
+X#	remote site is refusing xbatch permission.  The
+X#	XBATCH_denied lockfile is created and will remain until
+X#	removed by an operator.
+X#
+X#	For remote sites that do not used their FQDN as their
+X#	news name, the file FQDN can be created in
+X#	$NNTPSPOOL/$host with the contents being the FQDN.  In
+X#	this case nntpbatch will contact the FQDN without
+X#	problems.
+X#
+X# RETURNS:
+X#	0==success, 1==failure
+X#
+X# SEE ALSO:
+X#	
+X#
+X# AMENDED:
+X#	%E% %U% (%Y%)
+X#
+X# RELEASED:
+X#	%D% %T% v%I%
+X#
+X# SCCSID:
+X#	%Z%%M% %I% %E% %U% (%Y%)
+X#
+X
+X# =()<. ${NEWSCONFIG-@<NEWSCONFIG>@}>()=
+X. ${NEWSCONFIG-/usr/local/lib/news/bin/config}
+Xexport NEWSCTL NEWSBIN NEWSARTS NEWSPATH NEWSUMASK NEWSMASTER NEWSCONFIG
+XPATH=$NEWSBIN/nntp:$NEWSCTL/bin:$NEWSBIN/inject:$NEWSBIN/relay:$NEWSBIN:$NEWSPATH; export PATH
+X
+XNNTPSPOOL=${NNTPSPOOL:-/usr/spool/nntp}
+X
+XXBLOCK=XBATCH_denied
+X
+XMyname=`basename $0 .sh`
+Xumask $NEWSUMASK
+X
+Xecho ${Myname}: "[$$]" begin `date`
+Xcd $NNTPSPOOL
+XHlist=${*:-*}
+Xfor host in $Hlist
+Xdo
+X  cd $host
+X  if [ -f ${XBLOCK} ]; then
+X    echo ${Myname}: "[$$]" ${host} locked by ${XBLOCK}
+X    cd ..
+X    continue
+X  fi
+X  if [ -f FQDN ]; then
+X    FQDN=`cat FQDN`
+X  fi
+X  if /bin/ls [0-9]* > /dev/null 2>&1
+X  then
+X    lock=NNTP_LOCK.${host}
+X    if shlock -p $$ -f ${lock}
+X    then
+X      echo ${Myname}: "[$$]" begin ${host}
+X      time nntpbatch ${FQDN:-$host} [0-9]*
+X      if [ $? -ne 0 ]; then
+X        touch ${XBLOCK}
+X        echo ${Myname}: "[$$]" XBATCH denied by ${host}
+X      fi
+X      echo ${Myname}: "[$$]" end ${host}
+X      rm -f ${lock}
+X    else
+X      echo ${Myname}: "[$$]" ${host} locked by "[`cat ${lock}`]"
+X    fi
+X  fi
+X  cd ..
+Xdone
+Xecho ${Myname}: "[$$]" end `date`
+END_OF_nntpqueue.sh
+if test 2554 -ne `wc -c <nntpqueue.sh`; then
+    echo shar: \"nntpqueue.sh\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f shlock.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"shlock.c\"
+else
+echo shar: Extracting \"shlock.c\" \(7101 characters\)
+sed "s/^X//" >shlock.c <<'END_OF_shlock.c'
+X#ifndef lint
+Xstatic char * rcsid = "@(#)$Header: shlock.c,v 1.2 90/01/15 01:37:33 sob Exp $";
+X#endif
+X/*
+X** Program to produce reliable locks for shell scripts.
+X** Algorithmn suggested by Peter Honeyman, January 1984,
+X** in connection with HoneyDanBer UUCP.
+X**
+X** I tried extending this to handle shared locks in November 1987,
+X** and ran into to some fundamental problems:
+X**
+X**	Neither 4.3 BSD nor System V have an open(2) with locking,
+X**	so that you can open a file and have it locked as soon as
+X**	it's real; you have to make two system calls, and there's
+X**	a race...
+X**
+X**	When removing dead process id's from a list in a file,
+X**	you need to truncate the file (you don't want to create a
+X**	new one; see above); unfortunately for the portability of
+X**	this program, only 4.3 BSD has ftruncate(2).
+X**
+X** Erik E. Fair <fair@ucbarpa.berkeley.edu>, November 8, 1987
+X**
+X** Extensions for UUCP style locks (i.e. pid is an int in the file,
+X** rather than an ASCII string). Also fix long standing bug with
+X** full file systems and temporary files.
+X**
+X** Erik E. Fair <fair@apple.com>, November 12, 1989
+X*/
+X
+X#include <stdio.h>
+X#include <sys/types.h>
+X#include <fcntl.h>			/* Needed on hpux */
+X#include <sys/file.h>
+X#include <errno.h>
+X#include "../common/conf.h"
+X
+X#define	LOCK_SET	0
+X#define	LOCK_FAIL	1
+X
+X#define	FAIL		(-1)
+X
+X#define	TRUE	1
+X#define	FALSE	0
+X
+X#ifdef USG
+X#define	index	strchr
+X#define	rindex	strrchr
+X#endif
+X
+Xint	Debug = FALSE;
+Xchar	*Pname;
+Xchar	*USAGE = "%s: USAGE: shlock -f file -p pid [-d][-u]\n";
+Xchar	*E_unlk = "%s: unlink(%s): %s\n";
+Xchar	*E_open = "%s: open(%s): %s\n";
+X
+Xchar	*errmsg();
+Xchar	*xtmpfile();
+X
+X#define	dprintf	if (Debug) printf
+X
+Xextern	int	errno;
+Xextern	char	*rindex();
+Xextern	char	*strcpy();
+Xextern	char	*strcat();
+X
+Xmain(ac, av)
+Xint	ac;
+Xchar	*av[];
+X{
+X	register int	x;
+X	char	*file;
+X	int	pid;
+X	int	uucpstyle = FALSE;	/* indicating UUCP style locks */
+X
+X	Pname = ((Pname = rindex(av[0], '/')) ? Pname + 1 : av[0]);
+X
+X	for(x = 1; x < ac; x++) {
+X		if (av[x][0] == '-') {
+X			switch(av[x][1]) {
+X			case 'u':
+X				uucpstyle = TRUE;
+X				break;
+X			case 'd':
+X				Debug = TRUE;
+X				break;
+X			case 'p':
+X				if (strlen(av[x]) > 2) {
+X					pid = atoi(&av[x][2]);
+X				} else {
+X					pid = atoi(av[++x]);
+X				}
+X				break;
+X			case 'f':
+X				if (strlen(av[x]) > 2) {
+X					file = &av[x][2];
+X				} else {
+X					file = av[++x];
+X				}
+X				break;
+X			default:
+X				fprintf(stderr, USAGE, Pname);
+X				exit(LOCK_FAIL);
+X			}
+X		}
+X	}
+X	if (pid == 0 || file == (char *)NULL) {
+X		fprintf(stderr, USAGE, Pname);
+X		exit(LOCK_FAIL);
+X	}
+X
+X	exit(mklock(file, pid, uucpstyle) ? LOCK_SET : LOCK_FAIL);
+X}
+X
+Xchar *
+Xerrmsg(n)
+Xregister int	n;
+X{
+X	extern	int	sys_nerr;
+X	extern 	char	*sys_errlist[];
+X
+X	return((n >= 0 && n < sys_nerr) ? sys_errlist[n] : "unknown error");
+X}
+X
+Xmklock(file, pid, uucpstyle)
+Xchar	*file;
+Xint	pid;
+X{
+X	register char	*tmp;
+X	register int	retcode = FALSE;
+X
+X	dprintf("%s: trying lock <%s> for process %d\n", Pname, file, pid);
+X	if ((tmp = xtmpfile(file, pid, uucpstyle)) == (char *)NULL)
+X		return(FALSE);
+X
+Xlinkloop:
+X	if (link(tmp, file) < 0) {
+X		switch(errno) {
+X		case EEXIST:
+X			dprintf("%s: lock <%s> already exists\n", Pname, file);
+X			if (cklock(file, uucpstyle)) {
+X				dprintf("%s: extant lock is valid\n", Pname);
+X				break;
+X			} else {
+X				dprintf("%s: lock is invalid, removing\n",
+X					Pname);
+X				if (unlink(file) < 0) {
+X					fprintf(stderr, E_unlk,
+X						Pname, file, errmsg(errno));
+X					break;
+X				}
+X			}
+X			/*
+X			** I hereby profane the god of structured programming,
+X			** Edsgar Dijkstra
+X			*/
+X			goto linkloop;
+X		default:
+X			fprintf(stderr, "%s: link(%s, %s): %s\n",
+X				Pname, tmp, file, errmsg(errno));
+X			break;
+X		}
+X	} else {
+X		dprintf("%s: got lock <%s>\n", Pname, file);
+X		retcode = TRUE;
+X	}
+X	if (unlink(tmp) < 0) {
+X		fprintf(stderr, E_unlk, Pname, tmp, errmsg(errno));
+X	}
+X	return(retcode);
+X}
+X
+X/*
+X** Does the PID exist?
+X** Send null signal to find out.
+X*/
+Xp_exists(pid)
+Xint	pid;
+X{
+X	dprintf("%s: process %d is ", Pname, pid);
+X	if (pid <= 0) {
+X		dprintf("invalid\n");
+X		return(FALSE);
+X	}
+X	if (kill(pid, 0) < 0) {
+X		switch(errno) {
+X		case ESRCH:
+X			dprintf("dead\n");
+X			return(FALSE);	/* pid does not exist */
+X		case EPERM:
+X			dprintf("alive\n");
+X			return(TRUE);	/* pid exists */
+X		default:
+X			dprintf("state unknown: %s\n", errmsg(errno));
+X			return(TRUE);	/* be conservative */
+X		}
+X	}
+X	dprintf("alive\n");
+X	return(TRUE);	/* pid exists */
+X}
+X
+X/*
+X** Check the validity of an existing lock file.
+X**
+X**	Read the PID out of the lock
+X**	Send a null signal to determine whether that PID still exists
+X**	Existence (or not) determines the validity of the lock.
+X**
+X**	Two bigs wins to this algorithmn:
+X**
+X**	o	Locks do not survive crashes of either the system or the
+X**			application by any appreciable period of time.
+X**
+X**	o	No clean up to do if the system or application crashes.
+X**
+X*/
+X
+Xcklock(file, uucpstyle)
+Xchar	*file;
+Xint	uucpstyle;
+X{
+X	register int	fd = open(file, O_RDONLY);
+X	register int	len;
+X	int	pid;
+X	char	buf[BUFSIZ];
+X
+X	dprintf("%s: checking extant lock <%s>\n", Pname, file);
+X	if (fd < 0) {
+X		fprintf(stderr, E_open, Pname, file, errmsg(errno));
+X		return(TRUE);	/* might or might not; conservatism */
+X	}
+X
+X	if (uucpstyle ?
+X		((len = read(fd, &pid, sizeof(pid))) != sizeof(pid)) :
+X		((len = read(fd, buf, sizeof(buf))) <= 0))
+X	{
+X		close(fd);
+X		dprintf("%s: lock file format error\n", Pname);
+X		return(FALSE);
+X	}
+X	close(fd);
+X	buf[len + 1] = '\0';
+X	return(p_exists(uucpstyle ? pid : atoi(buf)));
+X}
+X
+X/*
+X** Create a temporary file, all ready to lock with.
+X** The file arg is so we get the filename right, if he
+X** gave us a full path, instead of using the current directory
+X** which might not be in the same filesystem.
+X*/
+Xchar *
+Xxtmpfile(file, pid, uucpstyle)
+Xchar	*file;
+Xint	pid, uucpstyle;
+X{
+X	register int	fd;
+X	register int	len;
+X	char	*cp, buf[BUFSIZ];
+X	static char	tempname[BUFSIZ];
+X
+X	sprintf(buf, "shlock%d", getpid());
+X	if ((cp = rindex(strcpy(tempname, file), '/')) != (char *)NULL) {
+X		*++cp = '\0';
+X		(void) strcat(tempname, buf);
+X	} else
+X		(void) strcpy(tempname, buf);
+X	dprintf("%s: temporary filename: %s\n", Pname, tempname);
+X
+X	sprintf(buf, "%d\n", pid);
+X	len = strlen(buf);
+Xopenloop:
+X	if ((fd = open(tempname, O_RDWR|O_CREAT|O_EXCL, 0644)) < 0) {
+X		switch(errno) {
+X		case EEXIST:
+X			dprintf("%s: file %s exists already.\n",
+X				Pname, tempname);
+X			if (unlink(tempname) < 0) {
+X				fprintf(stderr, E_unlk,
+X					Pname, tempname, errmsg(errno));
+X				return((char *)NULL);
+X			}
+X			/*
+X			** Further profanity
+X			*/
+X			goto openloop;
+X		default:
+X			fprintf(stderr, E_open,
+X				Pname, tempname, errmsg(errno));
+X			return((char *)NULL);
+X		}
+X	}
+X
+X	/*
+X	** Write the PID into the temporary file before attempting to link
+X	** to the actual lock file. That way we have a valid lock the instant
+X	** the link succeeds.
+X	*/
+X	if (uucpstyle ?
+X		(write(fd, &pid, sizeof(pid)) != sizeof(pid)) :
+X		(write(fd, buf, len) < 0))
+X	{
+X		fprintf(stderr, "%s: write(%s,%d): %s\n",
+X			Pname, tempname, pid, errmsg(errno));
+X		(void) close(fd);
+X		if (unlink(tempname) < 0) {
+X			fprintf(stderr, E_unlk,
+X				Pname, tempname, errmsg(errno));
+X		}
+X		return((char *)NULL);
+X	}
+X	(void) close(fd);
+X	return(tempname);
+X}
+END_OF_shlock.c
+if test 7101 -ne `wc -c <shlock.c`; then
+    echo shar: \"shlock.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f sysexits.h -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"sysexits.h\"
+else
+echo shar: Extracting \"sysexits.h\" \(4212 characters\)
+sed "s/^X//" >sysexits.h <<'END_OF_sysexits.h'
+X/*
+X * Copyright (c) 1987 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that this notice is preserved and that due credit is given
+X * to the University of California at Berkeley. The name of the University
+X * may not be used to endorse or promote products derived from this
+X * software without specific prior written permission. This software
+X * is provided ``as is'' without express or implied warranty.
+X *
+X *	@(#)sysexits.h	4.3 (Berkeley) 12/15/87
+X */
+X
+X/*
+X**  SYSEXITS.H -- Exit status codes for system programs.
+X**
+X**	This include file attempts to categorize possible error
+X**	exit statuses for system programs, notably delivermail
+X**	and the Berkeley network.
+X**
+X**	Error numbers begin at EX__BASE to reduce the possibility of
+X**	clashing with other exit statuses that random programs may
+X**	already return.  The meaning of the codes is approximately
+X**	as follows:
+X**
+X**	EX_USAGE -- The command was used incorrectly, e.g., with
+X**		the wrong number of arguments, a bad flag, a bad
+X**		syntax in a parameter, or whatever.
+X**	EX_DATAERR -- The input data was incorrect in some way.
+X**		This should only be used for user's data & not
+X**		system files.
+X**	EX_NOINPUT -- An input file (not a system file) did not
+X**		exist or was not readable.  This could also include
+X**		errors like "No message" to a mailer (if it cared
+X**		to catch it).
+X**	EX_NOUSER -- The user specified did not exist.  This might
+X**		be used for mail addresses or remote logins.
+X**	EX_NOHOST -- The host specified did not exist.  This is used
+X**		in mail addresses or network requests.
+X**	EX_UNAVAILABLE -- A service is unavailable.  This can occur
+X**		if a support program or file does not exist.  This
+X**		can also be used as a catchall message when something
+X**		you wanted to do doesn't work, but you don't know
+X**		why.
+X**	EX_SOFTWARE -- An internal software error has been detected.
+X**		This should be limited to non-operating system related
+X**		errors as possible.
+X**	EX_OSERR -- An operating system error has been detected.
+X**		This is intended to be used for such things as "cannot
+X**		fork", "cannot create pipe", or the like.  It includes
+X**		things like getuid returning a user that does not
+X**		exist in the passwd file.
+X**	EX_OSFILE -- Some system file (e.g., /etc/passwd, /etc/utmp,
+X**		etc.) does not exist, cannot be opened, or has some
+X**		sort of error (e.g., syntax error).
+X**	EX_CANTCREAT -- A (user specified) output file cannot be
+X**		created.
+X**	EX_IOERR -- An error occurred while doing I/O on some file.
+X**	EX_TEMPFAIL -- temporary failure, indicating something that
+X**		is not really an error.  In sendmail, this means
+X**		that a mailer (e.g.) could not create a connection,
+X**		and the request should be reattempted later.
+X**	EX_PROTOCOL -- the remote system returned something that
+X**		was "not possible" during a protocol exchange.
+X**	EX_NOPERM -- You did not have sufficient permission to
+X**		perform the operation.  This is not intended for
+X**		file system problems, which should use NOINPUT or
+X**		CANTCREAT, but rather for higher level permissions.
+X**		For example, kre uses this to restrict who students
+X**		can send mail to.
+X**
+X**	Maintained by Eric Allman (eric@berkeley, ucbvax!eric) --
+X**		please mail changes to me.
+X**
+X**			@(#)sysexits.h	4.3		12/15/87
+X*/
+X
+X# define EX_OK		0	/* successful termination */
+X
+X# define EX__BASE	64	/* base value for error messages */
+X
+X# define EX_USAGE	64	/* command line usage error */
+X# define EX_DATAERR	65	/* data format error */
+X# define EX_NOINPUT	66	/* cannot open input */
+X# define EX_NOUSER	67	/* addressee unknown */
+X# define EX_NOHOST	68	/* host name unknown */
+X# define EX_UNAVAILABLE	69	/* service unavailable */
+X# define EX_SOFTWARE	70	/* internal software error */
+X# define EX_OSERR	71	/* system error (e.g., can't fork) */
+X# define EX_OSFILE	72	/* critical OS file missing */
+X# define EX_CANTCREAT	73	/* can't create (user) output file */
+X# define EX_IOERR	74	/* input/output error */
+X# define EX_TEMPFAIL	75	/* temp failure; user is invited to retry */
+X# define EX_PROTOCOL	76	/* remote error in protocol */
+X# define EX_NOPERM	77	/* permission denied */
+END_OF_sysexits.h
+if test 4212 -ne `wc -c <sysexits.h`; then
+    echo shar: \"sysexits.h\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f viaxbatch -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"viaxbatch\"
+else
+echo shar: Extracting \"viaxbatch\" \(734 characters\)
+sed "s/^X//" >viaxbatch <<'END_OF_viaxbatch'
+X#!/bin/sh
+X#
+X# This is the NNTP XBATCH spooler for C News.  B News would need some other
+X# mechanism.
+X#
+X# Be sure to set NNTPSPOOL to the proper place, and modify nntpqueue.sh
+X# accordingly.
+X#
+X
+X# =()<. ${NEWSCONFIG-@<NEWSCONFIG>@}>()=
+X. ${NEWSCONFIG-/usr/local/lib/news/bin/config}
+Xexport NEWSCTL NEWSBIN NEWSARTS NEWSPATH NEWSUMASK NEWSMASTER NEWSCONFIG
+XPATH=$NEWSCTL/bin:$NEWSBIN/inject:$NEWSBIN/relay:$NEWSBIN:$NEWSPATH; export PATH
+X
+XNNTPSPOOL=${NNTPSPOOL:-/usr/spool/nntp}
+XSPOOLDIR=${NNTPSPOOL}/$1
+X
+Xif [ ! -d ${SPOOLDIR} ]
+Xthen
+X	mkdir ${SPOOLDIR}
+Xfi
+XDATE=`date`
+XXBATCHF=`getdate "${DATE}"`
+X# make sure the batch file is unique
+Xwhile [ -f ${SPOOLDIR}/${XBATCHF} ]
+Xdo
+X  XBATCHF=`expr ${XBATCHF} + 3`
+Xdone
+Xcat >${SPOOLDIR}/${XBATCHF}
+END_OF_viaxbatch
+if test 734 -ne `wc -c <viaxbatch`; then
+    echo shar: \"viaxbatch\" unpacked with wrong size!
+fi
+chmod +x viaxbatch
+# end of overwriting check
+fi
+if test -f xmitauth.c -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"xmitauth.c\"
+else
+echo shar: Extracting \"xmitauth.c\" \(1178 characters\)
+sed "s/^X//" >xmitauth.c <<'END_OF_xmitauth.c'
+X#include <stdio.h>
+X#include "../common/conf.h"
+X#include "../common/nntp.h"
+X#include "nntpbatch.h"
+X
+X#ifdef AUTH
+X
+Xextern char Debug;
+Xextern int converse();
+X
+XFILE *sys;
+X
+Xxmitauth(host)
+Xchar *host;
+X	{
+X	char remote[64], user[16], pass[16];
+X	char buf[1024];
+X	int i;
+X	char savedebug;
+X
+X	sys = fopen(PASSFILE, "r");
+X	if (sys == NULL)
+X		{
+X		exit(1);
+X		}
+X	
+X	while(fgets(buf, sizeof(buf), sys))
+X		{
+X		if (buf[0] == '#')
+X			continue;
+X		
+X		i = sscanf(buf,"%s %s %s", remote, user, pass);
+X		/* malformed entry? */
+X		if (i != 3)
+X			{
+X			log(L_NOTICE,"malformed entry in nntp.sys");
+X			continue;
+X			}
+X		
+X		/* right host? */
+X		if (!strcasecmp(remote,host))
+X			break;
+X		}
+X	if (feof(sys))
+X		{
+X		sprintf(buf,"host %s authinfo not in nntp.sys", host);
+X		log(L_NOTICE, buf);
+X		exit(1);
+X		}
+X	
+X	sprintf(buf,"authinfo user %s", user);
+X	if (converse(buf, sizeof(buf)) != NEED_AUTHDATA)
+X		{
+X		log(L_NOTICE, buf);
+X		exit(1);
+X		}
+X	
+X	/* don't display the password even if debug is on */
+X	savedebug = Debug;
+X	Debug = FALSE;
+X
+X	sprintf(buf,"authinfo pass %s", pass);
+X	if (converse(buf, sizeof(buf)) != OK_AUTH)
+X		{
+X		log(L_NOTICE, buf);
+X		exit(1);
+X		}
+X	
+X	Debug = savedebug;
+X
+X	fclose(sys);
+X	}
+X
+X#endif /* AUTH */
+X
+END_OF_xmitauth.c
+if test 1178 -ne `wc -c <xmitauth.c`; then
+    echo shar: \"xmitauth.c\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of archive 1 \(of 2\).
+cp /dev/null ark1isdone
+MISSING=""
+for I in 1 2 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked both archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+Simon J. Gerraty		<sjg@melb.bull.oz.au> (Work)
+				<sjg@zen.void.oz.au>  (Home)
+
+#include <disclaimer,_witty_comment>

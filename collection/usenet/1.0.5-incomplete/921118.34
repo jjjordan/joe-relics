@@ -1,0 +1,1670 @@
+Xref: funic comp.unix.bsd:8295 alt.sources:4911
+Path: funic!fuug!mcsun!Germany.EU.net!news.netmbx.de!mailgzrz.TU-Berlin.DE!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!jvnc.net!darwin.sura.net!wupost!cs.utexas.edu!sun-barr!news2me.EBay.Sun.COM!exodus.Eng.Sun.COM!sun!amdahl!paulp
+From: paulp@uts.amdahl.com (Paul Popelka)
+Newsgroups: comp.unix.bsd,alt.sources
+Subject: [386bsd] mountable DOS filesystem code, Part 3/5
+Message-ID: <bc0H03vfbbM800@amdahl.uts.amdahl.com>
+Date: 17 Nov 92 17:26:49 GMT
+Followup-To: comp.unix.bsd
+Organization: Amdahl Corporation, Sunnyvale CA
+Lines: 1659
+
+
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	/sys/pcfs/pcfs_lookup.c
+#	/sys/pcfs/pcfs_fat.c
+#
+echo x - /sys/pcfs/pcfs_lookup.c
+sed 's/^X//' >/sys/pcfs/pcfs_lookup.c << 'END-of-/sys/pcfs/pcfs_lookup.c'
+X/*
+X *  Written by Paul Popelka (paulp@uts.amdahl.com)
+X *
+X *  You can do anything you want with this software,
+X *    just don't say you wrote it,
+X *    and don't remove this notice.
+X *
+X *  This software is provided "as is".
+X *
+X *  The author supplies this software to be publicly
+X *  redistributed on the understanding that the author
+X *  is not responsible for the correct functioning of
+X *  this software in any circumstances and is not liable
+X *  for any damages caused by this software.
+X *
+X *  October 1992
+X */
+X
+X#include "param.h"
+X#include "namei.h"
+X#include "buf.h"
+X#include "vnode.h"
+X#include "mount.h"
+X
+X#include "bpb.h"
+X#include "direntry.h"
+X#include "denode.h"
+X#include "pcfsmount.h"
+X#include "fat.h"
+X
+X/*
+X *  When we search a directory the blocks containing directory
+X *  entries are read and examined.  The directory entries
+X *  contain information that would normally be in the inode
+X *  of a unix filesystem.  This means that some of a directory's
+X *  contents may also be in memory resident denodes (sort of
+X *  an inode).  This can cause problems if we are searching
+X *  while some other process is modifying a directory.  To
+X *  prevent one process from accessing incompletely modified
+X *  directory information we depend upon being the soul owner
+X *  of a directory block.  bread/brelse provide this service.
+X *  This being the case, when a process modifies a directory
+X *  it must first acquire the disk block that contains the
+X *  directory entry to be modified.  Then update the disk
+X *  block and the denode, and then write the disk block out
+X *  to disk.  This way disk blocks containing directory
+X *  entries and in memory denode's will be in synch.
+X */
+Xint
+Xpcfs_lookup(vdp, ndp, p)
+X	struct vnode *vdp;	/* vnode of directory to search		*/
+X	struct nameidata *ndp;
+X	struct proc *p;
+X{
+X	daddr_t bn;
+X	int flag;
+X	int error;
+X	int lockparent;
+X	int wantparent;
+X	int slotstatus;
+X#define	NONE	0
+X#define	FOUND	1
+X	int slotoffset;
+X	int slotcluster;
+X	int frcn;
+X	unsigned long cluster;
+X	int rootreloff;
+X	int diroff;
+X	int isadir;		/* ~0 if found direntry is a directory	*/
+X	unsigned long scn;	/* starting cluster number		*/
+X	struct denode *dp;
+X	struct denode *pdp;
+X	struct denode *tdp;
+X	struct pcfsmount *pmp;
+X	struct buf *bp = 0;
+X	struct direntry *dep;
+X	unsigned char dosfilename[12];
+X
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): looking for %s\n", ndp->ni_ptr);
+X#endif /* defined(PCFSDEBUG) */
+X	ndp->ni_dvp = vdp;
+X	ndp->ni_vp  = NULL;
+X	dp = VTODE(vdp);
+X	pmp = dp->de_pmp;
+X	lockparent = ndp->ni_nameiop & LOCKPARENT;
+X	flag = ndp->ni_nameiop & OPMASK;
+X	wantparent = ndp->ni_nameiop & (LOCKPARENT | WANTPARENT);
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): vdp %08x, dp %08x, Attr %02x\n",
+X	vdp, dp, dp->de_Attributes);
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  Be sure vdp is a directory.  Since dos filesystems
+X *  don't have the concept of execute permission anybody
+X *  can search a directory.
+X */
+X	if ((dp->de_Attributes & ATTR_DIRECTORY) == 0)
+X		return ENOTDIR;
+X
+X/*
+X *  See if the component of the pathname we are looking for
+X *  is in the directory cache.  If so then do a few things
+X *  and return.
+X */
+X	if (error = cache_lookup(ndp)) {
+X		int vpid;
+X
+X		if (error == ENOENT)
+X			return error;
+X#ifdef PARANOID
+X		if (vdp == ndp->ni_rdir  &&  ndp->ni_isdotdot)
+X			panic("pcfs_lookup: .. thru root");
+X#endif /* PARANOID */
+X		pdp = dp;
+X		vdp = ndp->ni_vp;
+X		dp  = VTODE(vdp);
+X		vpid = vdp->v_id;
+X		if (pdp == dp) {
+X			VREF(vdp);
+X			error = 0;
+X		} else if (ndp->ni_isdotdot) {
+X			DEUNLOCK(pdp);
+X			error = vget(vdp);
+X			if (!error && lockparent && *ndp->ni_next == '\0')
+X				DELOCK(pdp);
+X		} else {
+X			error = vget(vdp);
+X			if (!lockparent || error || *ndp->ni_next != '\0')
+X				DEUNLOCK(pdp);
+X		}
+X
+X		if (!error) {
+X			if (vpid == vdp->v_id) {
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): cache hit, vnode %08x, file %s\n", vdp, dp->de_Name);
+X#endif /* defined(PCFSDEBUG) */
+X				return 0;
+X			}
+X			deput(dp);
+X			if (lockparent && pdp != dp && *ndp->ni_next == '\0')
+X				DEUNLOCK(pdp);
+X		}
+X		DELOCK(pdp);
+X		dp = pdp;
+X		vdp = DETOV(dp);
+X		ndp->ni_vp = NULL;
+X	}
+X
+X/*
+X *  If they are going after the . or .. entry in the
+X *  root directory, they won't find it.  DOS filesystems
+X *  don't have them in the root directory.  So, we fake it.
+X *  deget() is in on this scam too.
+X */
+X	if ((vdp->v_flag & VROOT)  &&  ndp->ni_ptr[0] == '.'  &&
+X	    (ndp->ni_namelen == 1  ||
+X	     (ndp->ni_namelen == 2  &&  ndp->ni_ptr[1] == '.'))) {
+X		isadir = ATTR_DIRECTORY;
+X		scn = PCFSROOT;
+X		diroff = -1;
+X		cluster = ~0;
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): looking for . or .. in root directory\n");
+X#endif /* defined(PCFSDEBUG) */
+X		goto foundroot;
+X	}
+X
+X/*
+X *  Don't search for free slots unless we are creating
+X *  a filename and we are at the end of the pathname.
+X */
+X	slotstatus = FOUND;
+X	if ((flag == CREATE || flag == RENAME) && *ndp->ni_next == '\0') {
+X		slotstatus = NONE;
+X		slotoffset = -1;
+X	}
+X
+X	unix2dosfn((unsigned char *)ndp->ni_ptr, dosfilename, ndp->ni_namelen);
+X	dosfilename[11] = 0;
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): dos version of filename %s, length %d\n",
+X	dosfilename, ndp->ni_namelen);
+X#endif /* defined(PCFSDEBUG) */
+X/*
+X *  Search the directory pointed at by vdp for the
+X *  name pointed at by ndp->ni_ptr.
+X */
+X	tdp = NULL;
+X/*
+X *  The outer loop ranges over the clusters that make
+X *  up the directory.  Note that the root directory is
+X *  different from all other directories.  It has a
+X *  fixed number of blocks that are not part of the
+X *  pool of allocatable clusters.  So, we treat it a
+X *  little differently.
+X *  The root directory starts at "cluster" 0.
+X */
+X	rootreloff = 0;
+X	for (frcn = 0; ; frcn++) {
+X		if (error = pcbmap(dp, frcn, &bn, &cluster)) {
+X			if (error == E2BIG)
+X				break;
+X			return error;
+X		}
+X		if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, &bp)) {
+X			brelse(bp);
+X			return error;
+X		}
+X		for (diroff = 0; diroff < pmp->pm_depclust; diroff++) {
+X			dep = (struct direntry *)bp->b_un.b_addr + diroff;
+X
+X/*
+X *  If the slot is empty and we are still looking for
+X *  an empty then remember this one.  If the slot is
+X *  not empty then check to see if it matches what we
+X *  are looking for.  If the slot has never been filled
+X *  with anything, then the remainder of the directory
+X *  has never been used, so there is no point in searching
+X *  it.
+X */
+X			if (dep->deName[0] == SLOT_EMPTY   ||
+X			    dep->deName[0] == SLOT_DELETED) {
+X				if (slotstatus != FOUND) {
+X					slotstatus  = FOUND;
+X					if (cluster == PCFSROOT)
+X						slotoffset = rootreloff;
+X					else
+X						slotoffset = diroff;
+X					slotcluster = cluster;
+X				}
+X				if (dep->deName[0] == SLOT_EMPTY) {
+X					brelse(bp);
+X					goto notfound;
+X				}
+X			} else {
+X				/* Ignore volume labels (anywhere, not just
+X				 * the root directory). */
+X				if ((dep->deAttributes & ATTR_VOLUME) == 0  &&
+X				    bcmp(dosfilename, dep->deName, 11) == 0) {
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): match diroff %d, rootreloff %d\n", diroff, rootreloff);
+X#endif /* defined(PCFSDEBUG) */
+X/*
+X *  Remember where this directory entry came from
+X *  for whoever did this lookup.
+X *  If this is the root directory we are interested
+X *  in the offset relative to the beginning of the
+X *  directory (not the beginning of the cluster).
+X */
+X					if (cluster == PCFSROOT)
+X						diroff = rootreloff;
+X					ndp->ni_pcfs.pcfs_offset = diroff;
+X					ndp->ni_pcfs.pcfs_cluster = cluster;
+X					goto found;
+X				}
+X			}
+X			rootreloff++;
+X		}			/* for (diroff = 0; .... */
+X/*
+X *  Release the buffer holding the directory cluster
+X *  just searched.
+X */
+X		brelse(bp);
+X	}			/* for (frcn = 0; ; frcn++) */
+Xnotfound:;
+X/*
+X *  We hold no disk buffers at this point.
+X */
+X
+X/*
+X *  If we get here we didn't find the entry we were looking
+X *  for.  But that's ok if we are creating or renaming and
+X *  are at the end of the pathname and the directory hasn't
+X *  been removed.
+X */
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): flag %d, refcnt %d, slotstatus %d\n",
+X	flag, dp->de_refcnt, slotstatus);
+Xprintf("               slotoffset %d, slotcluster %d\n",
+X	slotoffset, slotcluster);
+X#endif /* defined(PCFSDEBUG) */
+X	if ((flag == CREATE || flag == RENAME)  &&
+X	    *ndp->ni_next == '\0' && dp->de_refcnt != 0) {
+X		if (slotstatus == NONE) {
+X			ndp->ni_pcfs.pcfs_offset  = 0;
+X			ndp->ni_pcfs.pcfs_cluster = 0;
+X			ndp->ni_pcfs.pcfs_count   = 0;
+X		} else {
+X#if defined(PCFSDEBUG)
+Xprintf("pcfs_lookup(): saving empty slot location\n");
+X#endif /* defined(PCFSDEBUG) */
+X			ndp->ni_pcfs.pcfs_offset  = slotoffset;
+X			ndp->ni_pcfs.pcfs_cluster = slotcluster;
+X			ndp->ni_pcfs.pcfs_count   = 1;
+X		}
+X/*		dp->de_flag |= DEUPD; /* never update dos directories */
+X		ndp->ni_nameiop |= SAVENAME;
+X		if (!lockparent)	/* leave searched dir locked?	*/
+X			DEUNLOCK(dp);
+X	}
+X/*
+X *  Insert name in cache as non-existant if not
+X *  trying to create it.
+X */
+X	if (ndp->ni_makeentry && flag != CREATE)
+X		cache_enter(ndp);
+X	return ENOENT;
+X
+Xfound:;
+X/*
+X *  NOTE:  We still have the buffer with matched
+X *  directory entry at this point.
+X */
+X	isadir = dep->deAttributes & ATTR_DIRECTORY;
+X	scn = dep->deStartCluster;
+X
+Xfoundroot:;
+X/*
+X *  If we entered at foundroot, then we are looking
+X *  for the . or .. entry of the filesystems root
+X *  directory.  isadir and scn were setup before
+X *  jumping here.  And, bp is null.  There is no buf header.
+X */
+X
+X/*
+X *  If deleting and at the end of the path, then
+X *  if we matched on "." then don't deget() we would
+X *  probably panic().  Otherwise deget() the directory
+X *  entry.
+X */
+X	if (flag == DELETE && ndp->ni_next == '\0') {
+X		if (dp->de_StartCluster == scn  &&
+X		    isadir) { /* "." */
+X			VREF(vdp);
+X			ndp->ni_vp = vdp;
+X			if (bp) brelse(bp);
+X			return 0;
+X		}
+X		error = deget(pmp, isadir,
+X			cluster, diroff, scn, bp, &tdp);
+X		if (error) {
+X			if (bp) brelse(bp);
+X			return error;
+X		}
+X		ndp->ni_vp = DETOV(tdp);
+X		if (!lockparent)
+X			DEUNLOCK(dp);
+X		if (bp) brelse(bp);
+X		return 0;
+X	}
+X
+X/*
+X *  If renaming.
+X */
+X	if (flag == RENAME && wantparent && *ndp->ni_next == '\0') {
+X		if (dp->de_StartCluster == scn  &&
+X		    isadir) {
+X			if (bp) brelse(bp);
+X			return EISDIR;
+X		}
+X		error = deget(pmp, isadir, cluster, diroff,
+X			scn, bp, &tdp);
+X		if (error) {
+X			if (bp) brelse(bp);
+X			return error;
+X		}
+X		ndp->ni_vp = DETOV(tdp);
+X		ndp->ni_nameiop |= SAVENAME;
+X		if (!lockparent)
+X			DEUNLOCK(dp);
+X		if (bp) brelse(bp);
+X		return 0;
+X	}
+X
+X/*
+X *  ?
+X */
+X	pdp = dp;
+X	if (ndp->ni_isdotdot) {
+X		DEUNLOCK(pdp);
+X		error = deget(pmp, isadir, cluster, diroff,
+X			scn, bp, &tdp);
+X		if (error) {
+X			DELOCK(pdp);
+X			if (bp) brelse(bp);
+X			return error;
+X		}
+X		if (lockparent && *ndp->ni_next == '\0')
+X			DELOCK(pdp);
+X		ndp->ni_vp = DETOV(tdp);
+X	} else if (dp->de_StartCluster == scn  &&
+X		   isadir) { /* "." */
+X		VREF(vdp);
+X		ndp->ni_vp = vdp;
+X	} else {
+X		error = deget(pmp, isadir, cluster, diroff,
+X			scn, bp, &tdp);
+X		if (error) {
+X			if (bp) brelse(bp);
+X			return error;
+X		}
+X		if (!lockparent || *ndp->ni_next != '\0')
+X			DEUNLOCK(pdp);
+X		ndp->ni_vp = DETOV(tdp);
+X	}
+X	if (bp) brelse(bp);
+X
+X/*
+X *  Insert name in cache if wanted.
+X */
+X	if (ndp->ni_makeentry)
+X		cache_enter(ndp);
+X	return 0;
+X}
+X
+X/*
+X *  dep - directory to copy into the directory
+X *  ndp - nameidata structure containing info on
+X *    where to put the directory entry in the directory.
+X *  depp - return the address of the denode for the
+X *    created directory entry if depp != 0
+X */
+Xint
+Xcreatede(dep, ndp, depp)
+X	struct denode *dep;
+X	struct nameidata *ndp;
+X	struct denode **depp;
+X{
+X	int bn;
+X	int error;
+X	int theoff;
+X	int isadir = dep->de_Attributes & ATTR_DIRECTORY;
+X	unsigned long newcluster;
+X	struct direntry *ndep;
+X	struct denode *ddep = VTODE(ndp->ni_dvp);	/* directory to add to */
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	struct buf *bp;
+X#if defined(PCFSDEBUG)
+Xprintf("createde(dep %08x, ndp %08x, depp %08x)\n", dep, ndp, depp);
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  If no space left in the directory then allocate
+X *  another cluster and chain it onto the end of the
+X *  file.  There is one exception to this.  That is,
+X *  if the root directory has no more space it can NOT
+X *  be expanded.  extendfile() checks for and fails attempts to
+X *  extend the root directory.  We just return an error
+X *  in that case.
+X */
+X	if (ndp->ni_pcfs.pcfs_count == 0) {
+X		if (error = extendfile(ddep, &bp, &newcluster))
+X			return error;
+X		ndep = (struct direntry *)bp->b_un.b_addr;
+X		*ndep = dep->de_de;
+X/*
+X *  If they want us to return with the denode gotten.
+X */
+X		if (depp) {
+X			error = deget(pmp, isadir, newcluster, 0,
+X				dep->de_StartCluster, bp, depp);
+X			if (error) {
+X				return error;
+X			}
+X		}
+X
+X		if (error = bwrite(bp)) {
+X/*deput()?*/
+X			return error;
+X		}
+X/*
+X *  Let caller know where we put the directory entry.
+X */
+X		ndp->ni_pcfs.pcfs_cluster = newcluster;
+X		ndp->ni_pcfs.pcfs_offset  = 0;
+X		return 0;
+X	}
+X
+X/*
+X *  There is space in the existing directory.  So,
+X *  we just read in the cluster with space.  Copy
+X *  the new directory entry in.  Then write it to
+X *  disk.
+X *  NOTE:  DOS directories do not get smaller as
+X *  clusters are emptied.
+X */
+X	if (ndp->ni_pcfs.pcfs_cluster == PCFSROOT) {
+X		bn = pmp->pm_rootdirblk +
+X			(ndp->ni_pcfs.pcfs_offset / pmp->pm_depclust);
+X		theoff = ndp->ni_pcfs.pcfs_offset % pmp->pm_depclust;
+X	} else {
+X		bn = cntobn(pmp, ndp->ni_pcfs.pcfs_cluster);
+X		theoff = ndp->ni_pcfs.pcfs_offset;
+X	}
+X	if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
+X	    NOCRED, &bp)) {
+X		brelse(bp);
+X		return error;
+X	}
+X	ndep = (struct direntry *)(bp->b_un.b_addr) + theoff;
+X	*ndep = dep->de_de;
+X/*
+X *  If they want us to return with the denode gotten.
+X */
+X	if (depp) {
+X		error = deget(pmp, isadir, ndp->ni_pcfs.pcfs_cluster,
+X			ndp->ni_pcfs.pcfs_offset,
+X			dep->de_StartCluster, bp, depp);
+X		if (error) {
+X			return error;
+X		}
+X	}
+X	if (error = bwrite(bp))
+X/*deput()?*/
+X		return error;		/* do a brelse() if error ? */
+X	return 0;
+X}
+X
+X/*
+X *  Read in a directory entry and mark it as being deleted.
+X */
+Xint
+Xmarkdeleted(pmp, dirclust, diroffset)
+X	struct pcfsmount *pmp;
+X	unsigned long dirclust;
+X	unsigned long diroffset;
+X{
+X	int offset;
+X	int error;
+X	daddr_t bn;
+X	struct direntry *ep;
+X	struct buf *bp;
+X
+X	if (dirclust == PCFSROOT) {
+X		bn = pmp->pm_rootdirblk + (diroffset / pmp->pm_depclust);
+X		offset = diroffset % pmp->pm_depclust;
+X	} else {
+X		bn = cntobn(pmp, dirclust);
+X		offset = diroffset;
+X	}
+X/*printf("markdeleted(): bread()ing block %d\n", bn);*/
+X	if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, &bp)) {
+X		brelse(bp);
+X		return error;
+X	}
+X
+X	ep = (struct direntry *)bp->b_un.b_addr + offset;
+X	ep->deName[0] = SLOT_DELETED;
+X
+X	return bwrite(bp);
+X}
+X
+X/*
+X *  Remove a directory entry.
+X *  At this point the file represented by the directory
+X *  entry to be removed is still full length until no
+X *  one has it open.  When the file no longer being
+X *  used pcfs_inactive() is called and will truncate
+X *  the file to 0 length.  When the vnode containing
+X *  the denode is needed for some other purpose by 
+X *  VFS it will call pcfs_reclaim() which will remove
+X *  the denode from the denode cache.
+X */
+Xint
+Xremovede(ndp)
+X	struct nameidata *ndp;
+X{
+X	struct denode *dep = VTODE(ndp->ni_vp);	/* the file being removed */
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	int error;
+X
+X#if defined(PCFSDEBUG)
+X/*printf("removede(): filename %s\n", dep->de_Name);
+Xprintf("rmde(): dep %08x, ndpcluster %d, ndpoffset %d\n",
+X	dep, ndp->ni_pcfs.pcfs_cluster, ndp->ni_pcfs.pcfs_offset);*/
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  Read the directory block containing the directory
+X *  entry we are to make free.  The nameidata structure
+X *  holds the cluster number and directory entry index
+X *  number of the entry to free.
+X */
+X	error = markdeleted(pmp, ndp->ni_pcfs.pcfs_cluster,
+X		ndp->ni_pcfs.pcfs_offset);
+X
+X	dep->de_refcnt--;
+X	return error;
+X}
+X
+X/*
+X *  Be sure a directory is empty except for "." and "..".
+X *  Return 1 if empty, return 0 if not empty or error.
+X */
+Xint
+Xdosdirempty(dep)
+X	struct denode *dep;
+X{
+X	int dei;
+X	int error;
+X	unsigned long cn;
+X	daddr_t bn;
+X	struct buf *bp;
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	struct direntry *dentp;
+X
+X/*
+X *  Since the filesize field in directory entries for a directory
+X *  is zero, we just have to feel our way through the directory
+X *  until we hit end of file.
+X */
+X	for (cn = 0;; cn++) {
+X		error = pcbmap(dep, cn, &bn, 0);
+X		if (error == E2BIG)
+X			return 1;	/* it's empty */
+X		error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED,
+X			&bp);
+X		if (error) {
+X			brelse(bp);
+X			return error;
+X		}
+X		dentp = (struct direntry *)bp->b_un.b_addr;
+X		for (dei = 0; dei < pmp->pm_depclust; dei++) {
+X			if (dentp->deName[0] != SLOT_DELETED) {
+X/*
+X *  In dos directories an entry whose name starts with SLOT_EMPTY (0)
+X *  starts the beginning of the unused part of the directory, so we
+X *  can just return that it is empty.
+X */
+X				if (dentp->deName[0] == SLOT_EMPTY) {
+X					brelse(bp);
+X					return 1;
+X				}
+X/*
+X *  Any names other than "." and ".." in a directory mean
+X *  it is not empty.
+X */
+X				if (bcmp(dentp->deName, ".          ", 11)  &&
+X				    bcmp(dentp->deName, "..         ", 11)) {
+X					brelse(bp);
+X#if defined(PCFSDEBUG)
+Xprintf("dosdirempty(): entry %d found %02x, %02x\n", dei, dentp->deName[0],
+X	dentp->deName[1]);
+X#endif /* defined(PCFSDEBUG) */
+X					return 0;	/* not empty */
+X				}
+X			}
+X			dentp++;
+X		}
+X		brelse(bp);
+X	}
+X	/*NOTREACHED*/
+X}
+X
+X/*
+X *  Check to see if the directory described by target is
+X *  in some subdirectory of source.  This prevents something
+X *  like the following from succeeding and leaving a bunch
+X *  or files and directories orphaned.
+X *	mv /a/b/c /a/b/c/d/e/f
+X *  Where c and f are directories.
+X *  source - the inode for /a/b/c
+X *  target - the inode for /a/b/c/d/e/f
+X *  Returns 0 if target is NOT a subdirectory of source.
+X *  Otherwise returns a non-zero error number.
+X *  The target inode is always unlocked on return.
+X */
+Xint
+Xdoscheckpath(source, target)
+X	struct denode *source;
+X	struct denode *target;
+X{
+X	daddr_t scn;
+X	struct denode dummy;
+X	struct pcfsmount *pmp;
+X	struct direntry *ep;
+X	struct denode *dep;
+X	struct buf *bp = NULL;
+X	int error = 0;
+X
+X	dep = target;
+X	if ((target->de_Attributes & ATTR_DIRECTORY) == 0  ||
+X	    (source->de_Attributes & ATTR_DIRECTORY) == 0) {
+X		error = ENOTDIR;
+X		goto out;
+X	}
+X	if (dep->de_StartCluster == source->de_StartCluster) {
+X		error = EEXIST;
+X		goto out;
+X	}
+X	if (dep->de_StartCluster == PCFSROOT)
+X		goto out;
+X	for (;;) {
+X		if ((dep->de_Attributes & ATTR_DIRECTORY) == 0) {
+X			error = ENOTDIR;
+X			goto out;
+X		}
+X		pmp = dep->de_pmp;
+X		scn = dep->de_StartCluster;
+X		error = bread(pmp->pm_devvp, cntobn(pmp, scn),
+X			pmp->pm_bpcluster, NOCRED, &bp);
+X		if (error) {
+X			break;
+X		}
+X		ep = (struct direntry *)bp->b_un.b_addr + 1;
+X		if ((ep->deAttributes & ATTR_DIRECTORY) == 0  ||
+X		    bcmp(ep->deName, "..         ", 11) != 0) {
+X			error = ENOTDIR;
+X			break;
+X		}
+X		if (ep->deStartCluster == source->de_StartCluster) {
+X			error = EINVAL;
+X			break;
+X		}
+X		if (ep->deStartCluster == PCFSROOT)
+X			break;
+X		deput(dep);
+X		/* NOTE: deget() clears dep on error */
+X		error = deget(pmp, ATTR_DIRECTORY, scn, 1,
+X			ep->deStartCluster, bp, &dep);
+X		brelse(bp);
+X		bp = NULL;
+X		if (error)
+X			break;
+X	}
+Xout:;
+X	if (bp)
+X		brelse(bp);
+X	if (error == ENOTDIR)
+X		printf("doscheckpath(): .. not a directory?\n");
+X	if (dep != NULL)
+X		deput(dep);
+X	return error;
+X}
+X
+X/*
+X *  Read in the disk block containing the directory entry
+X *  dep came from and return the address of the buf header,
+X *  and the address of the directory entry within the block.
+X */
+Xint
+Xreadde(dep, bpp, epp)
+X	struct denode *dep;
+X	struct buf **bpp;
+X	struct direntry **epp;
+X{
+X	int error;
+X	daddr_t bn;
+X	unsigned long theoff;
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X	if (dep->de_dirclust == PCFSROOT) {
+X		bn = pmp->pm_rootdirblk +
+X			(dep->de_diroffset / pmp->pm_depclust);
+X		theoff = dep->de_diroffset % pmp->pm_depclust;
+X	} else {
+X		bn = cntobn(pmp, dep->de_dirclust);
+X		theoff = dep->de_diroffset;
+X	}
+X	if (error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster, NOCRED, bpp)) {
+X		brelse(*bpp);
+X		*bpp = NULL;
+X		return error;
+X	}
+X	if (epp)
+X		*epp = (struct direntry *)((*bpp)->b_un.b_addr) + theoff;
+X	return 0;
+X}
+END-of-/sys/pcfs/pcfs_lookup.c
+echo x - /sys/pcfs/pcfs_fat.c
+sed 's/^X//' >/sys/pcfs/pcfs_fat.c << 'END-of-/sys/pcfs/pcfs_fat.c'
+X/*
+X *  Written by Paul Popelka (paulp@uts.amdahl.com)
+X *
+X *  You can do anything you want with this software,
+X *    just don't say you wrote it,
+X *    and don't remove this notice.
+X *
+X *  This software is provided "as is".
+X *
+X *  The author supplies this software to be publicly
+X *  redistributed on the understanding that the author
+X *  is not responsible for the correct functioning of
+X *  this software in any circumstances and is not liable
+X *  for any damages caused by this software.
+X *
+X *  October 1992
+X */
+X
+X/*
+X *  kernel include files.
+X */
+X#include "param.h"
+X#include "systm.h"
+X#include "buf.h"
+X#include "file.h"
+X#include "namei.h"
+X#include "mount.h"	/* to define statfs structure */
+X#include "vnode.h"	/* to define vattr structure */
+X#include "errno.h"
+X
+X/*
+X *  pcfs include files.
+X */
+X#include "bpb.h"
+X#include "pcfsmount.h"
+X#include "direntry.h"
+X#include "denode.h"
+X#include "fat.h"
+X
+X/*
+X *  Fat cache stats.
+X */
+Xint fc_fileextends       = 0;	/* # of file extends			*/
+Xint fc_lfcempty          = 0;	/* # of time last file cluster cache entry
+X				 * was empty */
+Xint fc_bmapcalls         = 0;	/* # of times pcbmap was called		*/
+X#define	LMMAX	20
+Xint fc_lmdistance[LMMAX];	/* counters for how far off the last cluster
+X				 * mapped entry was. */
+Xint fc_largedistance     = 0;	/* off by more than LMMAX		*/
+X
+X/*
+X *  Map the logical cluster number of a file into
+X *  a physical disk sector that is filesystem relative.
+X *  dep - address of denode representing the file of interest
+X *  findcn - file relative cluster whose filesystem relative
+X *    cluster number and/or block number are/is to be found
+X *  bnp - address of where to place the file system relative
+X *    block number.  If this pointer is null then don't return
+X *    this quantity.
+X *  cnp - address of where to place the file system relative
+X *    cluster number.  If this pointer is null then don't return
+X *    this quantity.
+X *  NOTE:
+X *    Either bnp or cnp must be non-null.
+X *    This function has one side effect.  If the requested
+X *    file relative cluster is beyond the end of file, then
+X *    the actual number of clusters in the file is returned
+X *    in *cnp.  This is useful for determining how long a
+X *    directory is.  If cnp is null, nothing is returned.
+X */
+Xint
+Xpcbmap(dep, findcn, bnp, cnp)
+X	struct denode *dep;
+X	unsigned long findcn;	/* file relative cluster to get		*/
+X	daddr_t *bnp;		/* returned filesys relative blk number	*/
+X	unsigned long *cnp;	/* returned cluster number		*/
+X{
+X	int error;
+X	u_long i;
+X	u_long cn;
+X	u_long prevcn;
+X	u_long byteoffset;
+X	u_long bn;
+X	u_long bo;
+X	struct buf *bp0 = 0;
+X	u_long bp0_bn = -1;
+X	struct buf *bp1 = 0;
+X	struct pcfsmount *pmp = dep->de_pmp;
+X	union fattwiddle x;
+X
+X	fc_bmapcalls++;
+X
+X/*
+X *  If they don't give us someplace to return a value
+X *  then don't bother doing anything.
+X */
+X	if (bnp == NULL  &&  cnp == NULL)
+X		return 0;
+X
+X	i = 0;
+X	cn = dep->de_StartCluster;
+X/*
+X *  The "file" that makes up the root directory is contiguous,
+X *  permanently allocated, of fixed size, and is not made up
+X *  of clusters.  If the cluster number is beyond the end of
+X *  the root directory, then return the number of clusters in
+X *  the file.
+X */
+X	if (cn == PCFSROOT) {
+X		if (dep->de_Attributes & ATTR_DIRECTORY) {
+X			if (findcn * pmp->pm_SectPerClust > pmp->pm_rootdirsize) {
+X				if (cnp)
+X					*cnp = pmp->pm_rootdirsize / pmp->pm_SectPerClust;
+X				return E2BIG;
+X			}
+X			if (bnp)
+X				*bnp = pmp->pm_rootdirblk + (findcn * pmp->pm_SectPerClust);
+X			if (cnp)
+X				*cnp = PCFSROOT;
+X			return 0;
+X		} else {	/* just an empty file */
+X			if (cnp)
+X				*cnp = 0;
+X			return E2BIG;
+X		}
+X	}
+X
+X/*
+X *  Rummage around in the fat cache, maybe we can avoid
+X *  tromping thru every fat entry for the file.
+X *  And, keep track of how far off the cache was from
+X *  where we wanted to be.
+X */
+X	fc_lookup(dep, findcn, &i, &cn);
+X	if ((bn = findcn - i) >= LMMAX)
+X		fc_largedistance++;
+X	else
+X		fc_lmdistance[bn]++;
+X
+X/*
+X *  Handle all other files or directories the normal way.
+X */
+X	if (FAT12(pmp)) {	/* 12 bit fat	*/
+X		for (; i < findcn; i++) {
+X			if (PCFSEOF(cn)) {
+X				goto hiteof;
+X			}
+X			byteoffset = cn + (cn >> 1);
+X			bn = (byteoffset >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X			bo = byteoffset &  pmp->pm_brbomask;
+X			if (bn != bp0_bn) {
+X				if (bp0)
+X					brelse(bp0);
+X				if (error = bread(pmp->pm_devvp, bn,
+X				    pmp->pm_BytesPerSec, NOCRED, &bp0)) {
+X					brelse(bp0);
+X					return error;
+X				}
+X				bp0_bn = bn;
+X			}
+X			x.byte[0] = bp0->b_un.b_addr[bo];
+X/*
+X *  If the first byte of the fat entry was the last byte
+X *  in the block, then we must read the next block in the
+X *  fat.  We hang on to the first block we read to insure
+X *  that some other process doesn't update it while we
+X *  are waiting for the 2nd block.
+X *  Note that we free bp1 even though the next iteration of
+X *  the loop might need it.
+X */
+X			if (bo == pmp->pm_BytesPerSec-1) {
+X				if (error = bread(pmp->pm_devvp, bn+1,
+X				    pmp->pm_BytesPerSec, NOCRED, &bp1)) {
+X					brelse(bp0);
+X					return error;
+X				}
+X				x.byte[1] = bp1->b_un.b_addr[0];
+X				brelse(bp1);
+X			} else {
+X				x.byte[1] = bp0->b_un.b_addr[bo+1];
+X			}
+X			if (cn & 1)
+X				x.word >>= 4;
+X			prevcn = cn;
+X			cn = x.word & 0x0fff;
+X/*
+X *  Force the special cluster numbers in the range
+X *  0x0ff0-0x0fff to be the same as for 16 bit cluster
+X *  numbers to let the rest of pcfs think it is always
+X *  dealing with 16 bit fats.
+X */
+X			if ((cn & 0x0ff0) == 0x0ff0)
+X				cn |= 0xf000;
+X		}
+X	} else {				/* 16 bit fat	*/
+X		for (; i < findcn; i++) {
+X			if (PCFSEOF(cn)) {
+X				goto hiteof;
+X			}
+X			byteoffset = cn << 1;
+X			bn = (byteoffset >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X			bo = byteoffset &  pmp->pm_brbomask;
+X			if (bn != bp0_bn) {
+X				if (bp0)
+X					brelse(bp0);
+X				if (error = bread(pmp->pm_devvp, bn,
+X				    pmp->pm_BytesPerSec, NOCRED, &bp0)) {
+X					brelse(bp0);
+X					return error;
+X				}
+X				bp0_bn = bn;
+X			}
+X			prevcn = cn;
+X			cn = *(u_short *)(bp0->b_un.b_addr+bo);
+X		}
+X	}
+X
+X	if (!PCFSEOF(cn)) {
+X		if (bp0)
+X			brelse(bp0);
+X		if (bnp)
+X			*bnp = cntobn(pmp, cn);
+X		if (cnp)
+X			*cnp = cn;
+X		fc_setcache(dep, FC_LASTMAP, i, cn);
+X		return 0;
+X	}
+X
+Xhiteof:;
+X	if (cnp)
+X		*cnp = i;
+X	if (bp0)
+X		brelse(bp0);
+X	/* update last file cluster entry in the fat cache */
+X	fc_setcache(dep, FC_LASTFC, i-1, prevcn);
+X	return E2BIG;
+X}
+X
+X/*
+X *  Find the closest entry in the fat cache to the
+X *  cluster we are looking for.
+X */
+Xfc_lookup(dep, findcn, frcnp, fsrcnp)
+X	struct denode *dep;
+X	unsigned long findcn;
+X	unsigned long *frcnp;
+X	unsigned long *fsrcnp;
+X{
+X	int i;
+X	unsigned long cn;
+X	struct fatcache *closest = 0;
+X
+X	for (i = 0; i < FC_SIZE; i++) {
+X		cn = dep->de_fc[i].fc_frcn;
+X		if (cn != FCE_EMPTY  &&  cn <= findcn) {
+X			if (closest == 0  ||  cn > closest->fc_frcn)
+X				closest = &dep->de_fc[i];
+X		}
+X	}
+X	if (closest) {
+X		*frcnp  = closest->fc_frcn;
+X		*fsrcnp = closest->fc_fsrcn;
+X	}
+X}
+X
+X/*
+X *  Purge the fat cache in denode dep of all entries
+X *  relating to file relative cluster frcn and beyond.
+X */
+Xfc_purge(dep, frcn)
+X	struct denode *dep;
+X	unsigned int frcn;
+X{
+X	int i;
+X	struct fatcache *fcp;
+X
+X	fcp = dep->de_fc;
+X	for (i = 0; i < FC_SIZE; i++) {
+X		if (fcp->fc_frcn != FCE_EMPTY  &&  fcp->fc_frcn >= frcn) {
+X			fcp->fc_frcn = FCE_EMPTY;
+X		}
+X		fcp++;
+X	}
+X}
+X
+X/*
+X *  Once the first fat is updated the other copies of
+X *  the fat must also be updated.  This function does
+X *  this.
+X *  pmp - pcfsmount structure for filesystem to update
+X *  bp0 - addr of modified fat block
+X *  bp1 - addr of 2nd modified fat block (0 if not needed)
+X *  fatbn - block number relative to begin of filesystem
+X *    of the modified fat block.
+X */
+Xvoid
+Xupdateotherfats(pmp, bp0, bp1, fatbn)
+X	struct pcfsmount *pmp;
+X	struct buf *bp0;
+X	struct buf *bp1;
+X	u_long fatbn;
+X{
+X	int i;
+X	struct buf *bpn0;
+X	struct buf *bpn1;
+X
+X#if defined(PCFSDEBUG)
+Xprintf("updateotherfats(pmp %08x, bp0 %08x, bp1 %08x, fatbn %d)\n",
+X	pmp, bp0, bp1, fatbn);
+X#endif /* defined(PCFSDEBUG) */
+X
+X/*
+X *  Now copy the block(s) of the modified fat to the other
+X *  copies of the fat and write them out.  This is faster
+X *  than reading in the other fats and then writing them
+X *  back out.  This could tie up the fat for quite a while.
+X *  Preventing others from accessing it.  To prevent us
+X *  from going after the fat quite so much we use delayed
+X *  writes, unless they specfied "synchronous" when the
+X *  filesystem was mounted.  If synch is asked for then
+X *  use bwrite()'s and really slow things down.
+X */
+X	for (i = 1; i < pmp->pm_FATs; i++) {
+X		fatbn += pmp->pm_FATsecs;
+X		/* getblk() never fails */
+X		bpn0 = getblk(pmp->pm_devvp, fatbn, pmp->pm_BytesPerSec);
+X		bcopy(bp0->b_un.b_addr, bpn0->b_un.b_addr,
+X			pmp->pm_BytesPerSec);
+X		if (pmp->pm_waitonfat)
+X			bwrite(bpn0);
+X		else
+X			bdwrite(bpn0);
+X		if (bp1) {
+X			/* getblk() never fails */
+X			bpn1 = getblk(pmp->pm_devvp, fatbn+1,
+X			    pmp->pm_BytesPerSec);
+X			bcopy(bp1->b_un.b_addr, bpn1->b_un.b_addr,
+X				pmp->pm_BytesPerSec);
+X			if (pmp->pm_waitonfat)
+X				bwrite(bpn1);
+X			else
+X				bdwrite(bpn1);
+X		}
+X	}
+X}
+X
+X/*
+X *  Updating entries in 12 bit fats is a pain in the butt.
+X *  So, we have a function to hide this ugliness.
+X *
+X *  The following picture shows where nibbles go when
+X *  moving from a 12 bit cluster number into the appropriate
+X *  bytes in the FAT.
+X *
+X *      byte m        byte m+1      byte m+2
+X *    +----+----+   +----+----+   +----+----+
+X *    |  0    1 |   |  2    3 |   |  4    5 |   FAT bytes
+X *    +----+----+   +----+----+   +----+----+
+X *
+X *       +----+----+----+ +----+----+----+
+X *       |  3    0    1 | |  4    5    2 |
+X *       +----+----+----+ +----+----+----+
+X *         cluster n        cluster n+1
+X *
+X *    Where n is even.
+X *    m = n + (n >> 2)
+X *
+X *  This function is written for little endian machines.
+X *  least significant byte stored into lowest address.
+X */
+Xvoid
+Xsetfat12slot(bp0, bp1, oddcluster, byteoffset, newvalue)
+X	struct buf *bp0;
+X	struct buf *bp1;
+X	int oddcluster;
+X	u_int byteoffset;
+X	u_short newvalue;
+X{
+X	unsigned char *b0;
+X	unsigned char *b1;
+X	union fattwiddle x;
+X
+X/*
+X *  If we have a 2nd buf header and the byte offset is not the
+X *  last byte in the buffer, then something is fishy.  Better
+X *  tell someone.
+X */
+X	if (bp1  &&  byteoffset != 511)
+X		printf("setfat12slot(): bp1 %08x, byteoffset %d shouldn't happen\n",
+X			bp1, byteoffset);
+X
+X/*
+X *  Get address of 1st byte and 2nd byte setup
+X *  so we don't worry about which buf header to
+X *  be poking around in.
+X */
+X	b0 = (unsigned char *)&bp0->b_un.b_addr[byteoffset];
+X	if (bp1)
+X		b1 = (unsigned char *)&bp1->b_un.b_addr[0];
+X	else
+X		b1 = b0 + 1;
+X
+X/*printf("setfat12(): offset %d, old %02x%02x, new %04x\n", byteoffset, *b0, *b1, newvalue); */
+X
+X	if (oddcluster) {
+X		x.word = newvalue << 4;
+X		*b0 = (*b0 & 0x0f) | x.byte[0];
+X		*b1 = x.byte[1];
+X	} else {
+X		x.word = newvalue & 0x0fff;
+X		*b0 = x.byte[0];
+X		*b1 = (*b1 & 0xf0) | x.byte[1];
+X	}
+X/*printf("setfat12(): result %02x%02x\n", *b0, *b1); */
+X}
+X
+Xint
+Xclusterfree(pmp, cluster)
+X	struct pcfsmount *pmp;
+X	unsigned long cluster;
+X{
+X	int error;
+X
+X	error = fatentry(FAT_SET, pmp, cluster, 0, PCFSFREE);
+X	if (error == 0) {
+X/*
+X *  If the cluster was successfully marked free, then update the count of
+X *  free clusters, and turn off the "allocated" bit in the
+X *  "in use" cluster bit map.
+X */
+X		pmp->pm_freeclustercount++;
+X		pmp->pm_inusemap[cluster >> 3] &= ~(1 << (cluster & 0x07));
+X	}
+X	return error;
+X}
+X
+X/*
+X *  Get or Set or 'Get and Set' the cluster'th entry in the
+X *  fat.
+X *  function - whether to get or set a fat entry
+X *  pmp - address of the pcfsmount structure for the
+X *    filesystem whose fat is to be manipulated.
+X *  cluster - which cluster is of interest
+X *  oldcontents - address of a word that is to receive
+X *    the contents of the cluster'th entry if this is
+X *    a get function
+X *  newcontents - the new value to be written into the
+X *    cluster'th element of the fat if this is a set
+X *    function.
+X *
+X *  This function can also be used to free a cluster
+X *  by setting the fat entry for a cluster to 0.
+X *
+X *  All copies of the fat are updated if this is a set
+X *  function.
+X *  NOTE:
+X *    If fatentry() marks a cluster as free it does not
+X *    update the inusemap in the pcfsmount structure.
+X *    This is left to the caller.
+X */
+Xint
+Xfatentry(function, pmp, cluster, oldcontents, newcontents)
+X	int function;
+X	struct pcfsmount *pmp;
+X	u_long cluster;
+X	u_long *oldcontents;
+X	u_long newcontents;
+X{
+X	int error;
+X	u_long whichbyte;
+X	u_long whichblk;
+X	struct buf *bp0 = 0;
+X	struct buf *bp1 = 0;
+X	union fattwiddle x;
+X/*printf("fatentry(func %d, pmp %08x, clust %d, oldcon %08x, newcon %d)\n",
+X	function, pmp, cluster, oldcontents, newcontents);*/
+X
+X/*
+X *  Be sure they asked us to do something.
+X */
+X	if ((function & (FAT_SET | FAT_GET)) == 0) {
+X		printf("fatentry(): function code doesn't specify get or set\n");
+X		return EINVAL;
+X	}
+X
+X/*
+X *  If they asked us to return a cluster number
+X *  but didn't tell us where to put it, give them
+X *  an error.
+X */
+X	if ((function & FAT_GET)  &&  oldcontents == NULL) {
+X		printf("fatentry(): get function with no place to put result\n");
+X		return EINVAL;
+X	}
+X
+X/*
+X *  Be sure the requested cluster is in the filesystem.
+X */
+X	if (cluster < CLUST_FIRST || cluster > pmp->pm_maxcluster)
+X		return EINVAL;
+X
+X	if (FAT12(pmp)) {
+X		whichbyte = cluster + (cluster >> 1);
+X		whichblk  = (whichbyte >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X		whichbyte &= pmp->pm_brbomask;
+X/*
+X *  Read in the fat block containing the entry of interest.
+X *  If the entry spans 2 blocks, read both blocks.
+X */
+X		error = bread(pmp->pm_devvp, whichblk,
+X		    pmp->pm_BytesPerSec, NOCRED, &bp0);
+X		if (error) {
+X			brelse(bp0);
+X			return error;
+X		}
+X		if (whichbyte == (pmp->pm_BytesPerSec-1)) {
+X			error = bread(pmp->pm_devvp, whichblk+1,
+X			    pmp->pm_BytesPerSec, NOCRED, &bp1);
+X			if (error) {
+X				brelse(bp0);
+X				return error;
+X			}
+X		}
+X		if (function & FAT_GET) {
+X			x.byte[0] = bp0->b_un.b_addr[whichbyte];
+X			x.byte[1] = bp1 ? bp1->b_un.b_addr[0] :
+X					  bp0->b_un.b_addr[whichbyte+1];
+X			if (cluster & 1)
+X				x.word >>= 4;
+X			x.word &= 0x0fff;
+X			/* map certain 12 bit fat entries to 16 bit */
+X			if ((x.word & 0x0ff0) == 0x0ff0)
+X				x.word |= 0xf000;
+X			*oldcontents = x.word;
+X		}
+X		if (function & FAT_SET) {
+X			setfat12slot(bp0, bp1, cluster & 1, whichbyte,
+X				newcontents);
+X			updateotherfats(pmp, bp0, bp1, whichblk);
+X
+X/*
+X *  Write out the first fat last.
+X */
+X			if (pmp->pm_waitonfat)
+X				bwrite(bp0);
+X			else
+X				bdwrite(bp0);
+X			bp0 = NULL;
+X			if (bp1) {
+X				if (pmp->pm_waitonfat)
+X					bwrite(bp1);
+X				else
+X					bdwrite(bp1);
+X				bp1 = NULL;
+X			}
+X			pmp->pm_fmod++;
+X		}
+X	} else {	/* fat16 */
+X		whichbyte = cluster << 1;
+X		whichblk  = (whichbyte >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X		whichbyte &= pmp->pm_brbomask;
+X		error = bread(pmp->pm_devvp, whichblk,
+X		    pmp->pm_BytesPerSec, NOCRED, &bp0);
+X		if (error) {
+X			brelse(bp0);
+X			return error;
+X		}
+X		if (function & FAT_GET) {
+X			*oldcontents = *((u_short *)(bp0->b_un.b_addr +
+X				whichbyte));
+X		}
+X		if (function & FAT_SET) {
+X			*(u_short *)(bp0->b_un.b_addr+whichbyte) = newcontents;
+X			updateotherfats(pmp, bp0, 0, whichblk);
+X			if (pmp->pm_waitonfat)
+X				bwrite(bp0);	/* write out blk from the 1st fat */
+X			else
+X				bdwrite(bp0);
+X			bp0 = NULL;
+X			pmp->pm_fmod++;
+X		}
+X	}
+X	if (bp0)
+X		brelse(bp0);
+X	if (bp1)
+X		brelse(bp1);
+X	return 0;
+X}
+X
+X/*
+X *  Allocate a free cluster.
+X *  pmp - 
+X *  retcluster - put the allocated cluster's number here.
+X *  fillwith - put this value into the fat entry for the
+X *     allocated cluster.
+X */
+Xint
+Xclusteralloc(pmp, retcluster, fillwith)
+X	struct pcfsmount *pmp;
+X	unsigned long *retcluster;
+X	unsigned long fillwith;
+X{
+X	int error;
+X	u_long cn;
+X	u_long end_cn;
+X
+X	/* This for loop really needs to start from 0. */
+X	for (cn = 0; cn <= pmp->pm_maxcluster; cn += 8) {
+X		if (pmp->pm_inusemap[cn >> 3] != 0xff) {
+X			end_cn = cn | 0x07;
+X			for (;cn <= end_cn; cn++) {
+X				if ((pmp->pm_inusemap[cn >> 3] & (1 << (cn & 0x07))) == 0)
+X					goto found_one;
+X			}
+X			printf("clusteralloc(): this shouldn't happen\n");
+X		}
+X	}
+X	return ENOSPC;
+X
+Xfound_one:;
+X	error = fatentry(FAT_SET, pmp, cn, 0, fillwith);
+X	if (error == 0) {
+X		pmp->pm_inusemap[cn >> 3] |= 1 << (cn & 0x07);
+X		pmp->pm_freeclustercount--;
+X		pmp->pm_fmod++;
+X		*retcluster = cn;
+X	}
+X#if defined(PCFSDEBUG)
+Xprintf("clusteralloc(): allocated cluster %d\n", cn);
+X#endif /* defined(PCFSDEBUG) */
+X	return error;
+X}
+X
+X/*
+X *  Free a chain of clusters.
+X *  pmp - address of the pcfs mount structure for the
+X *    filesystem containing the cluster chain to be freed.
+X *  startcluster - number of the 1st cluster in the chain
+X *    of clusters to be freed.
+X */
+Xint
+Xfreeclusterchain(pmp, startcluster)
+X	struct pcfsmount *pmp;
+X	unsigned long startcluster;
+X{
+X	unsigned long nextcluster;
+X	int error = 0;
+X
+X	while (startcluster >= CLUST_FIRST  &&  startcluster <= pmp->pm_maxcluster) {
+X		error = fatentry(FAT_GET_AND_SET, pmp, startcluster,
+X			&nextcluster, PCFSFREE);
+X		if (error) {
+X			printf("freeclusterchain(): free failed, cluster %d\n",
+X				startcluster);
+X			break;
+X		}
+X/*
+X *  If the cluster was successfully marked free, then update the count of
+X *  free clusters, and turn off the "allocated" bit in the
+X *  "in use" cluster bit map.
+X */
+X		pmp->pm_freeclustercount++;
+X		pmp->pm_inusemap[startcluster >> 3] &=
+X			~(1 << (startcluster & 0x07));
+X		startcluster = nextcluster;
+X		pmp->pm_fmod++;
+X	}
+X	return error;
+X}
+X
+X/*
+X *  Read in fat blocks looking for free clusters.
+X *  For every free cluster found turn off its
+X *  corresponding bit in the pm_inusemap.
+X */
+Xint
+Xfillinusemap(pmp)
+X	struct pcfsmount *pmp;
+X{
+X	struct buf *bp0 = 0;
+X	daddr_t bp0_blk = -1;
+X	struct buf *bp1 = 0;
+X	daddr_t cn;
+X	daddr_t whichblk;
+X	int whichbyte;
+X	int error;
+X	union fattwiddle x;
+X
+X/*
+X *  Mark all clusters in use, we mark the free ones in the
+X *  fat scan loop further down.
+X */
+X	for (cn = 0; cn < (pmp->pm_maxcluster >> 3) + 1; cn++)
+X		pmp->pm_inusemap[cn] = 0xff;
+X
+X/*
+X *  Figure how many free clusters are in the filesystem
+X *  by ripping thougth the fat counting the number of
+X *  entries whose content is zero.  These represent free
+X *  clusters.
+X */
+X	pmp->pm_freeclustercount = 0;
+X	pmp->pm_lookhere = -1;
+X	for (cn = CLUST_FIRST; cn <= pmp->pm_maxcluster; cn++) {
+X		if (FAT12(pmp)) {
+X			whichbyte = cn + (cn >> 1);
+X			whichblk  = (whichbyte >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X			whichbyte = whichbyte & pmp->pm_brbomask;
+X			if (whichblk != bp0_blk) {
+X				if (bp0)
+X					brelse(bp0);
+X				error = bread(pmp->pm_devvp, whichblk,
+X					pmp->pm_BytesPerSec, NOCRED, &bp0);
+X				if (error) {
+X					goto error_exit;
+X				}
+X				bp0_blk = whichblk;
+X			}
+X			x.byte[0] = bp0->b_un.b_addr[whichbyte];
+X			if (whichbyte == (pmp->pm_BytesPerSec-1)) {
+X				error = bread(pmp->pm_devvp, whichblk+1,
+X					pmp->pm_BytesPerSec, NOCRED, &bp1);
+X				if (error)
+X					goto error_exit;
+X				x.byte[1] = bp1->b_un.b_addr[0];
+X				brelse(bp0);
+X				bp0 = bp1;
+X				bp1 = NULL;
+X				bp0_blk++;
+X			} else {
+X				x.byte[1] = bp0->b_un.b_addr[whichbyte + 1];
+X			}
+X			if (cn & 1)
+X				x.word >>= 4;
+X			x.word &= 0x0fff;
+X		} else {	/* 16 bit fat	*/
+X			whichbyte = cn << 1;
+X			whichblk  = (whichbyte >> pmp->pm_bnshift) + pmp->pm_fatblk;
+X			whichbyte = whichbyte & pmp->pm_brbomask;
+X			if (whichblk != bp0_blk) {
+X				if (bp0)
+X					brelse(bp0);
+X				error = bread(pmp->pm_devvp, whichblk,
+X					pmp->pm_BytesPerSec, NOCRED, &bp0);
+X				if (error)
+X					goto error_exit;
+X				bp0_blk = whichblk;
+X			}
+X			x.byte[0] = bp0->b_un.b_addr[whichbyte];
+X			x.byte[1] = bp0->b_un.b_addr[whichbyte+1];
+X		}
+X		if (x.word == 0) {
+X			pmp->pm_freeclustercount++;
+X			pmp->pm_inusemap[cn >> 3] &= ~(1 << (cn & 0x07));
+X			if (pmp->pm_lookhere < 0)
+X				pmp->pm_lookhere = cn;
+X		}
+X	}
+X	brelse(bp0);
+X	return 0;
+X
+Xerror_exit:;
+X	if (bp0)
+X		brelse(bp0);
+X	if (bp1)
+X		brelse(bp1);
+X	return error;
+X}
+X
+X/*
+X *  Allocate a new cluster and chain it onto the end of the
+X *  file.
+X *  dep - the file to extend
+X *  bpp - where to return the address of the buf header for the
+X *        new file block
+X *  ncp - where to put cluster number of the newly allocated file block
+X *        If this pointer is 0, do not return the cluster number.
+X *
+X *  NOTE:
+X *   This function is not responsible for turning on the DEUPD
+X *   bit if the de_flag field of the denode and it does not
+X *   change the de_FileSize field.  This is left for the caller
+X *   to do.
+X */
+Xint
+Xextendfile(dep, bpp, ncp)
+X	struct denode *dep;
+X	struct buf **bpp;
+X	unsigned int *ncp;
+X{
+X	int error = 0;
+X	unsigned long frcn;
+X	unsigned long cn;
+X	struct pcfsmount *pmp = dep->de_pmp;
+X
+X/*
+X *  Don't try to extend the root directory
+X */
+X	if (DETOV(dep)->v_flag & VROOT) {
+X		printf("extendfile(): attempt to extend root directory\n");
+X		return ENOSPC;
+X	}
+X
+X/*
+X *  If the "file's last cluster" cache entry is empty,
+X *  and the file is not empty,
+X *  then fill the cache entry by calling pcbmap().
+X */
+X	fc_fileextends++;
+X	if (dep->de_fc[FC_LASTFC].fc_frcn == FCE_EMPTY  &&
+X	    dep->de_StartCluster != 0) {
+X		fc_lfcempty++;
+X		error = pcbmap(dep, 0xffff, 0, &cn);
+X		/* we expect it to return E2BIG */
+X		if (error != E2BIG)
+X			return error;
+X		error = 0;
+X	}
+X
+X/*
+X *  Allocate another cluster and chain onto the end of the file.
+X *  If the file is empty we make de_StartCluster point to the
+X *  new block.  Note that de_StartCluster being 0 is sufficient
+X *  to be sure the file is empty since we exclude attempts to
+X *  extend the root directory above, and the root dir is the
+X *  only file with a startcluster of 0 that has blocks allocated
+X *  (sort of).
+X */
+X	if (error = clusteralloc(pmp, &cn, CLUST_EOFE))
+X		return error;
+X	if (dep->de_StartCluster == 0) {
+X		dep->de_StartCluster = cn;
+X		frcn = 0;
+X	} else {
+X		error = fatentry(FAT_SET, pmp, dep->de_fc[FC_LASTFC].fc_fsrcn,
+X			0, cn);
+X		if (error) {
+X			clusterfree(pmp, cn);
+X			return error;
+X		}
+X
+X		frcn = dep->de_fc[FC_LASTFC].fc_frcn + 1;
+X	}
+X
+X/*
+X *  Update the "last cluster of the file" entry in the denode's
+X *  fat cache.
+X */
+X	fc_setcache(dep, FC_LASTFC, frcn, cn);
+X
+X/*
+X *  Get the buf header for the new block of the file.
+X */
+X	if (dep->de_Attributes & ATTR_DIRECTORY) {
+X		*bpp = getblk(pmp->pm_devvp, cntobn(pmp, cn),
+X			pmp->pm_bpcluster);
+X	} else {
+X		*bpp = getblk(DETOV(dep), frcn,
+X			pmp->pm_bpcluster);
+X	}
+X	clrbuf(*bpp);
+X
+X/*
+X *  Give them the filesystem relative cluster number
+X *  if they want it.
+X */
+X	if (ncp)
+X		*ncp = cn;
+X	return 0;
+X}
+END-of-/sys/pcfs/pcfs_fat.c
+exit

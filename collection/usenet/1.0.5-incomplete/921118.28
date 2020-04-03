@@ -1,0 +1,2168 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 08/10)
+Message-ID: <1992Nov15.155340.20399@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:53:40 GMT
+Lines: 2155
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part08
+
+#!/bin/sh
+# this is tin.shar.08 (part 8 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 8; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X  						cur_groupnum = n;
+X  					}
+X- 					erase_group_arrow ();
+X- 					cur_groupnum = reposition_group (active[my_group[n]].name,
+X- 									(n ? n : cur_groupnum));
+X  					set_groupname_len (FALSE);				
+X  					if (cur_groupnum < first_group_on_screen ||
+X  						cur_groupnum >= last_group_on_screen ||
+X--- 374,388 ----
+X  
+X  			case 'g':	/* prompt for a new group name */
+X  				if ((n = choose_new_group ()) >= 0) {
+X+ 					erase_group_arrow ();
+X  					if (active[my_group[n]].my_group != SUBSCRIBED) {
+X  						subscribe (active[my_group[n]].name, ':',
+X  							my_group[n], FALSE);
+X+ 						cur_groupnum = reposition_group (active[my_group[n]].name,
+X+ 							(n ? n : cur_groupnum));
+X  					} else {
+X  						cur_groupnum = n;
+X  					}
+X  					set_groupname_len (FALSE);				
+X  					if (cur_groupnum < first_group_on_screen ||
+X  						cur_groupnum >= last_group_on_screen ||
+X***************
+X*** 423,428 ****
+X--- 416,424 ----
+X  				if (active[my_group[cur_groupnum]].my_group == SUBSCRIBED) {
+X  					n = cur_groupnum;
+X  					cur_groupnum = reposition_group (active[my_group[n]].name, n);
+X+ 					if (_hp_glitch) {
+X+ 						erase_group_arrow ();
+X+ 					}
+X  					if (cur_groupnum < first_group_on_screen ||
+X  						cur_groupnum >= last_group_on_screen ||
+X  						cur_groupnum != n) {
+X***************
+X*** 462,472 ****
+X  	 			 * If in show_only_unread_groups mode toggle
+X  	 			 * all subscribed to groups and only  groups
+X  	 			 * that contain unread articles
+X  	 			 */
+X! 	 			show_only_unread_groups = !show_only_unread_groups;
+X! 				toggle_my_groups (show_only_unread_groups, "");
+X! 				set_groupname_len (FALSE);
+X! 				group_selection_page ();
+X  				break;
+X  
+X  			case 's':	/* subscribe to current group */
+X--- 458,477 ----
+X  	 			 * If in show_only_unread_groups mode toggle
+X  	 			 * all subscribed to groups and only  groups
+X  	 			 * that contain unread articles
+X+ 	 			 *
+X+ 	 			 * Disabled when started with cmdline groups
+X  	 			 */
+X! 	 			if (! read_cmd_line_groups ()) { 
+X! 	 				show_only_unread_groups = !show_only_unread_groups;
+X! 					if (show_only_unread_groups) {
+X! 						wait_message (txt_reading_new_groups);
+X! 					} else {
+X! 						wait_message (txt_reading_all_groups);
+X! 					}
+X! 					toggle_my_groups (show_only_unread_groups, "");
+X! 					set_groupname_len (FALSE);
+X! 					group_selection_page ();
+X! 				}
+X  				break;
+X  
+X  			case 's':	/* subscribe to current group */
+X***************
+X*** 485,490 ****
+X--- 490,498 ----
+X  			    break;
+X  
+X  			case 'S':	/* subscribe to groups matching pattern */
+X+ 				if (group_top == 0) {
+X+ 					break;
+X+ 				}
+X  				if (prompt_string (txt_subscribe_pattern, buf) && buf[0]) {
+X  					wait_message (txt_subscribing);
+X  					patlen = strlen (buf);
+X***************
+X*** 534,539 ****
+X--- 542,550 ----
+X  				break;
+X  
+X  			case 'U':	/* unsubscribe to groups matching pattern */
+X+ 				if (group_top == 0) {
+X+ 					break;
+X+ 				}
+X  				if (prompt_string (txt_unsubscribe_pattern, buf) && buf[0]) {	
+X  					wait_message (txt_unsubscribing);
+X  					patlen = strlen (buf);	
+X***************
+X*** 623,628 ****
+X--- 634,642 ----
+X  				} else {
+X  					wait_message (txt_yanking_sub_groups);
+X  					read_newsrc (TRUE);
+X+ 					if (_hp_glitch) {
+X+ 						erase_group_arrow ();
+X+ 					}					
+X  					cur_groupnum = group_top - 1;
+X  					set_groupname_len (yank_active_file);
+X  					group_selection_page ();
+X***************
+X*** 644,654 ****
+X  				update_newsrc (active[my_group[n]].name, my_group[n], TRUE);
+X  				cur_groupnum = 0;
+X  				group_top = 0;
+X- 				read_newsrc (TRUE);			
+X- 				cur_groupnum = n;
+X  				if (active[my_group[cur_groupnum]].unread) {
+X  					sprintf (msg, "%5d", active[my_group[cur_groupnum]].unread);
+X! 				} else {	
+X  					strcpy (msg, "     ");
+X  				}
+X  				mark_screen (SELECT_LEVEL, cur_groupnum - first_group_on_screen, 9, msg);
+X--- 658,666 ----
+X  				update_newsrc (active[my_group[n]].name, my_group[n], TRUE);
+X  				cur_groupnum = 0;
+X  				group_top = 0;
+X  				if (active[my_group[cur_groupnum]].unread) {
+X  					sprintf (msg, "%5d", active[my_group[cur_groupnum]].unread);
+X! 				} else {
+X  					strcpy (msg, "     ");
+X  				}
+X  				mark_screen (SELECT_LEVEL, cur_groupnum - first_group_on_screen, 9, msg);
+X***************
+X*** 797,812 ****
+X  					blank_len, " ");
+X  			}
+X  		}
+X! /*
+X! 		for (n=strlen(screen[j].col)-3; screen[j].col[n] == ' ' && n >= 0; n--) {
+X!  			screen[j].col[n] = '\0';
+X!  		}
+X!  		fputs(screen[j].col, stdout);
+X   		CleartoEOLN ();
+X!  		fputs("\r\n", stdout);
+X! */
+X! 	
+X! 		fputs (screen[j].col, stdout);
+X  	}
+X  #ifndef USE_CLEARSCREEN
+X  	CleartoEOS ();
+X--- 809,820 ----
+X  					blank_len, " ");
+X  			}
+X  		}
+X! 		if (slow_speed_terminal) {
+X! 			strip_line (screen[j].col, strlen (screen[j].col));
+X! 			strcat (screen[j].col, "\r\n");
+X! 		}
+X   		CleartoEOLN ();
+X!  		fputs (screen[j].col, stdout);
+X  	}
+X  #ifndef USE_CLEARSCREEN
+X  	CleartoEOS ();
+X***************
+X*** 1071,1077 ****
+X  		index_point = -1;
+X  		do {
+X  			group_page (active[my_group[cur_groupnum]].name);
+X! 		} while (index_point == -3);
+X  		group_selection_page ();
+X  	}
+X  }
+X--- 1079,1085 ----
+X  		index_point = -1;
+X  		do {
+X  			group_page (active[my_group[cur_groupnum]].name);
+X! 		} while (index_point == -3 || index_point == -4);
+X  		group_selection_page ();
+X  	}
+X  }
+X***************
+X*** 1112,1117 ****
+X--- 1120,1129 ----
+X  			groupname_len = 0;
+X  		}	
+X  	}
+X+ 	
+X+ 	if (groupname_len > groupname_max_length) {
+X+ 		groupname_len = groupname_max_length;
+X+ 	}
+X  }
+X  
+X  
+X***************
+X*** 1196,1201 ****
+X--- 1208,1217 ----
+X  
+X  void	goto_next_group_on_screen ()
+X  {
+X+ 	if (_hp_glitch) {
+X+ 		erase_group_arrow ();
+X+ 	}
+X+ 
+X  	if (cur_groupnum+1 < last_group_on_screen) {
+X  		erase_group_arrow ();
+X  		cur_groupnum++;
+X***************
+X*** 1204,1207 ****
+X--- 1220,1239 ----
+X  		cur_groupnum++;
+X  		group_selection_page ();
+X  	}
+X+ }
+X+ 
+X+ /*
+X+  * Strip trailing blanks
+X+  */
+X+ 
+X+ void strip_line (line, len)
+X+ 	char *line;
+X+ 	int len;
+X+ {
+X+ 	char *ptr = line + (len - 1);
+X+ 	
+X+ 	while (*ptr == ' ' || *ptr == '\r' || *ptr == '\n') {
+X+ 		ptr--;
+X+ 	}	
+X+ 	*++ptr = '\0';
+X  }
+Xdiff -rcs ../1.16/server.patch ./server.patch
+X*** ../1.16/server.patch	Sun Nov 15 18:41:37 1992
+X--- ./server.patch	Thu Nov  5 13:27:59 1992
+X***************
+X*** 1,6 ****
+X! diff -rcs server.old/Makefile server/Makefile
+X! *** server.old/Makefile	Mon May  4 07:03:54 1992
+X! --- server/Makefile	Mon May  4 07:16:35 1992
+X  ***************
+X  *** 6,18 ****
+X    	ahbs.o globals.o group.o help.o ihave.o list.o misc.o netaux.o \
+X--- 1,6 ----
+X! diff -rcs nntp/server/Makefile nntp-1.5.11/server/Makefile
+X! *** server/Makefile		Wed Sep 30 14:34:44 1992
+X! --- server/Makefile		Sat Sep 26 11:01:58 1992
+X  ***************
+X  *** 6,18 ****
+X    	ahbs.o globals.o group.o help.o ihave.o list.o misc.o netaux.o \
+X***************
+X*** 20,41 ****
+X    	ahbs.o globals.o group.o help.o ihave.o list.o misc.o netaux.o \
+X    	newgroups.o newnews.o nextlast.o ngmatch.o post.o parsit.o scandir.o \
+X    	slave.o spawn.o strcasecmp.o subnet.o time.o xhdr.o fakesyslog.o \
+X! ! 	batch.o auth.o timer.o ../common/version.o xuser.o xindex.o
+X    
+X    SRVRSRC = main.c serve.c access.c access_inet.c access_dnet.c active.c \
+X    	ahbs.c globals.c group.c help.c ihave.c list.c misc.c netaux.c \
+X    	newgroups.c newnews.c nextlast.c ngmatch.c post.c parsit.c scandir.c \
+X    	slave.c spawn.c strcasecmp.c subnet.c time.c xhdr.c fakesyslog.c \
+X! ! 	batch.c auth.c timer.c ../common/version.c xuser.c xindex.c
+X    
+X    SRVRINC = common.h ../common/conf.h ../common/nntp.h timer.h
+X    
+X- Files server.old/README and server/README are identical
+X- Files server.old/SYSLOG and server/SYSLOG are identical
+X- diff -rcs server.old/access.c server/access.c
+X- *** server.old/access.c	Mon May  4 07:03:55 1992
+X- --- server/access.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 44,50 ****
+X    
+X    #ifdef AUTH
+X--- 20,56 ----
+X    	ahbs.o globals.o group.o help.o ihave.o list.o misc.o netaux.o \
+X    	newgroups.o newnews.o nextlast.o ngmatch.o post.o parsit.o scandir.o \
+X    	slave.o spawn.o strcasecmp.o subnet.o time.o xhdr.o fakesyslog.o \
+X! ! 	batch.o auth.o timer.o ../common/version.o xuser.o xindex.o xmotd.o
+X    
+X    SRVRSRC = main.c serve.c access.c access_inet.c access_dnet.c active.c \
+X    	ahbs.c globals.c group.c help.c ihave.c list.c misc.c netaux.c \
+X    	newgroups.c newnews.c nextlast.c ngmatch.c post.c parsit.c scandir.c \
+X    	slave.c spawn.c strcasecmp.c subnet.c time.c xhdr.c fakesyslog.c \
+X! ! 	batch.c auth.c timer.c ../common/version.c xuser.c xindex.c xmotd.c
+X    
+X    SRVRINC = common.h ../common/conf.h ../common/nntp.h timer.h
+X    
+X  ***************
+X+ *** 25,31 ****
+X+   
+X+   # Where nntpd is going to live
+X+   
+X+ ! DESTDIR	= /news/nntp
+X+   
+X+   all:	nntpd
+X+   
+X+ --- 25,31 ----
+X+   
+X+   # Where nntpd is going to live
+X+   
+X+ ! DESTDIR	= /etc
+X+   
+X+   all:	nntpd
+X+   
+X+ diff -rcs nntp/server/access.c nntp-1.5.11/server/access.c
+X+ *** server/access.c		Wed Sep 30 14:34:42 1992
+X+ --- server/access.c		Tue Sep 15 20:09:54 1992
+X+ ***************
+X  *** 44,50 ****
+X    
+X    #ifdef AUTH
+X***************
+X*** 80,89 ****
+X    	return (0);
+X    }
+X  ! #endif /* DOMAINMATCH */
+X! Files server.old/access_dnet.c and server/access_dnet.c are identical
+X! diff -rcs server.old/access_inet.c server/access_inet.c
+X! *** server.old/access_inet.c	Mon May  4 07:03:55 1992
+X! --- server/access_inet.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 77,83 ****
+X    	}
+X--- 95,103 ----
+X    	return (0);
+X    }
+X  ! #endif /* DOMAINMATCH */
+X! diff -rcs nntp/server/access_inet.c nntp-1.5.11/server/access_inet.c
+X! *** server/access_inet.c	Wed Sep 30 14:34:45 1992
+X! --- server/access_inet.c	Tue Sep 15 20:09:56 1992
+X  ***************
+X  *** 77,83 ****
+X    	}
+X***************
+X*** 101,111 ****
+X    
+X    	hp = gethostbyaddr((char *) &sin->sin_addr.s_addr,
+X    		sizeof (sin->sin_addr.s_addr), AF_INET);
+X! Files server.old/active.c and server/active.c are identical
+X! Files server.old/ahbs.c and server/ahbs.c are identical
+X! diff -rcs server.old/auth.c server/auth.c
+X! *** server.old/auth.c	Mon May  4 07:03:55 1992
+X! --- server/auth.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 149,152 ****
+X    	Needauth = 0;
+X--- 115,123 ----
+X    
+X    	hp = gethostbyaddr((char *) &sin->sin_addr.s_addr,
+X    		sizeof (sin->sin_addr.s_addr), AF_INET);
+X! diff -rcs nntp/server/auth.c nntp-1.5.11/server/auth.c
+X! *** server/auth.c	Wed Sep 30 14:34:49 1992
+X! --- server/auth.c	Tue Sep 15 20:10:00 1992
+X  ***************
+X  *** 149,152 ****
+X    	Needauth = 0;
+X***************
+X*** 117,125 ****
+X    }
+X    
+X  ! #endif /* AUTH */
+X! diff -rcs server.old/batch.c server/batch.c
+X! *** server.old/batch.c	Mon May  4 07:03:55 1992
+X! --- server/batch.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 255,265 ****
+X    #ifdef SYSLOG
+X--- 129,137 ----
+X    }
+X    
+X  ! #endif /* AUTH */
+X! diff -rcs nntp/server/batch.c nntp-1.5.11/server/batch.c
+X! *** server/batch.c	Wed Sep 30 14:34:45 1992
+X! --- server/batch.c	Tue Sep 15 20:09:58 1992
+X  ***************
+X  *** 255,265 ****
+X    #ifdef SYSLOG
+X***************
+X*** 145,153 ****
+X    }
+X    
+X    /*
+X! diff -rcs server.old/common.h server/common.h
+X! *** server.old/common.h	Mon May  4 07:03:55 1992
+X! --- server/common.h	Sun Mar  8 11:26:19 1992
+X  ***************
+X  *** 48,53 ****
+X  --- 48,56 ----
+X--- 157,165 ----
+X    }
+X    
+X    /*
+X! diff -rcs nntp/server/common.h nntp-1.5.11/server/common.h
+X! *** server/common.h		Wed Sep 30 14:34:43 1992
+X! --- server/common.h		Tue Sep 15 20:09:55 1992
+X  ***************
+X  *** 48,53 ****
+X  --- 48,56 ----
+X***************
+X*** 170,179 ****
+X    extern	char	newsgroupsfile[];
+X    extern	char	accessfile[];
+X    extern	char	historyfile[];
+X! Only in server: cscope.out
+X! diff -rcs server.old/fakesyslog.c server/fakesyslog.c
+X! *** server.old/fakesyslog.c	Mon May  4 07:03:55 1992
+X! --- server/fakesyslog.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 138,144 ****
+X    	(void) strcpy(buf, ctime(&clock)+4);
+X--- 182,190 ----
+X    extern	char	newsgroupsfile[];
+X    extern	char	accessfile[];
+X    extern	char	historyfile[];
+X! diff -rcs nntp/server/fakesyslog.c nntp-1.5.11/server/fakesyslog.c
+X! *** server/fakesyslog.c		Wed Sep 30 14:34:46 1992
+X! --- server/fakesyslog.c		Tue Sep 15 20:09:58 1992
+X  ***************
+X  *** 138,144 ****
+X    	(void) strcpy(buf, ctime(&clock)+4);
+X***************
+X*** 192,200 ****
+X    	bp += strlen(bp);
+X    
+X    	if (opt&LOG_PID) {
+X! diff -rcs server.old/fakesyslog.h server/fakesyslog.h
+X! *** server.old/fakesyslog.h	Mon May  4 07:03:55 1992
+X! --- server/fakesyslog.h	Thu Feb 20 08:27:03 1992
+X  ***************
+X  *** 62,65 ****
+X    #define LOG_NDELAY	0
+X--- 203,211 ----
+X    	bp += strlen(bp);
+X    
+X    	if (opt&LOG_PID) {
+X! diff -rcs nntp/server/fakesyslog.h nntp-1.5.11/server/fakesyslog.h
+X! *** server/fakesyslog.h		Wed Sep 30 14:34:50 1992
+X! --- server/fakesyslog.h			Tue Sep 15 20:10:02 1992
+X  ***************
+X  *** 62,65 ****
+X    #define LOG_NDELAY	0
+X***************
+X*** 206,214 ****
+X    #define LOG_NOWAIT	0
+X    
+X  ! #endif /* FAKESYSLOG */
+X! diff -rcs server.old/globals.c server/globals.c
+X! *** server.old/globals.c	Mon May  4 07:03:56 1992
+X! --- server/globals.c	Sun Mar  8 11:25:47 1992
+X  ***************
+X  *** 16,21 ****
+X  --- 16,22 ----
+X--- 217,225 ----
+X    #define LOG_NOWAIT	0
+X    
+X  ! #endif /* FAKESYSLOG */
+X! diff -rcs nntp/server/globals.c nntp-1.5.11/server/globals.c
+X! *** server/globals.c		Wed Sep 30 14:34:46 1992
+X! --- server/globals.c		Tue Sep 15 20:09:58 1992
+X  ***************
+X  *** 16,21 ****
+X  --- 16,22 ----
+X***************
+X*** 236,244 ****
+X    
+X    #ifdef LOG
+X    int	arts_acsd;
+X! diff -rcs server.old/group.c server/group.c
+X! *** server.old/group.c	Mon May  4 07:03:56 1992
+X! --- server/group.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 49,54 ****
+X  --- 49,55 ----
+X--- 247,255 ----
+X    
+X    #ifdef LOG
+X    int	arts_acsd;
+X! diff -rcs nntp/server/group.c nntp-1.5.11/server/group.c
+X! *** server/group.c	Wed Sep 30 14:34:46 1992
+X! --- server/group.c	Tue Sep 15 20:09:58 1992
+X  ***************
+X  *** 49,54 ****
+X  --- 49,55 ----
+X***************
+X*** 276,284 ****
+X    
+X    	while ((cp = index(argv[1], '/')) != (char *) NULL)
+X    		*cp = '.';
+X! diff -rcs server.old/help.c server/help.c
+X! *** server.old/help.c	Mon May  4 07:03:56 1992
+X! --- server/help.c	Tue Mar 10 08:55:29 1992
+X  ***************
+X  *** 21,28 ****
+X    	printf("NEXT        POST         QUIT\r\n");
+X--- 287,295 ----
+X    
+X    	while ((cp = index(argv[1], '/')) != (char *) NULL)
+X    		*cp = '.';
+X! diff -rcs nntp/server/help.c nntp-1.5.11/server/help.c
+X! *** server/help.c	Wed Sep 30 14:34:46 1992
+X! --- server/help.c	Thu Nov  5 09:30:56 1992
+X  ***************
+X  *** 21,28 ****
+X    	printf("NEXT        POST         QUIT\r\n");
+X***************
+X*** 289,316 ****
+X    	printf("\r\n");
+X    	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X    	printf(".\r\n");
+X! --- 21,38 ----
+X    	printf("NEXT        POST         QUIT\r\n");
+X    	printf("STAT        NEWGROUPS    HELP\r\n");
+X    	printf("IHAVE       NEWNEWS      SLAVE\r\n");
+X! ! #if defined(XHDR) || defined(XUSER) || defined(XINDEX)
+X  ! 	printf("\r\nAdditionally, the following extentions are supported:\r\n\r\n");
+X  ! #  ifdef XHDR
+X    	printf("XHDR        Retrieve a single header line from a range of articles.\r\n");
+X  + #  endif
+X  + #  ifdef XUSER	
+X  + 	printf("XUSER       Log a clients username to nntp logfile.\r\n");
+X  + #  endif	
+X- + #  ifdef XINDEX
+X- + 	printf("XINDEX      Retrieve a tin group index file.\r\n");
+X- + #  endif	
+X  + #endif	
+X    	printf("\r\n");
+X    	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X    	printf(".\r\n");
+X! diff -rcs server.old/ihave.c server/ihave.c
+X! *** server.old/ihave.c	Mon May  4 07:03:56 1992
+X! --- server/ihave.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 8,14 ****
+X    int	ih_accepted;
+X--- 300,330 ----
+X    	printf("\r\n");
+X    	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X    	printf(".\r\n");
+X! --- 21,41 ----
+X    	printf("NEXT        POST         QUIT\r\n");
+X    	printf("STAT        NEWGROUPS    HELP\r\n");
+X    	printf("IHAVE       NEWNEWS      SLAVE\r\n");
+X! ! #if defined(XHDR) || defined(XINDEX) ||	defined(XMOTD) || defined(XUSER)
+X  ! 	printf("\r\nAdditionally, the following extentions are supported:\r\n\r\n");
+X  ! #  ifdef XHDR
+X    	printf("XHDR        Retrieve a single header line from a range of articles.\r\n");
+X  + #  endif
+X+ + #  ifdef XINDEX
+X+ + 	printf("XINDEX      Retrieve a tin or .overview index file.\r\n");
+X+ + #  endif	
+X+ + #  ifdef XMOTD	
+X+ + 	printf("XMOTD       Display the news message of the day file.\r\n");
+X+ + #  endif	
+X  + #  ifdef XUSER	
+X  + 	printf("XUSER       Log a clients username to nntp logfile.\r\n");
+X  + #  endif	
+X  + #endif	
+X    	printf("\r\n");
+X    	printf("Bugs to Stan Barber (Internet: nntp@tmc.edu; UUCP: ...!bcm!nntp)\r\n");
+X    	printf(".\r\n");
+X! diff -rcs nntp/server/ihave.c nntp-1.5.11/server/ihave.c
+X! *** server/ihave.c	Wed Sep 30 14:34:46 1992
+X! --- server/ihave.c	Tue Sep 15 20:09:59 1992
+X  ***************
+X  *** 8,14 ****
+X    int	ih_accepted;
+X***************
+X*** 364,372 ****
+X  ! #endif /* LOG */
+X    
+X    }
+X! diff -rcs server.old/list.c server/list.c
+X! *** server.old/list.c	Mon May  4 07:03:56 1992
+X! --- server/list.c	Sun Mar  8 11:24:24 1992
+X  ***************
+X  *** 7,14 ****
+X    /*
+X--- 378,386 ----
+X  ! #endif /* LOG */
+X    
+X    }
+X! diff -rcs nntp/server/list.c nntp-1.5.11/server/list.c
+X! *** server/list.c	Wed Sep 30 14:34:46 1992
+X! --- server/list.c	Tue Sep 15 20:09:59 1992
+X  ***************
+X  *** 7,14 ****
+X    /*
+X***************
+X*** 412,421 ****
+X    			ERR_CMDSYN);
+X    		(void) fflush(stdout);
+X    		return;
+X! Files server.old/main.c and server/main.c are identical
+X! diff -rcs server.old/misc.c server/misc.c
+X! *** server.old/misc.c	Mon May  4 07:03:56 1992
+X! --- server/misc.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 90,98 ****
+X    # ifndef DBM
+X--- 426,434 ----
+X    			ERR_CMDSYN);
+X    		(void) fflush(stdout);
+X    		return;
+X! diff -rcs nntp/server/misc.c nntp-1.5.11/server/misc.c
+X! *** server/misc.c	Wed Sep 30 14:34:43 1992
+X! --- server/misc.c	Tue Sep 15 20:09:56 1992
+X  ***************
+X  *** 90,98 ****
+X    # ifndef DBM
+X***************
+X*** 720,728 ****
+X    }
+X    #endif
+X  ! #endif /* LOAD */
+X! diff -rcs server.old/netaux.c server/netaux.c
+X! *** server.old/netaux.c	Mon May  4 07:03:56 1992
+X! --- server/netaux.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 12,25 ****
+X    #include <netinet/in.h>
+X--- 733,741 ----
+X    }
+X    #endif
+X  ! #endif /* LOAD */
+X! diff -rcs nntp/server/netaux.c nntp-1.5.11/server/netaux.c
+X! *** server/netaux.c		Wed Sep 30 14:34:48 1992
+X! --- server/netaux.c		Tue Sep 15 20:09:59 1992
+X  ***************
+X  *** 12,25 ****
+X    #include <netinet/in.h>
+X***************
+X*** 771,780 ****
+X    		exit(1);
+X    	}
+X    #endif /* not USG */
+X! Files server.old/newgroups.c and server/newgroups.c are identical
+X! diff -rcs server.old/newnews.c server/newnews.c
+X! *** server.old/newnews.c	Mon May  4 07:03:57 1992
+X! --- server/newnews.c	Sat Mar  7 11:49:07 1992
+X  ***************
+X  *** 39,45 ****
+X    	FILE		*tmplst;
+X--- 784,792 ----
+X    		exit(1);
+X    	}
+X    #endif /* not USG */
+X! diff -rcs nntp/server/newnews.c nntp-1.5.11/server/newnews.c
+X! *** server/newnews.c		Wed Sep 30 14:34:52 1992
+X! --- server/newnews.c		Tue Sep 15 20:10:02 1992
+X  ***************
+X  *** 39,45 ****
+X    	FILE		*tmplst;
+X***************
+X*** 902,915 ****
+X    }
+X    
+X    
+X! Files server.old/nextlast.c and server/nextlast.c are identical
+X! Files server.old/ngmatch.c and server/ngmatch.c are identical
+X! Files server.old/parsit.c and server/parsit.c are identical
+X! Files server.old/post.c and server/post.c are identical
+X! Files server.old/profile.c and server/profile.c are identical
+X! diff -rcs server.old/scandir.c server/scandir.c
+X! *** server.old/scandir.c	Mon May  4 07:03:57 1992
+X! --- server/scandir.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 4,9 ****
+X  --- 4,13 ----
+X--- 914,922 ----
+X    }
+X    
+X    
+X! diff -rcs nntp/server/scandir.c nntp-1.5.11/server/scandir.c
+X! *** server/scandir.c		Wed Sep 30 14:34:49 1992
+X! --- server/scandir.c		Tue Sep 15 20:10:01 1992
+X  ***************
+X  *** 4,9 ****
+X  --- 4,13 ----
+X***************
+X*** 996,1004 ****
+X    #else
+X    		if (artnum != 0 && artnum >= low_msg && artnum <= high_msg)
+X    			art_array[num_arts++] = artnum;
+X! diff -rcs server.old/serve.c server/serve.c
+X! *** server.old/serve.c	Mon May  4 07:03:57 1992
+X! --- server/serve.c	Tue Mar 10 09:32:32 1992
+X  ***************
+X  *** 17,23 ****
+X    #ifdef LOG
+X--- 1003,1011 ----
+X    #else
+X    		if (artnum != 0 && artnum >= low_msg && artnum <= high_msg)
+X    			art_array[num_arts++] = artnum;
+X! diff -rcs nntp/server/serve.c nntp-1.5.11/server/serve.c
+X! *** server/serve.c	Wed Sep 30 14:34:43 1992
+X! --- server/serve.c	Sun Sep 27 12:20:01 1992
+X  ***************
+X  *** 17,23 ****
+X    #ifdef LOG
+X***************
+X*** 1030,1045 ****
+X    
+X    static struct cmdent {
+X    	char	*cmd_name;
+X! --- 27,44 ----
+X    extern	int	ahbs(), group(), help(), ihave();
+X    extern	int	list(), newgroups(), newnews(), nextlast(), post();
+X    extern	int	slave(), stat(), xhdr();
+X- + #ifdef XUSER
+X- + extern	int	xuser();
+X- + #endif
+X  + #ifdef XINDEX
+X  + extern	int	xindex();
+X  + #endif
+X    
+X    extern int errno;
+X    
+X--- 1037,1055 ----
+X    
+X    static struct cmdent {
+X    	char	*cmd_name;
+X! --- 27,47 ----
+X    extern	int	ahbs(), group(), help(), ihave();
+X    extern	int	list(), newgroups(), newnews(), nextlast(), post();
+X    extern	int	slave(), stat(), xhdr();
+X  + #ifdef XINDEX
+X  + extern	int	xindex();
+X  + #endif
+X+ + #ifdef XMOTD
+X+ + extern	int	xmotd();
+X+ + #endif
+X+ + #ifdef XUSER
+X+ + extern	int	xuser();
+X+ + #endif
+X    
+X    extern int errno;
+X    
+X***************
+X*** 1058,1064 ****
+X    	"article",	0,	ahbs,
+X    	"body",		0,	ahbs,
+X    	"group",	0,	group,
+X! --- 49,55 ----
+X    	"authcap",	0,	doauth,
+X    	"authinfo",	0,	doauth,
+X    	"authsys",	0,	doauth,
+X--- 1068,1074 ----
+X    	"article",	0,	ahbs,
+X    	"body",		0,	ahbs,
+X    	"group",	0,	group,
+X! --- 52,58 ----
+X    	"authcap",	0,	doauth,
+X    	"authinfo",	0,	doauth,
+X    	"authsys",	0,	doauth,
+X***************
+X*** 1075,1091 ****
+X    };
+X    #define NUMCMDS (sizeof(cmdtbl) / sizeof(struct cmdent))
+X    
+X! --- 66,78 ----
+X    	"stat",		0,	ahbs,
+X    #ifdef XHDR
+X    	"xhdr",		0,	xhdr,
+X  ! #endif /* XHDR */
+X- ! #ifdef XUSER
+X- ! 	"xuser",	0,	xuser,
+X- ! #endif /* XUSER */
+X  ! #ifdef XINDEX
+X  ! 	"xindex",	0,	xindex,
+X  ! #endif /* XINDEX */
+X    };
+X    #define NUMCMDS (sizeof(cmdtbl) / sizeof(struct cmdent))
+X    
+X--- 1085,1104 ----
+X    };
+X    #define NUMCMDS (sizeof(cmdtbl) / sizeof(struct cmdent))
+X    
+X! --- 69,84 ----
+X    	"stat",		0,	ahbs,
+X    #ifdef XHDR
+X    	"xhdr",		0,	xhdr,
+X  ! #endif /* XHDR */
+X  ! #ifdef XINDEX
+X  ! 	"xindex",	0,	xindex,
+X  ! #endif /* XINDEX */
+X+ ! #ifdef XMOTD
+X+ ! 	"xmotd",	0,	xmotd,
+X+ ! #endif /* XMOTD */
+X+ ! #ifdef XUSER
+X+ ! 	"xuser",	0,	xuser,
+X+ ! #endif /* XUSER */
+X    };
+X    #define NUMCMDS (sizeof(cmdtbl) / sizeof(struct cmdent))
+X    
+X***************
+X*** 1098,1104 ****
+X    
+X    /*
+X     * serve -- given a connection on stdin/stdout, serve
+X! --- 110,116 ----
+X    #ifdef AUTH
+X    extern int	Needauth;
+X    extern char	User[];
+X--- 1111,1117 ----
+X    
+X    /*
+X     * serve -- given a connection on stdin/stdout, serve
+X! --- 116,122 ----
+X    #ifdef AUTH
+X    extern int	Needauth;
+X    extern char	User[];
+X***************
+X*** 1115,1121 ****
+X    #endif
+X    
+X    	/* Ignore SIGPIPE, since we'll see closed connections with read */
+X! --- 164,170 ----
+X    #ifdef ALONE
+X    #ifndef USG
+X    	(void) signal(SIGCHLD, SIG_IGN);
+X--- 1128,1134 ----
+X    #endif
+X    
+X    	/* Ignore SIGPIPE, since we'll see closed connections with read */
+X! --- 170,176 ----
+X    #ifdef ALONE
+X    #ifndef USG
+X    	(void) signal(SIGCHLD, SIG_IGN);
+X***************
+X*** 1132,1138 ****
+X    	host_access(&canread, &canpost, &canxfer, gdbuf);
+X    
+X    	if (gethostname(host, sizeof(host)) < 0)
+X! --- 175,181 ----
+X    #ifdef AUTH
+X    	Needauth = 1;
+X    	strcpy(User,"");
+X--- 1145,1151 ----
+X    	host_access(&canread, &canpost, &canxfer, gdbuf);
+X    
+X    	if (gethostname(host, sizeof(host)) < 0)
+X! --- 181,187 ----
+X    #ifdef AUTH
+X    	Needauth = 1;
+X    	strcpy(User,"");
+X***************
+X*** 1149,1155 ****
+X    			(*cmdtbl[i].cmd_fctn)(argnum, argp);
+X    		} else {
+X    #ifdef SYSLOG
+X! --- 314,320 ----
+X    				(void) fflush(stdout);
+X    				continue;
+X    				}
+X--- 1162,1168 ----
+X    			(*cmdtbl[i].cmd_fctn)(argnum, argp);
+X    		} else {
+X    #ifdef SYSLOG
+X! --- 320,326 ----
+X    				(void) fflush(stdout);
+X    				continue;
+X    				}
+X***************
+X*** 1163,1177 ****
+X    	syslog(LOG_INFO, "%s times %s", hostname, buf);
+X    }
+X  ! #endif LOG
+X! --- 502,505 ----
+X    		user, sys, Tfinish - Tstart);
+X    	syslog(LOG_INFO, "%s times %s", hostname, buf);
+X    }
+X  ! #endif /* LOG */
+X! Files server.old/slave.c and server/slave.c are identical
+X! diff -rcs server.old/spawn.c server/spawn.c
+X! *** server.old/spawn.c	Mon May  4 07:03:58 1992
+X! --- server/spawn.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 65,73 ****
+X    #endif
+X--- 1176,1189 ----
+X    	syslog(LOG_INFO, "%s times %s", hostname, buf);
+X    }
+X  ! #endif LOG
+X! --- 508,511 ----
+X    		user, sys, Tfinish - Tstart);
+X    	syslog(LOG_INFO, "%s times %s", hostname, buf);
+X    }
+X  ! #endif /* LOG */
+X! diff -rcs nntp/server/spawn.c nntp-1.5.11/server/spawn.c
+X! *** server/spawn.c	Wed Sep 30 14:34:46 1992
+X! --- server/spawn.c	Tue Sep 15 20:09:59 1992
+X  ***************
+X  *** 65,73 ****
+X    #endif
+X***************
+X*** 1240,1301 ****
+X    
+X  ! #endif /* XFER_TIMEOUT */
+X    
+X! Files server.old/strcasecmp.c and server/strcasecmp.c are identical
+X! diff -rcs server.old/subnet.c server/subnet.c
+X! *** server.old/subnet.c	Mon May  4 07:03:58 1992
+X! --- server/subnet.c	Sat Mar  7 11:46:00 1992
+X! ***************
+X! *** 1,5 ****
+X!   #ifndef lint
+X! ! static	char	*sccsid = "@(#)$Header: subnet.c,v 1.8 90/12/12 02:21:38 sob Exp $";
+X!   #endif
+X!   
+X!   #include "../common/conf.h"
+X! --- 1,5 ----
+X!   #ifndef lint
+X! ! static	char	*sccsid = "@(#)$Header: subnet.c,v 1.9 91/03/19 03:02:30 sob Exp $";
+X!   #endif
+X!   
+X!   #include "../common/conf.h"
+X! ***************
+X! *** 7,19 ****
+X!   #ifdef SUBNET
+X!   
+X!   #include <sys/types.h>
+X!   #include <sys/socket.h>
+X!   #include <netinet/in.h>
+X!   #ifndef NETMASK
+X!   #include <net/if.h>
+X!   #endif
+X!   #include <sys/ioctl.h>
+X! ! 
+X!   /*
+X!    * The following routines provide a general interface for
+X!    * subnet support.  Like the library function "inet_netof",
+X! --- 7,26 ----
+X!   #ifdef SUBNET
+X!   
+X!   #include <sys/types.h>
+X! + #ifdef LAI_TCP
+X! + #include <sys/bsdtypes.h>
+X! + #include <sys/stream.h>
+X! + #endif
+X!   #include <sys/socket.h>
+X!   #include <netinet/in.h>
+X!   #ifndef NETMASK
+X!   #include <net/if.h>
+X!   #endif
+X! + #ifdef LAI_TCP
+X! + #include <sys/sioctl.h>
+X! + #else
+X!   #include <sys/ioctl.h>
+X! ! #endif
+X!   /*
+X!    * The following routines provide a general interface for
+X!    * subnet support.  Like the library function "inet_netof",
+X! diff -rcs server.old/time.c server/time.c
+X! *** server.old/time.c	Mon May  4 07:03:58 1992
+X! --- server/time.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 10,18 ****
+X    #include "common.h"
+X--- 1252,1260 ----
+X    
+X  ! #endif /* XFER_TIMEOUT */
+X    
+X! diff -rcs nntp/server/time.c nntp-1.5.11/server/time.c
+X! *** server/time.c	Wed Sep 30 14:34:50 1992
+X! --- server/time.c	Tue Sep 15 20:10:01 1992
+X  ***************
+X  *** 10,18 ****
+X    #include "common.h"
+X***************
+X*** 1317,1337 ****
+X    
+X    /*
+X     * dtol -- convert date to long integer.  This is not implicitly
+X! Files server.old/time.h and server/time.h are identical
+X! diff -rcs server.old/timer.c server/timer.c
+X! *** server.old/timer.c	Mon May  4 07:03:58 1992
+X! --- server/timer.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 6,17 ****
+X    #ifdef TIMERS
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.2 90/12/27 22:16:27 sob Exp $ (NNTP with TIMERS)";
+X    #endif
+X    #else
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.2 90/12/27 22:16:27 sob Exp $ (NNTP without TIMERS)";
+X    #endif
+X    #endif
+X    
+X--- 1276,1295 ----
+X    
+X    /*
+X     * dtol -- convert date to long integer.  This is not implicitly
+X! diff -rcs nntp/server/timer.c nntp-1.5.11/server/timer.c
+X! *** server/timer.c	Wed Sep 30 14:34:49 1992
+X! --- server/timer.c		Sat Oct 17 20:01:25 1992
+X  ***************
+X  *** 6,17 ****
+X    #ifdef TIMERS
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.3 91/03/19 03:02:41 sob Exp $ (NNTP with TIMERS)";
+X    #endif
+X    #else
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.3 91/03/19 03:02:41 sob Exp $ (NNTP without TIMERS)";
+X    #endif
+X    #endif
+X    
+X***************
+X*** 1339,1444 ****
+X    #ifdef TIMERS
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.3 91/03/19 03:02:41 sob Exp $ (NNTP with TIMERS)";
+X    #endif
+X    #else
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.3 91/03/19 03:02:41 sob Exp $ (NNTP without TIMERS)";
+X    #endif
+X    #endif
+X    
+X  ***************
+X! *** 18,24 ****
+X    #ifdef TIMERS
+X    #include <sys/time.h>
+X    #include "timer.h"
+X! ! #ifndef USG
+X    #ifndef FD_SETSIZE
+X    /* Forward compatability */
+X    #define FD_SET(n, p)    ((p)->fds_bits[0] |= (1<<(n)))
+X! --- 18,29 ----
+X    #ifdef TIMERS
+X    #include <sys/time.h>
+X    #include "timer.h"
+X! ! #ifdef USG
+X! ! #ifdef LAI_TCP
+X! ! #include <sys/bsdtypes.h>
+X! ! #define BSDSELECT
+X! ! #endif
+X! ! #else
+X    #ifndef FD_SETSIZE
+X    /* Forward compatability */
+X    #define FD_SET(n, p)    ((p)->fds_bits[0] |= (1<<(n)))
+X  ***************
+X! *** 25,30 ****
+X! --- 30,36 ----
+X    #define FD_CLR(n, p)    ((p)->fds_bits[0] &= ~(1<<(n)))
+X    #define FD_ISSET(n, p)  ((p)->fds_bits[0] & (1<<(n)))
+X    #define FD_ZERO(p)      ((p)->fds_bits[0] = 0)
+X! + #define BSDSELECT
+X    #endif
+X    #endif
+X    /* non-portable */
+X  ***************
+X! *** 69,75 ****
+X    	register int i, n;
+X    	register struct timer *tp;
+X    	register long secs;
+X! ! #ifdef USG
+X    	long timeout;
+X    	long readfds;
+X    #else
+X! --- 75,81 ----
+X    	register int i, n;
+X    	register struct timer *tp;
+X    	register long secs;
+X! ! #ifndef BSDSELECT
+X    	long timeout;
+X    	long readfds;
+X    #else
+X  ***************
+X! *** 83,89 ****
+X    		return(1);
+X    
+X    	/* Length of next timeout is minimum of all "timers" */
+X! ! #ifdef USG
+X    	timeout = -1;
+X    	for (i = ntimer, tp = timers; i > 0; --i, ++tp)
+X    		if (tp->left >= 0 &&
+X! --- 89,95 ----
+X    		return(1);
+X    
+X    	/* Length of next timeout is minimum of all "timers" */
+X! ! #ifndef BSDSELECT
+X    	timeout = -1;
+X    	for (i = ntimer, tp = timers; i > 0; --i, ++tp)
+X    		if (tp->left >= 0 &&
+X  ***************
+X! *** 114,122 ****
+X    	/* Do select */
+X    	FD_ZERO(&readfds);
+X    	FD_SET(fileno(stdin), &readfds);
+X! ! #endif /* !USG */
+X    	errno = 0;
+X! ! #ifdef EXCELAN
+X    	n = select(fileno(stdin) + 1, &readfds, (long*)0, timeout);
+X    #else
+X    	n = select(fileno(stdin) + 1,
+X! --- 120,128 ----
+X    	/* Do select */
+X    	FD_ZERO(&readfds);
+X    	FD_SET(fileno(stdin), &readfds);
+X! ! #endif /* BSDSELECT */
+X    	errno = 0;
+X! ! #if defined(EXCELAN) || defined(ULTRIX)
+X    	n = select(fileno(stdin) + 1, &readfds, (long*)0, timeout);
+X    #else
+X    	n = select(fileno(stdin) + 1,
+X! Files server.old/timer.h and server/timer.h are identical
+X! diff -rcs server.old/xhdr.c server/xhdr.c
+X! *** server.old/xhdr.c	Mon May  4 07:03:58 1992
+X! --- server/xhdr.c	Sat Mar  7 11:46:00 1992
+X  ***************
+X  *** 158,164 ****
+X    	}
+X--- 1297,1404 ----
+X    #ifdef TIMERS
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.2 90/12/27 22:16:27 sob Exp $ (NNTP with TIMERS)";
+X    #endif
+X    #else
+X    #ifndef lint
+X    static char rcsid[] =
+X! !     "@(#) $Header: timer.c,v 1.2 90/12/27 22:16:27 sob Exp $ (NNTP without TIMERS)";
+X    #endif
+X    #endif
+X    
+X  ***************
+X! *** 18,29 ****
+X    #ifdef TIMERS
+X    #include <sys/time.h>
+X    #include "timer.h"
+X! ! #ifdef USG
+X! ! #ifdef LAI_TCP
+X!   #include <sys/bsdtypes.h>
+X! - #define BSDSELECT
+X!   #endif
+X! ! #else
+X    #ifndef FD_SETSIZE
+X    /* Forward compatability */
+X    #define FD_SET(n, p)    ((p)->fds_bits[0] |= (1<<(n)))
+X! --- 18,27 ----
+X    #ifdef TIMERS
+X    #include <sys/time.h>
+X    #include "timer.h"
+X! ! #ifdef ISC
+X!   #include <sys/bsdtypes.h>
+X!   #endif
+X! ! #ifndef USG
+X    #ifndef FD_SETSIZE
+X    /* Forward compatability */
+X    #define FD_SET(n, p)    ((p)->fds_bits[0] |= (1<<(n)))
+X  ***************
+X! *** 30,36 ****
+X    #define FD_CLR(n, p)    ((p)->fds_bits[0] &= ~(1<<(n)))
+X    #define FD_ISSET(n, p)  ((p)->fds_bits[0] & (1<<(n)))
+X    #define FD_ZERO(p)      ((p)->fds_bits[0] = 0)
+X! - #define BSDSELECT
+X    #endif
+X    #endif
+X    /* non-portable */
+X+ --- 28,33 ----
+X  ***************
+X! *** 75,81 ****
+X    	register int i, n;
+X    	register struct timer *tp;
+X    	register long secs;
+X! ! #ifndef BSDSELECT
+X    	long timeout;
+X    	long readfds;
+X    #else
+X! --- 72,78 ----
+X    	register int i, n;
+X    	register struct timer *tp;
+X    	register long secs;
+X! ! #if defined(USG) && !defined(ISC)
+X    	long timeout;
+X    	long readfds;
+X    #else
+X  ***************
+X! *** 89,95 ****
+X    		return(1);
+X    
+X    	/* Length of next timeout is minimum of all "timers" */
+X! ! #ifndef BSDSELECT
+X    	timeout = -1;
+X    	for (i = ntimer, tp = timers; i > 0; --i, ++tp)
+X    		if (tp->left >= 0 &&
+X! --- 86,92 ----
+X    		return(1);
+X    
+X    	/* Length of next timeout is minimum of all "timers" */
+X! ! #if defined(USG) && !defined(ISC)
+X    	timeout = -1;
+X    	for (i = ntimer, tp = timers; i > 0; --i, ++tp)
+X    		if (tp->left >= 0 &&
+X  ***************
+X! *** 120,128 ****
+X    	/* Do select */
+X    	FD_ZERO(&readfds);
+X    	FD_SET(fileno(stdin), &readfds);
+X! ! #endif /* BSDSELECT */
+X    	errno = 0;
+X! ! #if defined(EXCELAN) || defined(ULTRIX)
+X    	n = select(fileno(stdin) + 1, &readfds, (long*)0, timeout);
+X    #else
+X    	n = select(fileno(stdin) + 1,
+X! --- 117,125 ----
+X    	/* Do select */
+X    	FD_ZERO(&readfds);
+X    	FD_SET(fileno(stdin), &readfds);
+X! ! #endif /* !USG */
+X    	errno = 0;
+X! ! #ifdef EXCELAN
+X    	n = select(fileno(stdin) + 1, &readfds, (long*)0, timeout);
+X    #else
+X    	n = select(fileno(stdin) + 1,
+X! diff -rcs nntp/server/xhdr.c nntp-1.5.11/server/xhdr.c
+X! *** server/xhdr.c	Wed Sep 30 14:34:50 1992
+X! --- server/xhdr.c	Tue Sep 15 20:10:02 1992
+X  ***************
+X  *** 158,164 ****
+X    	}
+X***************
+X*** 1467,1471 ****
+X    }
+X    
+X  ! #endif /* not XHDR */
+X- Only in server: xindex.c
+X- Only in server: xuser.c
+X--- 1427,1429 ----
+XOnly in .: sigfile.c
+Xdiff -rcs ../1.16/signal.c ./signal.c
+X*** ../1.16/signal.c	Sun Nov 15 18:42:08 1992
+X--- ./signal.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : signal.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 17-08-92
+X   *  Notes     : signal handlers for different modes and window resizing
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : signal.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 15-11-92
+X   *  Notes     : signal handlers for different modes and window resizing
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 27,36 ****
+X  #endif
+X  
+X  
+X! #ifdef POSIX_JOB_CONTROL
+X  
+X  /*
+X!  * for POSIX systems we know SIGTYPE  is void 
+X   */
+X   
+X  void (*sigdisp(sig, func))()
+X--- 27,36 ----
+X  #endif
+X  
+X  
+X! #ifdef HAVE_POSIX_JC
+X  
+X  /*
+X!  * for POSIX systems we know SIGTYPE is void 
+X   */
+X   
+X  void (*sigdisp(sig, func))()
+X***************
+X*** 46,52 ****
+X  	sa.sa_flags |= SA_RESTART;
+X  #endif
+X  	if (sigaction (sig, &sa, &osa) < 0) {
+X! 		return ((void (*)(int))(-1));
+X  	}
+X  	return (osa.sa_handler);
+X  }
+X--- 46,56 ----
+X  	sa.sa_flags |= SA_RESTART;
+X  #endif
+X  	if (sigaction (sig, &sa, &osa) < 0) {
+X! #ifdef DONT_PROTOTYPE_PTR_TO_FUNC
+X! 		return ((void (*) ()) (-1));
+X! #else
+X! 		return ((void (*) (int)) (-1));
+X! #endif		
+X  	}
+X  	return (osa.sa_handler);
+X  }
+X***************
+X*** 119,125 ****
+X  
+X  void set_alarm_signal ()
+X  {
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  	/*
+X  	 * Only reread active file if news is not static (ie. CD-ROM)
+X  	 */
+X--- 123,129 ----
+X  
+X  void set_alarm_signal ()
+X  {
+X! #ifndef DONT_REREAD_ACTIVE_FILE
+X  	/*
+X  	 * Only reread active file if news is not static (ie. CD-ROM)
+X  	 */
+X***************
+X*** 135,141 ****
+X  
+X  void set_alarm_clock_on ()
+X  {
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  	alarm (time_remaining);
+X  #endif
+X  }
+X--- 139,145 ----
+X  
+X  void set_alarm_clock_on ()
+X  {
+X! #ifndef DONT_REREAD_ACTIVE_FILE
+X  	alarm (time_remaining);
+X  #endif
+X  }
+X***************
+X*** 143,149 ****
+X  
+X  void set_alarm_clock_off ()
+X  {
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  	time_remaining = alarm (0);
+X  #endif
+X  }
+X--- 147,153 ----
+X  
+X  void set_alarm_clock_off ()
+X  {
+X! #ifndef DONT_REREAD_ACTIVE_FILE
+X  	time_remaining = alarm (0);
+X  #endif
+X  }
+X***************
+X*** 201,207 ****
+X  			sigtext = "SIGSEGV ";
+X  			break;
+X  #endif
+X! #if defined(SIGALRM) && !defined(NO_REREAD_ACTIVE_FILE)
+X  		case SIGALRM:
+X  			set_alarm_signal ();
+X  			reread_active_file = TRUE;
+X--- 205,211 ----
+X  			sigtext = "SIGSEGV ";
+X  			break;
+X  #endif
+X! #if defined(SIGALRM) && !defined(DONT_REREAD_ACTIVE_FILE)
+X  		case SIGALRM:
+X  			set_alarm_signal ();
+X  			reread_active_file = TRUE;
+X***************
+X*** 671,677 ****
+X  #endif
+X  	mail_setup ();
+X  	if (resized || sig == 0) {
+X! 		show_group_page (glob_group);
+X  	}	
+X  }
+X  
+X--- 675,681 ----
+X  #endif
+X  	mail_setup ();
+X  	if (resized || sig == 0) {
+X! 		show_group_page ();
+X  	}	
+X  }
+X  
+Xdiff -rcs ../1.16/spooldir.c ./spooldir.c
+X*** ../1.16/spooldir.c	Sun Nov 15 18:42:08 1992
+X--- ./spooldir.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : spooldir.c
+X   *  Author    : I.Lea & Tom Theel
+X   *  Created   : 08-05-92
+X!  *  Updated   : 11-09-92
+X   *  Notes     : Changes spooldir to read news from (ie. news, nntp, cdrom)
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Tom Theel
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : spooldir.c
+X   *  Author    : I.Lea & Tom Theel
+X   *  Created   : 08-05-92
+X!  *  Updated   : 08-11-92
+X   *  Notes     : Changes spooldir to read news from (ie. news, nntp, cdrom)
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Tom Theel
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 108,114 ****
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X  					} else {
+X! 						erase_group_arrow ();
+X  						cur_spoolnum = spool_top - 1;
+X  						draw_spooldir_arrow ();
+X  					}
+X--- 108,114 ----
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X  					} else {
+X! 						erase_spooldir_arrow ();
+X  						cur_spoolnum = spool_top - 1;
+X  						draw_spooldir_arrow ();
+X  					}
+X***************
+X*** 118,132 ****
+X  			case '\r':	/* select spooldir */
+X  			case '\n':
+X  				if (set_spooldir (spooldirs[cur_spoolnum].name)) {
+X! 					wait_message (txt_reading_active_file);
+X  					free_active_arrays ();
+X  					max_active = DEFAULT_ACTIVE_NUM;
+X  					expand_active ();
+X! 					read_active_file ();
+X  					read_attributes_file ();
+X  					read_newsgroups_file ();
+X! 					read_newsrc (TRUE);
+X! 					toggle_my_groups (show_only_unread_groups, "");
+X  					set_groupname_len (FALSE);
+X  					return TRUE;
+X  				}	
+X--- 118,135 ----
+X  			case '\r':	/* select spooldir */
+X  			case '\n':
+X  				if (set_spooldir (spooldirs[cur_spoolnum].name)) {
+X! 					wait_message (txt_reading_news_active_file);
+X  					free_active_arrays ();
+X  					max_active = DEFAULT_ACTIVE_NUM;
+X  					expand_active ();
+X! 					read_mail_active_file ();
+X! 					read_news_active_file ();
+X  					read_attributes_file ();
+X  					read_newsgroups_file ();
+X! 					if (! read_cmd_line_groups ()) {
+X! 						read_newsrc (TRUE);
+X! 						toggle_my_groups (show_only_unread_groups, "");
+X! 					}
+X  					set_groupname_len (FALSE);
+X  					return TRUE;
+X  				}	
+X***************
+X*** 137,145 ****
+X  			case ctrl('F'):		/* vi style */
+X  spooldir_page_down:
+X  				if (cur_spoolnum == spool_top - 1) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_spooldir_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_spooldir_arrow ();
+X--- 140,145 ----
+X***************
+X*** 152,158 ****
+X  						draw_spooldir_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_spooldir_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 152,157 ----
+X***************
+X*** 182,190 ****
+X  			case 'j':
+X  spooldir_down:
+X  				if (cur_spoolnum + 1 >= spool_top) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_spooldir_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_spooldir_arrow ();
+X--- 181,186 ----
+X***************
+X*** 197,203 ****
+X  						draw_spooldir_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				if (cur_spoolnum + 1 >= last_spooldir_on_screen) {
+X  #ifndef USE_CLEARSCREEN
+X--- 193,198 ----
+X***************
+X*** 216,224 ****
+X  			case 'k':
+X  spooldir_up:
+X  				if (cur_spoolnum == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (spool_top > last_spooldir_on_screen) {
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X--- 211,219 ----
+X  			case 'k':
+X  spooldir_up:
+X  				if (cur_spoolnum == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_spooldir_arrow ();
+X! 					}
+X  					if (spool_top > last_spooldir_on_screen) {
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X***************
+X*** 228,234 ****
+X  						draw_spooldir_arrow ();
+X  					}
+X  					break;
+X! #endif					
+X  				}
+X  				if (cur_spoolnum <= first_spooldir_on_screen) {
+X  					cur_spoolnum--;
+X--- 223,231 ----
+X  						draw_spooldir_arrow ();
+X  					}
+X  					break;
+X! 				}
+X! 				if (_hp_glitch) {
+X! 					erase_spooldir_arrow ();
+X  				}
+X  				if (cur_spoolnum <= first_spooldir_on_screen) {
+X  					cur_spoolnum--;
+X***************
+X*** 245,253 ****
+X  			case ctrl('B'):		/* vi style */
+X  spooldir_page_up:
+X  				if (cur_spoolnum == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (spool_top > last_spooldir_on_screen) {
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X--- 242,250 ----
+X  			case ctrl('B'):		/* vi style */
+X  spooldir_page_up:
+X  				if (cur_spoolnum == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_spooldir_arrow ();
+X! 					}
+X  					if (spool_top > last_spooldir_on_screen) {
+X  						cur_spoolnum = spool_top - 1;
+X  						show_spooldir_page ();
+X***************
+X*** 257,263 ****
+X  						draw_spooldir_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_spooldir_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 254,259 ----
+X***************
+X*** 386,391 ****
+X--- 382,391 ----
+X  		sprintf (buf, "%-16.16s  %s", spooldirs[i].name, spooldirs[i].comment);
+X  		sprintf (screen[j].col, "   %4.d  %-*.*s\r\n",
+X  			i+1, spoolname_len, spoolname_len, buf);
+X+ 		if (slow_speed_terminal) {
+X+ 			strip_line (screen[j].col, strlen (screen[j].col));
+X+ 			strcat (screen[j].col, "\r\n");
+X+ 		}
+X  		fputs (screen[j].col, stdout);
+X  	}
+X  #ifndef USE_CLEARSCREEN
+XOnly in .: strftime.3
+XOnly in .: strftime.c
+Xdiff -rcs ../1.16/thread.c ./thread.c
+X*** ../1.16/thread.c	Sun Nov 15 18:42:10 1992
+X--- ./thread.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : thread.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 23-08-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : thread.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 11-10-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 106,114 ****
+X  	j = INDEX2TNUM(i);
+X  
+X  	if (full) {
+X- 		tlen = strlen(screen[j].col);
+X  		s = screen[j].col;
+X  		x = 0;
+X  	} else {
+X  		tlen  = 3;
+X  		s = &screen[j].col[6];
+X--- 106,118 ----
+X  	j = INDEX2TNUM(i);
+X  
+X  	if (full) {
+X  		s = screen[j].col;
+X+ 		tlen = strlen (s);
+X  		x = 0;
+X+ 		if (slow_speed_terminal) {		
+X+ 			strip_line (s, tlen);
+X+ 			CleartoEOLN ();
+X+ 		}
+X  	} else {
+X  		tlen  = 3;
+X  		s = &screen[j].col[6];
+X***************
+X*** 170,179 ****
+X  	if (space_mode) {
+X  		i = new_responses (thread_basenote);
+X  		if (i) {
+X! 			for (n=0, i = base[thread_basenote]; i >= 0 ;
+X! 				 i = arts[i].thread, n++) {
+X  				if (arts[i].unread == ART_UNREAD) {
+X! 					thread_index_point = n;
+X  					break;
+X  				}
+X  			}
+X--- 174,186 ----
+X  	if (space_mode) {
+X  		i = new_responses (thread_basenote);
+X  		if (i) {
+X! 			for (n=0, i = base[thread_basenote]; i >= 0 ; i = arts[i].thread, n++) {
+X  				if (arts[i].unread == ART_UNREAD) {
+X! 					if (arts[i].thread == ART_EXPIRED) {
+X! 						arts[i].unread == ART_READ;
+X! 					} else {
+X! 						thread_index_point = n;
+X! 					}
+X  					break;
+X  				}
+X  			}
+X***************
+X*** 190,196 ****
+X  		ch = ReadCh ();
+X  
+X  		if (ch >= '0' && ch <= '9') {	/* 0 goes to basenote */
+X! 			prompt_thread_num (ch);
+X  			continue;
+X  		}
+X  		switch (ch) {
+X--- 197,207 ----
+X  		ch = ReadCh ();
+X  
+X  		if (ch >= '0' && ch <= '9') {	/* 0 goes to basenote */
+X! 			if (top_thread == 1) {
+X! 				info_message (txt_no_responses);
+X! 			} else {
+X! 				prompt_thread_num (ch);
+X! 			}
+X  			continue;
+X  		}
+X  		switch (ch) {
+X***************
+X*** 253,274 ****
+X  			case '\n':	/* read current article within thread */
+X  				n = choose_response (thread_basenote, thread_index_point);
+X  				n = show_page (n, &thread_index_point, group, group_path);
+X! 				if (n == thread_basenote) {
+X! 					show_thread_page ();
+X! 				} else {
+X! 					index_point = n;	
+X! /*
+X! 					if (n >= 0) {
+X! 						index_point = n;	
+X  					} else {
+X! 						n = 0;
+X  					}
+X- */
+X- 					goto thread_done;
+X  				}
+X  				break;
+X  
+X  			case '\t':
+X   				space_mode = TRUE;
+X  				if (thread_index_point == 0) {
+X  					n = thread_respnum;
+X--- 264,281 ----
+X  			case '\n':	/* read current article within thread */
+X  				n = choose_response (thread_basenote, thread_index_point);
+X  				n = show_page (n, &thread_index_point, group, group_path);
+X! 				if (n != -5) {
+X! 					if (n == thread_basenote) {
+X! 						show_thread_page ();
+X  					} else {
+X! 						index_point = n;	
+X! 						goto thread_done;
+X  					}
+X  				}
+X  				break;
+X  
+X  			case '\t':
+X+ thread_tab_pressed:
+X   				space_mode = TRUE;
+X  				if (thread_index_point == 0) {
+X  					n = thread_respnum;
+X***************
+X*** 283,293 ****
+X  					}
+X  					index++;
+X  				}
+X! 				if (n == thread_basenote) {
+X! 					show_thread_page ();
+X  				} else {
+X! 					index_point = n;	
+X! 					goto thread_done;
+X  				}
+X  				break;
+X  	
+X--- 290,304 ----
+X  					}
+X  					index++;
+X  				}
+X! 				if (n == -5) {
+X! 					goto thread_tab_pressed;
+X  				} else {
+X! 					if (n == thread_basenote) {
+X! 						show_thread_page ();
+X! 					} else {
+X! 						index_point = n;	
+X! 						goto thread_done;
+X! 					}
+X  				}
+X  				break;
+X  	
+X***************
+X*** 296,304 ****
+X  			case ctrl('F'):		/* vi style */
+X  thread_page_down:
+X  				if (thread_index_point + 1 == top_thread) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_thread_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_thread_arrow ();
+X--- 307,312 ----
+X***************
+X*** 311,317 ****
+X  						draw_thread_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_thread_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 319,324 ----
+X***************
+X*** 344,352 ****
+X  			case 'j':		/* line down */
+X  thread_down:
+X  				if (thread_index_point + 1 >= top_thread) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (0 < first_thread_on_screen) {
+X  						thread_index_point = 0;
+X  						show_thread_page ();
+X--- 351,359 ----
+X  			case 'j':		/* line down */
+X  thread_down:
+X  				if (thread_index_point + 1 >= top_thread) {
+X! 					if (_hp_glitch) {
+X! 						erase_thread_arrow ();
+X! 					}
+X  					if (0 < first_thread_on_screen) {
+X  						thread_index_point = 0;
+X  						show_thread_page ();
+X***************
+X*** 356,362 ****
+X  						draw_thread_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				if (thread_index_point + 1 >= last_thread_on_screen) {
+X  #ifndef USE_CLEARSCREEN
+X--- 363,368 ----
+X***************
+X*** 375,383 ****
+X  			case 'k':		/* line up */
+X  thread_up:
+X  				if (thread_index_point == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (top_thread > last_thread_on_screen) {
+X  						thread_index_point = top_thread - 1;
+X  						show_thread_page ();
+X--- 381,389 ----
+X  			case 'k':		/* line up */
+X  thread_up:
+X  				if (thread_index_point == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_thread_arrow ();
+X! 					}
+X  					if (top_thread > last_thread_on_screen) {
+X  						thread_index_point = top_thread - 1;
+X  						show_thread_page ();
+X***************
+X*** 387,394 ****
+X  						draw_thread_arrow ();
+X  					}
+X  					break;
+X- #endif
+X  				}
+X  				if (thread_index_point <= first_thread_on_screen) {
+X  					thread_index_point--;
+X  					show_thread_page ();
+X--- 393,402 ----
+X  						draw_thread_arrow ();
+X  					}
+X  					break;
+X  				}
+X+ 				if (_hp_glitch) {
+X+ 					erase_thread_arrow ();
+X+ 				}
+X  				if (thread_index_point <= first_thread_on_screen) {
+X  					thread_index_point--;
+X  					show_thread_page ();
+X***************
+X*** 404,412 ****
+X  			case ctrl('B'):		/* vi style */
+X  thread_page_up:
+X  				if (thread_index_point == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (top_thread > last_thread_on_screen) {
+X  						thread_index_point = top_thread - 1;
+X  						show_thread_page ();
+X--- 412,420 ----
+X  			case ctrl('B'):		/* vi style */
+X  thread_page_up:
+X  				if (thread_index_point == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_thread_arrow ();
+X! 					}
+X  					if (top_thread > last_thread_on_screen) {
+X  						thread_index_point = top_thread - 1;
+X  						show_thread_page ();
+X***************
+X*** 416,422 ****
+X  						draw_thread_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  #ifndef USE_CLEARSCREEN
+X  				clear_message ();
+X--- 424,429 ----
+X***************
+X*** 709,714 ****
+X--- 716,724 ----
+X  	if (draw_arrow_mark) {
+X  		fputs ("  ", stdout);
+X  	} else {
+X+ 		if (_hp_glitch) {
+X+ 			EndInverse ();
+X+ 		}
+X  		draw_tline (thread_index_point, TRUE);
+X  	}
+X  	fflush (stdout);
+X***************
+X*** 716,722 ****
+X  
+X  
+X  int prompt_thread_num (ch)
+X! 	char ch;
+X  {
+X  	int num;
+X  
+X--- 726,732 ----
+X  
+X  
+X  int prompt_thread_num (ch)
+X! 	int ch;
+X  {
+X  	int num;
+X  
+X***************
+X*** 988,994 ****
+X  	int cur_base_art = n;
+X  	
+X  	while (n >= 0) {
+X! 		if (arts[n].unread == ART_UNREAD) {
+X  			return n;
+X  		}
+X  		n = next_response (n);
+X--- 998,1004 ----
+X  	int cur_base_art = n;
+X  	
+X  	while (n >= 0) {
+X! 		if (arts[n].unread == ART_UNREAD && arts[n].thread != ART_EXPIRED) {
+X  			return n;
+X  		}
+X  		n = next_response (n);
+X***************
+X*** 996,1002 ****
+X  
+X  	n = base[0];
+X  	while (n != cur_base_art) {
+X! 		if (arts[n].unread == ART_UNREAD) {
+X  			return n;
+X  		}
+X  		n = next_response (n);
+X--- 1006,1012 ----
+X  
+X  	n = base[0];
+X  	while (n != cur_base_art) {
+X! 		if (arts[n].unread == ART_UNREAD && arts[n].thread != ART_EXPIRED) {
+X  			return n;
+X  		}
+X  		n = next_response (n);
+X***************
+X*** 1013,1019 ****
+X  	int n;
+X  {
+X  	while (n >= 0) {
+X! 		if (arts[n].unread == ART_UNREAD) {
+X  			return n;
+X  		}
+X  		n = prev_response (n);
+X--- 1023,1029 ----
+X  	int n;
+X  {
+X  	while (n >= 0) {
+X! 		if (arts[n].unread == ART_UNREAD && arts[n].thread != ART_EXPIRED) {
+X  			return n;
+X  		}
+X  		n = prev_response (n);
+XOnly in .: tin-1.17.diff
+Xdiff -rcs ../1.16/tin.1 ./tin.1
+X*** ../1.16/tin.1	Sun Nov 15 18:41:32 1992
+X--- ./tin.1	Sun Nov  8 15:34:27 1992
+X***************
+X*** 17,23 ****
+X  .if \n(mo=10 .ds mo October
+X  .if \n(mo=11 .ds mo November
+X  .if \n(mo=12 .ds mo December
+X! .TH TIN 1 "Version 1.1 PL6" "" "LOCAL"
+X  .ds ]W \*(mo \n(dy, 19\n(yr
+X  .nh
+X  .SH NAME
+X--- 17,23 ----
+X  .if \n(mo=10 .ds mo October
+X  .if \n(mo=11 .ds mo November
+X  .if \n(mo=12 .ds mo December
+X! .TH TIN 1 "Version 1.1 PL7" "" "LOCAL"
+X  .ds ]W \*(mo \n(dy, 19\n(yr
+X  .nh
+X  .SH NAME
+X***************
+X*** 34,40 ****
+X  is a full-screen easy to use threaded Netnews reader. It can read news locally
+X  (i.e. \fI/usr/spool/news\fP) or remotely (\fIrtin\fP or \fItin -r\fP option) via a NNTP 
+X  (Network News Transport Protocol) server.  \fICdtin\fP can read news locally and 
+X! news archived on CD-ROM.
+X  .PP
+X  .I
+X  Tin
+X--- 34,41 ----
+X  is a full-screen easy to use threaded Netnews reader. It can read news locally
+X  (i.e. \fI/usr/spool/news\fP) or remotely (\fIrtin\fP or \fItin -r\fP option) via a NNTP 
+X  (Network News Transport Protocol) server.  \fICdtin\fP can read news locally and 
+X! news archived on CD-ROM. The manipulation of MH style mail folders is also
+X! supported.
+X  .PP
+X  .I
+X  Tin
+X***************
+X*** 83,88 ****
+X--- 84,96 ----
+X  .BI -q
+X  quick start without checking for new newsgroups.
+X  .TP
+X+ .BI -P
+X+ purge group index files of articles that no longer exist. Care should
+X+ be taken when using this command as it stats each and every article
+X+ in each group that is accessed. On a low speed connection this can
+X+ have an undisirable effect and it also knocks the hell out of your 
+X+ filesystem.
+X+ .TP
+X  .B -r
+X  read news remotely from the default NNTP server specified in the
+X  environment variable NNTPSERVER or contained in the file
+X***************
+X*** 100,111 ****
+X  .TP
+X  .B -u
+X  create/update index files for every group in \fI$HOME/.newsrc\fP or
+X! file specified by -f option.  This option is disabled if \fItin\fP retrieves 
+X  its index files via a NNTP server. 
+X  .TP
+X  .B -U
+X  start \fItin\fP in the background to update index files while reading news 
+X! in the foreground.  This option is disabled if \fItin\fP retrieves its index
+X  files via a NNTP server.
+X  .TP
+X  .B -v
+X--- 108,119 ----
+X  .TP
+X  .B -u
+X  create/update index files for every group in \fI$HOME/.newsrc\fP or
+X! file specified by -f option.  This option is disabled if \fItin\fP retreives 
+X  its index files via a NNTP server. 
+X  .TP
+X  .B -U
+X  start \fItin\fP in the background to update index files while reading news 
+X! in the foreground.  This option is disabled if \fItin\fP retreives its index
+X  files via a NNTP server.
+X  .TP
+X  .B -v
+X***************
+X*** 173,181 ****
+X  (i.e. \fI/usr/spool/news/.index\fP).
+X  This has the advantage that there will only be one copy of the index files on
+X  the NNTP server for the whole of your network, but the disadvantage is that you
+X! will have to install my NNTP server patches to allow \fItin\fP to retrieve 
+X  index file from your NNTP server and and you must install an entry in the cron 
+X! batcher system to have \fItind\fP regularly update index files (Note that this
+X  is the method we use on our network of 40-50 machines and have not had any 
+X  problems).
+X  .PP
+X--- 181,189 ----
+X  (i.e. \fI/usr/spool/news/.index\fP).
+X  This has the advantage that there will only be one copy of the index files on
+X  the NNTP server for the whole of your network, but the disadvantage is that you
+X! will have to install my NNTP server patches to allow \fItin\fP to retreive 
+X  index file from your NNTP server and and you must install an entry in the cron 
+X! batcher system to have \fItind\fP regularly update index files (note that this
+X  is the method we use on our network of 40-50 machines and have not had any 
+X  problems).
+X  .PP
+X***************
+X*** 186,192 ****
+X  readings of a group will cause incremental updating of the index file.
+X  .PP
+X  If reading news remotely and locally updating index files operation will be
+X! somewhat slower because the articles must be retrieved from the NNTP server.
+X  .SH "NEWS ADMINISTRATION"
+X  Maintaining Netnews on large networks of machines can be a pretty time 
+X  consuming job as I discovered when I was given the job of maintaining our 
+X--- 194,200 ----
+X  readings of a group will cause incremental updating of the index file.
+X  .PP
+X  If reading news remotely and locally updating index files operation will be
+X! somewhat slower because the articles must be retreived from the NNTP server.
+X  .SH "NEWS ADMINISTRATION"
+X  Maintaining Netnews on large networks of machines can be a pretty time 
+X  consuming job as I discovered when I was given the job of maintaining our 
+X***************
+X*** 194,205 ****
+X  .PP
+X  \fITin\fP is a News User Agent and so most of the users were always asking
+X  questions or doing things that could be frowned upon by there departments.
+X! To relieve news admins (and especially me) of this features have been added
+X  to make life easier for news adminstrators.
+X  .PP
+X! If my NNTP XUSER patch has been applied to your NNTP server you will be
+X! able to log the username and machine to your NNTP logfile for usage
+X! statistics.
+X  .PP
+X  A user starting \fItin\fP for the first time can be automatically subscribed 
+X  to a list of newsgroups that are deemed appropriate by the news administrator.  
+X--- 202,217 ----
+X  .PP
+X  \fITin\fP is a News User Agent and so most of the users were always asking
+X  questions or doing things that could be frowned upon by there departments.
+X! To releive news admins (and especially me) of this features have been added
+X  to make life easier for news adminstrators.
+X  .PP
+X! When a user starts \fItin\fP it is possible to inform them of any important 
+X! changes/information concerning the news system by displaying a message of the 
+X! day (motd) file. The motd file should be created in your news lib directory 
+X! (i.e. \fI/usr/lib/news/motd\fP) and should have file permissions set to 0644. 
+X! The motd file will only be displayed if its contents is newer than the last
+X! time the user started \fItin\fP. If reading news via NNTP my XMOTD patch will
+X! have to have been applied to your NNTP server.
+X  .PP
+X  A user starting \fItin\fP for the first time can be automatically subscribed 
+X  to a list of newsgroups that are deemed appropriate by the news administrator.  
+X***************
+X*** 209,214 ****
+X--- 221,230 ----
+X  \fI/usr/lib/news/subscriptions\fP) and should have file permissions set to 
+X  0644. If reading news via NNTP my LIST SUBSCRIPTIONS patch will have to 
+X  have been applied to your NNTP server.
+X+ .PP
+X+ If my NNTP XUSER patch has been applied to your NNTP server you will be
+X+ able to log the username and machine to your NNTP logfile for usage
+X+ statistics.
+X  .SH "SCREEN FORMAT"
+X  \fITin\fP has five separate levels of operation: Group selection level, 
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 8'
+echo 'File tin-1.17.patch is continued in part 9'
+echo 9 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

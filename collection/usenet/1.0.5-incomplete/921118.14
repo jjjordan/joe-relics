@@ -1,0 +1,2868 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!snorkelwacker.mit.edu!bloom-picayune.mit.edu!news
+From: scs@adam.mit.edu (Steve Summit)
+Subject: med -- expression evaluator and stream-based math processor
+Message-ID: <1992Nov16.160145.7707@athena.mit.edu>
+Keywords: expression parse evaluate
+Sender: news@athena.mit.edu (News system)
+Nntp-Posting-Host: adam.mit.edu
+Organization: none, at the moment
+Date: Mon, 16 Nov 1992 16:01:45 GMT
+Lines: 2856
+
+This package is really in two parts.  The first part (and the one
+people usually ask for) is an expression parser and evaluator.
+Because it seemed like a good idea at the time, the parser
+produces an intermediate representation (a simple RPN-like
+program) which is later executed.
+
+The expression evaluation code was originally written with
+plotting of user-defined functions in mind; it would still be
+well-suited for that job.
+
+The second, and better documented, and more immediately useful
+part of the package is "med," a stream-based math processor built
+upon the aforementioned expression evaluator.  med isn't really
+an editor, but it acts a bit like sed in that it is often
+inserted in pipelines.
+
+See the README file for more information.
+
+The code in this package is copyrighted but may be freely
+redistributed.
+
+					Steve Summit
+					scs@adam.mit.edu
+
+# feed everything below this line through /bin/sh
+echo extracting README
+cat > README <<\%
+This package is really in two parts.  The first part (and the one
+people usually ask for) is an expression parser and evaluator.
+Because it seemed like a good idea at the time, the parser
+produces an intermediate representation (a simple RPN-like
+notation) which is later executed.  The obvious incentive for
+this strategy is allowing more efficient execution (if the
+expression is to be executed many times), although I confess I
+have never made any measurements to verify how much faster the
+two-stage process is (if at all), as opposed to a simpler
+evaluate-while-parsing.
+
+The expression evaluation code was originally written with
+plotting of user-defined functions in mind; it would still be
+well-suited for that job.  The two main tasks involved in
+re-using this code in some other project would be (1) overcoming
+the lack of low-level documentation and (2) arranging that data
+values emanating from the rest of the project (i.e. the x
+coordinate, for a plotting package) can be accessed in
+expressions somehow.  An example of a clumsy but workable kludge
+for doing so can be found in the med code.
+
+The second, and better documented, and more immediately useful
+part of the package is "med," a stream-based math processor.
+med isn't really an editor, but it acts a bit like sed in that it
+is often inserted in pipelines.  Besides being a good exerciser
+for the expression evaluator package, med is a useful program in
+its own right.  (It is remarkable how often the "obvious" test
+jig for a subroutine package turns into a useful program.)
+
+It will be noted that med is an awful lot like awk, much less
+flexible in general, but optimized for performing arithmetic on
+columns of numbers.  Purists will claim that med is superfluous
+and unnecessary, because it can't do anything awk can't do; they
+are in fact correct.  (med was originally a throwaway, I brought
+it to its current, mostly "finished" state only because I was
+doing a lot of manipulation of data files on some MS-DOS machines
+lacking awk.)
+
+A note on the code: it uses a sort of a mix of "K&R" C and ANSI
+C.  It contains no function prototypes or other new-style syntax,
+but it does make use of a few new header files and library
+subroutines.  I've included my implementations of these in the
+include and lib subdirectories, if you need them.
+
+Steve Summit
+10/21/92
+%
+chmod 664 README
+if test `wc -c < README` -ne 2337; then
+	echo "error extracting README" 1>&2
+fi
+echo extracting med.man
+cat > med.man <<\%
+MED(1)              UNIX Programmer's Manual               MED(1)
+
+NAME
+     med - math editor
+
+SYNOPSIS
+     med [ -bn ] [ -cc c ] [ -ef expressionfile ] [ -if inputfile
+     ] expressions [ files ]
+
+DESCRIPTION
+     _M_e_d is a filter which reads a stream consisting of columns
+     of numbers, performing mathematical operations on them, and
+     writing out a stream of columns of (presumably different)
+     numbers.  One column of output is generated for each expres-
+     sion present on the command line.  The input is taken from
+     the named files, the file named by -if, or (if neither of
+     these appear) the standard input.
+
+     The expression syntax is based on Fortran.  The +, -, *, /,
+     and ** (exponentiation) operators are supported (with the
+     customary associativity and precedence), as well as unary -,
+     and parentheses for grouping.  The following built-in func-
+     tions are supported:
+
+               abs                     floor
+               acos                    ln    (natural log)
+               asin                    log10 (common log)
+               atan                    sin
+               atan2 (two arguments)   sinh
+               ceil                    sqrt
+               cos                     tan
+               cosh                    tanh
+
+     Access to input data, as well as a few useful constants, is
+     through identifiers (``variables'').  The following identif-
+     iers may be present in expressions:
+
+               pi    3.141592654
+               e     2.718281828
+               n     input line number
+               c1    data from input column 1 (similarly c2, c3, ...)
+
+     An input column can be passed through to the output (essen-
+     tialy) unchanged with a trivial expression such as ``c2''.
+     (As a special case, the input data in a column which is used
+     only with such an expression is not required to be numeric,
+     and is passed through even if it is alphabetic.)  The input
+     may contain more columns than are called for by the expres-
+     sions; unused input columns are silently discarded.  Blank
+     lines, as well as those beginning with a comment character
+     (by default, `#', but settable with -cc) are passed through
+     to the output unchanged.
+
+     Normally, _m_e_d reads one line, evaluates the requested
+     expressions, prints one line containing the results, and
+     continues on to the next line.  However, a few special-
+     purpose function-like operators modify this behavior.  If
+     any of the following ``functions:''
+
+               max
+               mean
+               min
+               product
+               stdev
+               sum
+
+     appears, a value is accumulated, which is only printed out
+     after all input lines have been read.  Line-by-line output
+     is suppressed.
+
+     The operands of these ``summarizing'' operators can be arbi-
+     trarily complex expressions, and the results can be further
+     operated upon before printing.
+
+     The -b (``bunch tallies'') option indicates that the summar-
+     izing operators should generate output after each group of
+     numbers in the input stream.  Groups of numbers are
+     separated by one or more blank lines.  After printing the
+     result from each group, all accumulated counts are zeroed
+     before processing the next group.
+
+     The -cc (``comment character'') option indicates that the
+     next argument is to be taken as the (single) character
+     introducing comments in data and expression files.  By
+     default, the comment character is `#'.
+
+     The -ef (``expression file'') option indicates that the next
+     argument is the name of a file out of which expressions are
+     to be read.  The file is assumed to contain one expression
+     per line.  (Expressions may also appear as arguments on the
+     command line; neither command line expressions nor expres-
+     sion file expressions preclude the other.)  Comments may
+     appear in the expression file on lines beginning with `#'
+     (or the comment character set with -cc).  Expressions within
+     expression files are immune from any unwanted interactions
+     or restrictions imposed by the shell, and may therefore con-
+     tain whitespace and `*' (which is presumably to be a multi-
+     plication operator, rather than a wildcard) with impunity.
+
+     The -if (``input file'') option indicates that the next
+     argument is the name of a file from which input data will be
+     read.  (Input filenames may also appear as arguments on the
+     command line.  If neither -if nor standalone input file
+     arguments appear, input is read from the standard input.)
+
+     The -n (``annotate output'') option indicates that, when
+     per-file summaries are being generated and multiple files
+     are being read, each output line should be preceded by the
+     originating file name.
+
+     A brief summary of the invocation syntax and accepted
+     options may be requested with -help.
+
+EXAMPLES
+     1.  From a stream of two columns, print four columns con-
+     sisting of the sum, difference, product, and quotient of the
+     input:
+
+               med c1+c2 c1-c2 c1*c2 c1/c2
+
+     With this invocation, the input
+
+               1       2
+               3       4
+               5       6
+               7       5
+               3       1
+
+     would produce
+
+               3       -1      2       0.5
+               7       -1      12      0.75
+               11      -1      30      0.833333
+               12      2       35      1.4
+               4       2       3       3
+
+     2.  Print the mean and standard deviation of a series of
+     numbers:
+
+               med mean(c1) stdev(c1)
+
+     The input
+
+               1
+               2
+               3
+               4
+
+     would produce the single line
+
+               2.5     1.29099
+
+     3.  Compute the mean and standard deviation of a column of
+     numbers the ``hard way'':
+
+               med sum(c1)/n sqrt((sum(c1**2)-sum(c1)**2/n)/(n-1))
+
+     This example will generate the same output as the previous
+     one.  (In fact, the built-in mean and stdev functions are
+     implemented internally with exactly these latter expres-
+     sions.)
+
+BUGS
+     Not all possible floating-point errors are handled grace-
+     fully.
+
+     The output is always printed with printf %g format (i.e.
+     with six significant digits); there is no control over out-
+     put precision.
+
+     C and Fortran differ in the naming of logarithmic functions.
+     This program uses ln for natural log, and log10 for ``com-
+     mon'' or base-10 log.  (Plain log is also accepted, and
+     implements common log, following Fortran.  In C, log() is a
+     natural log.)
+
+     There should be better control over the ``summary'' behavior
+     currently requested with the special functions min, sum,
+     mean, etc.  Versions of these functions which operate on
+     multiple arguments, within one line, and which do not there-
+     fore trigger summary behavior, should be provided.
+
+     Since the input is read only once, an expression like
+
+               c1/max(c1)
+
+     which attempts to apply a summarizing function to each line
+     of input, will not work.
+
+     The standard deviation function, since it is implemented in
+     terms of running totals of x and x**2 (rather than directly
+     from the definition), can be unstable.
+
+     The input is limited to 20 columns.  There is also a res-
+     triction on the number of embedded constants in expressions
+     (7-10 distinct values).
+
+     The command-line syntax is awkward.  Individual expressions
+     must be devoid of whitespace, and operators such as '*' can
+     cause difficulties with shell wildcarding unless the expres-
+     sion is quoted.  (Quoting also permits whitespace in expres-
+     sions.)
+
+     The textual distinction between option flags (-b and -n),
+     expressions, and input filenames is subtle if not downright
+     ambiguous.  It is safer to use -if, or shell input redirec-
+     tion (using <), rather than presenting the input filename as
+     an individual argument.  (The single argument will defin-
+     itely _n_o_t work if the file has a numeric name, or otherwise
+     looks like an expression.)
+
+     There are no conditionals; there are no user-definable func-
+     tions.
+
+     It is not clear that this program is sufficiently more use-
+     ful than awk(1) to warrant its existence.
+
+SEE ALSO
+     awk(1)
+
+AUTHOR
+     Steve Summit
+%
+chmod 664 med.man
+if test `wc -c < med.man` -ne 8509; then
+	echo "error extracting med.man" 1>&2
+fi
+echo extracting Makefile
+cat > Makefile <<\%
+CFLAGS =
+
+LINK = cc
+LINKFLAGS =
+
+LIBC2 =
+
+EOBJS = eval.o getexpr.o geterm.o getfact.o getpri.o \
+	getop.o codep.o misc.o alloc.o
+
+MEDOBJS = med.o $(EOBJS) getline.o getargs.o error.o
+
+LIBS = $(LIBC2) -lm
+
+med: $(MEDOBJS)
+	$(LINK) $(LINKFLAGS) -o $@ $(MEDOBJS) $(LIBS)
+
+ETEST = etest.o $(EOBJS) getline.o
+
+etest: $(ETEST)
+	$(LINK) $(LINKFLAGS) -o $@ $(ETEST) $(LIBS)
+
+alloc.o: alloc.c defs.h
+
+etest.o: etest.c expr.h defs.h
+
+eval.o: eval.c expr.h
+
+geterm.o: geterm.c expr.h defs.h
+
+getexpr.o: getexpr.c expr.h defs.h
+
+getfact.o: getfact.c expr.h defs.h
+
+getop.o: getop.c expr.h
+
+getpri.o: getpri.c expr.h defs.h
+
+med.o: med.c expr.h defs.h
+
+misc.o: misc.c defs.h
+%
+chmod 664 Makefile
+if test `wc -c < Makefile` -ne 662; then
+	echo "error extracting Makefile" 1>&2
+fi
+echo extracting med.1
+cat > med.1 <<\%
+.\" Copyright 1991 by Steve Summit.
+.\" This program may be freely redistributed so long as the
+.\" author's name, and this notice, are retained.
+.TH MED 1
+.SH NAME
+med \- math editor
+.SH SYNOPSIS
+.B med
+[
+.B \-bn
+] [
+.B \-cc
+c
+] [
+.B \-ef
+expressionfile
+] [
+.B \-if
+inputfile
+]
+expressions
+[ files ]
+.br
+.SH DESCRIPTION
+.PP
+.I Med
+is a filter which
+reads a stream consisting of columns of numbers,
+performing mathematical operations on them,
+and writing out a stream of columns of
+(presumably different) numbers.
+One column of output is generated for each expression present on
+the command line.
+The input is taken from the named files,
+the file named by
+.BR \-if ,
+or (if neither of these appear)
+the standard input.
+.PP
+The expression syntax is based on Fortran.
+The +, \-, *, /, and ** (exponentiation) operators are supported
+(with the customary associativity and precedence),
+as well as unary \-, and parentheses for grouping.
+The following built-in functions are supported:
+.LP
+.nf
+.ta 1i +\w'floor'u+1m +\w'(two arguments)'u+3m +\w'floor'u+1m
+	abs		floor
+	acos		ln	(natural log)
+	asin		log10	(common log)
+	atan		sin
+	atan2	(two arguments)	sinh
+	ceil		sqrt
+	cos		tan
+	cosh		tanh
+.fi
+.PP
+Access to input data, as well as a few useful constants, is
+through identifiers (``variables'').
+The following identifiers may be present in expressions:
+.LP
+.nf
+	pi	3.141592654
+	e	2.718281828
+	n	input line number
+	c1	data from input column 1 (similarly c2, c3, ...)
+.fi
+.PP
+An input column can be passed through to the output
+(essentialy) unchanged
+with a trivial expression such as ``c2''.
+(As a special case,
+the input data in a column which is used only with such an expression
+is not required to be numeric,
+and is passed through even if it is alphabetic.)  The
+input may contain more columns
+than are called for by the expressions;
+unused input columns are silently discarded.
+Blank lines,
+as well as those beginning with a comment character
+(by default, `#', but settable with
+.BR \-cc )
+are passed through to the output unchanged.
+.PP
+Normally,
+.I med
+reads one line,
+evaluates the requested expressions,
+prints one line containing the results,
+and continues on to the next line.
+However, a few special-purpose function-like operators
+modify this behavior.
+If any of the following ``functions:''
+.LP
+.nf
+	max
+	mean
+	min
+	product
+	stdev
+	sum
+.fi
+.LP
+appears, a value is accumulated,
+which is only printed out after all input lines have been read.
+Line-by-line output is suppressed.
+.PP
+The operands of these ``summarizing'' operators can be
+arbitrarily complex expressions,
+and the results can be further operated upon before printing.
+.PP
+The
+.B \-b
+(``bunch tallies'') option indicates that the summarizing
+operators should generate output after each group of numbers in
+the input stream.
+Groups of numbers are separated by one or more blank lines.
+After printing the result from each group, all accumulated counts
+are zeroed before processing the next group.
+.PP
+The
+.B \-cc
+(``comment character'') option indicates that the next
+argument is to be taken as the (single) character introducing
+comments in data and expression files.
+By default, the comment character is `#'.
+.PP
+The
+.B \-ef
+(``expression file'') option indicates that the next
+argument is the name of a file out of which expressions are to be read.
+The file is assumed to contain one expression per line.
+(Expressions may also appear as arguments on the command line;
+neither command line expressions nor expression file expressions
+preclude the other.)  Comments
+may appear in the expression file on lines beginning
+with `#' (or the comment character set with
+.BR \-cc ).
+Expressions within expression files are immune from any unwanted
+interactions or restrictions imposed by the shell,
+and may therefore contain whitespace and `*'
+(which is presumably to be a multiplication operator,
+rather than a wildcard)
+with impunity.
+.PP
+The
+.B \-if
+(``input file'') option indicates that the next
+argument is the name of a file from which input data will be read.
+(Input filenames may also appear as arguments on the command line.
+If neither
+.B \-if
+nor standalone input file arguments appear,
+input is read from the standard input.)
+.PP
+The
+.B \-n
+(``annotate output'') option indicates that,
+when per-file summaries are being generated and multiple files
+are being read,
+each output line should be preceded by the originating file name.
+.PP
+A brief summary of the invocation syntax and accepted options may
+be requested with
+.BR \-help .
+.SH EXAMPLES
+.PP
+1.
+From a stream of two columns,
+print four columns consisting of the sum, difference, product,
+and quotient of the input:
+.LP
+.ft C
+	med c1+c2 c1-c2 c1*c2 c1/c2
+.ft
+.LP
+With this invocation, the input
+.LP
+.nf
+.ft C
+.ta 1i +8u*\w' 'u +8u*\w' 'u +8u*\w' 'u +8u*\w' 'u
+	1	2
+	3	4
+	5	6
+	7	5
+	3	1
+.ft
+.LP
+would produce
+.LP
+.ft C
+	3	-1	2	0.5
+	7	-1	12	0.75
+	11	-1	30	0.833333
+	12	2	35	1.4
+	4	2	3	3
+.ft
+.fi
+.PP
+2.
+Print the mean and standard deviation of a series of numbers:
+.LP
+.ft C
+	med mean(c1) stdev(c1)
+.ft
+.LP
+The input
+.LP
+.nf
+.ft C
+	1
+	2
+	3
+	4
+.ft
+.LP
+would produce the single line
+.LP
+.ft C
+	2.5	1.29099
+.ft
+.fi
+.PP
+3.
+Compute the mean and standard deviation of a column of numbers
+the ``hard way'':
+.LP
+.ft C
+	med sum(c1)/n sqrt((sum(c1**2)-sum(c1)**2/n)/(n-1))
+.ft
+.LP
+This example will generate the same output as the previous one.
+(In fact, the built-in mean and stdev functions are implemented
+internally with exactly these latter expressions.)
+.SH BUGS
+.PP
+Not all possible floating-point errors are handled gracefully.
+.PP
+The output is always printed with printf %g format
+(i.e. with six significant digits);
+there is no control over output precision.
+.PP
+C and Fortran differ in the naming of logarithmic functions.
+This program uses ln for natural log,
+and log10 for ``common'' or base-10 log.
+(Plain log is also accepted,
+and implements common log,
+following Fortran.
+In C, log() is a natural log.)
+.PP
+There should be better control over the ``summary'' behavior
+currently requested with the special functions min, sum, mean, etc.
+Versions of these functions which operate on multiple arguments,
+within one line,
+and which do not therefore trigger summary behavior,
+should be provided.
+.PP
+Since the input is read only once,
+an expression like
+.LP
+	c1/max(c1)
+.LP
+which attempts to apply a summarizing function to each line of input,
+will not work.
+.PP
+The standard deviation function,
+since it is implemented in terms
+of running totals of x and x**2
+(rather than directly from the definition),
+can be unstable.
+.PP
+The input is limited to 20 columns.
+There is also a restriction on the number of embedded constants
+in expressions (7-10 distinct values).
+.PP
+The command-line syntax is awkward.
+Individual expressions must be devoid of whitespace,
+and operators such as '*' can cause difficulties with shell
+wildcarding unless the expression is quoted.
+(Quoting also permits whitespace in expressions.)
+.PP
+The textual distinction between option flags
+.RB ( \-b
+and
+.BR \-n ),
+expressions, and input filenames is subtle if not downright
+ambiguous.
+It is safer to use
+.BR \-if ,
+or shell input redirection (using <),
+rather than presenting the input filename as an individual
+argument.
+(The single argument will definitely
+.I not
+work if the file has a numeric name,
+or otherwise looks like an expression.)
+.PP
+There are no conditionals;
+there are no user-definable functions.
+.PP
+It is not clear that this program is sufficiently more useful
+than awk(1) to warrant its existence.
+.SH "SEE ALSO"
+awk(1)
+.SH AUTHOR
+.PP
+Steve Summit
+%
+chmod 644 med.1
+if test `wc -c < med.1` -ne 7565; then
+	echo "error extracting med.1" 1>&2
+fi
+echo extracting med.c
+cat > med.c <<\%
+/*
+ *  math editor
+ *
+ *  A lot like awk, but optimized for mathematical
+ *  transformations on columns of numbers.
+ *
+ *  Each command-line expression requests an output column, which
+ *  will be the result of applying the expression to each line
+ *  (in turn) of the input data.
+ *
+ *  Copyright 1987-1990 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include <ctype.h>
+#include "expr.h"
+#include "defs.h"
+#include "alloc.h"
+
+#define MAXLINE 512
+#define MAXCOLS 20	/* must be comfortably less than 26
+					so var encoding doesn't overflow */
+
+struct code **exprs = NULL;
+int nexprs = 0;
+
+int tallies = FALSE;
+int bunchtallies = FALSE;
+int annotate = FALSE;
+
+int keepblanks = TRUE;		/* pass blank lines through to output */
+int keepcomments = TRUE;	/* pass comment lines through to output */
+int keepgarbage = TRUE;		/* pass garbage lines through to output */
+				/* as yet, no way to set */
+
+int ignoregarbage = FALSE;	/* if true, treat non-numeric columns as 0 */
+
+enum {ZERO, PREV, GARBAGE} missingaction = GARBAGE;
+				/* what to do when requested column missing */
+
+FILE *ofd = stdout;
+
+double consts[10];
+int nconsts = 0;
+char *vars[26];
+double vals[26];
+int nvars = 0;
+int basenvars;
+
+char *ofmt = "%g";
+
+char *progname = "med";
+
+int commentchar = '#';
+
+char usage[] = "usage: %s [-b] [-n] [-?] expression(s) [-f] [file(s)]\n";
+
+extern double eval();
+
+extern double strtod();
+
+static char line[MAXLINE];	/* buffer for reading data lines, */
+				/* and also expression file (-ef) */
+				/* (would be local to main() and med(), */
+				/* but putting it here saves stack space) */
+
+main(argc, argv)
+int argc;
+char *argv[];
+{
+int r;
+int argi;
+int i;
+int errs = 0;
+
+consts[0] = 0.;
+consts[1] = 1.;
+consts[2] = 2.;
+
+nconsts = 3;
+
+vars[nvars] = "pi";
+vals[nvars++] = 3.141592654;
+
+vars[nvars] = "e";
+vals[nvars++] = 2.718281828;
+
+vars[nvars++] = "n";
+/* val filled in for each line */
+
+basenvars = nvars;
+
+/*
+ *  Standard option file parse is rife with ambiguity:
+ *  -b is a legal expression, except for the unknown variable.
+ */
+
+for(argi = 1; argi < argc; argi++)
+	{
+	if(strcmp(argv[argi], "-b") == 0)
+		bunchtallies = TRUE;
+	else if(strcmp(argv[argi], "-cc") == 0)
+		commentchar = argv[++argi][0];
+	else if(strcmp(argv[argi], "-ef") == 0 || strcmp(argv[argi], "-f") == 0)
+		{
+		FILE *fd;
+
+		if((fd = fopen(argv[++argi], "r")) == NULL)
+			{
+			fprintf(stderr, "%s: can't open %s: ",
+							progname, argv[argi]);
+			perror("");
+			continue;
+			}
+
+		while(getline(fd, line, MAXLINE) != EOF)
+			{
+			char *p = line;
+			while(Iswhite(*p))
+				p++;
+			if(*p == '\0')
+				continue;
+			if(*p == commentchar)
+				continue;
+			addexpr(p);
+			}
+		}
+	else if(strcmp(argv[argi], "-n") == 0)
+		annotate = TRUE;
+	else if(strcmp(argv[argi], "-?") == 0 ||
+					stricmp(argv[argi], "-help") == 0)
+		{
+		fprintf(stderr, usage, progname);
+		fprintf(stderr, "-b\tbunch tallies at blank lines\n");
+		fprintf(stderr, "-cc x\tset data comment character\n");
+		fprintf(stderr, "-n\tannotate tallies with input filename\n");
+		fprintf(stderr, "-ef\tnext argument file of expressions\n");
+		fprintf(stderr, "-if\tnext argument is input filename\n");
+		exit(0);	/* oughta continue */
+		}
+	else	break;
+	}
+
+for(; argi < argc; argi++)
+	{
+	int prevnvars = nvars;
+
+	if(strcmp(argv[argi], "-if") == 0)	/* means next arg is file */
+		{
+		argi++;
+		break;
+		}
+
+	r = addexpr(argv[argi]);
+
+	if(r != OK)
+		{
+		nvars = prevnvars;	/* kludge */
+		nexprs--;		/* ditto */
+
+		/* maybe it's a file */
+		/* (handy getexpr() seems not to print any error messages) */
+		/* probably stuck at least one unknown variable in, though. */
+		/* and what about files named c1? */
+
+		if(access(argv[argi], 0) == 0)
+			break;
+
+		errs++;
+		}
+	}
+
+if(nexprs == 0)
+	{
+	fprintf(stderr, usage, progname);
+	exit(1);
+	}
+
+if(errs > 0)
+	exit(errs);
+
+for(i = basenvars; i < nvars; i++)
+	{
+	int ii;
+
+	if(sscanf(vars[i], "c%d", &ii) != 1)
+		{
+		fprintf(stderr, "%s: unknown variable %s\n",
+						progname, vars[i]);
+		}
+	}
+
+if(tallies)
+	keepblanks = keepcomments = keepgarbage = FALSE;
+
+if(argi < argc)
+	{
+	for(; argi < argc; argi++)
+		{
+		FILE *fd = fopen(argv[argi], "r");
+		if(fd == NULL)
+			{
+			fprintf(stderr, "%s: can't open %s: ",
+							progname, argv[argi]);
+			perror("");
+			continue;
+			}
+
+		med(fd, argv[argi]);
+
+		fclose(fd);
+
+		cleartallies();
+		}
+	}
+else	med(stdin, "stdin");
+
+exit(0);
+}
+
+addexpr(string)
+char *string;
+{
+char *p;
+int r;
+
+nexprs++;
+exprs = Srealloc(exprs, nexprs, struct code *);
+exprs[nexprs - 1] = codealloc(0);
+
+r = getexpr(string, &p, exprs[nexprs - 1]);
+
+if(*p != '\0')
+	r = SYNTAX;
+
+if(r == OK)
+	{
+	emit('\0', exprs[nexprs - 1]);
+
+	if(exprs[nexprs - 1]->c_nsubsid > 0)
+		tallies = TRUE;
+	}
+
+return r;
+}
+
+med(fd, filename)
+FILE *fd;
+char *filename;
+{
+				/* primary line buffer is file static */
+				/* (shared with main) */
+
+static char line2[MAXLINE];	/* copy of line, to be broken up by getargs */
+				/* (static to save stack space) */
+char *av[MAXCOLS];
+char *p;
+int r;
+int i, j;
+long int n;
+
+n = 1;
+
+while((r = getline(fd, line, MAXLINE)) != EOF)
+	{
+	if(r == 0)		/* blank line */
+		{
+		if(keepblanks)
+			fprintf(ofd, "%s\n", line);
+
+		if(tallies && bunchtallies && n > 1)
+			{
+			dotallies(filename);
+			cleartallies();
+			n = 1;
+			}
+
+		continue;
+		}
+
+	if(*line == commentchar)
+		{
+		if(keepcomments)
+			fprintf(ofd, "%s\n", line);
+
+		continue;
+		}
+
+	(void)strcpy(line2, line);
+
+	if((r = getargs(av, line2, MAXCOLS)) == 0)
+		{
+		if(keepblanks)
+			fprintf(ofd, "%s\n", line);
+
+		continue;
+		}
+
+	for(i = basenvars; i < nvars; i++)
+		{
+		int ii;
+
+		if(sscanf(vars[i], "c%d", &ii) != 1)
+			{
+#ifdef notdef
+			fprintf(stderr, "%s: unknown variable %s\n",
+							progname, vars[i]);
+#endif
+			continue;
+			}
+
+		if(ii > r)
+			{
+			fprintf(stderr, "%s: only %d columns (asked %s)\n",
+						progname, r, vars[i]);
+
+			if(missingaction == PREV)
+				{
+				/* value is retained from previous line */
+				continue;
+				}
+			if(missingaction == ZERO)
+				{
+				vals[i] = 0;
+				av[ii-1] = "";	/* in case passed through */
+				}
+			else	break;	/* treat as garbage */
+
+			continue;
+			}
+
+		ii--;	/* av is 0-based */
+
+		/*
+		 *  It's easy for strtod to get this case wrong, and
+		 *  Microsoft's does.  (Related to leading whitespace case.)
+		 *  (That is, strtod seems to succeed for inputs like
+		 *  " ", "-", and ".")
+		 */
+
+		if(av[ii][0] == '-' && !isdigit(av[ii][1]) && av[ii][1] != '.')
+			{
+			if(ignoregarbage || noarith(i))
+				vals[i] = 0;
+			else	{
+				fprintf(stderr,
+					"%s: column %d nonnumeric (\"%s\")\n",
+						progname, ii+1, av[ii]);
+				break;
+				}
+			}
+		else	{
+			vals[i] = strtod(av[ii], &p);
+
+			if(*p != '\0')		/* non-numeric */
+				{
+				if(ignoregarbage || noarith(i))
+					vals[i] = 0;
+				else	{
+					fprintf(stderr,
+					 "%s: column %d nonnumeric (\"%s\")\n",
+						progname, ii+1, av[ii]);
+					break;
+					}
+				}
+			}
+		}
+
+	if(i < nvars)	/* means some columns not found and/or nonnumeric */
+		{
+		if(keepgarbage)
+			fprintf(ofd, "%s\n", line);
+
+		continue;
+		}
+
+	/*
+	 *  Subtle ordering dependency here -- although n starts out 1,
+	 *  it is plugged in to vals[] before it is incremented, so it's
+	 *  correct during the postprocessing tallies.  However, it must
+	 *  be filled in after any of the loop short-circuits above.
+	 */
+
+	vals[basenvars - 1] = n;
+
+	if(tallies)
+		{
+		for(i = 0; i < nexprs; i++)
+			{
+			for(j = 0; j < exprs[i]->c_nsubsid; j++)
+				{
+				struct subsid *sp = &exprs[i]->c_subsid[j];
+				double val = eval(sp->s_code->c_base);
+
+				switch(sp->s_type)
+					{
+					case SUM:
+					case MEAN:
+						sp->s_tally += val;
+						break;
+
+					case PROD:
+						sp->s_tally *= val;
+						break;
+
+					case MAX:
+						if(n == 1 || val > sp->s_tally)
+							sp->s_tally = val;
+						break;
+
+					case MIN:
+						if(n == 1 || val < sp->s_tally)
+							sp->s_tally = val;
+						break;
+
+					default:
+						panic("bad subsid %d",
+								sp->s_type);
+					}
+				}
+			}
+		}
+	else	{
+		if(annotate)
+			fprintf(ofd, "%s\t", filename);
+
+		for(i = 0; i < nexprs; i++)
+			{
+			int ii;
+
+			if((ii = singlecol(exprs[i]->c_base)) >= 0)
+				fprintf(ofd, "%s", av[ii-1]);
+			else	fprintf(ofd, ofmt, eval(exprs[i]->c_base));
+
+			putc(i == nexprs - 1 ? '\n' : '\t', ofd);
+			}
+		}
+	n++;
+	}
+
+if(tallies && (!bunchtallies || n > 1))
+	dotallies(filename);
+}
+
+dotallies(filename)
+char *filename;
+{
+int i, j;
+
+if(annotate)
+	fprintf(ofd, "%s\t", filename);
+
+for(i = 0; i < nexprs; i++)
+	{
+	for(j = 0; j < exprs[i]->c_nsubsid; j++)
+		vals[basenvars + j] = exprs[i]->c_subsid[j].s_tally;
+
+	fprintf(ofd, ofmt, eval(exprs[i]->c_base));
+	putc(i == nexprs - 1 ? '\n' : '\t', ofd);
+	}
+}
+
+cleartallies()
+{
+int i, j;
+
+for(i = 0; i < nexprs; i++)
+	{
+	for(j = 0; j < exprs[i]->c_nsubsid; j++)
+		{
+		struct subsid *sp = &exprs[i]->c_subsid[j];
+
+		if(sp->s_type == PROD)
+			sp->s_tally = 1.;
+		else	sp->s_tally = 0.;
+		}
+	}
+}
+
+/*
+ *  The following kludges have to do with detecting trivial expressions
+ *  which effectively pass input columns through to the output.
+ */
+
+static checkcode();
+static check2();
+
+/*
+ *  noarith(n) returns TRUE if variable n has no arithmetic
+ *  performed on it, i.e. appears standalone in expressions like
+ *  "c1" and can therefore be passed directly through to the
+ *  output without calling atof and the like.
+ */
+
+noarith(n)
+int n;
+{
+static int beenhere = FALSE;
+static int usedarray[26];		/* initially 0 (FALSE) */
+
+if(!beenhere)
+	{
+	register int i;
+
+	for(i = 0; i < nexprs; i++)
+		checkcode(exprs[i], usedarray, FALSE);
+	}
+
+return !usedarray[n];
+}
+
+static
+checkcode(codep, usedarray, subsidflag)
+struct code *codep;
+int usedarray[];
+int subsidflag;
+{
+if(codep->c_nsubsid == 0)
+	check2(codep->c_base, usedarray, subsidflag);
+else	{
+	register int i;
+	for(i = 0; i < codep->c_nsubsid; i++)
+		checkcode(codep->c_subsid[i].s_code, usedarray, TRUE);
+	}
+}
+
+static
+check2(code, usedarray, subsidflag)
+char *code;
+int usedarray[];
+int subsidflag;
+{
+char *p;
+for(p = code; *p != '\0'; p++)
+	{
+	if(islower(*p))		/* var fetch */
+		{
+		if(*(p + 1) != '\0' || subsidflag)
+			usedarray[*p - 'a'] = TRUE;
+		}
+	}
+}
+
+/*
+ *  If code requests only that a single column variable be fetched,
+ *  return that column number.  (This means that the input column
+ *  can be passed through to the output without calling atof.)
+ *  Otherwise, return -1.
+ */
+
+singlecol(code)
+char *code;
+{
+if(islower(code[0]) && code[1] == '\0')
+	{
+	int i = code[0] - 'a';
+	if(vars[i] != NULL && (vars[i][0] == 'c' || vars[i][0] == 'C'))
+		return atoi(&vars[i][1]);
+	}
+
+return -1;
+}
+%
+chmod 644 med.c
+if test `wc -c < med.c` -ne 10553; then
+	echo "error extracting med.c" 1>&2
+fi
+echo extracting alloc.c
+cat > alloc.c <<\%
+#include <stdlib.h>
+#include "alloc.h"
+
+char *
+alloc(size)
+int size;
+{
+char *ret;
+
+ret = malloc((unsigned)size);
+
+if(ret == NULL)
+	{
+	error("out of memory");
+	exit(1);
+	}
+
+return(ret);
+}
+
+char *
+crealloc(oldptr, newsize)
+char *oldptr;
+int newsize;
+{
+char *newptr;
+
+newptr = realloc(oldptr, (unsigned)newsize);
+
+if(newptr == NULL)
+	{
+	error("out of memory");
+	exit(1);
+	}
+
+return(newptr);
+}
+
+%
+chmod 644 alloc.c
+if test `wc -c < alloc.c` -ne 391; then
+	echo "error extracting alloc.c" 1>&2
+fi
+echo extracting alloc.h
+cat > alloc.h <<\%
+#ifndef ALLOC_H
+#define ALLOC_H
+
+#define Salloc(type) (type *)alloc(sizeof(type))
+#define Srealloc(oldptr, n, type) \
+			(type *)crealloc((char *)oldptr, n * sizeof(type))
+
+extern char *alloc();
+extern char *crealloc();
+
+#ifndef NULL
+#define NULL 0
+#endif
+
+#endif
+%
+chmod 644 alloc.h
+if test `wc -c < alloc.h` -ne 264; then
+	echo "error extracting alloc.h" 1>&2
+fi
+echo extracting codep.c
+cat > codep.c <<\%
+#include "expr.h"
+#include "alloc.h"
+#include "defs.h"
+
+struct code *
+codealloc(size)
+int size;
+{
+register struct code *cp;
+
+if(size == 0)
+	size = 512;
+
+cp = Salloc(struct code);
+
+cp->c_bufsize = size;
+cp->c_base = cp->c_ptr = alloc(cp->c_bufsize);
+
+cp->c_nsubsid = 0;
+cp->c_subsid = NULL;
+
+return cp;
+}
+
+
+%
+chmod 644 codep.c
+if test `wc -c < codep.c` -ne 306; then
+	echo "error extracting codep.c" 1>&2
+fi
+echo extracting defs.h
+cat > defs.h <<\%
+#ifndef DEFS_H
+#define DEFS_H
+
+#define TRUE 1
+#define FALSE 0
+
+#ifndef NULL
+#define NULL 0
+#endif
+
+extern char *alloc();
+
+#endif
+%
+chmod 644 defs.h
+if test `wc -c < defs.h` -ne 129; then
+	echo "error extracting defs.h" 1>&2
+fi
+echo extracting error.c
+cat > error.c <<\%
+#include <stdio.h>
+#include <stdarg.h>
+
+extern char *progname;
+
+error(fmt)
+char *fmt;
+{
+va_list arg_ptr;
+
+va_start(arg_ptr, fmt);
+
+fprintf(stderr, "%s: ", progname);
+
+vfprintf(stderr, fmt, arg_ptr);
+
+putc('\n', stderr);
+
+va_end(arg_ptr);
+}
+
+panic(fmt)
+char *fmt;
+{
+va_list arg_ptr;
+
+va_start(arg_ptr, fmt);
+
+fprintf(stderr, "%s: panic: ", progname);
+
+vfprintf(stderr, fmt, arg_ptr);
+
+putc('\n', stderr);
+
+va_end(arg_ptr);
+
+exit(1);
+}
+%
+chmod 644 error.c
+if test `wc -c < error.c` -ne 434; then
+	echo "error extracting error.c" 1>&2
+fi
+echo extracting eval.c
+cat > eval.c <<\%
+/*
+ *  expression evaluator
+ *
+ *  Implements a simple stack-based machine which "runs" the
+ *  "programs" "compiled" by the expression parser.
+ *
+ *  Copyright 1987-1990 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include <math.h>
+#include <ctype.h>
+#include "expr.h"
+
+#define MAXSTACK 15
+
+extern struct biftab bitab[];
+extern int nbitab;
+
+double
+eval(code)
+register char *code;
+{
+double stack[MAXSTACK];
+register double *stackp;
+#define Push(v)		(*++stackp = (v))
+#define Pop()		(*stackp--)
+#define Peek()		(*stackp)
+#define Cheatpush(v)	(*stackp = (v))
+double l, r;
+
+stackp = &stack[-1];
+
+while(*code != '\0')
+	{
+	switch(*code)
+		{
+		case '0':
+			Push(0.);
+			break;
+
+		case '1':
+			Push(1.);
+			break;
+
+		case '2':
+			Push(2.);
+			break;
+
+		case PLUS:
+			r = Pop();
+			l = Peek();
+			Cheatpush(l + r);
+			break;
+
+		case MINUS:
+			r = Pop();
+			l = Peek();
+			Cheatpush(l - r);
+			break;
+
+		case UMINUS:
+			Cheatpush(-Peek());
+			break;
+
+		case TIMES:
+			r = Pop();
+			l = Peek();
+			Cheatpush(l * r);
+			break;
+
+		case DIVIDE:
+			r = Pop();
+			l = Peek();
+			if(r != 0.)
+				Cheatpush(l / r);
+			else	{
+				error("divide by 0");
+				Cheatpush(0.);
+				}
+			break;
+
+		case EXPONENT:
+			r = Pop();
+			l = Peek();
+			Cheatpush(pow(l, r));
+			break;
+
+		default:
+			if(isdigit(*code))
+				Push(consts[*code - '0']);
+			else if(islower(*code))
+				Push(vals[*code - 'a']);
+			else if(isupper(*code))
+				{
+				register struct biftab *bipt;
+
+				/* gross: linear search lookup */
+
+				for(bipt = bitab; bipt < &bitab[nbitab]; bipt++)
+					{
+					if(*code == bipt->bi_token)
+						break;
+					}
+
+				if(bipt >= &bitab[nbitab])
+					{
+					error("bad function %c", *code);
+								/* panic? */
+					break;
+					}
+
+				if(bipt->bi_nargs == 1)
+					{
+					Cheatpush((*bipt->bi_function)(Peek()));
+					}
+				else	{
+					double arg1 = Pop();
+					Cheatpush((*bipt->bi_function)(arg1,
+								Peek()));
+					}
+				}
+			else	error("bad code %c", *code);	/* panic? */
+		}
+	code++;
+	}
+
+return(Peek());
+}
+
+double
+xsqrt(x)
+double x;
+{
+if(x < 0.)
+	{
+	error("sqrt of negative number");
+	return 0.;
+	}
+
+return sqrt(x);
+}
+%
+chmod 644 eval.c
+if test `wc -c < eval.c` -ne 2209; then
+	echo "error extracting eval.c" 1>&2
+fi
+echo extracting expr.h
+cat > expr.h <<\%
+#ifndef EXPR_H
+#define EXPR_H
+
+#define PLUS		'+'
+#define MINUS		'-'
+#define TIMES		'*'
+#define DIVIDE		'/'
+#define OPENPAREN	'('
+#define CLOSEPAREN	')'
+#define UMINUS		'_'
+#define EXPONENT	'^'
+#define OPENBRACK	'['
+#define CLOSEBRACK	']'
+#define COMMA		','
+
+#define ABS		'A'
+#define ACOS		'B'
+#define ASIN		'D'
+#define ATAN		'E'
+#define ATAN2		'M'
+#define CEIL		'G'
+#define COS		'C'
+#define COSH		'H'
+#define FLOOR		'F'
+#define LN		'N'
+#define LOG10		'L'
+#define SIN		'S'
+#define SINH		'J'
+#define SQRT		'Q'
+#define TAN		'T'
+#define TANH		'K'
+
+struct biftab			/* "built in function" table */
+	{
+	char *bi_syntax;
+	int bi_token;
+	int bi_nargs;
+	int bi_flags;
+	double (*bi_function)();
+	};
+
+/* bi_flags values: */
+
+#define SPEC	1
+
+/* special function codes: */
+
+#define SUM	1
+#define MEAN	2
+#define STDEV	3
+#define PROD	4
+#define MAX	6
+#define MIN	5
+
+/* expression evaluation return codes: */
+
+#define OK		1
+#define ERR		0
+#define SYNTAX		-1
+
+#define Iswhite(c) ((c) == ' ' || (c) == '\t')
+
+struct code
+	{
+	char *c_base;
+	int c_bufsize;
+	char *c_ptr;
+	int c_nsubsid;
+	struct subsid *c_subsid;
+	};
+
+struct subsid
+	{
+	struct code *s_code;
+	int s_type;
+	double s_tally;
+	};
+
+struct code *codealloc();
+
+#define emit(c, codep) (*codep->c_ptr++ = (c))
+
+union retval
+	{
+	char *string;
+	double number;
+	};
+
+extern double consts[];
+extern int nconsts;
+extern char *vars[];
+extern int nvars;
+extern double vals[];
+
+#endif
+%
+chmod 644 expr.h
+if test `wc -c < expr.h` -ne 1410; then
+	echo "error extracting expr.h" 1>&2
+fi
+echo extracting getargs.c
+cat > getargs.c <<\%
+/*
+ *  takes a string (line) and builds an array of pointers to each word in it.
+ *  words are separated by spaces or any control characters.  At most maxargs
+ *  pointers are calculated.  \0's are inserted in line, so that each word
+ *  becomes a string in its own right.  The number of pointers (argc) is
+ *  returned.
+ */
+
+#include <stdio.h>
+
+#define iswhite(c) ((c) == ' ' || (c) == '\t' || (c) == '\n')
+
+getargs(argv, line, maxargs)
+register char *argv[];
+register char *line;
+int maxargs;
+{
+register int nargs;
+
+nargs = 0;
+
+while(1)
+        {
+        while(iswhite(*line))
+                line++;
+
+        if(*line == '\0')
+                {
+                if(nargs < maxargs) *argv = NULL;
+                return(nargs);
+                }
+
+        *argv++ = line;
+        nargs++;
+
+        while(!iswhite(*line) && *line != '\0')
+                line++;
+
+        if(*line == '\0')
+                {
+                if(nargs < maxargs) *argv = NULL;
+                return(nargs);
+                }
+        *line++ = '\0';
+        if(nargs == maxargs) return(nargs);
+        }
+}
+%
+chmod 644 getargs.c
+if test `wc -c < getargs.c` -ne 1086; then
+	echo "error extracting getargs.c" 1>&2
+fi
+echo extracting geterm.c
+cat > geterm.c <<\%
+/*
+ *  expression parser
+ *
+ *  Second stage: get "terms" involving multiplicative operators.
+ *  "Compiles" parsed expressions to simple stack-based
+ *  calculator language.
+ *
+ *  Copyright 1987 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include "expr.h"
+#include "defs.h"
+
+geterm(buf, leftover, codep)
+char *buf;
+char **leftover;
+struct code *codep;
+{
+char *p, *p1, *p2;
+int op;
+int r;
+
+r = getfact(buf, &p, codep);
+
+if(r != OK) return(r);
+
+while(TRUE)
+        {
+        r = getop(p, &p1, &op);
+        if(r != OK || (op != TIMES && op != DIVIDE))
+                {
+                *leftover = p;
+                return(OK);
+                }
+
+        r = getfact(p1, &p2, codep);
+        if(r != OK) return(r);
+        emit(op, codep);
+
+        p = p2;
+        }
+}
+%
+chmod 644 geterm.c
+if test `wc -c < geterm.c` -ne 875; then
+	echo "error extracting geterm.c" 1>&2
+fi
+echo extracting getexpr.c
+cat > getexpr.c <<\%
+/*
+ *  expression parser
+ *
+ *  First stage (lowest precedence): get expressions involving
+ *  additive operators (separating higher-precedence "terms").
+ *  "Compiles" parsed expressions to simple stack-based
+ *  calculator language.
+ *
+ *  Copyright 1987 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include "expr.h"
+#include "defs.h"
+
+getexpr(buf, leftover, codep)
+char *buf;
+char **leftover;
+struct code *codep;
+{
+char *p, *p1, *p2;
+int op;
+int r;
+
+r = geterm(buf, &p, codep);
+
+if(r != OK) return(r);
+
+while(TRUE)
+        {
+        r = getop(p, &p1, &op);
+
+        if(r != OK || (op != PLUS && op != MINUS))
+                {
+                *leftover = p;
+                return(OK);
+                }
+
+        r = geterm(p1, &p2, codep);
+
+        if(r != OK)
+                return(r);
+
+        emit(op, codep);
+
+        p = p2;
+        }
+}
+%
+chmod 644 getexpr.c
+if test `wc -c < getexpr.c` -ne 951; then
+	echo "error extracting getexpr.c" 1>&2
+fi
+echo extracting getfact.c
+cat > getfact.c <<\%
+/*
+ *  expression parser
+ *
+ *  Third stage: get "factors" involving exponentiation operator
+ *  and/or unary minus.
+ *  "Compiles" parsed expressions to simple stack-based
+ *  calculator language.
+ *
+ *  Copyright 1987 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include "expr.h"
+#include "defs.h"
+
+getfact(buf, leftover, codep)
+char *buf;
+char **leftover;
+struct code *codep;
+{
+char *p, *p1, *p2, *p3;
+int op;
+int r;
+
+r = getop(buf, &p, &op);
+
+if(r != OK || op != MINUS)
+        {
+        r = getpri(buf, &p, codep);
+        if(r != OK) return(r);
+        p1 = p;
+        }
+else    {
+        r = getfact(p, &p1, codep);
+
+        if(r != OK)
+                return(r);
+
+        emit(UMINUS, codep);
+        }
+
+r = getop(p1, &p2, &op);
+
+if(r == OK && op == EXPONENT)
+        {
+        r = getfact(p2, &p3, codep);
+                /* calling getfact again arranges right-associativity */
+
+        emit(EXPONENT, codep);
+        p1 = p3;
+        }
+
+*leftover = p1;
+
+return(OK);
+}
+%
+chmod 644 getfact.c
+if test `wc -c < getfact.c` -ne 1083; then
+	echo "error extracting getfact.c" 1>&2
+fi
+echo extracting getline.c
+cat > getline.c <<\%
+/*
+ * reads from fi until newline or EOF.  Puts at most max characters (but never
+ * the newline) into string and appends \0.  Returns number of characters in
+ * string, exclusive of \0.  (i.e. returns 0 for blank line terminated by
+ * newline.)  Reads properly a string terminated with an EOF, but returns EOF
+ * on a blank line with no newline, terminated with an EOF.
+ */
+
+#include <stdio.h>
+
+getline(fi, string, max)
+FILE *fi;
+char string[];
+register int max;
+{
+register int i;
+register int c;
+i = 0;
+while((c = getc(fi)) != EOF && c != '\n') if(i < max) string[i++] = c;
+string[i] = '\0';
+return(c == EOF && i == 0 ? EOF : i);
+}
+%
+chmod 644 getline.c
+if test `wc -c < getline.c` -ne 634; then
+	echo "error extracting getline.c" 1>&2
+fi
+echo extracting getop.c
+cat > getop.c <<\%
+/*
+ *  expression parser
+ *
+ *  Lexical analysis: return tokens.
+ *
+ *  Copyright 1987 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include "expr.h"
+
+struct optab
+	{
+	char *ot_syntax;
+	int ot_token;
+	} optab[] =
+		{
+		"(",	OPENPAREN,
+		")",	CLOSEPAREN,
+		"**",	EXPONENT,
+		"*",	TIMES,
+		"+",	PLUS,
+		"-",	MINUS,
+		"/",	DIVIDE,
+		"[",	OPENBRACK,
+		"]",	CLOSEBRACK,
+		",",	COMMA,
+		};
+
+getop(buf, leftover, retval)
+char *buf;
+char **leftover;
+int *retval;
+{
+char *p, *p1, *p2;
+int i;
+
+p = buf;
+
+while(Iswhite(*p))
+	p++;
+
+for(i = 0; i < sizeof(optab)/sizeof(struct optab); i++)
+	{
+	for(p1 = p, p2 = optab[i].ot_syntax; *p2 != '\0'; p1++, p2++)
+		if(*p1 != *p2) break;
+
+	if(*p2 == '\0')
+		{
+		*retval = optab[i].ot_token;
+		*leftover = p1;
+		return(OK);
+		}
+	}
+
+/*fprintf(stderr, "getop: missing operator near \"%.10s\"\n", buf);*/
+*leftover = buf;
+return(SYNTAX);
+}
+%
+chmod 644 getop.c
+if test `wc -c < getop.c` -ne 967; then
+	echo "error extracting getop.c" 1>&2
+fi
+echo extracting getpri.c
+cat > getpri.c <<\%
+/*
+ *  expression parser
+ *
+ *  Last stage (highest precedence): parse primaries
+ *  (identifiers, functions, constants, and parentheses)
+ *  "Compiles" parsed expressions to simple stack-based
+ *  calculator language
+ *
+ *  Copyright 1987-1990 by Steve Summit.
+ *  This code may be freely redistributed so long as the author's
+ *  name, and this notice, are retained.
+ */
+
+#include <stdio.h>
+#include <ctype.h>
+#include <math.h>
+#include "expr.h"
+#include "defs.h"
+#include "alloc.h"
+
+extern double xsqrt();	/* checks its argument */
+
+struct biftab bitab[] =
+	{
+	"abs",		ABS,	1,	0,	fabs,
+	"acos",		ACOS,	1,	0,	acos,
+	"asin",		ASIN,	1,	0,	asin,
+	"atan",		ATAN,	1,	0,	atan,
+	"atan2",	ATAN2,	2,	0,	atan2,
+	"average",	MEAN,	1,	SPEC,	NULL,
+	"ceil",		CEIL,	1,	0,	ceil,
+	"cos",		COS,	1,	0,	cos,
+	"cosh",		COSH,	1,	0,	cosh,
+	"floor",	FLOOR,	1,	0,	floor,
+	"ln",		LN,	1,	0,	log,
+	"log",		LOG10,	1,	0,	log10,	/* which is */
+	"log10",	LOG10,	1,	0,	log10,	/* preferable? */
+	"max",		MAX,	1,	SPEC,	NULL,	/* of args or column? */
+	"mean",		MEAN,	1,	SPEC,	NULL,
+	"min",		MIN,	1,	SPEC,	NULL,	/* ditto */
+	"product",	PROD,	1,	SPEC,	NULL,
+	"sin",		SIN,	1,	0,	sin,
+	"sinh",		SINH,	1,	0,	sinh,
+	"sqrt",		SQRT,	1,	0,	xsqrt,
+	"stdev",	STDEV,	1,	SPEC,	NULL,
+	"sum",		SUM,	1,	SPEC,	NULL,
+	"tan",		TAN,	1,	0,	tan,
+	"tanh",		TANH,	1,	0,	tanh,
+	};
+
+int nbitab = sizeof(bitab) / sizeof(bitab[0]);
+
+extern int basenvars;
+
+extern double atof();
+extern char *strncpy();
+
+getpri(buf, leftover, codep)
+char *buf;
+char **leftover;
+struct code *codep;
+{
+char *p, *p1, *p2, *p3, *p4;
+char c;
+int r;
+int len;
+double val;
+int op;
+int i;
+
+p = buf;
+
+while(Iswhite(*p))
+	p++;
+
+if(isalpha(*p))
+	{
+	p1 = p;
+	p1++;
+	len = 1;
+	while(isalnum(*p1))
+		{
+		p1++;
+		len++;
+		}
+
+	for(i = 0; i < nbitab; i++)
+		if(sstrneq(bitab[i].bi_syntax, p, len))
+			break;
+
+	if(i < nbitab)
+		{
+		int ii;
+
+		r = getop(p1, &p2, &op);
+		if(r != OK || op != OPENPAREN)
+			{
+			error("missing '('");
+			return(ERR);
+			}
+
+		for(ii = 0; ii < bitab[i].bi_nargs; ii++)
+			{
+			if((bitab[i].bi_flags & SPEC) &&
+						bitab[i].bi_token == STDEV)
+				{
+				/*
+				 *  Starts two subsidiary tallies, to sum
+				 *  the given quantity and the square of
+				 *  the given quantity, and plugs it into
+				 *  the formula 
+				 *
+				 *	sqrt((sum(x**2)-sum(x)**2/n)/(n-1))
+				 *
+				 *  (The implementation is rather
+				 *  distressingly special-cased and
+				 *  hardwired.  It would be nice to use
+				 *  a more general, and user-accessible,
+				 *  function notation one day.)
+				 */
+
+				struct subsid *sp1, *sp2;
+				int si;
+
+				si = codep->c_nsubsid;
+
+				codep->c_nsubsid += 2;
+				codep->c_subsid = Srealloc(codep->c_subsid,
+					codep->c_nsubsid, struct subsid);
+
+				sp1 = &codep->c_subsid[si];
+				sp1->s_code = codealloc(0);
+				sp1->s_type = SUM;
+				sp1->s_tally = 0.;
+
+				sp2 = sp1 + 1;
+				sp2->s_code = codealloc(0);
+				sp2->s_type = SUM;
+				sp2->s_tally = 0.;
+
+				r = getexpr(p2, &p3, sp1->s_code);
+				emit('\0', sp1->s_code);
+
+				/* Yuck.  Re-do, but square */
+
+				r = getexpr(p2, &p3, sp2->s_code);
+				emit('2', sp2->s_code);
+				emit('^', sp2->s_code);
+				emit('\0', sp2->s_code);
+
+				/* compute sqrt((sum(x**2)-sum(x)**2/n)/(n-1)) */
+				/* this is quite gross: */
+				emit('a' + basenvars + si + 1, codep); /* ä(x**2) */
+				emit('a' + basenvars + si, codep);	/* äx */
+				emit('2', codep);
+				emit('^', codep);
+				emitvar("n", 1, codep);
+				emit('/', codep);
+				emit('-', codep);
+				emitvar("n", 1, codep);
+				emit('1', codep);
+				emit('-', codep);
+				emit('/', codep);
+				emit(SQRT, codep);
+				}
+			else if(bitab[i].bi_flags & SPEC)
+				{
+				struct subsid *sp;
+				int si;
+
+				si = codep->c_nsubsid;
+
+				codep->c_nsubsid++;
+				codep->c_subsid = Srealloc(codep->c_subsid,
+					codep->c_nsubsid, struct subsid);
+				sp = &codep->c_subsid[si];
+				sp->s_code = codealloc(0);
+				sp->s_type = bitab[i].bi_token;
+				if(sp->s_type == PROD)
+					sp->s_tally = 1.;
+				else	sp->s_tally = 0.;
+
+				r = getexpr(p2, &p3, sp->s_code);
+
+				/*
+				 * to sum square of something, do:
+				 *
+				 *	emit('2', sp->s_code);
+				 *	emit('^', sp->s_code);
+				 */
+
+				emit('\0', sp->s_code);
+
+				/* this is pretty gross: */
+				emit('a' + basenvars + si, codep);
+
+				if(bitab[i].bi_token == MEAN)
+					{
+					emitvar("n", 1, codep);
+					emit('/', codep);
+					}
+				}
+			else	r = getexpr(p2, &p3, codep);
+
+			if(r != OK)
+				return(r);
+			r = getop(p3, &p4, &op);
+			if(r != OK)
+				return(r);
+			if(ii < bitab[i].bi_nargs - 1)
+				{
+				if(op != COMMA)
+					{
+					error("missing ','");
+					return(ERR);
+					}
+				}
+			else	{
+				if(op != CLOSEPAREN)
+					{
+					error("missing ')'");
+					return(ERR);
+					}
+				}
+
+			p2 = p4;
+			}
+
+		if(!(bitab[i].bi_flags & SPEC))
+			emit(bitab[i].bi_token, codep);
+
+		p1 = p4;
+		}
+	else	{
+		r = emitvar(p, len, codep);
+		if(r != OK)
+			return r;
+		}
+	}
+else if(isdigit(*p) || *p == '.')
+	{
+	p1 = p;
+	while(isdigit(*p1))
+		p1++;
+	if(*p1 == '.')
+		{
+		p1++;
+		while(isdigit(*p1))
+			p1++;
+		}
+	if(*p1 == 'e' || *p1 == 'E')
+		{
+		p1++;
+		if(*p1 == '+' || *p1 == '-')
+			p1++;
+		while(isdigit(*p1))
+			p1++;
+		}
+	c = *p1;
+	*p1 = '\0';
+
+	val = atof(p);
+
+	*p1 = c;
+
+	for(i = 0; i < nconsts; i++)
+		if(val == consts[i])
+			break;
+
+	if(i == nconsts)
+		{
+		if(nconsts == 10)
+			{
+			error("Too many constants");
+			return(ERR);
+			}
+
+		consts[nconsts++] = val;
+		}
+
+	emit(i + '0', codep);
+	}
+else	{
+	r = getop(p, &p1, &op);
+
+	if(r != OK || op != OPENPAREN)
+		{
+		error("missing primary expression");
+		return(SYNTAX);
+		}
+
+	r = getexpr(p1, &p2, codep);
+
+	if(r != OK) return(r);
+
+	r = getop(p2, &p3, &op);
+
+	if(r != OK || op != CLOSEPAREN)
+		{
+		error("missing ')'");
+		return(SYNTAX);
+		}
+
+	p1 = p3;
+	}
+
+r = getop(p1, &p2, &op);
+if(r != OK)
+	{
+	*leftover = p1;
+	return(OK);
+	}
+
+switch(op)
+	{
+	case OPENBRACK:
+		error("can't handle arrays yet");
+		return(SYNTAX);
+		break;
+
+	case OPENPAREN:
+		error("can't handle functions yet");
+/*		r = getarglist(p2, &p3, &args);*/
+		if(r != OK)
+			return(r);
+		r = getop(p3, &p4, &op);
+		if(r != OK && op != CLOSEPAREN)
+			{
+			error("missing )");
+			return(SYNTAX);
+			}
+
+		/* emit fcn call */
+
+		*leftover = p4;
+		return(OK);
+
+	default:
+		*leftover = p1;
+		return(OK);
+	}
+
+return(OK);
+}
+
+emitvar(name, len, codep)
+char *name;
+int len;
+struct code *codep;
+{
+int i;
+
+for(i = 0; i < nvars; i++)
+	if(sstrneq(vars[i], name, len))
+		break;
+
+if(i == nvars)
+	{
+	if(nvars == 26)
+		{
+		error("Too many variables");
+		return(ERR);
+		}
+
+	vars[nvars] = strncpy(alloc(len + 1), name, len);
+	vars[nvars++][len] = '\0';
+	}
+
+emit(i + 'a', codep);		/* assumes ASCII */
+
+return OK;
+}
+%
+chmod 644 getpri.c
+if test `wc -c < getpri.c` -ne 6596; then
+	echo "error extracting getpri.c" 1>&2
+fi
+echo extracting makefile.dos
+cat > makefile.dos <<\%
+CFLAGS = /Zi -nologo
+
+EOBJS = eval.obj getexpr.obj geterm.obj getfact.obj getpri.obj \
+	getop.obj codep.obj misc.obj alloc.obj
+
+LINK = link
+LINKFLAGS = /CO /BATCH /NOE
+
+MSCLIB = c:\msc\lib
+
+SETARGV = $(MSCLIB)\setargv.obj
+
+MEDOBJS =  med.obj $(EOBJS) getline.obj getargs.obj error.obj
+
+med.exe: $(MEDOBJS) med.opt
+        $(LINK) $(LINKFLAGS) @med.opt $(SETARGV),$@;
+
+med.opt: Makefile 
+	$(ECHO) $%XARGS($(MEDOBJS),,,,, " +", "56") > $@
+
+ETEST = etest.obj $(EOBJS) getline.obj
+
+etest.exe: $(ETEST) etest.opt
+        $(LINK) $(LINKFLAGS) @etest.opt,$@;
+
+alloc.obj: alloc.c defs.h
+
+etest.obj: etest.c expr.h defs.h
+
+eval.obj: eval.c expr.h
+
+geterm.obj: geterm.c expr.h defs.h
+
+getexpr.obj: getexpr.c expr.h defs.h
+
+getfact.obj: getfact.c expr.h defs.h
+
+getop.obj: getop.c expr.h
+
+getpri.obj: getpri.c expr.h defs.h
+
+med.obj: med.c expr.h defs.h
+
+misc.obj: misc.c defs.h
+%
+chmod 644 makefile.dos
+if test `wc -c < makefile.dos` -ne 868; then
+	echo "error extracting makefile.dos" 1>&2
+fi
+echo extracting misc.c
+cat > misc.c <<\%
+#include "defs.h"
+
+sstrneq(s1, s2, len)
+char *s1, *s2;
+int len;
+{
+while(*s1 != '\0')
+	{
+	if(len <= 0)
+		return(FALSE);
+	if(*s1++ != *s2++)
+		return(FALSE);
+	len--;
+	}
+
+if(len != 0)
+	return(FALSE);
+
+return(TRUE);
+}
+%
+chmod 644 misc.c
+if test `wc -c < misc.c` -ne 214; then
+	echo "error extracting misc.c" 1>&2
+fi
+if test ! -d include
+then	echo "making directory include"
+	mkdir include
+fi
+echo extracting include/stdarg.h
+cat > include/stdarg.h <<\%
+#ifndef __STDARG_H
+#define __STDARG_H
+
+/*
+ *  stdarg implementation for "conventional" architectures with
+ *  downward-growing stacks.  The stack is assumed to be aligned
+ *  to word, i.e. int, sized boundaries, with smaller arguments
+ *  widened when passed and larger arguments equal to (or rounded
+ *  up to) a multiple of the word size.
+ *
+ *  The stack word size can be changed by adjusting the
+ *  __stacktype typedef.
+ *
+ *  The va_arg macro looks inefficient, with its embedded
+ *  conditional, and lint may complain about "constant in
+ *  conditional context," but most optimizers I have tried it
+ *  with successfully remove the "dead" case (the controlling
+ *  expression is a compile-time constant), and the remaining
+ *  postincrement int pointer expression (the more common case)
+ *  is considerably nicer in space and time (although the va_list
+ *  pointer may have to be in a register for it to make any
+ *  difference).
+ *
+ *  Unfortunately, some compilers can't always handle the admittedly
+ *  obfuscated va_arg code.  (Ritchie's original pdp11 compiler,
+ *  for instance, complains if the second argument indicates a
+ *  structure type, since structs are evidently not allowed as
+ *  arguments to ?:, even though optimization could remove the
+ *  dead case and preclude the impossible use of r0 for an
+ *  intermediate result.)
+ *
+ *  When the complicated ?: implementation can't be used, it can
+ *  be replaced with the nonoptimized case, which appears inside
+ *  #ifdef pdp11 below.  The simpler version then generally yields
+ *  smaller code when the argp type is also changed to a char pointer.
+ *
+ *  Another possibility is to move the indirection, so that ?: is
+ *  operating on pointers, instead of objects, as in
+ *
+ *	#define va_arg(vaptr, type) (*(type *)(__argsize(type) == 1 ? \
+ *		((vaptr)++) : \
+ *			(((vaptr) += __argsize(type)) - __argsize(type))))
+ *
+ *  although this seems to make it harder for the code generator
+ *  to recognize the possibility of using a postincrement
+ *  addressing mode, which was the whole point of the exercise.
+ *  (pcc on the vax figures it out in either case.  For the '11,
+ *  you can get postincrements by using the gory code below, as
+ *  long as you never access structs, in which case you need
+ *  either this code, which doesn't then do postincrement, and
+ *  ends up larger, or else the pedestrian alternative below using
+ *  char *argp and no ?:.)
+ *
+ *  Note that this code (and indeed, any simple macro-based
+ *  approach) cannot possibly work on architectures which pass
+ *  arguments in registers.
+ *
+ *  Another problem is that it doesn't (and can't, without help
+ *  from the compiler) know that float arguments are widened to double
+ *  when passed.  Don't, therefore, call va_arg(..., float).
+ *
+ *  Steve Summit  4/15/89
+ *
+ *  This code is Copyright 1989 by Steve Summit.
+ *  It may, however, be redistributed and used without restriction.
+ */
+
+typedef int __stacktype;
+#ifdef pdp11
+typedef char __argptype;
+#else
+typedef int __argptype;
+#endif
+typedef __argptype *va_list;
+
+#define __argsize(thing) ((sizeof(thing) + (sizeof(__stacktype) - 1)) \
+	/ sizeof(__stacktype) * (sizeof(__stacktype) / sizeof(__argptype)))
+
+#define va_start(vaptr, lastarg) \
+			vaptr = (va_list)&lastarg + __argsize(lastarg)
+
+#ifdef pdp11
+
+#define va_arg(vaptr, type) \
+		(*(type *)(((vaptr) += __argsize(type)) - __argsize(type)))
+
+#else
+
+#define va_arg(vaptr, type) (__argsize(type) == 1 ? \
+	*(type *)((vaptr)++) : \
+		*(type *)(((vaptr) += __argsize(type)) - __argsize(type)))
+
+#endif
+
+#define va_end(vaptr)
+
+#endif
+%
+chmod 664 include/stdarg.h
+if test `wc -c < include/stdarg.h` -ne 3583; then
+	echo "error extracting include/stdarg.h" 1>&2
+fi
+echo extracting include/stddef.h
+cat > include/stddef.h <<\%
+#ifndef _PTRDIFF_T_DEFINED
+#define _PTRDIFF_T_DEFINED
+typedef long int ptrdiff_t;
+#endif
+
+#ifndef _SIZE_T_DEFINED
+#define _SIZE_T_DEFINED
+typedef unsigned int size_t;
+#endif
+
+#ifndef _WCHAR_T_DEFINED
+#define _WCHAR_T_DEFINED
+typedef char wchar_t;
+#endif
+
+#ifndef NULL
+#define NULL 0
+#endif
+
+#ifndef offsetof
+#define offsetof(type, member) ((size_t)(char *)&((type *)0)->member)
+#endif
+%
+chmod 664 include/stddef.h
+if test `wc -c < include/stddef.h` -ne 385; then
+	echo "error extracting include/stddef.h" 1>&2
+fi
+echo extracting include/stdlib.h
+cat > include/stdlib.h <<\%
+#ifndef _STDLIB_H
+#define _STDLIB_H
+
+#ifndef _SIZE_T_DEFINED
+#define _SIZE_T_DEFINED
+typedef unsigned int size_t;					/* 4.1.5 */
+#endif
+
+#ifndef _WCHAR_T_DEFINED
+#define _WCHAR_T_DEFINED
+typedef char wchar_t;						/* 4.1.5 */
+#endif
+
+typedef struct							/* 4.10.6.2 */
+	{
+	int quot;
+	int rem;
+	} div_t;
+
+typedef struct							/* 4.10.6.4 */
+	{
+	long int quot;
+	long int rem;
+	} ldiv_t;
+
+#ifndef NULL
+#define NULL 0							/* 4.1.5 */
+#endif
+
+#define EXIT_FAILURE 1						/* 4.10.4.3 */
+#define EXIT_SUCCESS 0
+
+#ifdef pdp11		/* imperfect; also other 16-bit machines */
+#define RAND_MAX 32767
+#else								/* 4.10.2.1 */
+#define RAND_MAX 2147483647
+#endif
+
+#define MB_CUR_MAX 1
+
+#ifdef __STDC__
+
+extern double atof(const char *);				/* 4.10.1.1 */
+extern int atoi(const char *);					/* 4.10.1.2 */
+extern long int atol(const char *);				/* 4.10.1.3 */
+extern double strtod(const char *, char **);			/* 4.10.1.4 */
+extern long int strtol(const char *, char **, int);		/* 4.10.1.5 */
+extern unsigned long int strtoul(const char *, char **, int);	/* 4.10.1.6 */
+extern int rand(void);						/* 4.10.2.1 */
+extern void srand(unsigned int);				/* 4.10.2.2 */
+extern void *calloc(size_t, size_t);				/* 4.10.3.1 */
+extern void free(void *);					/* 4.10.3.2 */
+extern void *malloc(size_t);					/* 4.10.3.3 */
+extern void *realloc(void *, size_t);				/* 4.10.3.4 */
+extern void abort(void);					/* 4.10.4.1 */
+extern int atexit(void (*)(void));				/* 4.10.4.2 */
+extern void exit(int);						/* 4.10.4.3 */
+extern char *getenv(const char *);				/* 4.10.4.4 */
+extern int system(const char *);				/* 4.10.4.5 */
+extern void *bsearch(const void *, const void *, size_t, size_t,
+	int (*)(const void *, const void *));			/* 4.10.5.1 */
+extern void qsort(void *, size_t, size_t,
+	int (*)(const void *, const void *));			/* 4.10.5.2 */
+extern int abs(int);						/* 4.10.6.1 */
+extern div_t div(int, int);					/* 4.10.6.2 */
+extern long int labs(long int);					/* 4.10.6.3 */
+extern ldiv_t ldiv(long int, long int);				/* 4.10.6.4 */
+extern int mblen(const char *, size_t);				/* 4.10.7.1 */
+extern int mbtowc(wchar_t *, const char *, size_t);		/* 4.10.7.2 */
+extern int wctomb(char *, wchar_t);				/* 4.10.7.3 */
+extern size_t mbstowcs(wchar_t *, const char *, size_t);	/* 4.10.8.1 */
+extern size_t wcstombs(char *, const wchar_t *, size_t);	/* 4.10.8.2 */
+
+#endif
+
+extern double atof();
+extern long int atol();
+extern double strtod();
+extern long int strtol();
+extern unsigned long int strtoul();
+extern void srand();
+#ifdef __STDC__
+extern void *calloc();
+extern void *malloc();
+extern void *realloc();
+#else
+extern char *calloc();
+extern char *malloc();
+extern char *realloc();
+#endif
+extern void free();
+extern void abort();
+extern void exit();
+extern char *getenv();
+#ifdef __STDC__
+extern void *bsearch();
+#else
+extern char *bsearch();
+#endif
+extern void qsort();
+extern div_t div();
+extern long int labs();
+extern ldiv_t ldiv();
+extern size_t mbstowcs();
+extern size_t wcstombs();
+
+#endif
+%
+chmod 664 include/stdlib.h
+if test `wc -c < include/stdlib.h` -ne 2977; then
+	echo "error extracting include/stdlib.h" 1>&2
+fi
+if test ! -d lib
+then	echo "making directory lib"
+	mkdir lib
+fi
+echo extracting lib/stricmp.c
+cat > lib/stricmp.c <<\%
+#include <ctype.h>
+
+stricmp(s1, s2)
+register char *s1, *s2;
+{
+char c1, c2;
+
+do	{
+	c1 = *s1++;
+	if(isupper(c1))
+		c1 = tolower(c1);
+
+	c2 = *s2++;
+	if(isupper(c2))
+		c2 = tolower(c2);
+
+	if(c1 != c2)
+		return c1 - c2;
+
+	} while(c1 != '\0');
+
+return 0;
+}
+%
+chmod 664 lib/stricmp.c
+if test `wc -c < lib/stricmp.c` -ne 251; then
+	echo "error extracting lib/stricmp.c" 1>&2
+fi
+echo extracting lib/strtod.c
+cat > lib/strtod.c <<\%
+#include <stddef.h>
+#include <ctype.h>
+
+#define Ctod(c)  ((c) - '0')
+
+#define NEXP 7
+
+/* precomputed table handles up to 1e100 more-or-less directly */
+/* (VAX D_floating only handles 1e38 or so!) */
+
+static double facs[2][NEXP+1] =
+	{
+	{1e0,  1e1,  1e2,  1e4,  1e8,  1e16,  1e32,  1e64,},
+	{1e-0, 1e-1, 1e-2, 1e-4, 1e-8, 1e-16, 1e-32, 1e-64,},
+	};
+
+double
+strtod(str, endp)
+char *str;
+char **endp;
+{
+register char *p;
+register long int mant = 0;
+int fracd = 0;
+int exponent = 0;
+int sign = 1;
+double ret;
+
+if(endp != NULL)
+	*endp = str;
+
+while(isspace(*str))
+	str++;
+
+if(*str == '-')
+	{
+	str++;
+	sign = -1;
+	}
+
+p = str;
+
+while(isdigit(*p))
+	mant = 10 * mant + Ctod(*p++);
+
+if(*p == '.')
+	{
+	p++;
+
+	while(isdigit(*p))
+		{
+		mant = 10 * mant + Ctod(*p++);
+		exponent--;
+		}
+	}
+
+if(*p == 'e' || *p == 'E')
+	{
+	int expexp = 0;		/* "explicit exponent", if you like */
+	int expsign = 1;
+
+	p++;
+
+	if(*p == '-')
+		{
+		p++;
+		expsign = -1;
+		}
+
+	while(isdigit(*p))
+		expexp = 10 * expexp + Ctod(*p++);
+
+	exponent += expsign * expexp;
+	}
+
+if(endp != NULL && p > str)
+	*endp = p;
+
+ret = mant;
+
+if(exponent != 0)
+	{
+	int which = 0;
+	register int i;
+
+	if(exponent < 0)
+		{
+		which = 1;
+		exponent = -exponent;
+		}
+			
+	for(i = 1; i < NEXP && exponent > 0; i++)
+		{
+		if(exponent & 01)
+			ret *= facs[which][i];
+
+		exponent /= 2;
+		}
+
+	while(exponent > 0)
+		{
+		ret *= facs[which][NEXP];
+		exponent--;
+		}
+	}
+
+return ret;
+}
+%
+chmod 664 lib/strtod.c
+if test `wc -c < lib/strtod.c` -ne 1411; then
+	echo "error extracting lib/strtod.c" 1>&2
+fi
+echo extracting lib/vfprintf.c
+cat > lib/vfprintf.c <<\%
+#include <stdio.h>
+
+vfprintf(fd, fmt, argp)
+FILE *fd;
+char *fmt;
+int *argp;
+{
+return _doprnt(fmt, argp, fd);
+}
+%
+chmod 664 lib/vfprintf.c
+if test `wc -c < lib/vfprintf.c` -ne 111; then
+	echo "error extracting lib/vfprintf.c" 1>&2
+fi
+exit

@@ -1,0 +1,1462 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!uunet!zaphod.mps.ohio-state.edu!menudo.uh.edu!sugar!peter
+From: peter@NeoSoft.com (Peter da Silva)
+Subject: For review and comment: generic text buffer routines
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Date: Tue, 17 Nov 1992 12:13:06 GMT
+Message-ID: <Bxv0M2.Ixp@NeoSoft.com>
+Lines: 1453
+
+Archive-name: buffer.921117
+
+The following code provides a high level interface to a generic text
+buffer object. It is intended to allow fairly radical changes to the
+underlying implementation without affecting the API.
+
+This is the first cut at a public release. I was going to use these
+routines in my "sam" clone, but with the real thing up for FTP I
+figured I might as well just ship it...
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then feed it
+# into a shell via "sh file" or similar.  To overwrite existing files,
+# type "sh file -c".
+# The tool that generated this appeared in the comp.sources.unix newsgroup;
+# send mail to comp-sources-unix@uunet.uu.net if you want that tool.
+# If this archive is complete, you will see the following message at the end:
+#		"End of shell archive."
+# Contents:  buffer.1 Makefile buffer.h buffer.c bt.c boyermoo.c
+# Wrapped by peter@taronga on Sun Nov 15 16:10:41 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'buffer.1' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'buffer.1'\"
+else
+echo shar: Extracting \"'buffer.1'\" \(8150 characters\)
+sed "s/^X//" >'buffer.1' <<'END_OF_FILE'
+X.TH BUFFER 1 "15 NOV 92" "PdS"
+X.SH NAME
+XBUFFER \- buffer handling utility routines with a high-level interface.
+X.SH SYNOPSIS
+X.B "#include <buffer.h>"
+X
+X\fIbuffer\fR = \fBnew_buffer\fR();
+X.br
+X\fBdelete_buffer\fR(\fIbuffer\fR);
+X.br
+X\fImark\fR = \fBcopy_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.br
+X\fImark\fR = \fBsearch\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR, \fIstring\fR);
+X.br
+X\fIstat\fR = \fBdelete_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.br
+X\fIstat\fR = \fBmove_mark\fR(\fIbuffer\fR, \fImark\fR, \fIoff\fR);
+X.br
+X\fIoff\fR = \fBlocate_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.br
+X\fIptr\fR = \fBtext\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR, &\fIlength\fR);
+X.br
+X\fIptr\fR = \fBopen_text\fR(\fIbuffer\fR, \fImark\fR, \fIlength\fR);
+X.br
+X\fBclose_text\fR(\fIbuffer\fR, \fInew_length\fR);
+X.br
+X\fIstat\fR = \fBdelete_text\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR);
+X.br
+X\fBextern char *buffer_error;\fR
+X
+X\fBBUFFER \fIbuffer\fR;
+X.br
+X\fBMARK \fImark\fR, \fImark1\fR, ...;
+X.br
+X\fBsize_t \fIoff\fR, \fIoff1\fR, ...;
+X.br
+X\fBint \fIstat\fR, \fIcnt\fR;
+X.br
+X\fBchar\fR *\fIptr\fR;
+X.SH DESCRIPTION
+XThese routines provide an interface to a generic character-oriented
+Xtext buffer object. The details of the implementation are relatively
+Xwell hidden (for example, \fBBUFFER\fR and \fBMARK\fR are currently
+Xintegral, but the routines could be modified to operate on pointers
+Xor any other token), and there are enough hooks that it should not be
+Xnecessary for an application to look under the interface.
+X.SS BUFFERS
+X\fBBUFFER \fIbuffer\fR;
+X.br
+X\fBBUFFER_ERROR\fR
+X.PP
+XA \fBBUFFER\fR is an opaque token used to reference a text buffer. It
+Xis returned by \fBnew_buffer\fR, and manipulated by the rest of the
+Xroutines. After use a \fBBUFFER\fR and any associated \fBMARK\fRs are
+Xdeleted by the routine \fBdelete_buffer\fR.
+X.PP
+X.B BUFFER_ERROR
+Xis a unique value returned on error.
+X.SS MARKS
+X\fBMARK \fImark\fR, \fImark1\fR, ...;
+X.br
+X\fBMARK_BEGIN\fR
+X.br
+X\fBMARK_END\fR
+X.PP
+XA \fBMARK\fR is an opaque token used to reference a character position
+Xwithin a \fBBUFFER\fR.
+XA \fBMARK\fR is automatically updated as text is added to or deleted
+Xfrom the \fBBUFFER\fR.
+XAll references to locations within a buffer are via \fBMARK\fRs.
+XA
+X.B MARK
+Xis considered to be between characters in text, and to have an affinity
+Xfor the following text... see \fBopen_text\fR and \fBdelete_text\fR for
+Xmore information.
+X.PP
+XThe special \fBMARK\fRs \fBMARK_BEGIN\fR and \fBMARK_END\fR are valid
+Xat all times for all buffers.
+X.B MARK_BEGIN
+Xrefers to the beginning of the buffer, before the first character of text.
+X.B MARK_END
+Xrefers to the end of the buffer, after the last character.
+X.SS "Creating MARKs"
+X\fImark\fR = \fBcopy_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.br
+X\fImark\fR = \fBnew_mark\fR(\fIbuffer\fR, \fIoff\fR);
+X.br
+X\fImark\fR = \fBsearch\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR, \fIstring\fR);
+X.PP
+X.B Copy_mark
+Xcreates a duplicate of an existing \fBMARK\fR.
+X.B New_mark
+Xcreates a \fBMARK\fR at a given offset from the beginning of a \fBBUFFER\fR.
+X.B Search
+Xsearches between a pair of \fBMARK\fRs for a specific string.
+X.PP
+X.B Search
+Xdoes not perform regular expression operations. In the current implementation
+Xit uses the Boyer-Moore algorithm. The search is always performed from the
+Xbeginning of the indicated range to the end, regardless of the order of the
+X\fBMARK\fRs specified.
+X.SS "Deleting MARKs"
+X\fIstat\fR = \fBdelete_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.PP
+X.B Delete_mark
+Xsimply deletes the
+X.B MARK
+Xindicated. It does not modify the contents
+Xof the
+X.B BUFFER
+Xin any way.
+X.SS "Examining MARKs"
+X\fIstat\fR = \fBmove_mark\fR(\fIbuffer\fR, \fImark\fR, \fIoff\fR);
+X.br
+X\fIoff\fR = \fBlocate_mark\fR(\fIbuffer\fR, \fImark\fR);
+X.PP
+X.B Move_mark
+Xmoves a \fBMARK\fR by a specified number of characters.
+X.PP
+X.B Locate_mark simply returns the offset of the mark from the beginning
+Xof the buffer. The current length of the buffer is obtained by locating
+X\fBMARK_END\fR.
+X.SS "Manipulating the contents of a buffer"
+X\fIptr\fR = \fBtext\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR, &\fIlength\fR);
+X.br
+X\fIptr\fR = \fBopen_text\fR(\fIbuffer\fR, \fImark\fR, \fIlength\fR);
+X.br
+X\fBclose_text\fR(\fIbuffer\fR, \fInew_length\fR);
+X.br
+X\fIstat\fR = \fBdelete_text\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR);
+X.PP
+X.B Text
+Xattempts to return a pointer to the text between a pair of \fBMARK\fRs.
+XThe length of the text is returned via length.
+XIf the \fBBUFFER\fR is maintained on secondary storage,
+Xthis may not be possible,
+Xso you should keep moving the first \fBMARK\fR and calling \fBtext\fR until
+Xthe returned length is zero. This pointer is invalidated after any further
+Xoperations on the buffer.
+X.PP
+X.B Open_text
+Xextends the buffer by the indicated number of characters, and returns a
+Xpointer to at least that many bytes of memory. If it is not possible to
+Xallocate that much memory,
+X.B open_text
+Xreturns
+X.BR NULL .
+XThe pointer returned is invalidated after any further operations on the
+Xbuffer.
+X.PP
+X.B Close_text
+Xcompletes the transaction started by
+X.BR open_text .
+XLength should indicate the number of characters copied into the
+Xmemory returned from
+X.BR open_text ,
+Xand that many characters will be incorporated in the buffer.
+X.PP
+XFor example, to append the word "Hello" to a buffer, you can perform the
+Xfollowing operations:
+X.PP
+X.RS
+X.nf
+Xif(ptr = open_text(buffer, MARK_END, 5)) {
+X	strncpy(ptr, "Hello", 5);
+X	close_text(buffer, 5);
+X}
+X.fi
+X.RE
+X.PP
+XNote that since a mark is considered to have an affinity for following
+Xtext, the \fBMARK\fR passed to \fBopen_text\fR
+X(unless it was MARK_BEGIN) will follow the newly-inserted text.
+X.PP
+X.B Delete_text
+Xsimply deletes the text between the two \fBMARK\fRs from the buffer.
+XThe first of the two marks is also deleted (again, a mark is considered
+Xto be attached to the following text).
+X.SS "Convenience routines and optimizations"
+X\fImark\fR = \fBnew_mark\fR(\fIbuffer\fR, \fIoff\fR);
+X.br
+X\fIcnt\fR = \fBcount_chars\fR(\fIbuffer\fR, \fImark1\fR, \fImark2\fR, \fIc\fR);
+X.br
+X\fIstat\fR = \fBcopy_text\fR(\fIbuffer\fR,
+X\fImark1\fR, \fImark2\fR, \fIstring\fR, \fIlength\fR);
+X.br
+X\fIstat\fR = \fBcut_text\fR(\fIbuffer\fR,
+X\fImark1\fR, \fImark2\fR, \fIstring\fR, \fIlength\fR);
+X.br
+X\fIstat\fR = \fBinsert_text\fR(\fIbuffer\fR,
+X\fImark\fR, \fIstring\fR, \fIlength\fR);
+X.PP
+X.B New_mark
+Xis equivalent to calling
+X.B copy_mark
+Xon
+X.BR MARK_BEGIN .
+X.PP
+X.B Count_chars
+Xis intended to make line-orinted manipulations easier. Simply count newlines
+Xbetween \fBMARK_BEGIN\fR and the current \fBMARK\fR to find your current
+Xline number.
+X.PP
+X.B Copy_text
+Xis equivalent to calling
+X.B text
+Xand copying the returned text to a new string.
+X.B Cut_text
+Xis equivalent to calling
+X.B copy_text
+Xfollowed by
+X.BR delete_text .
+X.B Insert_text
+Xis equivalent to the insertion sequence listed above.
+X.SS Notes
+XNone of these routines preclude a disk buffer or a line buffer
+Ximplementations, and again they allow editing of arbitrary 8-bit data
+Xincluding nulls.
+X.PP
+XIn the buffer-gap implementation, the gap will be moved if needed before
+Xdoing a search, cut, copy, etcetera.
+X.PP
+XOther optimizations that haven't been implemented in the library are
+X.B insert_file
+Xand
+X.BR copy_file .
+XHere is a sample implementation, for a buffer gap version of the library.
+X.PP
+X.RS
+X.nf
+Xinsert_file(i, mark, fp, length)
+Xint i;
+Xint mark;
+XFILE *fp;
+Xint length;
+X{
+X	char *p;
+X
+X	p = open_text(i, mark, length);
+X	if(!p) return -1;
+X
+X	length = fread(p, 1, length, fp);
+X	if(length < 0) {
+X		extern int errno;
+X		extern char *sys_errlist[];
+X
+X		buffer_error = sys_errlist[errno];
+X		return -1;
+X	}
+X
+X	close_text(i, length);
+X
+X	return length;
+X}
+X
+Xcopy_file(i, m1, m2, fp)
+Xint i;
+Xint m1, m2;
+XFILE *fp;
+X{
+X	char *p;
+X	int delta;
+X
+X	p = text(i, m1, m2, &delta);
+X
+X	if(!p) return -1;
+X
+X	delta = fwrite(p, 1, delta, fp);
+X	if(delta < 0) {
+X		extern int errno;
+X		extern char *sys_errlist[];
+X
+X		buffer_error = sys_errlist[errno];
+X		return -1;
+X	}
+X
+X	return delta;
+X}
+X.fi
+X.RE
+X.PP
+XNote that the error path through \fBinsert_file\fR
+Xcalls \fBopen_text\fR but not \fBclose_text\fR.
+X.SH DIAGNOSTICS
+XIn all cases of error, the value
+X.B BUFFER_ERROR
+Xis returned, and the external variable
+X.B buffer_error
+Xcontains the last error condition.
+X.SH AUTHOR
+XPeter da Silva
+END_OF_FILE
+if test 8150 -ne `wc -c <'buffer.1'`; then
+    echo shar: \"'buffer.1'\" unpacked with wrong size!
+fi
+# end of 'buffer.1'
+fi
+if test -f 'Makefile' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'Makefile'\"
+else
+echo shar: Extracting \"'Makefile'\" \(471 characters\)
+sed "s/^X//" >'Makefile' <<'END_OF_FILE'
+XSHELL=/bin/sh
+X#XNX# CFLAGS=-Ml -O  -DTEST
+XCFLAGS=-g -O -DTEST
+XTFILES=buffer.1 Makefile
+XCFILES=buffer.c bt.c boyermoo.c
+XHFILES=buffer.h
+XOFILES=buffer.o boyermoo.o
+XSFILES=$(HFILES) $(CFILES)
+XPFILES=Makefile
+XNFILES=buffer.1
+X
+Xbt: bt.o $(OFILES)
+X	$(CC) $(CFLAGS) bt.o $(OFILES) -o bt
+X
+Xbt.out: bt
+X	bt > bt.out 2>&1
+X
+Xtestprint: bt.out
+X	(cpr -r0 $(TFILES) $(SFILES); pr bt.out; nroff -man buffer.1) | npr
+X
+Xbuffer.shar: $(TFILES) $(SFILES)
+X	shar $(TFILES) $(SFILES) > buffer.shar
+END_OF_FILE
+if test 471 -ne `wc -c <'Makefile'`; then
+    echo shar: \"'Makefile'\" unpacked with wrong size!
+fi
+# end of 'Makefile'
+fi
+if test -f 'buffer.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'buffer.h'\"
+else
+echo shar: Extracting \"'buffer.h'\" \(565 characters\)
+sed "s/^X//" >'buffer.h' <<'END_OF_FILE'
+X/* 
+X * Copyright 1992 Peter da Silva
+X *
+X * Permission to use, copy, modify, and distribute this
+X * software and its documentation for any purpose and without
+X * fee is hereby granted, provided that the above copyright
+X * notice appear in all copies.  The author[s] make no representations
+X * about the suitability of this software for any purpose.
+X * It is provided "as is" without express or implied warranty.
+X */
+X#define BUFFER int
+X#define MARK int
+X#define RANGE long
+X
+X#define MARK_BEGIN 0
+X#define MARK_END -1
+X
+X#define BUFFER_ERROR -1
+X
+Xextern char *buffer_error;
+END_OF_FILE
+if test 565 -ne `wc -c <'buffer.h'`; then
+    echo shar: \"'buffer.h'\" unpacked with wrong size!
+fi
+# end of 'buffer.h'
+fi
+if test -f 'buffer.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'buffer.c'\"
+else
+echo shar: Extracting \"'buffer.c'\" \(12513 characters\)
+sed "s/^X//" >'buffer.c' <<'END_OF_FILE'
+X/* 
+X * Copyright 1992 Peter da Silva
+X *
+X * Permission to use, copy, modify, and distribute this
+X * software and its documentation for any purpose and without
+X * fee is hereby granted, provided that the above copyright
+X * notice appear in all copies.  The author[s] make no representations
+X * about the suitability of this software for any purpose.
+X * It is provided "as is" without express or implied warranty.
+X */
+X
+X/* Code to handle an editor buffer */
+X#include <stdio.h>
+X
+Xchar *malloc();
+X
+X#define new(t,n) ((t *)malloc(n * sizeof (t)))
+X
+X#define MAXBUFS 32
+X#define MAXMARKS 32
+X
+Xtypedef struct {
+X	int body_length;	/* number of bytes of text in body */
+X	int text_length;	/* number of bytes of text in body */
+X	int gap;		/* start of gap */
+X	int gapsize;		/* length of gap */
+X	int mark[MAXMARKS];
+X	int himark;
+X	char *body;
+X} buffer;
+X
+Xstatic buffer *buftab[MAXBUFS];
+Xstatic int hibuffer;
+X
+Xstatic char *lastroutine = "NONE";
+X
+X#define mark2index(m) ((m)-1)
+X#define index2mark(i) ((i)+1)
+X
+X/* checkbuf(bufptr, buffer, name)
+X *
+X * Checks the integrity of a buffer structure. Called from each routine
+X * that resolves a buffer into a pointer to make sure the pointer is valid
+X * and the buffer hasn't been stepped on.
+X */
+Xcheckbuf(b,i,n)
+Xbuffer *b;
+Xchar *n;
+X{
+X	if(b->body_length != b->text_length+b->gapsize) {
+X		fprintf(stderr, "buffer(%d): Inconsistent sizes %d!=%d+%d\n",
+X			i, b->body_length, b->text_length, b->gapsize);
+X	} else if(b->gap < 0 || b->gap > b->text_length) {
+X		fprintf(stderr, "buffer(%d): Gap out of range %d\n",
+X			i, b->gap);
+X	} else if(b->himark < 0 || b->himark > MAXMARKS) {
+X		fprintf(stderr, "buffer(%d): Mark count out of range %d\n",
+X			i, b->himark);
+X	} else {
+X#ifdef TEST
+X		int index;
+X
+X		for(index = 0; index < b->himark; index++) {
+X			if(b->mark[index] < -1
+X			|| b->mark[index] > b->text_length) {
+X				fprintf(stderr,
+X				    "buffer(%d): mark(%d) out of range %d\n",
+X					i, index2mark(index), b->mark[index]);
+X				break;
+X			}
+X		}
+X		if(index == b->himark) {
+X			lastroutine = n;
+X			return;
+X		}
+X#else
+X		lastroutine = n;
+X		return;
+X#endif
+X	}
+X	fprintf(stderr, "Error detected in %s called after %s\n",
+X		n, lastroutine);
+X	exit(-1);
+X}
+X
+X#define CHECK(b,i,n,f) \
+X	buffer_error = invalid_buffer; \
+X	if(i >= 0 && i < hibuffer) { \
+X		b = buftab[i]; \
+X		if(!b) return f; \
+X	} else return f; \
+X	checkbuf(b,i,n)
+X
+X#define CHECKMARK(b,j,v) \
+X	if(j < -1 || j > b->himark) { \
+X		buffer_error = mark_range; \
+X		return v; \
+X	} else if(j > 0 && b->mark[mark2index(j)] == -1) { \
+X		buffer_error = mark_unset; \
+X		return v; \
+X	}
+X
+Xstatic char *invalid_buffer = "Invalid buffer ID";
+Xstatic char *found_eof = "Beyond end of buffer";
+Xstatic char *found_bof = "Beyond beginning of buffer";
+Xstatic char *mark_range = "Mark out of range";
+Xstatic char *mark_unset = "Mark not set";
+X
+Xchar *buffer_error;
+X
+Xint new_buffer()
+X{
+X	int i, index;
+X
+X	for(i = 0; i < hibuffer; i++)
+X		if(!buftab[i])
+X			break;
+X	if(i == hibuffer) {
+X		if(hibuffer == MAXBUFS) {
+X			buffer_error = "No more buffers";
+X			return -1;
+X		}
+X		hibuffer++;
+X	}
+X	buftab[i] = new(buffer, 1);
+X	if(!buftab[i]) {
+X		buffer_error = "Memory allocation failure";
+X		return -1;
+X	}
+X	buftab[i] -> body_length = 0;
+X	buftab[i] -> text_length = 0;
+X	buftab[i] -> gapsize = 0;
+X	buftab[i] -> gap = 0;
+X	for(index = 0; index < MAXMARKS; index++)
+X		buftab[i] -> mark[index] = -1;
+X	buftab[i] -> himark = 0;
+X	buftab[i] -> body = (char *)0;
+X
+X	return i;
+X}
+X
+Xdelete_buffer(i)
+Xint i;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"delete_buffer",-1);
+X
+X	if(b->body) free(b->body);
+X
+X	free(b);
+X
+X	buftab[i] = 0;
+X
+X	return 0;
+X}
+X
+Xint new_mark(i, off)
+Xint i, off;
+X{
+X	int index;
+X	buffer *b;
+X
+X	CHECK(b,i,"new_mark",-1);
+X
+X	if(off < 0 || off > b->text_length) {
+X		buffer_error = mark_range;
+X		return -1;
+X	}
+X
+X	for(index = 0; index < b->himark; index++)
+X		if(b->mark[index] == -1)
+X			break;
+X	if(index == b->himark) {
+X		if(b->himark == MAXBUFS) {
+X			buffer_error = "No more marks";
+X			return -1;
+X		}
+X		b->himark++;
+X	}
+X	b->mark[index] = off;
+X
+X	return index2mark(index);
+X}
+X
+Xint copy_mark(i, j)
+Xint i, j;
+X{
+X	int off;
+X
+X	off = locate_mark(i, j);
+X
+X	if(off == -1)
+X		return -1;
+X	else
+X		return new_mark(i, off);
+X}
+X
+Xdelete_mark(i, j)
+Xint i;
+Xint j;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"delete_mark",-1);
+X	CHECKMARK(b,j,-1);
+X
+X	if(j <= 0) {
+X		buffer_error = "Deleting fixed mark";
+X		return -1;
+X	}
+X
+X	b->mark[mark2index(j)] = -1;
+X
+X	return 0;
+X}
+X
+Xmove_mark(i, j, off)
+Xint i;
+Xint j;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"move_mark",-1);
+X	CHECKMARK(b,j,-1);
+X
+X	if(j <= 0) {
+X		buffer_error = "Moving fixed mark";
+X		return -1;
+X	}
+X
+X	off += b->mark[mark2index(j)];
+X
+X	if(off > b->text_length) {
+X		buffer_error = found_eof;
+X		return -1;
+X	}
+X
+X	if(off < 0) {
+X		buffer_error = found_bof;
+X		return -1;
+X	}
+X
+X	b->mark[mark2index(j)] = off;
+X
+X	return off;
+X}
+X
+Xlocate_mark(i, j)
+Xint i;
+Xint j;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"locate_mark",-1);
+X	CHECKMARK(b,j,-1);
+X
+X	if(j == -1)
+X		return b->text_length;
+X	else if(j == 0)
+X		return 0;
+X	else {
+X		int off = b->mark[mark2index(j)];
+X#ifndef TEST
+X		if(off == -1)
+X			buffer_error = "Mark not set";
+X		else if(off < -1 || off > b->text_length) {
+X			buffer_error = "Internal error: Bad mark";
+X			return -1;
+X		}
+X#endif
+X		return off;
+X	}
+X}
+X
+Xstatic safecopy(body, to, from, length)
+Xchar *body;
+Xint to, from, length;
+X{
+X	int i;
+X
+X	if(to>from)
+X		for(i = 0; i < length; i++)
+X			body[to+i] = body[from+i];
+X	else
+X		for(i = length-1; i>=0; i--)
+X			body[to+i] = body[from+i];
+X}
+X
+X/* move_gap(buffer, gap_position)
+X *
+X * Moves the gap to the indicated position in the buffer. This does not change
+X * the logical structure of the buffer. It is most often used to move the gap
+X * to a mark for deletion or (if space allows) insertion. It's also used to
+X * move the gap out of range of a set of marks.
+X */
+Xstatic move_gap(i, newgap)
+Xint i;
+Xint newgap;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"move_gap",-1);
+X
+X	if(newgap > b->gap) {
+X		safecopy(b->body,
+X			 b->gap,	/* move to beginning of old gap */
+X			 b->gap+b->gapsize,	/* from end of old gap */
+X			 newgap-b->gap);
+X	} else {
+X		safecopy(b->body,
+X			 newgap+b->gapsize,	/* move to end of new gap */
+X			 newgap,	/* from beginning of new gap */
+X			 b->gap-newgap);
+X	}
+X	b->gap = newgap;
+X
+X	return 0;
+X}
+X
+X/* expand_gap(buffer, space_needed, gap_position)
+X *
+X * Because the gap usually needs to be moved when it's expanded, I combine the
+X * two actions into a single expand_gap. This is more efficient for the common
+X * case, though it makes the code a little hard to follow.
+X *
+X * You are not expected to understand this.
+X *
+X * I've always wanted to say that. :->
+X *
+X * I probably need to put conditions on some more of the calls to memcpy to
+X * handle the case of the gap being at the beginning or end of the buffer.
+X * That's just an optimization, but what the heck.
+X */
+Xstatic expand_gap(i, newsize, newgap)
+Xint i;
+Xint newsize;
+Xint newgap;
+X{
+X	buffer *b;
+X	char *newbody;
+X	int newlength;
+X
+X	CHECK(b,i,"expand_gap",-1);
+X
+X	newlength = b->body_length + newsize;
+X	newbody = malloc(newlength);
+X	if(newbody)
+X		newsize += b->gapsize;
+X	else {
+X		newlength = b->text_length + newsize;
+X		newbody = malloc(newlength);
+X	}
+X
+X	if(!newbody) {
+X		buffer_error = "Memory allocation failure";
+X		return -1;
+X	}
+X
+X	/* Here there be tygers. If you change this code, sit down ahead of
+X	 * time and figure out EXACTLY what the individual moves do.
+X	 */
+X	if(b->body) {
+X		if(newgap < b->gap) {
+X			memcpy(newbody, b->body, newgap);
+X			memcpy(newbody+newgap+newsize, b->body+newgap,
+X				b->gap-newgap);
+X			memcpy(newbody+newsize+b->gap,
+X				b->body+b->gap+b->gapsize,
+X				b->text_length-b->gap);
+X		} else {
+X			memcpy(newbody, b->body, b->gap);
+X			if(newgap > b->gap) {
+X				memcpy(newbody+b->gap,
+X					b->body+b->gap+b->gapsize,
+X					newgap-b->gap);
+X			}
+X			memcpy(newbody+newgap+newsize,
+X				b->body+b->gapsize+newgap,
+X				b->text_length-newgap);
+X		}
+X
+X		free(b->body);
+X	}
+X
+X	b->body = newbody;
+X	b->gap = newgap;
+X	b->gapsize = newsize;
+X	b->body_length = newlength;
+X	b->text_length = newlength-newsize;
+X
+X	return b->gapsize;
+X}
+X
+Xchar *text(i, m1, m2, length)
+Xint i;
+Xint m1, m2;
+Xint *length;
+X{
+X	buffer *b;
+X	char *p;
+X	int o1, o2;
+X	int start;
+X
+X	CHECK(b,i,"text",0);
+X
+X	if ((o1 = locate_mark(i, m1)) == -1
+X	 || (o2 = locate_mark(i, m2)) == -1)
+X		return 0;
+X
+X	if(o2 < o1) {
+X		int tmp = o2;
+X		o2 = o1;
+X		o1 = tmp;
+X	}
+X
+X	*length = o2 - o1;
+X
+X	if(o1 < b->gap && o2 > b->gap)
+X		move_gap(i, o2);
+X
+X	start = o1;
+X
+X	if(start > b->gap)
+X		start += b->gapsize;
+X
+X	return b->body + start;
+X}
+X
+Xchar *open_text(i, mark, length)
+Xint i;
+Xint mark;
+Xint length;
+X{
+X	buffer *b;
+X	char *p;
+X	int off;
+X
+X	CHECK(b,i,"open_text",0);
+X
+X	if ((off = locate_mark(i, mark)) == -1)
+X		return 0;
+X
+X	if(b->gapsize < length) {
+X		if(expand_gap(i, length, off) < 0)
+X			return 0;
+X	}
+X	else if(off != b->gap)
+X		move_gap(i, off);
+X
+X	return b->body + b->gap;
+X}
+X
+Xclose_text(i, length)
+Xint i;
+Xint length;
+X{
+X	buffer *b;
+X
+X	CHECK(b,i,"close_text",-1);
+X
+X	fix_marks(i, length);
+X
+X	b->gap += length;
+X	b->gapsize -= length;
+X	b->text_length += length;
+X	return length;
+X}
+X
+Xcopy_text(i, m1, m2, outbuf, length)
+Xint i;
+Xint m1, m2;
+Xchar *outbuf;
+Xint length;
+X{
+X	char *p;
+X	int delta;
+X
+X	p = text(i, m1, m2, &delta);
+X
+X	if(!p) return -1;
+X
+X	if(delta > length) {
+X		buffer_error = "Output string too short";
+X		return -1;
+X	}
+X
+X	memcpy(outbuf, p, delta);
+X
+X	return delta;
+X}
+X
+Xcut_text(i, m1, m2, outbuf, length)
+Xint i;
+Xint m1, m2;
+Xchar *outbuf;
+Xint length;
+X{
+X	if (copy_text(i, m1, m2, outbuf, length) >= 0)
+X		return delete_text(i, m1, m2);
+X
+X	return -1;
+X}
+X
+X/* fix_marks(buffer, length)
+X *
+X * This routine readjusts the marks after the gap when text has been added
+X * or removed. Marks are considered to be attached to text that follows, so
+X * marks right on the gap are moved. In the case of a deletion these marks
+X * (and any others in the portion of text that has been deleted) are removed.
+X */
+Xstatic fix_marks(i,length)
+Xint i;
+Xint length;
+X{
+X	buffer *b;
+X	int index;
+X
+X	CHECK(b,i,"fix_marks",-1);
+X
+X	for(index = 0; index < b->himark; index++) {
+X		if(b->mark[index] >= b->gap) {
+X			b->mark[index] += length;
+X			if(b->mark[index] < b->gap) {
+X				b->mark[index] = -1;
+X			}
+X		}
+X	}
+X}
+X
+Xinsert_text(i, mark, text, length)
+Xint i;
+Xint mark;
+Xchar *text;
+Xint length;
+X{
+X	char *p;
+X
+X	p = open_text(i, mark, length);
+X	if(!p) return -1;
+X
+X	memcpy(p, text, length);
+X
+X	close_text(i, length);
+X
+X	return length;
+X}
+X
+Xdelete_text(i, m1, m2)
+Xint i;
+Xint m1, m2;
+X{
+X	buffer *b;
+X	int o1, o2;
+X	int length;
+X
+X	CHECK(b,i,"delete_text",-1);
+X
+X	if ((o1 = locate_mark(i, m1)) == -1
+X	 || (o2 = locate_mark(i, m2)) == -1)
+X		return -1;
+X
+X	if(o2 < o1) {
+X		int tmp = o2;
+X		o2 = o1;
+X		o1 = tmp;
+X		tmp = m2;
+X		m2 = m1;
+X		m1 = tmp;
+X	}
+X
+X	if(o2 == o1)
+X		return 0;
+X
+X	length = o2 - o1;
+X
+X	if(o1 != b->gap) {
+X		move_gap(i, o1);
+X	}
+X
+X	fix_marks(i, -length);
+X
+X	b->gapsize += length;
+X	b->text_length -= length;
+X
+X	return length;
+X}
+X
+Xint count_chars(i, m1, m2, c)
+Xint i;
+Xint m1, m2;
+Xchar c;
+X{
+X	int length, count;
+X	char *p;
+X
+X	p = text(i, m1, m2, &length);
+X
+X	count = 0;
+X	while(length-- >  0)
+X		if(*p++ == c)
+X			count++;
+X
+X	return count;
+X}
+X
+X#ifdef TEST
+Xstatic dputs(s, l)
+Xchar *s;
+Xint l;
+X{
+X	while(l>0) {
+X		char c = *s++;
+X
+X		if(c & 0x80) {
+X			printf("%");
+X			c &= 0x7F;
+X		}
+X		if((c < ' ' || c > 127) && c != '\n') {
+X			putchar('~');
+X			c ^= '@';
+X		}
+X		if(c == '~' || c == '%')
+X			putchar(c);
+X		putchar(c);
+X		l--;
+X	}
+X}
+X#endif
+X
+Xbuffer_debug(i)
+Xint i;
+X{
+X	buffer *b;
+X	int index;
+X
+X	CHECK(b,i,"buffer_debug",-1);
+X
+X	printf("buffer(%d) length=%d/%d gap=%d gapsize=%d himark=%d\n",
+X		i, b->body_length, b->text_length,
+X		   b->gap, b->gapsize, b->himark);
+X	for(index = 0; index < b->himark; index++)
+X		printf("\tmark(%d) = %d\n", index2mark(index), b->mark[index]);
+X#ifdef TEST
+X	if(b->body) {
+X		printf("body = {");
+X		dputs(b->body, b->gap);
+X		printf("} GAP {");
+X		dputs(b->body+b->gap+b->gapsize, b->text_length-b->gap);
+X		printf("};\n");
+X	}
+X#endif
+X	fflush(stdout);
+X}
+X
+Xint search(i, m1, m2, pat)
+Xint i, m1, m2;
+Xchar *pat;
+X{
+X	char *boyer_moore_search_compile();
+X	char *boyer_moore_search_execute();
+X	int patlen;
+X	int worklen;
+X	int new_mark;
+X	char *compiled;
+X	char *work;
+X	int dummy;
+X	char *found;
+X
+X	patlen = strlen(pat);
+X
+X	work = text(i, m1, m2, &worklen);
+X	if(!work)
+X		return -1;
+X
+X	if(locate_mark(i, m1) < locate_mark(i, m2))
+X		new_mark = copy_mark(i, m1);
+X	else
+X		new_mark = copy_mark(i, m2);
+X
+X	if(new_mark <= 0)
+X		return -1;
+X
+X	compiled = boyer_moore_search_compile(pat, patlen);
+X	if(!compiled) {
+X		delete_mark(i, new_mark);
+X		buffer_error = "Search string compile failed";
+X		return -1;
+X	}
+X
+X	found = boyer_moore_search_execute(work, worklen, compiled, &dummy);
+X
+X	free(compiled);
+X
+X	if(!found) {
+X		delete_mark(i, new_mark);
+X		buffer_error = "Search string not found";
+X		return 0;
+X	}
+X
+X	move_mark(i, new_mark, found - work);
+X
+X	return new_mark;
+X}
+END_OF_FILE
+if test 12513 -ne `wc -c <'buffer.c'`; then
+    echo shar: \"'buffer.c'\" unpacked with wrong size!
+fi
+# end of 'buffer.c'
+fi
+if test -f 'bt.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bt.c'\"
+else
+echo shar: Extracting \"'bt.c'\" \(1060 characters\)
+sed "s/^X//" >'bt.c' <<'END_OF_FILE'
+X#include <stdio.h>
+X#include "buffer.h"
+X
+Xint r;
+X#define TRY(c,t) \
+X	printf("---- %s ----\n", t); \
+X	if((r = (c)) == -1) \
+X		printf("%s: %s\n", t, buffer_error); \
+X	else \
+X		printf("%s returned %d\n", t, r); \
+X	buffer_debug(b);
+X
+Xmain()
+X{
+X	BUFFER b;
+X	char f[13];
+X	MARK m, n;
+X	int l;
+X	
+X	b = new_buffer();
+X	buffer_debug(b);
+X	TRY(insert_text(b, MARK_BEGIN, "HELLO WORLD\n", 12),"insert_text");
+X	TRY(m = copy_mark(b, MARK_BEGIN),"copy_mark");
+X	TRY(insert_text(b, m, "HELLO WORLD\n", 12),"insert_text");
+X	TRY(insert_text(b, m, "HELLO WORLD\n", 12),"insert_text");
+X	TRY(n = copy_mark(b, m),"copy_mark");
+X	TRY(move_mark(b, m, -12),"move_mark");
+X	TRY(copy_text(b, m, n, f, 12),"copy_text");
+X	f[12] = 0;
+X	printf("Copied \"%s\"\n", f);
+X	TRY(count_chars(b, MARK_BEGIN, MARK_END, '\n'),"count_chars");
+X	TRY(delete_text(b, m, n),"delete_text");
+X	TRY(m = search(b, MARK_BEGIN, MARK_END, " "),"search");
+X	TRY(l = cut_text(b, m, n, f, 12),"cut_text");
+X	f[l] = 0;
+X	printf("Cut \"%s\"\n", f);
+X	if(delete_buffer(b) == -1)
+X		printf("delete_buffer: %s\n", buffer_error);
+X	return 0;
+X}
+END_OF_FILE
+if test 1060 -ne `wc -c <'bt.c'`; then
+    echo shar: \"'bt.c'\" unpacked with wrong size!
+fi
+# end of 'bt.c'
+fi
+if test -f 'boyermoo.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'boyermoo.c'\"
+else
+echo shar: Extracting \"'boyermoo.c'\" \(9883 characters\)
+sed "s/^X//" >'boyermoo.c' <<'END_OF_FILE'
+X/* 
+X * Copyright 1990 Karl Lehenbauer, Mark Diekhans, 
+X *                Peter da Silva and Jordan Henderson.
+X *
+X * Permission to use, copy, modify, and distribute this
+X * software and its documentation for any purpose and without
+X * fee is hereby granted, provided that the above copyright
+X * notice appear in all copies.  Karl Lehenbauer, Mark Diekhans,
+X * Peter da Silva and Jordan Henderson make no representations
+X * about the suitability of this software for any purpose.
+X * It is provided "as is" without express or implied warranty.
+X */
+X
+X/*
+X * 
+X * Hacked to run under Sys V by karl, Sat Sep  8 09:25:55 CDT 1990
+X * 
+X * Hacked to have a separate routine to precompile the pattern delta table
+X * and such by karl, too
+X * 
+X * From: chris@mimsy.umd.edu (Chris Torek)
+X * Newsgroups: alt.sources
+X * Subject: [comp.lang.c] Re: strstr sources: a summary of responses
+X * Keywords: ANSI lib, strstr
+X * Message-ID: <1990Aug27.191251.21720@math.lsa.umich.edu>
+X * Date: 27 Aug 90 19:12:51 GMT
+X * Organization: University of Michigan, Department of Mathematics
+X * X-Original-Newsgroups: comp.lang.c
+X * 
+X * Archive-name: torek-boyer-moore/27-Aug-90
+X * Original-posting-by: chris@mimsy.umd.edu (Chris Torek)
+X * Original-subject: Re: strstr sources: a summary of responses
+X * Reposted-by: emv@math.lsa.umich.edu (Edward Vielmetti)
+X * 
+X * In article <1158@umvlsi.ecs.umass.edu> srivasta@umvlsi.ecs.umass.edu
+X * (Manoj Srivastava) posts a Boyer-Moore based strstr() by John Lacey.
+X * 
+X * >And finally, an implementation of the Boyer-Moore algorithm. I
+X * >am not sure offhand, but while the worst case complexity remains
+X * >O(N+M), the avg case behavior is O(N/M) ???
+X * 
+X * (where N is the length of the string being searched and M is the length
+X * of the substring, aka pattern).  Yes, it is N/M.
+X * 
+X * Next, the code:
+X * 
+X * > strstr
+X *  [some stuff deleted]
+X * >int ch, d[SCHAR_MAX + 1];
+X *  [more stuff deleted]
+X * >      i += d[text[i]];
+X *  [still more deleted]
+X * 
+X * If `char' is signed, and a string containing a negative character value
+X * is passed to strstr(), this code can attempt to fetch, e.g., d[-40].  I
+X * found the code overly difficult to read, so I rewrote it.  I also wrote
+X * a long comment describing the algorithm.  This has been only lightly
+X * tested, but is simple enough that it should work.  Note that this
+X * version handles strings with embedded NULL characters as well.
+X * 
+X * 
+X */
+X
+X#ifndef NOSCCSID
+X        static char *sccs_id = "%M% %I% %H%";
+X#endif
+X
+X#ifdef M_XENIX
+X# define XENIX
+X# define XENIX286 1
+X#endif
+X
+X#if defined(XENIX) || defined(BSD)
+X#  define CHAR_MAX 255
+X#else
+X#  include <limits.h>
+X#endif
+X
+X#if XENIX286
+X  typedef int size_t;
+X#endif
+X
+X#include <sys/types.h>
+X#include <stdio.h>
+X
+Xtypedef char *PTR;              /* `char *' for old compilers */
+X#define ckalloc malloc
+Xchar *malloc();
+X
+Xstruct compiled_search_struct {
+X        size_t patlen;
+X        size_t deltaspace[CHAR_MAX + 1];
+X};
+X
+X/*
+X * Boyer-Moore search: input is `text' (a string) and its length,
+X * and a `pattern' (another string) and its length.
+X *
+X * The linear setup cost of this function is approximately 256 + patlen.
+X * Afterwards, however, the average cost is O(textlen/patlen), and the
+X * worst case is O(textlen+patlen).
+X *
+X * The Boyer-Moore algorithm works by observing that, for each position
+X * in the text, if the character there does *not* occur somewhere in the
+X * search pattern, no comparisons including that character will match.
+X * That is, given the text "hello world..." and the pattern "goodbye", the
+X * `w' in `world' means that none of `hello w', `ello wo', `llo wor',
+X * `lo worl', `o world', ` world.', and `world..' can match.  In fact,
+X * exactly patlen strings are certain not to match.  We can discover this
+X * simply by looking at the patlen'th character.  Furthermore, even if
+X * the text character does occur, it may be that it rules out some number
+X * of other matches.  Again, we can discover this by doing the match
+X * `backwards'.
+X *
+X * We set up a table of deltas for each possible character, with
+X * delta[character] being patlen for characters not in the pattern,
+X * less for characters in the pattern, growing progressively smaller
+X * as we near the end of the pattern.  Matching then works as follows:
+X *
+X *       0         1         2         3
+X *       01234567890123456789012345678901234567
+X *      "Here is the string being searched into"        (text)
+X *       ------                                         (pos = [0..5])
+X *      "string"                                        (pat)
+X *      654321-                                         (deltas)
+X *
+X * (the delta for `-' will be derived below).
+X *
+X * Positions 0..5 end with `i', which is not the `g' we want.  `i' does
+X * appear in `string', but two characters before the end.  We skip
+X * forward so as to make the `i's match up:
+X *
+X *      "Here is the string being searched into"        (text)
+X *        "string"                                      (pos = [2..7])
+X *
+X * Next we find that ` ' and `g' do not match.  Since ` ' does not appear
+X * in the pattern at all, we can skip forward 6:
+X *
+X *      "Here is the string being searched into"        (text)
+X *              "string"                                (pos = [8..13])
+X *
+X * Comparing `t' vs `g', we again find no match, and so we obtain the
+X * delta for `t', which is 4.  We skip to position 17:
+X *
+X *      "Here is the string being searched into"        (text)
+X *                  "string"                            (pos = [12..17])
+X *
+X * It thus takes only four steps to move the search point forward to the
+X * match, in this case.
+X *
+X * If the pattern has a recurring character, we must set the delta for
+X * that character to the distance of the one closest to the end:
+X *
+X *      "befuddle the cat"      (text)
+X *      "fuddle"                (pos = [0..5])
+X *      654321-                 (delta)
+X *
+X * We want the next search to line the `d's up like this:
+X *
+X *      "befuddle the cat"      (text)
+X *        "fuddle"              (pos = [2..7])
+X *
+X * and not like this:
+X *
+X *      "befuddle the cat"      (text)
+X *         "fuddle"             (pos = [3..8])
+X *
+X * so we take the smaller delta for d, i.e., 2.
+X *
+X * The last task is computing the delta we have noted above as `-':
+X *
+X *      "candlesticks"          (text)
+X *      "hand"                  (pos = [0..3])
+X *      4321-                   (delta)
+X *
+X * Here the `d' in `hand' matches the `d' in `candlesticks', but the
+X * strings differ.  Since there are no other `d's in `hand', we know
+X * that none of (cand,andl,ndle,dles) can match, and thus we want this
+X * delta to be 4 (the length of the pattern).  But if we had, e.g.:
+X *
+X *      "candlesticks"          (text)
+X *      "deed"                  (pos = [0..3])
+X *      4321-                   (delta)
+X *
+X * then we should advance to line up the other `d':
+X *
+X *      "candlesticks"          (text)
+X *         "deed"               (pos = [3..6])
+X *
+X * As this suggests, the delta should be that for the `d' nearest the
+X * end, but not including the end.  This is easily managed by setting up
+X * a delta table as follows:
+X *
+X *      for int:c in [0..255] { delta[c] = patlen; };
+X *      for int:x in [0..patlen-1) { delta[pat[x]] = patlen - (x + 1); };
+X *
+X * delta[pat[patlen-1]] is never written, so the last letter inherits the
+X * delta from an earlier iteration or from the previous loop.
+X *
+X * NB: the nonsense with `deltaspace' below exists merely because gcc
+X * does a horrible job of common subexpression elimination (it does not
+X * notice that the array is at a constant stack address).
+X */
+X
+Xchar *
+Xboyer_moore_search_compile(pat, patlen)
+Xchar *pat;
+Xint patlen;
+X{
+X        register unsigned char *p, *t;
+X        register size_t i, p1, j, *delta;
+X        struct compiled_search_struct *cp;
+X        int alloc_len;
+X
+X        /* algorithm fails if pattern is empty */
+X        if ((p1 = patlen) == 0)
+X                return (NULL);
+X
+X        alloc_len = sizeof(struct compiled_search_struct) + patlen + 1;
+X        cp = (struct compiled_search_struct *)ckalloc(alloc_len);
+X
+X        strncpy((char *)cp+sizeof(struct compiled_search_struct), pat, patlen);
+X        *((char *)cp+alloc_len-1) = '\0';
+X
+X        /* set up deltas */
+X        delta = cp->deltaspace;
+X
+X        for (i = 0; i <= CHAR_MAX; i++)
+X                delta[i] = p1;
+X
+X        for (p = (unsigned char *)pat, i = p1; --i > 0;)
+X                delta[*p++] = i;
+X
+X        cp->patlen = patlen;
+X        return((char*) cp);
+X}
+X
+X
+Xchar *
+Xboyer_moore_search_execute(text, textlen, compPtr, patLenP)
+X        char     *text;
+X        size_t    textlen;
+X        char     *compPtr;
+X        unsigned *patLenP;
+X{
+X        register unsigned char *p, *t;
+X        struct compiled_search_struct *csp = 
+X        	(struct compiled_search_struct*) compPtr;
+X        register size_t i, p1, j, *delta = csp->deltaspace;
+X        char *pat;
+X        size_t patlen;
+X
+X        *patLenP = p1 = patlen = csp->patlen;
+X        /* code below fails (whenever i is unsigned) if pattern too long */
+X        if (p1 > textlen)
+X                return (NULL);
+X
+X        pat = (char *)csp + sizeof(struct compiled_search_struct);
+X        /*
+X         * From now on, we want patlen - 1.
+X         * In the loop below, p points to the end of the pattern,
+X         * t points to the end of the text to be tested against the
+X         * pattern, and i counts the amount of text remaining, not
+X         * including the part to be tested.
+X         */
+X        p1--;
+X        p = (unsigned char *)pat + p1;
+X        t = (unsigned char *)text + p1;
+X        i = textlen - patlen;
+X        for (;;) {
+X                if (*p == *t && memcmp((PTR)(p - p1), (PTR)(t - p1), p1) == 0)
+X                        return ((char *)t - p1);
+X                j = delta[*t];
+X                if (i < j)
+X                        break;
+X                i -= j;
+X                t += j;
+X        }
+X        return (NULL);
+X}
+X
+END_OF_FILE
+if test 9883 -ne `wc -c <'boyermoo.c'`; then
+    echo shar: \"'boyermoo.c'\" unpacked with wrong size!
+fi
+# end of 'boyermoo.c'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+Peter da Silva.  <peter@sugar.neosoft.com>.
+ `-_-'   "Megölelted már ma a farkasodat ?"
+  'U`    "Zure otsoa besarkatu al duzu gaur?"
+Das kann nicht mein Zimmer sein, denn ich atme kein Ammoniak.

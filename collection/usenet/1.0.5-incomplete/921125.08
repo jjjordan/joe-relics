@@ -1,0 +1,665 @@
+Path: funic!fuug!mcsun!sunic!lunic!my!ljp
+From: ljp@sm.luth.se (Johan Persson)
+Newsgroups: alt.sources
+Subject: splaytree-part2/2
+Message-ID: <1357@my.sm.luth.se>
+Date: 22 Nov 92 13:39:09 GMT
+Reply-To: Johan Persson <ljp@my.sm.luth.se>
+Organization: University of Lulea, Sweden
+Lines: 655
+
+Submitted-by: ljp@sm.luth.se
+Archive-name: splaytree-part2
+
+#!/bin/sh
+# This is part 02 of splaytree
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+# ============= splay.mod ==============
+if test X"$1" != X"-c" -a -f 'splay.mod'; then
+	echo "File already exists: skipping 'splay.mod'"
+else
+echo "x - extracting splay.mod (Text)"
+sed 's/^X//' << 'SHAR_EOF' > splay.mod &&
+XIMPLEMENTATION MODULE splay;
+X(*
+X	Title:		Implementation of splay trees
+X	Last Edit:	Sun Nov 22 12:57:01 1992
+X	Author:		Johan Persson at my9
+X
+X	SCCS:		@(#)splay.mod       2.1     92/11/22	
+X	
+X		
+X	Description:	This code implements splay tree as described in 
+X	                Sleator D. and Tarjan R. "Self adjusting
+X			binary trees", JACM Vol 32. No 3, 1985, pp 652-
+X			686.
+X			
+X			The implemenation is based on a top down
+X                        splaying heuristics as described in section 4 of 
+X			the article.
+X
+X	Note:		This implementation also supports the operations
+X			'getRankElement' which finds the element in the tree
+X			with a given rank in O(lgn) time) and 'getRank', 
+X			(which returns the rank of a given element)
+X			To achive this one must store the weight of a node in
+X			each node (i.e the number of descadents). This
+X			information must be updated after each operation
+X			(insert, delete, find). If this is to costly
+X			(it takes O(n)) the source can be modified to remove
+X			the call to 'fixRank' in 'insert', 'delete' and
+X			'find'
+X
+X			See 'splay.def' for a complete description
+X			of all procedures.
+X*)
+X
+X  IMPORT SYSTEM,Storage,splayItem; 
+X   
+X  TYPE
+X     T = POINTER TO head;
+X     Tree = POINTER TO treeNode;
+X     treeNode = RECORD
+X		   l,r:Tree;		  (* left and right links *)
+X		   data:splayItem.T;	  (* stored item          *)
+X		   weight:CARDINAL;
+X		   			  (* number of nodes in the 
+X		       			     subtrees of this node*)
+X		END (* record *);
+X		
+X     cmpFunc = PROCEDURE (splayItem.T, splayItem.T) : CARDINAL;
+X	
+X     head = RECORD
+X	        t : Tree;
+X	      nbr : CARDINAL;   
+X	    END (* record *);
+X	    
+X
+X    PROCEDURE create(VAR tree:T);
+X       BEGIN (* create *)
+X         Storage.ALLOCATE(tree,SIZE(head));
+X	 tree^.t := NIL;
+X	 tree^.nbr := 0;
+X       END create;
+X
+X
+X  PROCEDURE destroy(VAR tree:T);
+X     PROCEDURE des(t:Tree);
+X       BEGIN (* des *)
+X	 IF t # NIL THEN 
+X	    des(t^.l);
+X	    des(t^.r);
+X	    splayItem.destroy(t^.data);
+X	    Storage.DEALLOCATE(t,SIZE(treeNode));
+X	 END (* if *);
+X       END des;
+X     BEGIN (* destroy *)
+X       des(tree^.t); 
+X       Storage.DEALLOCATE(tree,SIZE(head));
+X       tree := NIL;
+X     END destroy;
+X  
+X   PROCEDURE nbrElem(tree:T): CARDINAL; 
+X      BEGIN
+X         RETURN tree^.nbr;
+X      END nbrElem;
+X     
+X(**)
+X  PROCEDURE insert(tree:T; item:splayItem.T);
+X     VAR n,nn,l,r,node:Tree;
+X     BEGIN (* insert *)
+X       Storage.ALLOCATE(node,SIZE(treeNode));
+X       node^.data := item; 
+X       n := tree^.t;
+X       tree^.t := node;
+X       IF n = NIL THEN
+X       	 node^.l:=NIL; node^.r:=NIL;
+X       ELSE 
+X       	 l:=node; r:=node;
+X	 LOOP 
+X	   IF splayItem.cmp(item,n^.data) < 0 THEN 
+X	     nn := n^.l;
+X	     IF nn=NIL THEN r^.l := n; l^.r := NIL; EXIT;
+X	     ELSIF splayItem.cmp(item,nn^.data) >= 0 THEN 
+X	       r^.l := n; r := n; 
+X	       l^.r := nn; l := nn;
+X	       n := nn^.r;
+X	       IF n=NIL THEN r^.l:=NIL; EXIT; END;
+X	     ELSE (* item < data *)
+X	       n^.l := nn^.r;
+X	       r^.l := nn;
+X	       nn^.r := n;
+X	       r := nn;
+X	       n := nn^.l;
+X	       IF n = NIL THEN l^.r := NIL; EXIT; END;
+X	     END (* if *);
+X	   ELSE (* item >= data *)   
+X	     nn := n^.r;
+X	     IF nn=NIL THEN l^.r := n; r^.l := NIL; EXIT;
+X	     ELSIF splayItem.cmp(item,nn^.data) < 0 THEN 
+X	       l^.r := n; l := n; 
+X	       r^.l := nn; r:=nn;
+X	       n := nn^.l;
+X	       IF n=NIL THEN l^.r:=NIL; EXIT; END;
+X	     ELSE (* item >= data *)
+X	       n^.r := nn^.l;
+X	       l^.r := nn;
+X	       nn^.l := n;
+X	       l := nn;
+X	       n := nn^.r;
+X	       IF n=NIL THEN r^.l := NIL; EXIT; END;
+X	     END (* if *)
+X	   END (* if *);
+X	 END (* loop *);
+X	 nn := node^.r;
+X	 node^.r := node^.l;
+X	 node^.l := nn;
+X       END (* if empty tree*);
+X       fixRank(node);
+X       INC(tree^.nbr);
+X     END insert;
+X
+X(*  *)
+X
+X  PROCEDURE delete(tree:T; item:splayItem.T);
+X     VAR l,r,nnn,nn,n,pnn:Tree;
+X         left,right:treeNode;
+X         fFound:BOOLEAN;
+X     PROCEDURE replace(VAR p:Tree; n:Tree);
+X        VAR r,pr:Tree;
+X        BEGIN (* replace *)
+X           r:=n^.l;
+X	   IF r=NIL THEN p:=n^.r;
+X	   ELSE 
+X	      IF r^.r=NIL THEN p:=r; p^.r:=n^.r;
+X	      ELSE 
+X	         WHILE r^.r#NIL DO pr:=r; r:=r^.r; END;
+X	         pr^.r:=r^.l;
+X	         r^.l:=n^.l; r^.r:=n^.r;
+X	         p:=r;
+X	      END;
+X	   END (* if *);
+X	   splayItem.destroy(n^.data);
+X	   Storage.DEALLOCATE(n,SIZE(treeNode));
+X	   DEC(tree^.nbr);
+X        END replace;
+X     BEGIN (* delete *) 
+X        l:=SYSTEM.ADR(left); r:=SYSTEM.ADR(right);
+X        n := tree^.t;
+X	IF n=NIL THEN RETURN;
+X	ELSIF splayItem.cmp(n^.data,item)=0 THEN replace(tree^.t,n);
+X	ELSE
+X	   LOOP
+X	      IF splayItem.cmp(item,n^.data)<0 THEN
+X	         nn:=n^.l;
+X		 IF nn=NIL THEN EXIT;
+X		 ELSE 
+X		    IF splayItem.cmp(item,nn^.data)=0 THEN 
+X		       replace(n^.l,nn);
+X		       EXIT;  
+X		    ELSIF splayItem.cmp(item,nn^.data)<0 THEN 
+X		       nnn:=nn^.l;
+X		       IF nnn#NIL THEN
+X		       	  IF splayItem.cmp(item,nnn^.data)=0 THEN
+X			     replace(nn^.l,nnn);
+X			     r^.l:=n; r:=n; n:=nn;
+X			     EXIT;
+X			  ELSE (* case III *) 
+X			     n^.l:=nn^.r;
+X			     r^.l:=nn; r:=nn; 
+X			     nn^.r:=n;
+X			     n:=nnn;
+X			  END (* if *);
+X		       ELSE (* nnn=NIL *)
+X		       	  r^.l:=n; r:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    ELSE (* item > n^.data *)
+X		       nnn:=nn^.r;
+X		       IF nnn#NIL THEN
+X		          IF splayItem.cmp(item,nnn^.data)=0 THEN
+X			     replace(nn^.r,nnn);
+X			     r^.l:=n; r:=n; n:=nn;
+X			     EXIT;
+X			  ELSE (* case V *)
+X			     l^.r:=nn; l:=nn;
+X			     r^.l:=n; r:=n;
+X			     n:=nnn;
+X			  END (* if *);
+X		       ELSE (* nnn=NIL *)
+X			  r^.l:=n; r:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    END (* if *);
+X		 END (* if nn#NIL  *);
+X	      ELSE (* item>n^.data *)
+X	      	 nn:=n^.r;
+X		 IF nn=NIL THEN EXIT;
+X		 ELSE 
+X		    IF splayItem.cmp(item,nn^.data)=0 THEN 
+X		       replace(n^.r,nn);
+X		       EXIT;  
+X		    ELSIF splayItem.cmp(item,nn^.data)>0 THEN 
+X		       nnn:=nn^.r;
+X		       IF nnn#NIL THEN
+X		       	  IF splayItem.cmp(item,nnn^.data)=0 THEN
+X			     replace(nn^.r,nnn);
+X			     l^.r:=n; l:=n; n:=nn;
+X			     EXIT;
+X			  ELSE (* case IV *)
+X			     n^.r:=nn^.l;
+X			     l^.r:=nn; l:=nn;
+X			     nn^.l:=n;
+X			     n:=nnn;
+X			  END (* if *);
+X		       ELSE (* nnn=NIL *)
+X			  l^.r:=n; l:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    ELSE (* item < n^.data *)
+X		       nnn:=nn^.l;
+X		       IF nnn#NIL THEN
+X		          IF splayItem.cmp(item,nnn^.data)=0 THEN
+X			     replace(nn^.l,nnn);
+X			     l^.r:=n; l:=n; n:=nn;
+X			     EXIT;
+X			  ELSE (* case VI *)
+X			     l^.r:=n; l:=n;
+X			     r^.l:=nn; r:=nn;
+X			     n:=nnn;
+X			  END (* if *);
+X		       ELSE (* nnn=NIL *)
+X			  l^.r:=n; l:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    END (* if *);
+X		 END (* if nn#nil *);
+X	      END (* if *);
+X	   END (* loop *);
+X	   l^.r:=n^.l; r^.l:=n^.r; 
+X	   n^.l:=left.r; n^.r:=right.l;
+X	   tree^.t:=n;      
+X	END;
+X	fixRank(tree^.t);
+X     END delete;
+X
+X
+X(*  *)
+X  PROCEDURE find(tree:T; item:splayItem.T;VAR found:splayItem.T): BOOLEAN;
+X     VAR l,r,nnn,nn,n:Tree;
+X         left,right:treeNode;
+X         fFound : BOOLEAN;
+X     BEGIN (* find *)
+X        l:=SYSTEM.ADR(left); r:=SYSTEM.ADR(right);
+X	fFound:=FALSE;
+X        n := tree^.t;
+X	IF n=NIL THEN RETURN FALSE;
+X	ELSIF splayItem.cmp(n^.data,item)=0 THEN
+X	   found:=n^.data; 
+X	   RETURN TRUE;
+X	ELSE
+X	   LOOP
+X	      IF splayItem.cmp(item,n^.data)=0 THEN
+X	         found:=n^.data; fFound:=TRUE;
+X		 EXIT;
+X	      ELSIF splayItem.cmp(item,n^.data)<0 THEN
+X	         nn:=n^.l;
+X		 IF nn=NIL THEN EXIT;
+X		 ELSE 
+X		    IF splayItem.cmp(item,nn^.data)=0 THEN  (* case I   *)
+X		       r^.l:=n; r:=n; n:=nn;
+X		       found:=n^.data; fFound:=TRUE;
+X		       EXIT;  
+X		    ELSIF splayItem.cmp(item,nn^.data)<0 THEN 
+X		       nnn:=nn^.l;
+X		       IF nnn#NIL THEN                  (* case III *)
+X			  n^.l:=nn^.r;
+X			  r^.l:=nn; r:=nn; 
+X			  nn^.r:=n; n:=nnn;
+X		       ELSE (* nnn=NIL *)
+X		       	  r^.l:=n; r:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    ELSE (* item > nn^.data *)
+X		       nnn:=nn^.r;
+X		       IF nnn#NIL THEN                  (* case V   *)
+X			  l^.r:=nn; l:=nn;
+X			  r^.l:=n; r:=n; n:=nnn;
+X		       ELSE (* nnn=NIL *)
+X			  r^.l:=n; r:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    END (* if *);
+X		 END (* if nn#NIL  *);
+X	      ELSE (* item>n^.data *)
+X	      	 nn:=n^.r;
+X		 IF nn=NIL THEN EXIT;
+X		 ELSE 
+X		    IF splayItem.cmp(item,nn^.data)=0 THEN  (* case II  *)
+X		       l^.r:=n; l:=n; n:=nn;
+X		       found:=n^.data; fFound:=TRUE;
+X		       EXIT;  
+X		    ELSIF splayItem.cmp(item,nn^.data)>0 THEN 
+X		       nnn:=nn^.r;
+X		       IF nnn#NIL THEN                  (* case IV  *)
+X			  n^.r:=nn^.l;
+X			  l^.r:=nn; l:=nn;
+X			  nn^.l:=n; n:=nnn;
+X		       ELSE (* nnn=NIL *)
+X			  l^.r:=n; l:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    ELSE (* item < nn^.data *)
+X		       nnn:=nn^.l;
+X		       IF nnn#NIL THEN                  (* case VI  *)
+X			  l^.r:=n; l:=n;
+X			  r^.l:=nn; r:=nn; n:=nnn;
+X		       ELSE (* nnn=NIL *)
+X			  l^.r:=n; l:=n; n:=nn;
+X			  EXIT;
+X		       END (* if nnn#NIL *);
+X		    END (* if cmp(...) *);
+X		 END (* if nn=nil *);
+X	      END (* if cmp(...) *);
+X	   END (* loop *);
+X	   r^.l:=n^.r; l^.r:=n^.l; 
+X	   n^.l:=left.r; n^.r:=right.l; 
+X	   tree^.t:=n;
+X	END;
+X	fixRank(tree^.t);
+X	RETURN fFound;      
+X     END find;
+X  
+X
+X  PROCEDURE getRank(tree:T; item:splayItem.T): CARDINAL;
+X     VAR t,p:Tree;rank:CARDINAL;
+X     BEGIN (* getRank *)
+X       t:=tree^.t;
+X       p:=NIL;
+X       rank:=1;
+X       LOOP 
+X         IF t = NIL THEN
+X           RETURN 0;
+X         ELSE 
+X           IF splayItem.cmp(t^.data,item)=0 THEN 
+X               IF t^.l # NIL THEN 
+X                  RETURN rank+t^.l^.weight;
+X               ELSE
+X                  RETURN rank;
+X               END;
+X           ELSIF splayItem.cmp(t^.data,item) > 0  THEN 
+X               p:=t;
+X               t := t^.l;
+X           ELSE
+X               IF t^.l#NIL THEN  
+X                  rank:=rank+t^.l^.weight+1;
+X               ELSE 
+X                  INC(rank);
+X               END;
+X               p:=t;
+X               t := t^.r
+X           END;
+X         END (* if *);
+X       END (* loop *);
+X     END getRank;
+X
+X  
+X   PROCEDURE getRankElement(tree:T; r:CARDINAL; VAR found:splayItem.T):BOOLEAN;
+X      VAR n:Tree;rank,weight:CARDINAL;
+X      BEGIN (* getRankElement *)
+X         n:=tree^.t;
+X	 rank:=0;
+X	 WHILE n#NIL DO
+X	   IF n^.l#NIL THEN weight:=n^.l^.weight+1;
+X	   ELSE weight:=1; END; 
+X	   IF r=rank+weight THEN
+X	     found:=n^.data;
+X	     RETURN TRUE;
+X	   ELSIF r<rank+weight THEN
+X	     n:=n^.l;
+X	   ELSE
+X	     rank:=rank+weight;
+X	     n:=n^.r; 
+X	   END (* if *);
+X	 END;
+X	 RETURN FALSE;
+X      END getRankElement;
+X      
+X   PROCEDURE fixRank(n:Tree);
+X      BEGIN (* fixRank *)
+X        IF n#NIL THEN 
+X           fixRank(n^.l);
+X	   fixRank(n^.r);
+X	   n^.weight:=1;
+X	   IF n^.l#NIL THEN n^.weight:=n^.weight+n^.l^.weight; END;
+X	   IF n^.r#NIL THEN n^.weight:=n^.weight+n^.r^.weight; END;
+X	END;
+X      END fixRank;
+X
+X  PROCEDURE mapIn(tree:T; f:auxFunc);
+X     PROCEDURE mI(t:Tree);
+X	BEGIN (* mI *)
+X	  IF t # NIL THEN mI(t^.l); f(t^.data); mI(t^.r); END;
+X	END mI;
+X     BEGIN (* mapIn *)
+X       mI(tree^.t); 
+X     END mapIn;
+X
+X
+X  PROCEDURE mapPre(tree:T; f:auxFunc);
+X     PROCEDURE mPr(t:Tree);
+X	BEGIN (* mPr *)
+X	  IF t # NIL THEN f(t^.data); mPr(t^.l); mPr(t^.r); END;
+X	END mPr;
+X     BEGIN (* mapPre *)
+X       mPr(tree^.t); 
+X     END mapPre;
+X
+X
+X  PROCEDURE mapPos(tree:T; f:auxFunc);
+X     PROCEDURE mPo(t:Tree);
+X	BEGIN (* mPo *)
+X	  IF t # NIL THEN mPo(t^.l); mPo(t^.r); f(t^.data); END;
+X	END mPo;
+X     BEGIN (* mapPos *)
+X       mPo(tree^.t); 
+X     END mapPos;
+X
+XEND splay.
+X
+SHAR_EOF
+$TOUCH -am 1122140092 splay.mod &&
+chmod 0444 splay.mod ||
+echo "restore of splay.mod failed"
+set `wc -c splay.mod`;Wc_c=$1
+if test "$Wc_c" != "11524"; then
+	echo original size 11524, current size $Wc_c
+fi
+fi
+# ============= splayItem.mod ==============
+if test X"$1" != X"-c" -a -f 'splayItem.mod'; then
+	echo "File already exists: skipping 'splayItem.mod'"
+else
+echo "x - extracting splayItem.mod (Text)"
+sed 's/^X//' << 'SHAR_EOF' > splayItem.mod &&
+X(*
+X	Title:		
+X	Last Edit:	Sun Nov 22 12:30:53 1992
+X	Author:		Johan Persson at my16
+X*)
+X
+XIMPLEMENTATION MODULE splayItem;
+X
+X  
+X  PROCEDURE cmp(a:T; b:T): INTEGER;
+X     BEGIN (* cmp *)
+X	IF a=b THEN RETURN 0;
+X	ELSIF a<b THEN RETURN -1;
+X	ELSE RETURN 1;
+X	END (* if *);
+X     END cmp;
+X
+X  PROCEDURE destroy(VAR a:T);
+X     BEGIN (* destroy *)
+X     END destroy;
+X     
+X  PROCEDURE create(VAR a:T);
+X     BEGIN (* create *)
+X     END create;
+X  
+X  
+X
+XEND splayItem.
+SHAR_EOF
+$TOUCH -am 1122140092 splayItem.mod &&
+chmod 0644 splayItem.mod ||
+echo "restore of splayItem.mod failed"
+set `wc -c splayItem.mod`;Wc_c=$1
+if test "$Wc_c" != "447"; then
+	echo original size 447, current size $Wc_c
+fi
+fi
+# ============= splayTest.mod ==============
+if test X"$1" != X"-c" -a -f 'splayTest.mod'; then
+	echo "File already exists: skipping 'splayTest.mod'"
+else
+echo "x - extracting splayTest.mod (Text)"
+sed 's/^X//' << 'SHAR_EOF' > splayTest.mod &&
+XMODULE splayTest; 
+X(*
+X	Title:		
+X	Last Edit:	Sun Nov 22 13:35:40 1992
+X	Author:		Johan Persson at my9
+X
+X	SCCS:		%Z%%M%       %I%     %E%		
+X
+X*)
+X
+XIMPORT splay, splayItem, std, string, int, card;
+X
+X
+XVAR t:splay.T;
+X    i:splayItem.T;
+X    tmp:splayItem.T;
+X    
+X   
+XPROCEDURE printsplayItem(i:splayItem.T);
+X   
+X   BEGIN (* printsplayItem *)
+X     int.write(std.out,i,0);
+X     string.writef(std.out,",");   
+X   END printsplayItem;
+X
+X
+XPROCEDURE msg(s:ARRAY OF CHAR);
+X   BEGIN (* msg *)
+X     string.writef(std.out,s);
+X   END msg;
+X
+X
+XBEGIN
+X
+Xmsg("Create the structure ...");
+X
+Xsplay.create(t);
+X
+Xmsg("done.\n");
+X
+Xmsg("Beginning with insertions\n");
+X
+XFOR i := 0 TO 255 DO
+X  splay.insert(t,i);   
+XEND (* for *);
+X
+Xmsg("Done with insertions\n");
+X
+XIF splay.find(t,13,tmp) THEN
+X   msg("found 13 (tmp=");
+X   int.write(std.out,tmp,0);
+X   msg(") OK.\n");
+X   splay.mapPre(t,printsplayItem);
+X   msg("\n");
+XELSE
+X   msg("****** ERROR IN find routine!\n");
+XEND (* if *);
+X
+XIF splay.find(t,18,tmp) THEN
+X   msg("found 18 (tmp=");
+X   int.write(std.out,tmp,0);
+X   msg(") OK.\n");
+X   splay.mapPre(t,printsplayItem);
+X   msg("\n");
+XELSE
+X   msg("**** ERROR IN exist routine!\n");
+XEND (* if *);
+X
+XIF splay.find(t,300,tmp) THEN
+X   msg("ERROR IN exist routine!  ");
+X   msg("found 300 (tmp=");
+X   int.write(std.out,tmp,0);
+X   msg(")\n");
+XELSE
+X   msg("Didn't find 300. OK.\n");
+X   splay.mapPre(t,printsplayItem);
+X   msg("\n");
+XEND (* if *);
+X
+X
+Xmsg("Print a sorted version ...\n");
+X
+Xsplay.mapIn(t,printsplayItem);
+X
+Xmsg("\n\n Print some rank's\n");
+X
+XIF splay.getRankElement(t,3,tmp) THEN 
+X   msg("3=> "); int.write(std.out,tmp,0); msg("\n");
+XELSE 
+X   msg("ERROR didn't find rank 3\n\n");
+XEND;
+X
+XIF splay.getRankElement(t,1,tmp) THEN 
+X   msg("1=> "); int.write(std.out,tmp,0); msg("\n");
+XELSE 
+X   msg("ERROR didn't find rank 1\n\n");
+XEND;
+X
+XIF splay.getRankElement(t,6,tmp) THEN 
+X   msg("6=> "); int.write(std.out,tmp,0); msg("\n");
+XELSE 
+X   msg("ERROR didn't find rank 6\n\n");
+XEND;
+X
+XIF splay.getRank(t,255)#256 THEN 
+X   msg("**** ERROR IN getRank\n");
+XELSE 
+X   msg("\n 255 has rank 256\n");
+XEND;
+X
+Xmsg("\n and now we delete som element");
+X
+Xmsg("\n 6 ..");
+X
+Xsplay.delete(t,6);
+X
+Xmsg("\n Print a sorted version ...\n");
+X
+Xsplay.mapIn(t,printsplayItem);
+X
+Xmsg("\n");
+X
+Xsplay.destroy(t);
+X
+XEND splayTest.
+SHAR_EOF
+$TOUCH -am 1122140092 splayTest.mod &&
+chmod 0644 splayTest.mod ||
+echo "restore of splayTest.mod failed"
+set `wc -c splayTest.mod`;Wc_c=$1
+if test "$Wc_c" != "2242"; then
+	echo original size 2242, current size $Wc_c
+fi
+fi
+exit 0

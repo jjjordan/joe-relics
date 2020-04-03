@@ -1,0 +1,76 @@
+Xref: funic alt.chinese.text:1056 soc.culture.china:53971 alt.sources:4898 alt.uu.lang.misc:19 sci.lang:12896
+Newsgroups: alt.chinese.text,soc.culture.china,alt.sources,alt.uu.lang.misc,sci.lang
+Path: funic!fuug!mcsun!uunet!stanford.edu!leland.Stanford.EDU!rinconada!lee
+From: lee@rinconada.stanford.edu (Fung Fung Lee)
+Subject: warning: Re: gb2pinyin -- new version (whole package)
+Message-ID: <1992Nov16.062416.26288@leland.Stanford.EDU>
+Keywords: HZ, GB
+Sender: news@leland.Stanford.EDU (Mr News)
+Organization: Stanford University
+References: <TOMMI.92Nov10165856@rieska.oulu.fi>
+Date: Mon, 16 Nov 92 06:24:16 GMT
+Lines: 63
+
+Please note that the program "hz2gb" bundled in gb2pinyin.sh
+is NOT the "hz2gb" mentioned in the FAQ of alt.chinese.text.
+More importantly, this program does NOT conform to the HZ standard as
+described in "HZ.spec" bundled in ahkcus.org:src/unix/HZ-2.0.tar.Z
+
+To avoid unnecessary confusion, I would recommend Mr. Tommi Kaikkonen
+either to call his "hz2gb" program something else or drop that program
+from his package. It seems to me that the HZ-to-GB conversion functionality
+is really non-essential to the purpose of gb2pinyin anyway. 
+
+Fung F. Lee
+
+
+In article <TOMMI.92Nov10165856@rieska.oulu.fi> tommi@rieska.oulu.fi (Tommi Kaikkonen) writes:
+>Article name: gb2pinyin.sh
+>Description: package to convert from chinese GB characters to spoken pinyin.
+>
+>Xhz2gb: hz2gb.o
+>X	$(CC) -O -o hz2gb hz2gb.o
+>X
+>X/************************************************************************
+>X*                                                                       *
+>X* hz2gb - converts from HZ to GB.                                       *
+>X*                                                                       *
+>X* Created in 1992 by Tommi Kaikkonen (tommi@phoenix.oulu.fi)            *
+>X*                                                                       *
+>X************************************************************************/
+>X
+>X#include <stdio.h>
+>X
+>X#define IN 1
+>X#define OUT 0
+>X
+>Xmain() {
+>X  int cin, cin2, cout, cout2, state;
+>X  state = OUT;
+>X  while (!feof (stdin)) {
+>X    cin = getchar();
+>X    if (cin < 0) break;
+>X    if (cin == '~') {
+>X      cin2 = getchar();
+>X      if (cin2 < 0) break;
+>X      if (cin2 == '{') {
+>X        state = IN;
+>X      } else if (cin2 == '}') {
+>X        state = OUT;
+>X      } else if (cin2 == '\n') {
+>X        printf ("\n");
+>X      } else {
+>X        printf ("%c%c", cin+(state==IN?128:0), cin2+(state==IN?128:0));
+>X      }
+>X    } else {
+>X      if (state == IN) {
+>X        cin2 = getchar();
+>X        if (cin2 < 0) break;
+>X        printf ("%c%c", cin+128, cin2+128);
+>X      } else {
+>X        printf ("%c", cin);
+>X      }
+>X    }
+>X  }
+>X}
+>END_OF_hz2gb.c

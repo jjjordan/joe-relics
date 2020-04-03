@@ -1,0 +1,617 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 10/10)
+Message-ID: <1992Nov15.155457.20513@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:54:57 GMT
+Lines: 604
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part10
+
+#!/bin/sh
+# this is tin.shar.10 (part 10 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file strftime.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 10; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping strftime.c'
+else
+echo 'x - continuing file strftime.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'strftime.c' &&
+X	static char *days_l[] = {
+X		"Sunday", "Monday", "Tuesday", "Wednesday",
+X		"Thursday", "Friday", "Saturday",
+X	};
+X	static char *months_a[] = {
+X		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+X		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+X	};
+X	static char *months_l[] = {
+X		"January", "February", "March", "April",
+X		"May", "June", "July", "August", "September",
+X		"October", "November", "December",
+X	};
+X	static char *ampm[] = { "AM", "PM", };
+X
+X	if (s == NULL || format == NULL || timeptr == NULL || maxsize == 0)
+X		return 0;
+X
+X	if (strchr(format, '%') == NULL && strlen(format) + 1 >= maxsize)
+X		return 0;
+X
+X	tzset();
+X
+X	for (; *format && s < endp - 1; format++) {
+X		tbuf[0] = '\0';
+X		if (*format != '%') {
+X			*s++ = *format;
+X			continue;
+X		}
+X		switch (*++format) {
+X		case '\0':
+X			*s++ = '%';
+X			goto out;
+X
+X		case '%':
+X			*s++ = '%';
+X			continue;
+X
+X		case 'a':	/* abbreviated weekday name */
+X			strcpy(tbuf, days_a[timeptr->tm_wday]);
+X			break;
+X
+X		case 'A':	/* full weekday name */
+X			strcpy(tbuf, days_l[timeptr->tm_wday]);
+X			break;
+X
+X#ifdef SYSV_EXT
+X		case 'h':	/* abbreviated month name */
+X#endif
+X		case 'b':	/* abbreviated month name */
+X			strcpy(tbuf, months_a[timeptr->tm_mon]);
+X			break;
+X
+X		case 'B':	/* full month name */
+X			strcpy(tbuf, months_l[timeptr->tm_mon]);
+X			break;
+X
+X		case 'c':	/* appropriate date and time representation */
+X			sprintf(tbuf, "%s %s %2d %02d:%02d:%02d %d",
+X				days_a[timeptr->tm_wday],
+X				months_a[timeptr->tm_mon],
+X				timeptr->tm_mday,
+X				timeptr->tm_hour,
+X				timeptr->tm_min,
+X				timeptr->tm_sec,
+X				timeptr->tm_year + 1900);
+X			break;
+X
+X		case 'd':	/* day of the month, 01 - 31 */
+X			sprintf(tbuf, "%02d", timeptr->tm_mday);
+X			break;
+X
+X		case 'H':	/* hour, 24-hour clock, 00 - 23 */
+X			sprintf(tbuf, "%02d", timeptr->tm_hour);
+X			break;
+X
+X		case 'I':	/* hour, 12-hour clock, 01 - 12 */
+X			i = timeptr->tm_hour;
+X			if (i == 0)
+X				i = 12;
+X			else if (i > 12)
+X				i -= 12;
+X			sprintf(tbuf, "%02d", i);
+X			break;
+X
+X		case 'j':	/* day of the year, 001 - 366 */
+X			sprintf(tbuf, "%03d", timeptr->tm_yday + 1);
+X			break;
+X
+X		case 'm':	/* month, 01 - 12 */
+X			sprintf(tbuf, "%02d", timeptr->tm_mon + 1);
+X			break;
+X
+X		case 'M':	/* minute, 00 - 59 */
+X			sprintf(tbuf, "%02d", timeptr->tm_min);
+X			break;
+X
+X		case 'p':	/* am or pm based on 12-hour clock */
+X			if (timeptr->tm_hour < 12)
+X				strcpy(tbuf, ampm[0]);
+X			else
+X				strcpy(tbuf, ampm[1]);
+X			break;
+X
+X		case 'S':	/* second, 00 - 61 */
+X			sprintf(tbuf, "%02d", timeptr->tm_sec);
+X			break;
+X
+X		case 'w':	/* weekday, Sunday == 0, 0 - 6 */
+X			sprintf(tbuf, "%d", timeptr->tm_wday);
+X			break;
+X
+X		case 'x':	/* appropriate date representation */
+X			sprintf(tbuf, "%s %s %2d %d",
+X				days_a[timeptr->tm_wday],
+X				months_a[timeptr->tm_mon],
+X				timeptr->tm_mday,
+X				timeptr->tm_year + 1900);
+X			break;
+X
+X		case 'X':	/* appropriate time representation */
+X			sprintf(tbuf, "%02d:%02d:%02d",
+X				timeptr->tm_hour,
+X				timeptr->tm_min,
+X				timeptr->tm_sec);
+X			break;
+X
+X		case 'y':	/* year without a century, 00 - 99 */
+X			i = timeptr->tm_year % 100;
+X			sprintf(tbuf, "%d", i);
+X			break;
+X
+X		case 'Y':	/* year with century */
+X			sprintf(tbuf, "%d", 1900 + timeptr->tm_year);
+X			break;
+X
+X#ifdef SYSV_EXT
+X		case 'n':	/* same as \n */
+X			tbuf[0] = '\n';
+X			tbuf[1] = '\0';
+X			break;
+X
+X		case 't':	/* same as \t */
+X			tbuf[0] = '\t';
+X			tbuf[1] = '\0';
+X			break;
+X
+X		case 'D':	/* date as %m/%d/%y */
+X			my_strftime(tbuf, sizeof tbuf, "%m/%d/%y", timeptr);
+X			break;
+X
+X		case 'e':	/* day of month, blank padded */
+X			sprintf(tbuf, "%2d", timeptr->tm_mday);
+X			break;
+X
+X		case 'r':	/* time as %I:%M:%S %p */
+X			my_strftime(tbuf, sizeof tbuf, "%I:%M:%S %p", timeptr);
+X			break;
+X
+X		case 'R':	/* time as %H:%M */
+X			my_strftime(tbuf, sizeof tbuf, "%H:%M", timeptr);
+X			break;
+X
+X		case 'T':	/* time as %H:%M:%S */
+X			my_strftime(tbuf, sizeof tbuf, "%H:%M:%S", timeptr);
+X			break;
+X#endif
+X
+X		default:
+X			tbuf[0] = '%';
+X			tbuf[1] = *format;
+X			tbuf[2] = '\0';
+X			break;
+X		}
+X		i = strlen(tbuf);
+X		if (i)
+X			if (s + i < endp - 1) {
+X				strcpy(s, tbuf);
+X				s += i;
+X			} else
+X				return 0;
+X	}
+Xout:
+X	if (s < endp && *format == '\0') {
+X		*s = '\0';
+X		return (s - start);
+X	} else
+X		return 0;
+X}
+SHAR_EOF
+echo 'File strftime.c is complete' &&
+chmod 0644 strftime.c ||
+echo 'restore of strftime.c failed'
+Wc_c="`wc -c < 'strftime.c'`"
+test 5590 -eq "$Wc_c" ||
+	echo 'strftime.c: original size 5590, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= strftime.3 ==============
+if test -f 'strftime.3' -a X"$1" != X"-c"; then
+	echo 'x - skipping strftime.3 (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting strftime.3 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'strftime.3' &&
+X.TH STRFTIME 3
+X.SH NAME
+Xstrftime \- generate formatted time information
+X.SH SYNOPSIS
+X.ft B
+X.nf
+X#include <sys/types.h>
+X#include <time.h>
+X.sp
+Xsize_t strftime(char *s, size_t maxsize, const char *format,
+X	const struct tm *timeptr);
+X.SH DESCRIPTION
+XThe following description is transcribed verbatim from the December 7, 1988
+Xdraft standard for ANSI C.
+XThis draft is essentially identical in technical content
+Xto the final version of the standard.
+X.LP
+XThe
+X.B strftime
+Xfunction places characters into the array pointed to by
+X.B s
+Xas controlled by the string pointed to by
+X.BR format .
+XThe format shall be a multibyte character sequence, beginning and ending in
+Xits initial shift state.
+XThe
+X.B format
+Xstring consists of zero or more conversion specifiers and ordinary
+Xmultibyte characters.  A conversion specifier consists of a
+X.B %
+Xcharacter followed by a character that determines the behavior of the
+Xconversion specifier.
+XAll ordinary multibyte characters (including the terminating null
+Xcharacter) are copied unchanged into the array.
+XIf copying takes place between objects that overlap the behavior is
+Xundefined.
+XNo more than
+X.B maxsize
+Xcharacters are placed into the array.
+XEach conversion specifier is replaced by appropriate characters as described
+Xin the following list.
+XThe appropriate characters are determined by the
+X.B LC_TIME
+Xcategory of the current locale and by the values contained in the
+Xstructure pointed to by
+X.BR timeptr .
+X.TP
+X.B %a
+Xis replaced by the locale's abbreviated weekday name.
+X.TP
+X.B %A
+Xis replaced by the locale's full weekday name.
+X.TP
+X.B %b
+Xis replaced by the locale's abbreviated month name.
+X.TP
+X.B %B
+Xis replaced by the locale's full month name.
+X.TP
+X.B %c
+Xis replaced by the locale's appropriate date and time representation.
+X.TP
+X.B %d
+Xis replaced by the day of the month as a decimal number
+X.RB ( 01 - 31 ).
+X.TP
+X.B %H
+Xis replaced by the hour (24-hour clock) as a decimal number
+X.RB ( 00 - 23 ).
+X.TP
+X.B %I
+Xis replaced by the hour (12-hour clock) as a decimal number
+X.RB ( 01 - 12 ).
+X.TP
+X.B %j
+Xis replaced by the day of the year as a decimal number
+X.RB ( 001 - 366 ).
+X.TP
+X.B %m
+Xis replaced by the month as a decimal number
+X.RB ( 01 - 12 ).
+X.TP
+X.B %M
+Xis replaced by the minute as a decimal number
+X.RB ( 00 - 59 ).
+X.TP
+X.B %p
+Xis replaced by the locale's equivalent of the AM/PM designations associated
+Xwith a 12-hour clock.
+X.TP
+X.B %S
+Xis replaced by the second as a decimal number
+X.RB ( 00 - 61 ).
+X.TP
+X.B %U
+Xis replaced by the week number of the year (the first Sunday as the first
+Xday of week 1) as a decimal number
+X.RB ( 00 - 53 ).
+X.TP
+X.B %w
+Xis replaced by the weekday as a decimal number
+X.RB [ "0 " (Sunday)- 6 ].
+X.TP
+X.B %W
+Xis replaced by the week number of the year (the first Monday as the first
+Xday of week 1) as a decimal number
+X.RB ( 00 - 53 ).
+X.TP
+X.B %x
+Xis replaced by the locale's appropriate date representation.
+X.TP
+X.B %X
+Xis replaced by the locale's appropriate time representation.
+X.TP
+X.B %y
+Xis replaced by the year without century as a decimal number
+X.RB ( 00 - 99 ).
+X.TP
+X.B %Y
+Xis replaced by the year with century as a decimal number.
+X.TP
+X.B %z
+Xis replaced by the time zone name or abbreviation, or by no characters if
+Xno time zone is determinable.
+X.TP
+X.B %%
+Xis replaced by
+X.BR % .
+X.LP
+XIf a conversion specifier is not one of the above, the behavior is
+Xundefined.
+X.SH RETURNS
+XIf the total number of resulting characters including the terminating null
+Xcharacter is not more than
+X.BR maxsize ,
+Xthe
+X.B strftime
+Xfunction returns the number of characters placed into the array pointed to
+Xby
+X.B s
+Xnot including the terminating null character.
+XOtherwise, zero is returned and the contents of the array are indeterminate.
+X.SH NON-ANSI EXTENSIONS
+XIf
+X.B SYSV_EXT
+Xis defined when the routine is compiled, then the following additional
+Xconversions will be available.
+XThese are borrowed from the System V
+X.IR cftime (3)
+Xand
+X.IR ascftime (3)
+Xroutines.
+X.TP
+X.B %D
+Xis equivalent to specifying
+X.BR %m/%d/%y .
+X.TP
+X.B %e
+Xis replaced by the day of the month,
+Xpadded with a blank if it is only one digit.
+X.TP
+X.B %h
+Xis equivalent to
+X.BR %b ,
+Xabove.
+X.TP
+X.B %n
+Xis replaced with a newline character (\s-1ASCII LF\s+1).
+X.TP
+X.B %r
+Xis equivalent to specifying
+X.BR "%I:%M:%S %p" .
+X.TP
+X.B %R
+Xis equivalent to specifying
+X.BR %H:%M: .
+X.TP
+X.B %T
+Xis equivalent to specifying
+X.BR %H:%M:%S .
+X.TP
+X.B %t
+Xis replaced with a \s-1TAB\s+1 character.
+X.SH SEE ALSO
+Xtime(2), ctime(3), localtime(3)
+X.SH BUGS
+XThis version does not handle multibyte characters or pay attention to the
+Xsetting of the
+X.B LC_TIME
+Xenvironment variable.
+X.LP
+XIt is not clear what is ``appropriate'' for the C locale; the values
+Xreturned are a best guess on the author's part.
+X.SH AUTHOR
+X.nf
+XArnold Robbins
+XAudioFAX, Inc.
+XSuite 200
+X2000 Powers Ferry Road
+XMarietta, GA. 30067
+XU.S.A.
+XINTERNET: arnold@audiofax.com
+XUUCP:     emory!audfax!arnold
+XPhone:    +1 404 933 7600
+XFax-box:  +1 404 618 4581
+X.fi
+X.SH ACKNOWLEDGEMENTS
+XThanks to Geoff Clare <gwc@root.co.uk> for helping debug earlier
+Xversions of this routine.
+SHAR_EOF
+chmod 0644 strftime.3 ||
+echo 'restore of strftime.3 failed'
+Wc_c="`wc -c < 'strftime.3'`"
+test 4976 -eq "$Wc_c" ||
+	echo 'strftime.3: original size 4976, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmotd.c ==============
+if test -f 'xmotd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmotd.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmotd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmotd.c' &&
+X/*
+X *  Project   : NNTP (RFC 977) extension
+X *  Module    : xmotd.c
+X *  Author    : I.Lea
+X *  Created   : 26-09-92
+X *  Updated   : 27-09-92
+X *  Notes     : Add a command to display a motd (message of the day) file
+X *              Ideas borrowed from NEWGROUPS nntp command
+X *              posted by Tim Iverson to alt.sources in mid'91.
+X *  Copyright : (c) Copyright 1992 by Iain Lea
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include "common.h"
+X
+X#ifdef XMOTD
+X
+X#include "time.h"
+X
+X#undef	DEBUG_XMOTD		/* set to define to turn on more debug info */
+X
+X#ifdef __STDC__
+Xvoid xmotd (int argc, char *argv[]);
+X#else
+Xvoid xmotd ();
+X#endif
+X
+X/*
+X * Usage: XMOTD date time ["GMT"]
+X *
+X * Display a motd file if newer than given date and time
+X *
+X *  This command is NOT documented in RFC977.
+X */
+X
+Xvoid xmotd(argc, argv)
+X	int		argc;
+X	char		*argv[];
+X{
+X	char		line[NNTP_STRLEN];
+X	register char	*cp;
+X	int		i;
+X	FILE		*fp;
+X	long		old_date = 0L;
+X	long		new_date = 0L;
+X	struct stat	sb;
+X	
+X	if (argc < 3) {
+Xprintf("%d Usage: XMOTD yymmdd hhmmss [\"GMT\"].\r\n",
+X			ERR_CMDSYN);
+X		(void) fflush(stdout);
+X		return;
+X	}
+X
+X#if defined(SYSLOG) && defined(DEBUG_XMOTD)
+X		syslog(LOG_INFO, "%s xmotd %s %s", hostname, argv[1], argv[2]);
+X#endif
+X
+X	fp = fopen(XMOTD_FILE, "r");
+X	if (fp == NULL) {
+X#ifdef SYSLOG
+X		syslog(LOG_ERR, "xmotd: fopen %s: %m", XMOTD_FILE);
+X#endif
+X		printf("%d XMOTD Cannot open %s\r\n", ERR_XMOTD, XMOTD_FILE);
+X		(void) fflush(stdout);
+X		return;
+X	}
+X
+X	/*	    YYMMDD		    HHMMSS	*/
+X	if (strlen(argv[1]) != 6 || strlen(argv[2]) != 6) {
+X		printf("%d Date/time must be in form YYMMDD HHMMSS.\r\n",
+X			ERR_CMDSYN);
+X		(void) fflush(stdout);
+X		(void) fclose(fp);
+X		return;
+X	}
+X
+X	(void) strcpy(line, argv[1]);			/* yymmdd */
+X	(void) strcat(line, argv[2]);			/* hhmmss */
+X
+X	new_date = dtol(line);
+X	if (new_date < 0) {
+X		printf("%d Invalid date specification.\r\n", ERR_CMDSYN);
+X		(void) fflush(stdout);
+X		(void) fclose(fp);
+X		return;
+X	}
+X
+X	argc -= 3;
+X	argv += 3;
+X
+X	if (argc > 0 && !strcasecmp(*argv, "GMT")) { /* We store stuff in GMT */
+X			++argv;			/* anyway, so this is */
+X			--argc;			/* a "noop" */
+X	} else 					/* But that means not GMT */
+X		new_date = local_to_gmt(new_date);	/* is a definite "op" */
+X
+X	/*
+X	 *  stat() motd file and find mtime for comparison
+X	 */
+X	if (stat (XMOTD_FILE, &sb) != -1) {
+X		old_date = sb.st_mtime;
+X	}
+X	
+X#if defined(SYSLOG) && defined(DEBUG_XMOTD)
+X		syslog(LOG_INFO, "Motd file time=[%ld] request=[%ld]\r\n", 
+X			old_date, new_date);
+X#endif
+X
+X	printf("%d Motd file since %s follows.\r\n", OK_XMOTD, line);
+X
+X#if defined(SYSLOG) && defined(DEBUG_XMOTD)
+X		syslog(LOG_INFO, "Motd file since %s %s follows.\r\n", line);
+X#endif
+X	if (new_date < old_date) {
+X		while (fgets(line, sizeof(line), fp) != NULL) {
+X			if ((cp = index(line, '\n')) != NULL)
+X				*cp = '\0';
+X			putline(line);
+X		}
+X	}
+X	putchar('.');
+X	putchar('\r');
+X	putchar('\n');
+X	(void) fflush(stdout);
+X	(void) fclose(fp);
+X}
+X
+X#endif	/* XMOTD */
+SHAR_EOF
+chmod 0644 xmotd.c ||
+echo 'restore of xmotd.c failed'
+Wc_c="`wc -c < 'xmotd.c'`"
+test 3149 -eq "$Wc_c" ||
+	echo 'xmotd.c: original size 3149, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+rm -f _shar_seq_.tmp
+echo You have unpacked the last part
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

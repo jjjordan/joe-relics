@@ -1,0 +1,2362 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!spool.mu.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 1 of 10
+Message-ID: <By2ME0.KoH@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:46:48 GMT
+Lines: 2353
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part1
+
+To unpack the archive:  strip the news headers and trailers off of each 
+posting and concatenate them into a single file.  then execute the shell 
+archive with 'sh filename'
+
+
+A new version of Joe's Own Editor is complete.  Get is by anonymous ftp to 
+world.std.com, file: src/editors/joe1.0.5.tar.Z.  Also look for it on 
+'alt.sources' This has a number of fixes and new features: 
+
+- Rectangle/Column mode.  I think I've made a very good implementation of 
+this stuff.  It's really neat, I could have used this earlier.  When this 
+mode is selected, the normal block commands (including filter block through 
+unix command) and insert file work on rectangles.  Also if overtype mode is 
+set, these commands overtype instead.  Also when rectangle mode is set, 
+indent and unindent will work with the insertion/deletion point as the 
+left side of the rectangle instead of the beginning of the lines.
+
+- Can set tab width
+
+- Can set indent/unindent step column-width and fill character
+
+- ^K ;  now does a tags file search
+
+- if there's only one help screen defined, then ^KH immediatly turns on help
+instead of giving a menu
+
+- same deal with TAB completion- if only one item matches, it does a simple
+completion
+
+- unnamed files get the name first given to save file ^K D
+
+- joe is now in a subdirectory in the tar archive.  Also as you can see,
+I'm including the version number along with the name
+
+- the problems with the optimizer on Xenix and with back-tab on SCO UNIX are
+fixed.  You still have to use 'ttysv' with SCO UNIX- I need to get access to
+a SCO UNIX machine to make a tty interface for it.  I think the posix tty 
+interface is probably pretty close.
+
+- string searches were crashing when they got to the end of the file.  this 
+is fixed now.  
+
+Hex dump edit mode, fixed record length edit more and a new 'man' page are 
+on the way.
+
+The only major features which I feel are still missing are shell windows and 
+background loading/demand loading.  These are going to be mess as far as 
+portability so they'll probably take a while.
+
+
+#!/bin/sh
+# This is a shell archive (produced by shar 3.50)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/21/1992 14:33 UTC by jhallen@world
+# Source directory /tmp/j/joe
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   5471 -rw------- INFO
+#   5257 -rw------- README
+#  24715 -rw------- b.c
+#  10590 -rw------- b.h
+#  12881 -rw------- blocks.c
+#   2144 -rw------- blocks.h
+#  13764 -rw------- bw.c
+#   1252 -rw------- bw.h
+#   1152 -rw------- config.h
+#   1273 -rw------- config16.h
+#   1152 -rw------- config32.h
+#   1391 -rw------- config86.h
+#  12488 -rw------- copying
+#  32824 -rw------- edfuncs.c
+#   1933 -rw------- edfuncs.h
+#   8056 -rw------- heap.c
+#   3883 -rw------- heap.h
+#   4291 -rw------- help.c
+#   1306 -rw------- help.h
+#  19130 -rw------- joerc
+#  11368 -rw------- kbd.c
+#   2999 -rw------- kbd.h
+#   2755 -rw------- macro.c
+#   1344 -rw------- macro.h
+#  10617 -rw------- main.c
+#   1140 -rw------- main.h
+#   1179 -rw------- makefile
+#   2874 -rw------- menu.c
+#   1318 -rw------- menu.h
+#   1505 -rw------- msdir.c
+#   1513 -rw------- olddir.c
+#   2984 -rw------- pathfunc.c
+#   2548 -rw------- pathfunc.h
+#   7010 -rw------- pattern.c
+#    841 -rw------- pattern.h
+#   2503 -rw------- poshist.c
+#    908 -rw------- poshist.h
+#   4996 -rw------- pw.c
+#   1442 -rw------- pw.h
+#    846 -rw------- queue.c
+#   3442 -rw------- queue.h
+#  12354 -rw------- random.c
+#    134 -rw------- random.h
+#   1259 -rw------- reg.c
+#   8187 -rw------- regex.c
+#    879 -rw------- regex.h
+#  26464 -rw------- scrn.c
+#   7538 -rw------- scrn.h
+#   6687 -rw------- tab.c
+#   1173 -rw------- tab.h
+#   4577 -rw------- termcap
+#  10843 -rw------- termcap.c
+#   6116 -rw------- termcap.h
+#   1592 -rw------- termidx.c
+#   2705 -rw------- terminfo.c
+#   1341 -rw------- todojoe
+#   2733 -rw------- toomany.c
+#   1322 -rw------- toomany.h
+#   5951 -rw------- tty.h
+#   5407 -rw------- ttybsd.c
+#   4717 -rw------- ttyhpux.c
+#   1705 -rw------- ttymsdos.c
+#   5008 -rw------- ttyposix.c
+#   4269 -rw------- ttysv.c
+#   4223 -rw------- ttyxenix.c
+#   6362 -rw------- tw.c
+#   1265 -rw------- tw.h
+#   5709 -rw------- undo.c
+#   1901 -rw------- undo.h
+#   6830 -rw------- va.c
+#  11674 -rw------- va.h
+#  11446 -rw------- vfile.c
+#   9358 -rw------- vfile.h
+#  10956 -rw------- vs.c
+#  13819 -rw------- vs.h
+#  13930 -rw------- w.c
+#   5765 -rw------- w.h
+#   1902 -rw------- zstr.c
+#   1044 -rw------- zstr.h
+#  19130 -rw------- .joerc
+#
+# ============= INFO ==============
+if test -f 'INFO' -a X"$1" != X"-c"; then
+	echo 'x - skipping INFO (File already exists)'
+else
+echo 'x - extracting INFO (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'INFO' &&
+X                           Joe's Own Editor 1.0.5
+X
+X
+Get it by anonymous ftp
+from: 'world.std.com', file '/src/editors/joe1.0.5.tar.Z'
+X
+If you have questions, problems or suggestions,
+send email to: 'jha...@world.std.com'
+X
+X
+X	JOE is a sane ASCII text screen editor for UNIX.  It is designed to 
+make use of the power and versitility of UNIX, but also to be easy to use.  
+It has the feel of most IBM PC editors.  The key sequences are remeniscent 
+of WordStar and TURBO-PASCAL.  It also has the features UNIX user's should 
+expect: makes full use of termcap/terminfo, is designed to work well over 
+slow networks and low baud rate modems, designed to reduce installation 
+headaches, and has the best features of vi.
+X
+X	JOE is most useful for editing unformatted text, such as USENET news 
+articles and for editing block-structured languages such as C and PASCAL.  
+JOE is ideal for new or casual users but is also is also a powerful enough 
+to please experienced users.
+X
+Features:
+X
+X	Full termcap/terminfo support.  Will work on any terminal except for
+overstrike terminals.  A new termcap library is supplied which can use an 
+index file to make it faster then terminfo.  A number of terminfo extensions 
+are supported and the GNU extensions to the termcap language are also 
+supported.  JOE is not picky about the completeness of the termcap entries, 
+it knows what the defaults are.
+X
+X	Non-nonsense installation.  JOE has both ^H and DEL mapped to 
+backspace and ^Q and ^S are not used.  JOE compiles to 120-190K on most 
+systems.
+X
+X	Powerful optimal screen update.  Uses scrolling regions the way they 
+are supposed to be used (I.E., without building insert and delete line with 
+them) and uses a powerful line shifting (insert/delete character) algorithm 
+which works if text goes past the ends of lines.  Has defered screen update 
+to handle typeahead.
+X
+X	VI-style unix integration.  You can filter a highlighted block 
+through a UNIX command.  Also, each place in joe which accepts a file name 
+(including the command line) will also accept: 
+X
+X		!command		to pipe into or out of a command
+X		>>filename		to append to a file
+X		filename,start,size	to edit a portion of a file/device
+X		-			to use stdin or stdout
+X
+X	Also, filenames on the command line may be preceeded by +nnn to 
+start editing at a specified line.
+X
+X	Orthoganality.  Each prompt is actually a normal edit buffer and a 
+copy of a history buffer.  You can use all of the normal edit commands to 
+create file names and search strings.  You can use the up arrow key (or 
+search backwards and any other appropriate edit command) to go back through 
+the history of previous responses.  
+X
+X	Powerful buffering system.  JOE uses a doubly linked list of gap 
+buffers which can spill into /tmp directory files.  You can edit file of any 
+size up to the amount of free disk space and there are no line-length 
+restrictions.  Since the buffering system is block-based, JOE will incur 
+only a minimum of swapping on heavily loaded systems.
+X
+X	TAB-completion and file selection menus.  If you hit tab in a file 
+name prompt, the name is either completed or a menu of possible matches 
+appears.
+X
+X	Nice help system.  When you ask for help, you get a menu of help 
+screens to shoose from (all definable in an initialization file).   Once a 
+help screen is selected, the help remains on while you continue to use the 
+editor.  Here is the first help screen:
+X
+CURSOR           GO TO            BLOCK      DELETE   MISC         EXIT
+^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save
+^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^TT overtype ^C  abort
+^Z previous word ^A  beg. of line ^KM move   ^W >word `   Ctrl-    ^KZ shell
+^X next word     ^E  end of line  ^KC copy   ^O word< ^   Meta-    FILE
+SEARCH           ^KU top of file  ^KW file   ^J >line ^R  retype   ^KE new
+^KF find text    ^KV end of file  ^KY delete ^_ undo  ^@  insert   ^KR insert
+^L  find next    ^KL to line No.  ^K/ filter ^^ redo               ^KD save
+X
+X	Powerful set of editing commands.  Including:
+X
+X		- search and replace system, including powerful regular 
+X		  expressions (including matching of balanced C expressions).
+X
+X		- tag search
+X
+X		- paragraph format
+X
+X		- undo and redo
+X
+X		- position history allows you to get back to previous
+X		  editing contexts and allows you to quickly flip between
+X		  editing contexts
+X
+X		- multiple keyboard macros
+X
+X		- multiple windows
+X
+X		- block move/copy/delete/filter
+X
+X		- rectangle mode
+X
+X		- overtype/insert modes
+X
+X		- indent/unindent
+X
+X		- goto matching ( [ {
+X
+X		- auto-indent mode
+X
+X	Plus many options can be set:
+X
+X		- row and column number can be shown on status line
+X
+X		- can have EMACS-style cursor recentering on scrolls
+X
+X		- characters between 160-254 can be shown as-is for
+X		  scandinavian characters
+X
+X		- Final newline can be forced on end of file
+X
+X		- Can start with a help screen on
+X
+X		- No. of PgUp/PgDn lines to keep can be specified
+X
+X		- Left/Right margin settings
+X
+X		- Tab width
+X
+X		- Indentation step and character
+X
+X	JOE will soon have:
+X
+X		Hex dump edit mode
+X
+X		Fixed record length edit mode
+X
+X		Shell windows and background/demand file-loading
+X
+/*  jha...@world.std.com */     /* Amazing */            /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}
+SHAR_EOF
+chmod 0600 INFO ||
+echo 'restore of INFO failed'
+Wc_c="`wc -c < 'INFO'`"
+test 5471 -eq "$Wc_c" ||
+	echo 'INFO: original size 5471, current size' "$Wc_c"
+fi
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+This is Joe's Own Editor.  See the INFO file if you don't know what this is.
+X
+Installation proceedure
+=-=-=-=-=-=-=-=-=-=-=-=
+X
+X	Decide on the name of the global keymap file if you don't want it
+X	to be '/usr/local/lib/joerc' and modify the 'JOERC=' in the
+X	'makefile'.  If you're a mere user, copy the joerc file into
+X	$HOME/.joerc
+X
+X	Type 'make' followed by one of the following system names:
+X
+X		xenix		for xenix 386 systems
+X
+X		posix		for posix conformant systems (use this for
+X				linux)
+X
+X		bsd		for BSD UNIX
+X
+X		sv		for old system V UNIX
+X
+X		hpux		for HPUX systems
+X
+X	Then type 'make install' to install joe in
+X	/usr/local/bin and /usr/local/lib
+X
+X	Type 'make clean' eliminate the .o files
+X
+X	Copy termcap to .termcap in your home directory if you want to
+X	use it instead of /etc/termcap (see below).
+X
+X	Set the baud rate properly (see below).
+X
+** SCO UNIX users **
+X
+Use the 'make sv', but first edit 'ttysv.c' and add these lines:
+X	#include <sys/types.h>
+X	#include <sys/stream.h>
+X	#include <sys/ptem.h>
+X	#undef SIGCONT
+X
+You may also wish to use the terminfo database.  See below.
+X
+USEAGE:	joe filenames
+X
+X	Optionally preceed each filename with +nnn to start at specified 
+line number.  
+X
+** IMPORTANT **
+X
+The baud rate must be correctly set or either typeahead will not interrupt 
+the screen update and scrolling wont be used or there will be annoying 
+delays in the screen update.  If you can't set the baud rate correctly with 
+'stty', give a numeric value in the environment variable 'BAUD'.  
+X
+The baud rate '38400' or 'extb' means infinite to joe.  Use it for X windows
+and hardware console ttys.  No delays will be generated and scrolling will
+not be used.
+X
+Use the LINES and COLUMNS environment variables if you need the terminal
+size to be different than whatever the termcap entry or stty says.
+X
+Since most people use terminal emulators, JOE does not send out pad 
+characters.  If you're using a real terminal and the padding matters, set 
+the environment variable DOPADDING.
+X
+A termcap file is included with JOE.  You might consider updating your own 
+termcap file with the entries in it, particularly if you use ANSI/VT100ish 
+terminals.  JOE understands some capabilities which are not usually supplied 
+in normal termcap (see below).
+X
+X                                 VARIATIONS
+X                                 =-=-=-=-=-
+X
+Termcap/Terminfo
+=-=-=-=-=-=-=-=-
+X
+X	JOE prefers to use the termcap terminal capability database.  You
+have if the file '/etc/termcap' exists.  If it doesn't you can use the
+'termcap' file supplied with joe by copying it to /etc.
+X
+X	Termcap is better than terminfo because it is a more open standard. 
+Programs can directly access the termcap database and future versions of
+terminfo may require programs to use curses.  The only argument in
+terminfo's favour is that it is faster than termcap.  To fix this problem,
+JOE will use a termcap index file if it exists and if it is up to date.
+X
+X	This is the proceedure to make the termcap index file:
+X
+X		make termidx
+X		./termidx </etc/termcap >/etc/termcap.idx
+X
+X	The /etc/termcap.idx is a text file which you can look at if you're
+curious.
+X
+X	JOE supports the GNU extensions to the termcap language and also
+understands several new capabilities:
+X
+X		AL DL IC DC RI LE UP DO SF SR
+X
+X			Versions of the standard capabilities which accept
+X			an argument.  For example, RI with and argument of
+X			7 should move the cursor 7 positions to the right.
+X
+X		rr
+X
+X			Set this flag if the cursor is restricted to move
+X			only within the scrolling regions.  This is an optional
+X			mode on vt220s and several clones assume that this
+X			mode is always on.
+X
+X		cb
+X
+X			Like the 'cv' capability, but the cursor goes to the
+X			beginning of the specified line.  Like 'ESC [ n H' in
+X			ansi/vt100.
+X
+X	But if you really must use the terminfo database, change the
+'termcap.o' file in the OBJS list in the makefile to 'terminfo.o'.  You'll 
+also have to add '-ltinfo', '-lterminfo' or '-lcurses' to the appropriate link
+line (lines beginning with $(CC)) in the make file.
+X
+VOID trouble
+=-=-=-=-=-=-
+X
+X	If you're using an old C compiler which doesn't like the 'void'
+type, uncomment the '#define void int' line from the config.h file.
+X
+No diropen library
+=-=-=-=-=-=-=-=-=-
+X
+X	Add 'olddir.o' to the object file list in the makefile.
+X
+16-bit systems / MS-DOS systems
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+X
+X	The 16-bit segmented system support is not quite finished yet.  If
+you really want to try, copy 'config86.h' to config.h and try compiling with
+ttymsdos.h or ttyxenix.h for Xenix 86/286 systems.  Use large model.
+X
+X	I still have to make the UNDO system use edit buffers (which use a
+linked list of small blocks) instead of large malloc blocks to store the
+records.  
+X
+X	Also for MS-DOS you have to go through ansi/nansi/zansi.sys.  There
+also needs to be an \etc\termcap file and a \tmp directory.  Soon I'll make
+a direct screen access version.  Also there's a 'msdir.c' module for making
+the turbo-C directory access functions look like unix opendir functions. 
+You'll probably have to make even more changes (like no password file
+support) to get it to work.
+X
+X	If someone sends me information about tty drivers on QNX or
+coherent, I'll be happy to try to make JOE work for them (also, do they
+support large model?)
+SHAR_EOF
+chmod 0600 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 5257 -eq "$Wc_c" ||
+	echo 'README: original size 5257, current size' "$Wc_c"
+fi
+# ============= b.c ==============
+if test -f 'b.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping b.c (File already exists)'
+else
+echo 'x - extracting b.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'b.c' &&
+/* Buffer management
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <pwd.h>
+#include <errno.h>
+#include "config.h"
+#include "heap.h"
+#include "blocks.h"
+#include "w.h"
+#include "tty.h"
+#include "scrn.h"
+#include "undo.h"
+#include "vs.h"
+#include "zstr.h"
+#include "main.h"
+#include "bw.h"
+#include "b.h"
+X
+extern int errno;
+int force=0;
+X
+char buffer[1024];
+X
+/********************/
+/* Buffer GAP stuff */
+/********************/
+X
+/* Get size of gap (amount of free space) */
+X
+#define GGAPSZ(hdr) ((hdr)->ehole-(hdr)->hole)
+X
+/* Get number of characters in gap buffer */
+X
+#define GSIZE(hdr) (SEGSIZ-GGAPSZ(hdr))
+X
+/* Set position of gap */
+X
+static void gstgap(hdr,ptr,ofst)
+H *hdr;
+char *ptr;
+int ofst;
+{
+if(ofst>hdr->hole)
+X mfwrd(ptr+hdr->hole,ptr+hdr->ehole,ofst-hdr->hole), vchanged(ptr);
+else if(ofst<hdr->hole)
+X mbkwd(ptr+hdr->ehole-(hdr->hole-ofst),ptr+ofst,hdr->hole-ofst), vchanged(ptr);
+hdr->ehole=ofst+hdr->ehole-hdr->hole;
+hdr->hole=ofst;
+}
+X
+/* Insert a block */
+X
+static void ginsm(hdr,ptr,ofst,blk,size)
+H *hdr;
+char *ptr;
+int ofst;
+char *blk;
+int size;
+{
+if(ofst!=hdr->hole) gstgap(hdr,ptr,ofst);
+mcpy(ptr+hdr->hole,blk,size);
+hdr->hole+=size;
+vchanged(ptr);
+}
+X
+/* Delete characters */
+X
+static void gdel(hdr,ptr,ofst,size)
+H *hdr;
+char *ptr;
+int ofst;
+int size;
+{
+if(ofst!=hdr->hole) gstgap(hdr,ptr,ofst);
+hdr->ehole+=size;
+}
+X
+/* Read block */
+X
+static void grmem(hdr,ptr,ofst,blk,size)
+H *hdr;
+char *ptr;
+int ofst;
+char *blk;
+int size;
+{
+if(ofst<hdr->hole)
+X if(size>hdr->hole-ofst)
+X  mcpy(blk,ptr+ofst,hdr->hole-ofst),
+X  mcpy(blk+hdr->hole-ofst,ptr+hdr->ehole,size-(hdr->hole-ofst));
+X else mcpy(blk,ptr+ofst,size);
+else mcpy(blk,ptr+ofst+hdr->ehole-hdr->hole,size);
+}
+X
+/**************************************/
+/* Header and text segment allocation */
+/**************************************/
+X
+static long salloc(b)
+B *b;
+{
+if(b->fretxt)
+X {
+X long addr=b->fretxt;
+X long *adr=(long *)vlock(b->text,addr);
+X b->fretxt= *adr;
+X vunlock(adr);
+X return addr;
+X }
+else return valloc(b->text,(long)SEGSIZ);
+}
+X
+static H frhdrs={{&frhdrs,&frhdrs}};
+X
+static H *halloc()
+{
+if(qempty(H,link,&frhdrs))
+X {
+X H *h;
+X int x;
+X h=(H *)malloc(sizeof(H)*64);
+X for(x=0;x!=64;++x) enquef(H,link,&frhdrs,h+x);
+X }
+return deque(H,link,frhdrs.link.next);
+}
+X
+static void sfree(b,addr)
+B *b;
+long addr;
+{
+long *adr=(long *)vlock(b->text,addr);
+*adr=b->fretxt;
+vchanged(adr); vunlock(adr);
+b->fretxt=addr;
+}
+X
+/**********************/
+/* Pointer allocation */
+/**********************/
+X
+static P frptrs={{&frptrs,&frptrs}};
+X
+static P *palloc()
+{
+if(qempty(P,link,&frptrs))
+X {
+X P *h;
+X int x;
+X h=(P *)malloc(sizeof(P)*64);
+X for(x=0;x!=64;++x) enquef(P,link,&frptrs,h+x);
+X }
+return deque(P,link,frptrs.link.next);
+}
+X
+static void pfree(p)
+P *p;
+{
+enquef(P,link,&frptrs,p);
+}
+X
+/****************************/
+/* Buffer creation/deletion */
+/****************************/
+X
+/* Doubly linked list of buffers */
+X
+static B bufs={{&bufs,&bufs}};
+int tabwidth=8;
+X
+B *bmk()
+{
+B *new=(B *)malloc(sizeof(B));
+new->tab=tabwidth;
+new->backup=1;
+new->chnged=0;
+new->count=1;
+new->name=0;
+new->fretxt=0;
+new->bof=palloc();
+izque(P,link,new->bof);
+new->text=vtmp();
+new->bof->b=new;
+new->bof->owner=0;
+new->bof->ofst=0;
+new->bof->byte=0;
+new->bof->line=0;
+new->bof->col=0;
+new->bof->xcol=0;
+new->bof->lbyte=0;
+new->bof->hdr=halloc();
+new->bof->hdr->hole=0;
+new->bof->hdr->ehole=SEGSIZ;
+izque(H,link,new->bof->hdr);
+new->bof->hdr->seg=salloc(new);
+new->bof->ptr=vlock(new->text,new->bof->hdr->seg);
+new->eof=pdup(new->bof);
+undomk(new);
+enquef(B,link,&bufs,new);
+return new;
+}
+X
+/* Find loaded file */
+X
+B *bfind(name)
+char *name;
+{
+B *b;
+for(b=bufs.link.next;b!=&bufs;b=b->link.next)
+X if(b->name && !zcmp(name,b->name))
+X  {
+X  ++b->count;
+X  return b;
+X  }
+return 0;
+}
+X
+void brm(b)
+B *b;
+{
+if(!--b->count)
+X {
+X undorm(b);
+X splicef(H,link,&frhdrs,b->bof->hdr);
+X while(!qempty(P,link,b->bof)) prm(b->bof->link.next);
+X prm(b->bof);
+X if(b->name) free(b->name);
+X vclose(b->text);
+X free(deque(B,link,b));
+X }
+}
+X
+/**********************/
+/* Pointer management */
+/**********************/
+X
+P *pset(n,p)
+P *n, *p;
+{
+n->b=p->b;
+n->ofst=p->ofst;
+n->hdr=p->hdr;
+if(n->ptr) vunlock(n->ptr); n->ptr=p->ptr; vupcount(n->ptr);
+n->byte=p->byte;
+n->line=p->line;
+n->col=p->col;
+n->xcol=p->xcol;
+n->lbyte=p->lbyte;
+return n;
+}
+X
+P *pdup(p)
+P *p;
+{
+P *n=palloc();
+n->ptr=0;
+n->owner=0;
+enquef(P,link,p,n);
+return pset(n,p);
+}
+X
+P *pdupown(p,o)
+P *p;
+P **o;
+{
+P *n=palloc();
+n->ptr=0;
+n->owner=o;
+enquef(P,link,p,n);
+pset(n,p);
+if(*o) prm(*o);
+*o=n;
+return n;
+}
+X
+P *pbof(p)
+P *p;
+{
+return pset(p,p->b->bof);
+}
+X
+P *peof(p)
+P *p;
+{
+return pset(p,p->b->eof);
+}
+X
+void prm(p)
+P *p;
+{
+if(!p) return;
+if(p->owner) *p->owner=0;
+vunlock(p->ptr);
+pfree(deque(P,link,p));
+}
+X
+int pisbof(p)
+P *p;
+{
+return p->hdr==p->b->bof->hdr && !p->ofst;
+}
+X
+int piseof(p)
+P *p;
+{
+return p->hdr==p->b->bof->hdr->link.prev;
+}
+X
+int piseol(p)
+P *p;
+{
+if(p->hdr==p->b->bof->hdr->link.prev) return 1;
+if(p->ofst>=p->hdr->hole)
+X { if(p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole]=='\n') return 1; }
+else if(p->ptr[p->ofst]=='\n') return 1;
+return 0;
+}
+X
+int pisbol(p)
+P *p;
+{
+char c;
+if(p->hdr==p->b->bof->hdr && !p->ofst) return 1;
+c=prgetcn(p); pfwrdn(p,(long)1);
+return c=='\n';
+}
+X
+int pisbow(p)
+P *p;
+{
+P *q=pdup(p);
+int c=brc(p);
+int d=prgetcn(q);
+prm(q);
+if((c>='a' && c<='z' || c>='A' && c<='Z' || c>='0' && c<='9') &&
+X !(d>='a' && d<='z' || d>='A' && d<='Z' || d>='0' && d<='9')) return 1;
+return 0;
+}
+X
+int piseow(p)
+P *p;
+{
+P *q=pdup(p);
+int d=brc(q);
+int c=prgetcn(q);
+prm(q);
+if((c>='a' && c<='z' || c>='A' && c<='Z' || c>='0' && c<='9') &&
+X !(d>='a' && d<='z' || d>='A' && d<='Z' || d>='0' && d<='9')) return 1;
+return 0;
+}
+X
+int pnext(p)
+P *p;
+{
+if(p->hdr==p->b->bof->hdr->link.prev) return 0;
+p->hdr=p->hdr->link.next; p->ofst=0;
+vunlock(p->ptr); p->ptr=vlock(p->b->text,p->hdr->seg);
+return GSIZE(p->hdr)!=0;
+}
+X
+int pprev(p)
+P *p;
+{
+if(p->hdr==p->b->bof->hdr) return 0;
+p->hdr=p->hdr->link.prev;
+p->ofst=GSIZE(p->hdr);
+vunlock(p->ptr); p->ptr=vlock(p->b->text,p->hdr->seg);
+return p->ofst;
+}
+X
+int pgetcn(p)
+P *p;
+{
+unsigned char c;
+if(p->ofst==GSIZE(p->hdr)) return MAXINT;
+if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+else c=p->ptr[p->ofst];
+if(++p->ofst==GSIZE(p->hdr)) pnext(p); 
+return c;
+}
+X
+int pgetc(p)
+P *p;
+{
+unsigned char c;
+if(p->ofst==GSIZE(p->hdr)) return MAXINT;
+if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+else c=p->ptr[p->ofst];
+if(++p->ofst==GSIZE(p->hdr)) pnext(p); 
+++p->byte;
+if(c=='\n') ++p->line, p->col=0, p->lbyte=0;
+else
+X {
+X ++p->lbyte;
+X if(c=='\t') p->col+=p->b->tab-p->col%p->b->tab;
+X else ++p->col;
+X }
+return c;
+}
+X
+P *pfwrdn(p,n)
+P *p;
+long n;
+{
+while(n>=GSIZE(p->hdr)-p->ofst)
+X {
+X int adj=GSIZE(p->hdr)-p->ofst;
+X if(!adj) break;
+X n-=adj;
+X pnext(p);
+X }
+if(n>GSIZE(p->hdr)-p->ofst) return 0;
+p->ofst+=n;
+return p;
+}
+X
+P *pfwrd(p,n)
+P *p;
+long n;
+{
+int c;
+while(n--) if(pgetc(p)== MAXINT) return 0;
+return p;
+}
+X
+int prgetcn(p)
+P *p;
+{
+unsigned char c;
+if(!p->ofst) if(!pprev(p)) return MAXINT;
+--p->ofst;
+if(p->ofst>=p->hdr->hole)
+X c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+else c=p->ptr[p->ofst];
+return c;
+}
+X
+int prgetc(p)
+P *p;
+{
+unsigned char c;
+if(!p->ofst) if(!pprev(p)) return MAXINT;
+--p->ofst;
+if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+else c=p->ptr[p->ofst];
+--p->byte;
+if(c=='\n')
+X {
+X --p->line;
+X pfcol(p);
+X }
+else if(c=='\t') pfcol(p);
+else
+X {
+X --p->lbyte;
+X --p->col;
+X }
+return c;
+}
+X
+P *pbkwdn(p,n)
+P *p;
+long n;
+{
+while(n>p->ofst)
+X {
+X n-=p->ofst;
+X if(!pprev(p)) break;
+X }
+if(n>p->ofst) return 0;
+p->ofst-=n;
+return p;
+}
+X
+P *pbkwdf(p,n)
+P *p;
+long n;
+{
+while(n--)
+X {
+X if(!p->ofst) if(!pprev(p)) return 0;
+X --p->ofst;
+X --p->byte;
+X if(p->ofst>=p->hdr->hole)
+X  {
+X  if('\n'==p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole])
+X  --p->line;
+X  }
+X else if('\n'==p->ptr[p->ofst]) --p->line;
+X }
+return p;
+}
+X
+P *pfcol(p)
+P *p;
+{
+H *hdr=p->hdr;
+int ofst=p->ofst;
+pboln(p);
+while(p->ofst!=ofst || p->hdr!=hdr) pgetc(p);
+return p;
+}
+X
+P *pbkwd(p,n)
+P *p;
+long n;
+{
+P *y=pbkwdf(p,n);
+pfcol(p);
+return y;
+}
+X
+P *pbol(p)
+P *p;
+{
+if(p->lbyte) pbkwdn(p,p->lbyte);
+p->byte-=p->lbyte; p->lbyte=0; p->col=0;
+return p;
+}
+X
+P *pboln(p)
+P *p;
+{
+if(pprevl(p)) pgetc(p);
+p->col=0; p->lbyte=0;
+return p;
+}
+X
+P *peol(p)
+P *p;
+{
+while(p->hdr!=p->b->bof->hdr->link.prev)
+X {
+X unsigned char c;
+X if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+X else c=p->ptr[p->ofst];
+X if(c=='\n') break;
+X else
+X  {
+X  ++p->byte;
+X  ++p->ofst;
+X  ++p->lbyte;
+X  if(c=='\t') p->col+=p->b->tab-p->col%p->b->tab;
+X  else ++p->col;
+X  if(p->ofst==GSIZE(p->hdr)) pnext(p); 
+X  }
+X }
+return p;
+}
+X
+P *pnextl(p)
+P *p;
+{
+char c;
+do
+X {
+X if(p->ofst==GSIZE(p->hdr)) if(!pnext(p)) return 0;
+X if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+X else c=p->ptr[p->ofst];
+X ++p->byte; ++p->ofst;
+X }
+X while(c!='\n');
+++p->line;
+p->col=0; p->lbyte=0;
+if(p->ofst==GSIZE(p->hdr)) pnext(p);
+return p;
+}
+X
+P *pprevl(p)
+P *p;
+{
+char c;
+do
+X {
+X if(!p->ofst) if(!pprev(p)) return 0;
+X --p->ofst; --p->byte;
+X if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+X else c=p->ptr[p->ofst];
+X }
+X while(c!='\n');
+--p->line;
+return p;
+}
+X
+P *pline(p,line)
+P *p;
+long line;
+{
+if(line>p->b->eof->line) { pset(p,p->b->eof); return p; }
+if(line<Iabs(p->line-line)) pset(p,p->b->bof);
+if(Iabs(p->b->eof->line-line)<Iabs(p->line-line)) pset(p,p->b->eof);
+if(p->line==line) { pbol(p); return p; }
+while(line>p->line) pnextl(p);
+if(line<p->line)
+X {
+X while(line<p->line) pprevl(p);
+X pboln(p);
+X }
+p->lbyte=0; p->col=0;
+return p;
+}
+X
+P *pcol(p,goalcol)
+P *p;
+long goalcol;
+{
+if(p->lbyte) pbol(p);
+do
+X {
+X unsigned char c;
+X int wid;
+X if(p->ofst==GSIZE(p->hdr)) break;
+X if(p->ofst>=p->hdr->hole) c=p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+X else c=p->ptr[p->ofst];
+X if(c=='\n') break;
+X if(c=='\t') wid=p->b->tab-p->col%p->b->tab;
+X else wid=1;
+X if(p->col+wid>goalcol) break;
+X if(++p->ofst==GSIZE(p->hdr)) pnext(p); 
+X ++p->byte; ++p->lbyte; p->col+=wid;
+X } while(p->col!=goalcol);
+return p;
+}
+X
+P *pfindrn(p,s,len)
+P *p;
+char *s;
+{
+P *q=pdup(p);
+char *os;
+int olen;
+if(!len) return p;
+q=pdup(p);
+do
+X {
+X pset(q,p);
+X os=s; olen=len;
+X while(olen--) if(*os++!=pgetc(q)) break;
+X if(olen== -1)
+X  {
+X  prm(q);
+X  return p;
+X  }
+X } while(pbkwdf(p,1L));
+prm(q);
+return 0;
+}
+X
+P *pfindrni(p,s,len)
+P *p;
+char *s;
+{
+P *q=pdup(p);
+char *os;
+int olen;
+if(!len) return p;
+q=pdup(p);
+do
+X {
+X pset(q,p);
+X os=s; olen=len;
+X while(olen--) if(toup(*os++)!=toup(pgetc(q))) break;
+X if(olen== -1)
+X  {
+X  prm(q);
+X  return p;
+X  }
+X } while(pbkwdf(p,1L));
+prm(q);
+return 0;
+}
+X
+P *pfindfn(p,s,len)
+P *p;
+char *s;
+{
+P *q=pdup(p);
+char *os;
+int olen;
+int c;
+if(!len) return p;
+q=pdup(p);
+while( (c=pgetc(p)) != MAXINT )
+X if(c==s[0])
+X  {
+X  pset(q,p);
+X  os=s+1; olen=len-1;
+X  while(olen--) if(*os++!=pgetc(q)) break;
+X  if(olen== -1)
+X   {
+X   prm(q);
+X   prgetc(p);
+X   return p;
+X   }
+X  }
+prm(q);
+return 0;
+}
+X
+P *pfindfni(p,s,len)
+P *p;
+char *s;
+{
+P *q=pdup(p);
+char *os;
+int olen;
+int c;
+if(!len) return p;
+q=pdup(p);
+while( (c=pgetc(p)) != MAXINT )
+X if(toup(c)==toup(s[0]))
+X  {
+X  pset(q,p);
+X  os=s+1; olen=len-1;
+X  while(olen--) if(toup(*os++)!=toup(pgetc(q))) break;
+X  if(olen== -1)
+X   {
+X   prm(q);
+X   prgetc(p);
+X   return p;
+X   }
+X  }
+prm(q);
+return 0;
+}
+X
+/******************************/
+/* Getting data from a buffer */
+/******************************/
+X
+int brc(p)
+P *p;
+{
+if(p->hdr==p->b->bof->hdr->link.prev) return MAXINT;
+if(p->ofst>=p->hdr->hole) return p->ptr[p->ofst+p->hdr->ehole-p->hdr->hole];
+else return p->ptr[p->ofst];
+}
+X
+char *brmem(p,blk,size)
+P *p;
+char *blk;
+int size;
+{
+char *bk=blk;
+P *np;
+int amnt;
+np=pdup(p);
+while(size>(amnt=GSIZE(np->hdr)-np->ofst))
+X {
+X grmem(np->hdr,np->ptr,np->ofst,bk,amnt);
+X bk+=amnt;
+X size-=amnt;
+X if(!pnext(np)) break;
+X }
+if(size<(amnt=GSIZE(np->hdr)-np->ofst)) amnt=size;
+if(amnt) grmem(np->hdr,np->ptr,np->ofst,bk,amnt);
+prm(np);
+return blk;
+}
+X
+char *brs(p,size)
+P *p;
+int size;
+{
+char *s=(char *)malloc(size+1);
+s[size]=0;
+return brmem(p,s,size);
+}
+X
+char *brvs(p,size)
+P *p;
+int size;
+{
+char *s=vstrunc(NULL,size);
+return brmem(p,s,size);
+}
+X
+int bsavefd(p,fd,size)
+P *p;
+long size;
+{
+P *np=pdup(p);
+int amnt;
+while(size>(amnt=GSIZE(np->hdr)-np->ofst))
+X {
+X if(np->ofst<np->hdr->hole)
+X  {
+X  if(write(fd,np->ptr+np->ofst,np->hdr->hole-np->ofst)<0) return -5;
+X  if(write(fd,np->ptr+np->hdr->ehole,SEGSIZ-np->hdr->ehole)<0) return -5;
+X  }
+X else if(write(fd,np->ptr+np->ofst+GGAPSZ(np->hdr),amnt)<0) return -5;
+X size-=amnt;
+X if(!pnext(np)) break;
+X }
+if(size<(amnt=GSIZE(np->hdr)-np->ofst)) amnt=size;
+if(amnt)
+X if(np->ofst<np->hdr->hole)
+X  if(amnt>np->hdr->hole-np->ofst)
+X   {
+X   if(write(fd,np->ptr+np->ofst,np->hdr->hole-np->ofst)<0) return -5;
+X   if(write(fd,np->ptr+np->hdr->ehole,amnt-np->hdr->hole+np->ofst)<0) return -5;
+X   }
+X  else
+X   {
+X   if(write(fd,np->ptr+np->ofst,amnt)<0) return -5;
+X   }
+X else if(write(fd,np->ptr+np->ofst+GGAPSZ(np->hdr),amnt)<0) return -5;
+prm(np);
+return 0; /* Check status returned by fwrite */
+}
+X
+char *parsens(s,skip,amnt)
+char *s;
+long *skip, *amnt;
+{
+char *n=vsncpy(NULL,0,sz(s));
+int x,y;
+*skip=0;
+*amnt= MAXLONG;
+for(x=sLEN(n)-1;x>0 && (n[x]>='0' && n[x]<='9' || n[x]=='x' || n[x]=='X');--x);
+if(n[x]==',')
+X {
+X int c;
+X n[x]=0;
+X if(n[x+1]=='x' || n[x+1]=='X') sscanf(n+x+2,"%lx",skip);
+X else if(n[x+1]=='0' && (n[x+2]=='x' || n[x+2]=='X')) sscanf(n+x+3,"%lx",skip);
+X else if(n[x+1]=='0') sscanf(n+x+1,"%lo",skip);
+X else sscanf(n+x+1,"%d",skip);
+X for(--x;x>0 && (n[x]>='0' && n[x]<='9' || n[x]=='x' || n[x]=='X');--x);
+X if(n[x]==',')
+X  {
+X  n[x]=0;
+X  *amnt= *skip;
+X  if(n[x+1]=='x' || n[x+1]=='X') sscanf(n+x+2,"%lx",skip);
+X  else if(n[x+1]=='0' && (n[x+2]=='x' || n[x+2]=='X')) sscanf(n+x+3,"%lx",skip);
+X  else if(n[x+1]=='0') sscanf(n+x+1,"%lo",skip);
+X  else sscanf(n+x+1,"%d",skip);
+X  }
+X }
+if(n[0]=='~')
+X {
+X for(x=1;n[x] && n[x]!='/';++x);
+X if(n[x]=='/')
+X  if(x==1)
+X   {
+X   char *z;
+X   s=getenv("HOME");
+X   z=vsncpy(NULL,0,sz(s));
+X   z=vsncpy(z,sLEN(z),sz(n+x));
+X   vsrm(n);
+X   n=z;
+X   }
+X  else
+X   {
+X   struct passwd *passwd;
+X   n[x]=0;
+X   passwd=getpwnam(n+1);
+X   n[x]='/';
+X   if(passwd)
+X    {
+X    char *z=vsncpy(NULL,0,sz(passwd->pw_dir));
+X    z=vsncpy(z,sLEN(z),sz(n+x));
+X    vsrm(n);
+X    n=z;
+X    }
+X   }
+X }
+return n;
+}
+X
+int bsave(p,s,size)
+P *p;
+char *s;
+long size;
+{
+FILE *f;
+int flg;
+long skip,amnt;
+s=parsens(s,&skip,&amnt);
+if(amnt<size) size=amnt;
+if(s[0]=='!')
+X {
+X nescape(maint->t);
+X ttclsn();
+X f=popen(s+1,"w");
+X }
+else if(s[0]=='>' && s[1]=='>') f=fopen(s+2,"a");
+else if(!zcmp(s,"-"))
+X {
+X nescape(maint->t);
+X ttclsn();
+X f=stdout;
+X }
+else
+X if(skip || amnt!=MAXLONG) f=fopen(s,"r+");
+X else f=fopen(s,"w");
+if(!f)
+X {
+X if(s[0]=='!') ttopnn(), nreturn(maint->t);
+X return -4;
+X }
+fflush(f);
+X
+if(skip && lseek(fileno(f),skip,0)<0) { flg= -3; goto err; }
+X
+flg=bsavefd(p,fileno(f),size);
+if(force && size && !skip && amnt==MAXINT)
+X {
+X P *q=pdup(p);
+X char nl='\n';
+X pfwrdn(p,size-1);
+X if(brc(p)!='\n')
+X  if(write(fileno(f),&nl,1)<0) flg= -5;
+X }
+err:;
+if(s[0]=='!') pclose(f);
+else if(zcmp(s,"-")) fclose(f);
+else fflush(f);
+if(s[0]=='!' || !zcmp(s,"-")) ttopnn(), nreturn(maint->t);
+return flg;
+}
+X
+/*******************************/
+/* Deleting data from a buffer */
+/*******************************/
+X
+static void fixup(p,amnt,nlines,hdr,hdramnt)
+P *p;
+long amnt;
+long nlines;
+H *hdr;
+int hdramnt;
+{
+P *pp;
+int flg;
+if(!p->lbyte) flg=0;
+else flg=1;
+scrdel(p->b,p->line,nlines,flg);
+for(pp=p->link.next;pp!=p;pp=pp->link.next)
+X if(pp->byte>=p->byte)
+X  if(pp->byte<=p->byte+amnt) pset(pp,p);
+X  else
+X   {
+X   if(pp->hdr==hdr) pp->ofst-=hdramnt;
+X   if(pp->line==p->line+nlines) pp->col=~(long)0;
+X   pp->byte-=amnt;
+X   pp->line-=nlines;
+X   }
+for(pp=p->link.next;pp!=p;pp=pp->link.next)
+X if(pp->col==~(long)0) pfcol(pp);
+p->b->chnged=1;
+}
+X
+static void frchn(b,h)
+B *b;
+H *h;
+{
+H *a;
+a=h; do
+X sfree(b,a->seg),
+X a=a->link.next;
+X while(a!=h);
+splicef(H,link,&frhdrs,h);
+}
+X
+P *bdel(from,to)
+P *from, *to;
+{
+long nlines=to->line-from->line;/* No. EOLs to delete */
+long amnt=to->byte-from->byte;	/* No. bytes to delete */
+int toamnt;			/* Amount delete from segment in 'to' */
+if(from->byte==to->byte) return from;
+undodel(from,amnt);
+if(from->hdr==to->hdr)
+X {
+X gdel(from->hdr,from->ptr,from->ofst,(int)amnt);
+X toamnt=amnt;
+X }
+else
+X {
+X H *a;
+X toamnt=to->ofst;
+X /* Delete beginning of to */
+X gstgap(to->hdr,to->ptr,to->ofst);
+X to->hdr->hole=0;
+X
+X /* Delete end of from */
+X if(from->ofst)
+X  {
+X  a=from->hdr;
+X  gstgap(from->hdr,from->ptr,from->ofst);
+X  from->hdr->ehole=SEGSIZ;
+X  }
+X else a=from->hdr->link.prev;
+X
+X /* From now points to header/segment of to */
+X from->hdr=to->hdr;
+X vunlock(from->ptr); from->ptr=to->ptr; vupcount(to->ptr);
+X from->ofst=0;
+X
+X /* Delete headers/segments between a and to->hdr */
+X if(a->link.next!=to->hdr)
+X  frchn(to->b,snip(H,link,a->link.next,to->hdr->link.prev));
+X }
+X
+fixup(from,amnt,nlines,to->hdr,toamnt);
+return from;
+}
+X
+/********************************/
+/* Inserting data into a buffer */
+/********************************/
+X
+/* Split a block at p's ofst */
+/* p is placed in the new block such that it points to the same text but with
+X * p->ofst==0
+X */
+X
+static void bsplit(p)
+P *p;
+{
+if(p->ofst)
+X {
+X H *hdr;
+X char *ptr;
+X P *pp;
+X
+X hdr=halloc();
+X hdr->seg=salloc(p->b);
+X ptr=vlock(p->b->text,hdr->seg);
+X
+X gstgap(p->hdr,p->ptr,p->ofst);
+X mcpy(ptr,p->ptr+p->hdr->ehole,SEGSIZ-p->hdr->ehole);
+X vchanged(ptr);
+X hdr->hole=SEGSIZ-p->hdr->ehole;
+X hdr->ehole=SEGSIZ;
+X p->hdr->ehole=SEGSIZ;
+X
+X enquef(H,link,p->hdr,hdr);
+X 
+X vunlock(p->ptr);
+X
+X for(pp=p->link.next;pp!=p;pp=pp->link.next)
+X  if(pp->hdr==p->hdr && pp->ofst>=p->ofst)
+X   {
+X   pp->hdr=hdr;
+X   vunlock(pp->ptr); pp->ptr=ptr; vupcount(ptr);
+X   pp->ofst-=p->ofst;
+X   }
+X
+X p->ptr=ptr;
+X p->hdr=hdr;
+X p->ofst=0;
+X }
+}
+X
+static void inschn(p,a)
+P *p;
+H *a;
+{
+bsplit(p);
+p->hdr=spliceb(H,link,p->hdr,a);
+vunlock(p->ptr); p->ptr=vlock(p->b->text,a->seg);
+}
+X
+static H *bldchn(b,blk,size)
+B *b;
+char *blk;
+int size;
+{
+H anchor, *l;
+izque(H,link,&anchor);
+do
+X {
+X char *ptr;
+X int amnt;
+X ptr=vlock(b->text,(l=halloc())->seg=salloc(b));
+X if(size>SEGSIZ) amnt=SEGSIZ;
+X else amnt=size;
+X mcpy(ptr,blk,amnt);
+X vchanged(ptr); vunlock(ptr);
+X l->hole=amnt; l->ehole=SEGSIZ;
+X enqueb(H,link,&anchor,l);
+X blk+=amnt; size-=amnt;
+X }
+X while(size);
+l=anchor.link.next;
+deque(H,link,&anchor);
+return l;
+}
+X
+static void fixup1(p,amnt,nlines,hdr,hdramnt)
+P *p;
+long amnt;
+long nlines;
+H *hdr;
+int hdramnt;
+{
+P *pp;
+int flg;
+if(!p->lbyte) flg=0;
+else flg=1;
+scrins(p->b,p->line,nlines,flg);
+for(pp=p->link.next;pp!=p;pp=pp->link.next)
+X if(pp->byte==p->byte && pp!=p->b->eof) pset(pp,p);
+X else if(pp->byte>p->byte || pp==p->b->eof)
+X  {
+X  pp->byte+=amnt;
+X  if(pp->line==p->line) pp->col=~(long)0;
+X  pp->line+=nlines;
+X  if(pp->hdr==hdr) pp->ofst+=hdramnt;
+X  }
+for(pp=p->link.next;pp!=p;pp=pp->link.next) if(pp->col==~(long)0) pfcol(pp);
+undoins(p,amnt);
+p->b->chnged=1;
+}
+X
+P *binsm(p,blk,amnt)
+P *p;
+char *blk;
+int amnt;
+{
+long nlines=mcnt(blk,'\n',amnt);
+H *h=0;
+int hdramnt;
+if(p->hdr!=p->b->eof->hdr && amnt<=GGAPSZ(p->hdr))
+X {
+X h=p->hdr;
+X hdramnt=amnt;
+X ginsm(p->hdr,p->ptr,p->ofst,blk,amnt);
+X }
+else if(p->hdr==p->b->eof->hdr &&
+X        p->b->bof->hdr != p->b->eof->hdr &&
+X        amnt<=GGAPSZ(p->hdr->link.prev))
+X {
+X pprev(p); 
+X ginsm(p->hdr,p->ptr,p->ofst,blk,amnt);
+X }
+else
+X {
+X H *a=bldchn(p->b,blk,amnt);
+X inschn(p,a);
+X }
+fixup1(p,(long)amnt,nlines,h,hdramnt);
+return p;
+}
+X
+P *binsc(p,c)
+P *p;
+char c;
+{
+return binsm(p,&c,1);
+}
+X
+P *binss(p,s)
+P *p;
+char *s;
+{
+return binsm(p,s,zlen(s));
+}
+X
+P *binsb(p,from,to)
+P *p, *from, *to;
+{
+P *dp=pdup(p);
+P *sp=pdup(from);
+int amnt;
+if(p->b==from->b && p->byte>=from->byte && p->byte<to->byte)
+X {
+X P *mid=pdup(dp);
+X while(mid->byte-sp->byte>=1024)
+X  {
+X  brmem(sp,buffer,1024);
+X  binsm(dp,buffer,1024);
+X  pfwrdn(sp,(long)1024), sp->byte+=1024;
+X  pfwrdn(dp,(long)1024), dp->byte+=1024;
+X  }
+X if(amnt=mid->byte-sp->byte)
+X  {
+X  brmem(sp,buffer,amnt);
+X  binsm(dp,buffer,amnt);
+X  pfwrdn(sp,(long)amnt), sp->byte+=amnt;
+X  pfwrdn(dp,(long)amnt), dp->byte+=amnt;
+X  }
+X prm(mid);
+X pset(sp,dp);
+X pset(dp,to);
+X }
+while(to->byte-sp->byte>=1024)
+X {
+X brmem(sp,buffer,1024);
+X binsm(dp,buffer,1024);
+X pfwrdn(sp,(long)1024), sp->byte+=1024;
+X pfwrdn(dp,(long)1024), dp->byte+=1024;
+X }
+if(amnt=to->byte-sp->byte)
+X {
+X brmem(sp,buffer,amnt);
+X binsm(dp,buffer,amnt);
+X }
+prm(dp);
+prm(sp);
+return p;
+}
+X
+static int bkread(fi,buff,size)
+char *buff;
+int size;
+{
+int a,b;
+if(!size) return -1;
+for(a=b=0;(a<size) && ((b=read(fi,buff+a,size-a))>0);a+=b);
+return (b<0) ? -1 : a;
+}
+X
+static H *rdchn(b,fi,linesp,totala,max)
+B *b;
+long *linesp;
+long *totala;
+long *max;
+{
+H anchor, *l;
+long lines=0, total=0;
+char *ptr;
+int amnt;
+long vseg;
+char *seg;
+izque(H,link,&anchor);
+while((amnt=bkread(fi,seg=vlock(b->text,vseg=salloc(b)),*max>=SEGSIZ?SEGSIZ:(int)*max))>0)
+X {
+X total+=amnt;
+X *max-=amnt;
+X lines+=mcnt(seg,'\n',amnt);
+X vchanged(seg); vunlock(seg);
+X l=halloc();
+X l->seg=vseg;
+X l->hole=amnt;
+X l->ehole=SEGSIZ;
+X enqueb(H,link,&anchor,l);
+X }
+sfree(b,vseg);
+vunlock(seg);
+if(amnt<0) return 0;
+*linesp=lines;
+*totala=total;
+l=anchor.link.next;
+deque(H,link,&anchor);
+return l;
+}
+X
+int binsfd(p,fd,max)
+P *p;
+long max;
+{
+long nlines;
+long amnt;
+int flg;
+H *a;
+if(a=rdchn(p->b,fd,&nlines,&amnt,&max))
+X {
+X if(amnt)
+X  {
+X  inschn(p,a);
+X  fixup1(p,amnt,nlines,NULL,0);
+X  }
+X return 0;
+X }
+return -2;
+}
+X
+int binsf(p,s)
+P *p;
+char *s;
+{
+FILE *fi;
+int flg;
+long skip,amnt;
+s=parsens(s,&skip,&amnt);
+if(s[0]=='!')
+X {
+X nescape(maint->t);
+X ttclsn();
+X fi=popen(s+1,"r");
+X }
+else if(!zcmp(s,"-")) fi=stdin;
+else fi=fopen(s,"r");
+if(!fi)
+X {
+X if(s[0]=='!') ttopnn(), nreturn(maint->t);
+X if(errno==ENOENT) return -1;
+X else return -4;
+X }
+if(skip)
+X {
+X if(lseek(fileno(fi),skip,0)<0)
+X  {
+X  int r;
+X  while(skip>1024)
+X   {
+X   r=read(fileno(fi),buffer,1024);
+X   if(r!= -1) skip-=r;
+X   else { flg= -3; goto err; }
+X   }
+X  while(skip)
+X   {
+X   r=read(fileno(fi),buffer,(int)skip);
+X   if(r!= -1) skip-=r;
+X   else { flg= -3; goto err; }
+X   }
+X  }
+X }
+flg=binsfd(p,fileno(fi),amnt);
+err:;
+if(s[0]=='!') pclose(fi);
+else if(zcmp(s,"-")) fclose(fi);
+if(s[0]=='!') ttopnn(), nreturn(maint->t);
+vsrm(s);
+return flg;
+}
+X
+int bload(b,s)
+B *b;
+char *s;
+{
+int rtval;
+long skip,amnt;
+inundo=1;
+rtval=binsf(b->bof,s);
+inundo=0;
+b->name=zdup(s);
+if(rtval)
+X {
+X b->backup=1;
+X b->chnged=0;
+X return rtval;
+X }
+b->chnged=0;
+b->backup=0;
+s=parsens(s,&skip,&amnt);
+if(!zcmp(s,"-")) b->backup=1, b->chnged=1;
+else if(s[0]=='!') b->backup=1;
+else if(skip || amnt!=MAXLONG) b->backup=1;
+vsrm(s);
+return rtval;
+}
+X
+/* View chain */
+X
+void check(b)
+B *b;
+{
+H *h;
+for(h=b->bof->hdr->link.next;h!=b->bof->hdr;h=h->link.next)
+X {
+X printf("\r%8.8X: prev=%X next=%X seq=%lX hole=%d ehole=%d\r\n",
+X        h,h->link.prev,h->link.next,h->seg,h->hole,h->ehole);
+X }
+printf("\r%8.8X: prev=%X next=%X seq=%lX hole=%d ehole=%d\r\n",
+X       h,h->link.prev,h->link.next,h->seg,h->hole,h->ehole);
+}
+X
+/* View pointers */
+X
+void checkp(b)
+B *b;
+{
+P *p;
+printf("\rPointers\r\n");
+X 
+for(p=b->bof->link.next;p!=b->bof;p=p->link.next)
+X {
+X if(p==b->bof) printf("\rBof: ");
+X else if(p==b->eof) printf("\rEof: ");
+X else printf("\r");
+X  printf("Byte=%ld Hdr=%X Ofst=%d Line=%ld Col=%ld Lbyte=%ld\r\n",
+X	 p->byte,p->hdr,p->ofst,p->line,p->col,p->lbyte);
+X }
+if(p==b->bof) printf("\rBof: ");
+else if(p==b->eof) printf("\rEof: ");
+else printf("\r");
+printf("Byte=%ld Hdr=%X Ofst=%d Line=%ld Col=%ld Lbyte=%ld\r\n",p->byte,p->hdr,p->ofst,p->line,p->col,p->lbyte);
+}
+X
+/* Refigure column numbers */
+X
+void refigure()
+{
+B *b;
+P *p;
+for(b=bufs.link.next;b!=&bufs;b=b->link.next)
+X {
+X p=b->bof; do
+X  pfcol(p), p->xcol=p->col;
+X  while(p=p->link.next, p!=b->bof);
+X }
+}
+X
+/* Save edit buffers when editor dies */
+X
+void ttsig(sig)
+{
+long tim=time(0);
+B *b;
+FILE *f=fopen("DEADJOE","a");
+fprintf(f,"\n*** Modified files in JOE when it aborted on %s",ctime(&tim));
+if(sig) fprintf(f,"*** JOE was aborted by signal %d\n",sig);
+else fprintf(f,"*** JOE was aborted because the terminal closed\n");
+fflush(f);
+for(b=bufs.link.next;b!=&bufs;b=b->link.next)
+X if(b->chnged)
+X  {
+X  if(b->name) fprintf(f,"\n*** File \'%s\'\n",b->name);
+X  else fprintf(f,"\n*** File \'(Unnamed)\'\n",b->name);
+X   fflush(f);
+X  bsavefd(b->bof,fileno(f),b->eof->byte);
+X  }
+_exit(1);
+}
+SHAR_EOF
+chmod 0600 b.c ||
+echo 'restore of b.c failed'
+Wc_c="`wc -c < 'b.c'`"
+test 24715 -eq "$Wc_c" ||
+	echo 'b.c: original size 24715, current size' "$Wc_c"
+fi
+# ============= b.h ==============
+if test -f 'b.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping b.h (File already exists)'
+else
+echo 'x - extracting b.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'b.h' &&
+/* Buffer management
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+X
+#ifndef _Ib
+#define _Ib 1
+X
+#include "config.h"
+#include "queue.h"
+#include "vfile.h"
+#include "undo.h"
+X
+typedef struct header H;
+typedef struct point P;
+typedef struct buffer B;
+X
+#define HDRSIZ 16		/* Text segment header size */
+#define SEGSIZ 1024		/* Text segment size */
+X
+/* A text segment header */
+X
+struct header
+X {
+X LINK(H) link;			/* Doubly-linked list of headers */
+X long seg;			/* Virtual address of text segment */
+X unsigned short hole;		/* Offset to hole */
+X unsigned short ehole;		/* Offset to text following hole */
+X };
+X
+/* A buffer */
+X
+extern int force;
+extern char *stdio;		/* If file name is set to this, use stdio */
+X
+struct buffer
+X {
+X LINK(B) link;			/* Doubly-linked list of buffers */
+X VFILE *text;			/* Software virtual memory for this buffer */
+X long fretxt;			/* Linked list of free text */
+X P *bof;			/* Address of BOF pointer */
+X P *eof;			/* Address of EOF pointer */
+X char *name;			/* File name/0 for unnamed/stdio */
+X int count;			/* Reference count */
+X int chnged;			/* Set if changed since last save */
+X int backup;			/* Set if backup file needn't be written */
+X UNDO *undo;			/* Undo storage */
+X int tab;			/* Tab width */
+X };
+X
+/* A pointer */
+X
+struct point
+X {
+X LINK(P) link;			/* Doubly-linked list of pointers */
+X
+X /* Physical section of pointer
+X  * These must be absolutely correct for the pointer to actually be pointing
+X  * anywhere */
+X B *b;				/* Buffer this pointer is in */
+X int ofst;			/* Byte offset into current segment */
+X char *ptr;			/* Address of current segment */
+X H *hdr;			/* Address of segment's header */
+X
+X /* Logical section
+X  * These give more information about the pointer's location.  Sometimes
+X  * one or more of these may not be correctly updated */
+X long byte;			/* Byte offset from beginning of file */
+X long line;			/* Line number */
+X long col;			/* Column number */
+X long xcol;			/* Extended column number */
+X long lbyte;			/* Byte number */
+X 
+X P **owner;			/* Owner of this pointer */
+X };
+X
+/*******************************/
+/* Buffer management functions */
+/*******************************/
+X
+/* B *bmk(void);
+X * Create a new empty buffer.
+X * The following variables get these initializations:
+X *     name            NULL
+X *     reference count 1
+X *     backup flag     1
+X *     changed flag    0
+X */
+B *bmk();
+X
+/* B *bfind(char *name);
+X * Find file.  Returns with buffer of already loaded file or 0.  If the
+X * file is found, the buffer's reference count is incremented.
+X */
+B *bfind();
+X
+/* void brm(B *b);
+X * Decrement a buffer's reference count.  If it reaches zero, eliminate the
+X * buffer.
+X */
+void brm();
+X
+/********************************/
+/* Pointer management functions */
+/********************************/
+X
+/* P *pdup(P *p);
+X * Duplicate a pointer.  The new pointer's owner is set to NULL.
+X */
+P *pdup();
+X
+/* P *pdupown(P *p,P **o);
+X * Duplicate pointer and set ownership of pointer
+X */
+P *pdupown();
+X
+/* P *pset(P *p,P *n);
+X * Force a pointer p to point to the same place as another pointer n.
+X * Caution: this assumes that the original pointer p is pointing to a
+X * valid locked text segment.  If it doesn't, you must clear p->ptr
+X * before calling this function.
+X */
+P *pset();
+X
+/* P *peof(P *p);
+X * Force a pointer to point to the end of file
+X */
+P *peof();
+X
+/* P *pbof(P *p);
+X * Force a pointer to point to the beginning of file
+X */
+P *pbof();
+X
+/* void prm(P *p);
+X * Remove a pointer.  Clears the pointer's owner address.
+X */
+void prm();
+X
+/* int pisbof(P *p);
+X * Return true if pointer is at beginning of file
+X * This can be used on pointers with incorrect logical sections
+X */
+int pisbof();
+X
+/* int piseof(P *p);
+X * Return true if pointer is at end of file
+X * Ok to use if the pointer's logical section is incorrect or if the buffer's
+X * end of file pointer is incorrect.
+X */
+int piseof();
+X
+/* int pisbol(P *p);
+X * Return true if pointer is at beginning of line.
+X * Ok to use if the pointer's logical section is incorrect.
+X */
+int pisbol();
+X
+/* int piseol(P *p);
+X * Return true if pointer is at end of line
+X * This can be used if the pointer's logical section is incorrect.  It can
+X * also be used if the buffer's end of file pointer is incorrect.
+X */
+int piseol();
+X
+/* int pisbow(P *p);
+X * Return true if pointer is at beginning of a word
+X */
+int pisbow();
+X
+/* int piseow(P *p);
+X * Return true if pointer is at end of word
+X */
+int piseow();
+X
+/* int pnext(P *p);
+X * Advance pointer to beginning of next segment.  Only updates physical part
+X * of pointer.  Returns false if the pointer was at or reached end of buffer.
+X */
+int pnext();
+X
+/* int pprev(P *p);
+X * Set pointer to after end of previous segment.  Only updates physical part of
+X * pointer.  Returns false if pointer was at or reached beginning of buffer.
+X * Warning: this function sets the pointer to an invalid place.  Only use this
+X * if p->ofst will be subsequently decremented before any characters are read.
+X */
+int pprev();
+X
+/* int pgetcn(P *p);
+X * Get character at pointer and advance pointer.  Only updates physical
+X * section of pointer.  Workds ok if buffer's end of file pointer is
+X * incorrect.  Returns -1 if pointer was at end of buffer.
+X */
+int pgetcn();
+X
+/* int pgetc(P *p);
+X * Get character at pointer and advance pointer.  Returns -1 if pointer
+X * was at end of file.  Works ok if buffer's end of file pointer is incorrect.
+X */
+int pgetc();
+X
+/* P *pfwrdn(P *p,long n);
+X * Advance pointer by n characters.  Only the physical section of the pointer
+X * is updated.  Works ok if buffer's end of buffer pointer is incorrect.
+X */
+P *pfwrdn();
+X
+/* P *pfwrd(P *p,long n);
+X * Advance pointer by n characters.  If the pointer goes past the end of the
+X * buffer, the pointer is set to the end of the buffer and 0 is returned
+X * instead of the pointer.
+X */
+P *pfwrd();
+X
+/* int prgetcn(P *p);
+X * Move pointer back one and return character that position.  Returns -1
+X * if pointer was at beginning of file.  Only updates physical part of
+X * pointer.
+X */
+int prgetcn();
+X
+/* int prgetc(P *p);
+X * Move pointer back one and return character at that position.  Returns -1
+X * if pointer was at beginning of file.
+X */
+int prgetc();
+X
+/* P *pbkwdn(P *p,long n);
+X * Move pointer back n characters.  Returns 0 on attempt to go before
+X * beginning of buffer.  Only updates physical section of pointer.
+X */
+P *pbkwdn();
+X
+/* P *pbkwdf(P *p,long n);
+X * Move pointer back n characters.  Returns 0 on attempt to go before
+X * beginning of buffer.  Only updates line number part of logical section
+X * of pointer.
+X */
+P *pbkwdf();
+X
+/* P *pfcol(P *p);
+X * Determine and set column number of line byte number parts of logical
+X * section of p.  Works ok if end of file pointer is incorrect.
+X */
+P *pfcol();
+X
+/* P *pbkwd(P *p,long n);
+X * Move pointer back n characters.  Returns 0 if attempt to move before
+X * beginning of buffer.
+X */
+P *pbkwd();
+X
+/* P *pbol(P *p);
+X * Set pointer to beginning of line.  'lbyte' of logical part of pointer
+X * must be correct.
+X */
+P *pbol();
+X
+/* P *pboln(P *p);
+X * Set pointer to beginning of line.  Works ok if logical part of pointer
+X * is not correct.
+X */
+P *pboln();
+X
+/* P *peol(P *p);
+X * Set pointer to end of line.  Works ok if end of buffer pointer is
+X * incorrect.
+X */
+P *peol();
+X
+/* P *pnextl(P *p);
+X * Set pointer to beginning of next line or end of last line.  Returns 0
+X * for end of last line.  Column number section of logical part of pointer
+X * is not set.
+X */
+P *pnextl();
+X
+/* P *pprevl(P *p);
+X * Set pointer to end of previous line or beginning of first line.  Returns
+X * 0 if we got to the beginning part of the first line.  Column number
+X * section of logicl part of pointer is not set.
+X */
+P *pprevl();
+X
+/* P *pline(P *p,long line);
+X * Goto beginning of given line number.  Line number part of logical section
+X * of pointer (and eof pointer) must be correct.
+X */
+P *pline();
+X
+/* P *pcol(P *p,long col);
+X * Goto given column number.  The original column number (and lbyte) need
+X * not be correct.
+X */
+P *pcol();
+X
+/* P *pfindrn(P *p,char *s,int len);
+X * Search reverse for string
+X */
+P *pfindrn();
+X
+/* P *pfindrni(P *p,char *s,int len);
+X * Search reverse for string case insensitive
+X */
+P *pfindrni();
+X
+/* P *pfindfn(P *p,char *s,int len);
+X * Find first occurance of string s/len beginning at p.  If found, returns
+X * p pointing to beginning of string.  If not found, returns 0.
+X */
+P *pfindfn();
+X
+/* P *pfindfni(P *p,char *s,int len);
+X * Case insensitive version of above
+X */
+P *pfindfni();
+X
+/* int brc(P *p);
+X * Read character at a pointer or return -1 if pointer was at end of the buffer
+X */
+int brc();
+X
+/* char *brmem(P *p,char *blk,int size);
+X * Read characters into a memory block
+X */
+char *brmem();
+X
+/* char *brs(P *p,int size);
+X * Read a zero terminated string into an malloc block and return the malloc
+X * block
+X */
+char *brs();
+X
+/* char *brvs(P *p,int size);
+X * Read a variable length string
+X */
+char *brvs();
+X
+/* char *parsens(char *s,long skip,long amnt);
+X * Parse file name.
+X */
+char *parsens();
+X
+/* int bsavefd(P *p,int fd,long size);
+X * Write 'size' bytes beginning at 'p' to 'fd'.
+X */
+int bsavefd();
+X
+/* int bsave(P *p,char *name,long size);
+X * Save characters into a file
+X */
+int bsave();
+X
+/* P *bdel(P *from,P *to);
+X * Delete characters from a buffer
+X */
+X
+P *bdel();
+X
+/* P *binsc(P *p,char c);
+X * Insert a character into a buffer
+X */
+P *binsc();
+X
+/* P *binsm(P *p,char *blk,int size);
+X * Insert a memory block into a buffer
+X */
+P *binsm();
+X
+/* P *binss(P *p,char *s);
+X * Insert zero terminated string into a buffer
+X */
+P *binss();
+X
+/* P *binsb(P *p,P *from,P *to);
+X * Insert characters from another buffer
+X */
+P *binsb();
+X
+/* int binsfd(P *p,int fd,long max);
+X * Insert a file into a buffer.  No more than 'max' bytes are loaded from
+X * the file.
+X */
+int binsfd();
+X
+/* int binsf(P *p,char *name);
+X * Insert a file into a buffer
+X */
+int binsf();
+X
+/* int bload(B *b,char *s);
+X * Load a file into a buffer
+X */
+int bload();
+X
+void refigure();
+X
+#endif
+SHAR_EOF
+chmod 0600 b.h ||
+echo 'restore of b.h failed'
+Wc_c="`wc -c < 'b.h'`"
+test 10590 -eq "$Wc_c" ||
+	echo 'b.h: original size 10590, current size' "$Wc_c"
+fi
+# ============= blocks.c ==============
+if test -f 'blocks.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping blocks.c (File already exists)'
+else
+echo 'x - extracting blocks.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'blocks.c' &&

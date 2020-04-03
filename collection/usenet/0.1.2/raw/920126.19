@@ -1,0 +1,102 @@
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!cadence!cds8613.Cadence.COM!deej
+From: deej@cds8613.Cadence.COM (Jim Howard)
+Newsgroups: alt.sources
+Subject: rsq and brn (Random .signature quote generator)
+Message-ID: <1992Jan24.235458.16578@cadence.com>
+Date: 24 Jan 92 23:54:58 GMT
+Sender: usenet@cadence.com (USENET News)
+Reply-To: deej@cds8613.Cadence.COM (Jim Howard)
+Followup-To: alt.sources.d
+Organization: Cadence Design Systems, San Jose
+Lines: 89
+Nntp-Posting-Host: cds8613.cadence.com
+
+
+Archive-name: rsq+brn
+Submitted-by: deej@cadence.com
+
+    (This is my first attempt at posting to alt.sources - hopefully I
+got it right...)
+
+	Have you ever wanted to have your .sig quote change from time to time?
+    I did, and so I wrote the following two shell scripts, rsq (random 
+    signature quote) and brn (bounded random number).  Obviously, by virtue of 
+    the obscure names alone, these are for UNIX...
+	"brn" is a semi-random number generator that can be given an argument
+    limiting the maximum value generated (hence, bounded).  It uses the PID of
+    the process as a "seed" to the generator (just a "mod" operation, really).
+	"rsq" determines the number of quotes available from the .sig quote
+    database, then uses this as the argument to brn.  The result returned by
+    brn determines the quote that is copied from the database and appended to
+    the bottom of the .sig "root" file (which contains all other information 
+    but the quote).  This new file is then set up as the new .signature file.
+    Customization is allowed by changing the values of numGen (the path to brn
+    or some other bounded random number generator), sigDB (the path to the
+    database of .sig file quotes), sigRoot (the pathname of the .sig "root" 
+    file), and sigFile (the pathname of your .signature file).
+	The .sig database is simply a text file containing all quotes you want
+    as random quote candidates.  The quotes can span any number of lines, but 
+    must begin with the "+=+" key string (but on the first line of the quote 
+    only!).  For example, your quotes file might look like the following:
+
+------- start of .sig quotes file ------------------------------>8 (cut here)
++=+Hi, I'm just a random .sig quote, who the hell are you?
++=+"If anything can go wrong, it will" -- Murphy's Law
+ "Murphy was an optimist" -- Commentary on Murphy's Law
++=+One line of quotes is OK,
+ Two lines is tolerable,
+ Three lines is getting excessive,
+ But I go for four!
++=+Jesus wept.
+------- end of .sig quotes file -------------------------------->8 (cut here)
+
+	...this file obviously contains 4 quotes, which will be randomly
+    appended to the end of the .sig "root" file whenever rsq is run.  I have
+    rsq set up in my crontab so that a new quote is generated every evening.
+    It would also certainly be possible to set things up so that rsq ran every
+    time you logged in, or you could just run it when you got tired of your
+    current quote.  Have fun!
+
+------- start of "brn" script ---------------------------------->8 (cut here)
+#!/bin/sh
+bound=$1
+if [ "$bound" = "" ]
+then
+  # no bounds - return the PID...
+  answer=$$
+else
+  # bound represents the upper bound of any answer given...
+  answer=`expr $$ % $bound + 1`
+fi
+echo $answer
+exit 0
+------- end of "brn" script, start of "rsq" script ------------->8 (cut here)
+#!/bin/sh
+# User-definable options
+numGen=${HOME}/bin/brn
+sigDB=${HOME}/.sigDB
+sigRoot=${HOME}/.sig_root
+sigFile=${HOME}/.signature
+# ...the actual code...
+numsigs=`grep +=+ $sigDB | wc -l`
+whichOne=`$numGen $numsigs`
+cat $sigRoot > /tmp/$$.sig
+awk " \
+	/\+=\+/ { quoteNum++; } \
+	{ \
+	    if ( quoteNum == ${whichOne} ) \
+		printit=1; \
+	    else \
+		printit=0; \
+	    if (printit) \
+		print; \
+	} \
+    " $sigDB | sed -e 's?+=+??' >> /tmp/$$.sig
+mv /tmp/$$.sig $sigFile
+exit 0
+------- end of "rsq" script ------------------------------------>8 (cut here)
+
+         ~ deej ~              | (If I were expressing Cadence's opinions, )
+Jim Howard -- deej@cadence.com | (they'd probably make me wear a tie...    )
+        (^:=             Flames cheerfully ignored.             =:^)
+"...lookin' for adventure - in whatever comes my way!" -- Steppenwolf

@@ -1,0 +1,1827 @@
+Path: funic!fuug!mcsun!unido!estevax!norisc!iain
+From: iain@norisc.UUCP (Iain Lea)
+Newsgroups: alt.sources
+Subject: tin v1.0 Patchlevel 1 Newsreader (part 06/08)
+Message-ID: <604@norisc.UUCP>
+Date: 3 Sep 91 11:01:11 GMT
+Sender: iain@norisc.UUCP (Iain Lea)
+Organization: What organization?
+Lines: 1817
+
+Submitted-by: iain@estevax.uucp
+Archive-name: tin1.0/part06
+
+#!/bin/sh
+# this is tin.shar.06 (part 6 of tin1.0)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file prompt.c continued
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+if test ! -r shar3_seq_.tmp; then
+	echo "Please unpack part 1 first!"
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 6; then
+	echo "Please unpack part $Scheck next!"
+	exit 1
+ else
+	exit 0
+ fi
+) < shar3_seq_.tmp || exit 1
+echo "x - Continuing file prompt.c"
+sed 's/^X//' << 'SHAR_EOF' >> prompt.c &&
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X/*
+X *  parse_num
+X *  get a number from the user
+X *  Return -1 if missing or bad number typed
+X */
+X
+Xint parse_num (ch, prompt)
+X	char ch;
+X	char *prompt;
+X{
+X	char buf[40];
+X	int len;
+X	int i;
+X	int num;
+X
+X	MoveCursor(LINES,0);
+X	printf("%s %c",prompt,ch);
+X	fflush(stdout);
+X	buf[0] = ch;
+X	buf[1] = '\0';
+X	len = 1;
+X	ch = ReadCh();
+X	while (ch != '\n' && ch != '\r') {
+X		if (ch == 8 || ch == 127) {
+X			if (len) {
+X				len--;
+X				buf[len] = '\0';
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			} else {
+X				MoveCursor(LINES, 0);
+X				CleartoEOLN();
+X				return(-1);
+X			}
+X		} else if (ch == 21) {	/* control-U	*/
+X			for (i = len;i>0;i--) {
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			}
+X			buf[0] = '\0';
+X			len = 0;
+X		} else if (ch >= '0' && ch <= '9' && len < 4) {
+X			buf[len++] = ch;
+X			buf[len] = '\0';
+X			putchar (ch);
+X		} else
+X			putchar(7);
+X		fflush(stdout);
+X		ch = ReadCh();
+X	}
+X
+X	MoveCursor(LINES, 0);
+X	CleartoEOLN();
+X
+X	if (len) {
+X		num = atoi(buf);
+X		return(num);
+X	} else
+X		return(-1);
+X}
+X
+X
+X/*
+X *  parse_string
+X *  get a string from the user
+X *  Return TRUE if a valid string was typed, FALSE otherwise
+X */
+X
+Xint parse_string (prompt, buf)
+X	char *prompt;
+X	char *buf;
+X{
+X	int len;
+X	int i;
+X	char ch;
+X
+X	clear_message();
+X	MoveCursor(LINES,0);
+X	printf("%s", prompt);
+X	fflush(stdout);
+X
+X	buf[0] = '\0';
+X	len = 0;
+X	ch = ReadCh();
+X	while (ch != '\n' && ch != '\r') {
+X		if (ch == 8 || ch == 127) {
+X			if (len) {
+X				len--;
+X				buf[len] = '\0';
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			} else {
+X				MoveCursor(LINES, 0);
+X				CleartoEOLN();
+X				return(FALSE);
+X			}
+X		} else if (ch == 21) {	/* control-U	*/
+X			for (i = len;i>0;i--) {
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			}
+X			buf[0] = '\0';
+X			len = 0;
+X		} else if (ch >= ' ' && len < 60) {
+X			buf[len++] = ch;
+X			buf[len] = '\0';
+X			putchar (ch);
+X		} else
+X			putchar(7);
+X		fflush(stdout);
+X		ch = ReadCh();
+X	}
+X	MoveCursor(LINES,0);
+X	CleartoEOLN();
+X
+X	return TRUE;
+X}
+X
+X
+Xint prompt_yn (line, prompt, default_ch)
+X	int line;
+X	char *prompt;
+X	char default_ch;
+X{
+X	char ch;
+X
+X	MoveCursor (line, 0);
+X	CleartoEOLN ();
+X	printf ("%s%c", prompt, default_ch);
+X	fflush (stdout);
+X	MoveCursor (line, strlen (prompt));
+X
+X	if ((ch = ReadCh()) == CR) {
+X		ch = default_ch;
+X	}	
+X
+X	if (line == LINES) {
+X		clear_message();
+X	} else {
+X		MoveCursor (line, strlen (prompt));
+X		printf ("%c", ch);
+X		fflush (stdout);
+X	}
+X
+X	return (ch == 'y' ? TRUE : FALSE);
+X}
+X
+X
+Xvoid continue_prompt()
+X{
+X	info_message(txt_hit_any_key);
+X	ReadCh();
+X}
+X
+X
+SHAR_EOF
+echo "File prompt.c is complete" &&
+$TOUCH -am 0903095091 prompt.c &&
+chmod 0600 prompt.c ||
+echo "restore of prompt.c failed"
+set `wc -c prompt.c`;Wc_c=$1
+if test "$Wc_c" != "3062"; then
+	echo original size 3062, current size $Wc_c
+fi
+# ============= proto.h ==============
+echo "x - extracting proto.h (Text)"
+sed 's/^X//' << 'SHAR_EOF' > proto.h &&
+X#ifdef __STDC__
+X 
+X/* art.c */
+Xlong my_atol(char *s, int n);
+Xvoid find_base(void);
+Xint num_of_arts(void);
+Xint valid_artnum(long art);
+Xint purge_needed(void);
+Xvoid index_group(char *group, char *group_path);
+Xint read_group(char *group, char *group_path);
+Xvoid make_threads(int rethread);
+Xchar *eat_re(char *s);
+Xlong hash_s(char *s);
+Xint parse_headers(int fd, struct header *h);
+Xvoid dump_index(char *group, int killed);
+Xvoid my_strncpy(char *p, char *q, int n);
+Xint load_index(void);
+Xvoid find_local_index(char *group);
+Xvoid do_update(void);
+Xvoid reload_index_file(char *group, int killed);
+Xchar *parse_date(char *date, char *str);
+Xint artnum_comp(struct header *s1, struct header *s2);
+Xint subj_comp(struct header *s1, struct header *s2);
+Xint from_comp(struct header *s1, struct header *s2);
+Xint date_comp(struct header *s1, struct header *s2);
+Xint set_article(struct header *art);
+X/* curses.c */
+Xint InitScreen(void);
+Xvoid ScreenSize(int *num_lines, int *num_columns);
+Xvoid ClearScreen(void);
+Xvoid MoveCursor(int row, int col);
+Xvoid CleartoEOLN(void);
+Xvoid CleartoEOS(void);
+Xvoid StartInverse(void);
+Xvoid EndInverse(void);
+Xint RawState(void);
+Xvoid Raw(int state);
+Xint ReadCh(void);
+Xint outchar(int c);
+X/* debug.c */
+Xint debug_print_arts(void);
+Xvoid debug_print_header(struct header *s);
+Xint debug_print_comment(char *comment);
+Xvoid debug_print_base(void);
+Xvoid debug_print_active(void);
+X/* feed.c */
+Xint feed_articles(int function, int level, char *prompt, int respnum, char *group_path);
+X/* group.c */
+Xvoid group_page(char *group);
+Xvoid fix_new_highest(int groupnum);
+Xvoid show_group_page(char *group);
+Xvoid draw_subject_arrow(void);
+Xvoid erase_subject_arrow(void);
+Xint prompt_subject_num(int ch, char *group);
+Xint new_responses(int thread);
+Xvoid clear_note_area(void);
+Xint find_new_pos(int old_top, long old_artnum, int cur_pos);
+X/* hashstr.c */
+Xchar *hash_str(char *s);
+Xstruct hashnode *add_string(char *s);
+Xvoid hash_init(void);
+Xvoid hash_reclaim(void);
+X/* help.c */
+Xvoid show_help_page(char *help[], char *title);
+Xvoid help_select_info(void);
+Xvoid help_group_info(void);
+Xvoid help_page_info(void);
+X/* kill.c */
+Xint read_kill_file(void);
+Xvoid write_kill_file(void);
+Xint kill_art_menu(char *group_name, int index);
+Xint untag_all_articles(void);
+Xint kill_any_articles(char *group);
+X/* lang.c */
+X/* mail.c */
+Xvoid mail_setup(void);
+Xint mail_check(void);
+X/* main.c */
+Xvoid main(int argc, char *argv[]);
+Xvoid usage(char *progname);
+X/* memory.c */
+Xvoid init_alloc(void);
+Xvoid expand_art(void);
+Xvoid free_art_array(void);
+Xvoid expand_active(void);
+Xvoid expand_kill(void);
+Xvoid expand_save(void);
+Xvoid init_screen_array(int allocate);
+Xvoid free_all_arrays(void);
+Xvoid free_kill_array(void);
+Xvoid free_save_array(void);
+Xchar *my_malloc(unsigned size);
+Xchar *my_realloc(char *p, unsigned size);
+X/* misc.c */
+Xvoid init_selfinfo(void);
+Xint which_base(int n);
+Xint which_resp(int n);
+Xint nresp(int n);
+Xvoid asfail(char *file, int line, char *cond);
+Xvoid copy_fp(FILE *a, FILE *b, char *prefix);
+Xchar *get_val(char *env, char *def);
+Xint invoke_editor(char *nam);
+Xvoid shell_escape(void);
+Xvoid tin_done(int ret);
+Xvoid read_active(void);
+Xvoid add_signature(FILE *fp, int flag);
+Xlong hash_groupname(char *buf);
+Xvoid rename_file(char *old_filename, char *new_filename);
+Xchar *str_dup(char *str);
+Xint invoke_cmd(char *nam);
+Xint draw_percent_mark(int cur_num, int max_num);
+Xvoid set_real_uid_gid(void);
+Xvoid set_tin_uid_gid(void);
+X/* newsrc.c */
+Xvoid read_newsrc(int sub_only);
+Xvoid write_newsrc(void);
+Xvoid rewrite_newsrc(void);
+Xvoid read_newsrc_line(char *group);
+Xvoid update_newsrc(char *group, int groupnum);
+Xvoid subscribe(char *group, int ch, int num, int out_seq);
+Xvoid reset_newsrc(void);
+Xvoid delete_group(char *group);
+Xint undel_group(void);
+Xvoid mark_group_read(char *group, int groupnum);
+Xvoid parse_seq(char *s);
+Xint parse_unread(char *s, int groupnum);
+Xint get_line_unread(char *group, int groupnum);
+Xvoid print_seq(FILE *fp, int groupnum);
+Xint pos_group_in_newsrc(char *group, int pos);
+X/* open.c */
+Xchar *is_remote(void);
+Xvoid nntp_startup(void);
+Xvoid nntp_finish(void);
+XFILE *open_active_fp(void);
+XFILE *open_art_fp(char *group_path, long art);
+Xint open_header_fd(char *group_path, long art);
+Xint base_comp(long *a, long *b);
+Xvoid setup_base(char *group, char *group_path);
+Xint get_respcode(void);
+Xint stuff_nntp(char *fnam);
+XFILE *nntp_to_fp(void);
+Xint nntp_to_fd(void);
+X/* page.c */
+Xint show_page(int respnum, char *group, char *group_path);
+Xvoid redraw_page(int respnum, char *group);
+Xvoid show_note_page(int respnum, char *group);
+Xvoid show_first_header(int respnum, char *group);
+Xvoid show_cont_header(int respnum);
+Xvoid open_note(long art, char *group_path);
+Xvoid note_cleanup(void);
+Xint prompt_response(int ch, int respnum);
+Xint choose_resp(int i, int n);
+Xvoid parse_from(char *str, char *addr, char *name);
+Xint prev_response(int n);
+Xint next_response(int n);
+Xint next_basenote(int n);
+Xvoid yank_to_addr(char *orig, char *addr);
+Xint show_last_page(void);
+X/* post.c */
+Xint user_posted_messages(void);
+Xvoid update_art_posted_file(char *group, char *subj);
+Xint post_base(char *group);
+Xint post_response(char *group, int respnum);
+Xint mail_to_someone(int single_article, char *address);
+Xint mail_bug_report(void);
+Xint mail_to_author(int copy_text);
+Xvoid find_new_to(char *nam, char *mail_to);
+X/* prompt.c */
+Xint parse_num(int ch, char *prompt);
+Xint parse_string(char *prompt, char *buf);
+Xint prompt_yn(int line, char *prompt, int default_ch);
+Xvoid continue_prompt(void);
+X/* rcfile.c */
+Xint read_rcfile(void);
+Xvoid write_rcfile(void);
+Xint change_rcfile(char *group, int kill_at_once);
+Xvoid show_rcfile_menu(void);
+Xvoid parse_menu_string(int line, int col, char *var);
+Xvoid expand_rel_abs_pathname(int line, int col, char *str);
+Xvoid show_menu_help(char *help_message);
+X/* save.c */
+Xint save_art_to_file(int respnum, int index, int mailbox, char *filename);
+Xint save_thread_to_file(int respnum, int is_mailbox, char *group_path);
+Xint save_regex_arts(int is_pattern, char *pattern, int is_mailbox, char *group_path);
+Xint append_to_existing_file(int i);
+Xint create_path(char *path);
+Xint create_sub_dir(int i);
+Xvoid add_to_save_list(int index, struct header *article, int is_mailbox, char *path);
+Xvoid sort_save_list(void);
+Xint save_comp(struct save_t *s1, struct save_t *s2);
+Xchar *save_filename(int i);
+Xchar *get_first_savefile(void);
+Xchar *get_last_savefile(void);
+Xint post_process_files(void);
+Xvoid post_process_uud(int pp);
+Xvoid post_process_sh(void);
+Xchar *get_archive_file(char *dir, char *ext);
+Xvoid delete_processed_files(void);
+Xvoid post_process_patch(void);
+X/* screen.c */
+Xvoid info_message(char *msg);
+Xvoid wait_message(char *msg);
+Xvoid error_message(char *template, char *msg);
+Xvoid clear_message(void);
+Xvoid center_line(int line, int inverse, char *str);
+Xvoid draw_arrow(int line);
+Xvoid erase_arrow(int line);
+X/* search.c */
+Xint search_author(int current_art, int forward);
+Xvoid search_group(int forward);
+Xvoid search_subject(int forward, char *group);
+Xint search_article(int forward);
+Xchar *str_str(char *text, char *pattern);
+Xvoid make_lower(char *s, char *t);
+X/* select.c */
+Xvoid selection_index(void);
+Xvoid group_selection_page(void);
+Xint prompt_group_num(int ch);
+Xvoid erase_group_arrow(void);
+Xvoid draw_group_arrow(void);
+Xint choose_new_group(void);
+Xint add_group(char *s, int get_unread);
+Xint next_unread(int n);
+Xint prev_unread(int n);
+Xint reposition_group(char *group, int default_num);
+Xint catchup_group(int goto_next_unread_group);
+Xvoid next_unread_group(int enter_group);
+X/* signal.c */
+Xvoid set_signal_handlers(void);
+Xvoid signal_handler(int sig);
+Xvoid set_win_size(int *num_lines, int *num_cols);
+Xvoid art_suspend(int sig);
+Xvoid main_suspend(int sig);
+Xvoid select_suspend(int sig);
+Xvoid group_suspend(int sig);
+Xvoid page_suspend(int sig);
+Xvoid rcfile_suspend(int sig);
+Xvoid art_resize(int sig);
+Xvoid main_resize(int sig);
+Xvoid select_resize(int sig);
+Xvoid group_resize(int sig);
+Xvoid page_resize(int sig);
+X/* time.c */
+Xvoid nicedate(char *timestr, char *newstr);
+Xvoid nicetime(char *timestr, char *newstr);
+Xchar *nice_time(void);
+X/* wildmat.c */
+Xint wildmat(char *text, char *p);
+X 
+X#else
+X 
+X/* art.c */
+Xlong my_atol(/*char *s, int n*/);
+Xvoid find_base(/*void*/);
+Xint num_of_arts(/*void*/);
+Xint valid_artnum(/*long art*/);
+Xint purge_needed(/*void*/);
+Xvoid index_group(/*char *group, char *group_path*/);
+Xint read_group(/*char *group, char *group_path*/);
+Xvoid make_threads(/*int rethread*/);
+Xchar *eat_re(/*char *s*/);
+Xlong hash_s(/*char *s*/);
+Xint parse_headers(/*int fd, struct header *h*/);
+Xvoid dump_index(/*char *group, int killed*/);
+Xvoid my_strncpy(/*char *p, char *q, int n*/);
+Xint load_index(/*void*/);
+Xvoid find_local_index(/*char *group*/);
+Xvoid do_update(/*void*/);
+Xvoid reload_index_file(/*char *group, int killed*/);
+Xchar *parse_date(/*char *date, char *str*/);
+Xint artnum_comp(/*struct header *s1, struct header *s2*/);
+Xint subj_comp(/*struct header *s1, struct header *s2*/);
+Xint from_comp(/*struct header *s1, struct header *s2*/);
+Xint date_comp(/*struct header *s1, struct header *s2*/);
+Xint set_article(/*struct header *art*/);
+X/* curses.c */
+Xint InitScreen(/*void*/);
+Xvoid ScreenSize(/*int *num_lines, int *num_columns*/);
+Xvoid ClearScreen(/*void*/);
+Xvoid MoveCursor(/*int row, int col*/);
+Xvoid CleartoEOLN(/*void*/);
+Xvoid CleartoEOS(/*void*/);
+Xvoid StartInverse(/*void*/);
+Xvoid EndInverse(/*void*/);
+Xint RawState(/*void*/);
+Xvoid Raw(/*int state*/);
+Xint ReadCh(/*void*/);
+Xint outchar(/*int c*/);
+X/* debug.c */
+Xint debug_print_arts(/*void*/);
+Xvoid debug_print_header(/*struct header *s*/);
+Xint debug_print_comment(/*char *comment*/);
+Xvoid debug_print_base(/*void*/);
+Xvoid debug_print_active(/*void*/);
+X/* feed.c */
+Xint feed_articles(/*int function, int level, char *prompt, int respnum, char *group_path*/);
+X/* group.c */
+Xvoid group_page(/*char *group*/);
+Xvoid fix_new_highest(/*int groupnum*/);
+Xvoid show_group_page(/*char *group*/);
+Xvoid draw_subject_arrow(/*void*/);
+Xvoid erase_subject_arrow(/*void*/);
+Xint prompt_subject_num(/*int ch, char *group*/);
+Xint new_responses(/*int thread*/);
+Xvoid clear_note_area(/*void*/);
+Xint find_new_pos(/*int old_top, long old_artnum, int cur_pos*/);
+X/* hashstr.c */
+Xchar *hash_str(/*char *s*/);
+Xstruct hashnode *add_string(/*char *s*/);
+Xvoid hash_init(/*void*/);
+Xvoid hash_reclaim(/*void*/);
+X/* help.c */
+Xvoid show_help_page(/*char *help[], char *title*/);
+Xvoid help_select_info(/*void*/);
+Xvoid help_group_info(/*void*/);
+Xvoid help_page_info(/*void*/);
+X/* kill.c */
+Xint read_kill_file(/*void*/);
+Xvoid write_kill_file(/*void*/);
+Xint kill_art_menu(/*char *group_name, int index*/);
+Xint untag_all_articles(/*void*/);
+Xint kill_any_articles(/*char *group*/);
+X/* lang.c */
+X/* mail.c */
+Xvoid mail_setup(/*void*/);
+Xint mail_check(/*void*/);
+X/* main.c */
+Xvoid main(/*int argc, char *argv[]*/);
+Xvoid usage(/*char *progname*/);
+X/* memory.c */
+Xvoid init_alloc(/*void*/);
+Xvoid expand_art(/*void*/);
+Xvoid free_art_array(/*void*/);
+Xvoid expand_active(/*void*/);
+Xvoid expand_kill(/*void*/);
+Xvoid expand_save(/*void*/);
+Xvoid init_screen_array(/*int allocate*/);
+Xvoid free_all_arrays(/*void*/);
+Xvoid free_kill_array(/*void*/);
+Xvoid free_save_array(/*void*/);
+Xchar *my_malloc(/*unsigned size*/);
+Xchar *my_realloc(/*char *p, unsigned size*/);
+X/* misc.c */
+Xvoid init_selfinfo(/*void*/);
+Xint which_base(/*int n*/);
+Xint which_resp(/*int n*/);
+Xint nresp(/*int n*/);
+Xvoid asfail(/*char *file, int line, char *cond*/);
+Xvoid copy_fp(/*FILE *a, FILE *b, char *prefix*/);
+Xchar *get_val(/*char *env, char *def*/);
+Xint invoke_editor(/*char *nam*/);
+Xvoid shell_escape(/*void*/);
+Xvoid tin_done(/*int ret*/);
+Xvoid read_active(/*void*/);
+Xvoid add_signature(/*FILE *fp, int flag*/);
+Xlong hash_groupname(/*char *buf*/);
+Xvoid rename_file(/*char *old_filename, char *new_filename*/);
+Xchar *str_dup(/*char *str*/);
+Xint invoke_cmd(/*char *nam*/);
+Xint draw_percent_mark(/*int cur_num, int max_num*/);
+Xvoid set_real_uid_gid(/*void*/);
+Xvoid set_tin_uid_gid(/*void*/);
+X/* newsrc.c */
+Xvoid read_newsrc(/*int sub_only*/);
+Xvoid write_newsrc(/*void*/);
+Xvoid rewrite_newsrc(/*void*/);
+Xvoid read_newsrc_line(/*char *group*/);
+Xvoid update_newsrc(/*char *group, int groupnum*/);
+Xvoid subscribe(/*char *group, int ch, int num, int out_seq*/);
+Xvoid reset_newsrc(/*void*/);
+Xvoid delete_group(/*char *group*/);
+Xint undel_group(/*void*/);
+Xvoid mark_group_read(/*char *group, int groupnum*/);
+Xvoid parse_seq(/*char *s*/);
+Xint parse_unread(/*char *s, int groupnum*/);
+Xint get_line_unread(/*char *group, int groupnum*/);
+Xvoid print_seq(/*FILE *fp, int groupnum*/);
+Xint pos_group_in_newsrc(/*char *group, int pos*/);
+X/* open.c */
+Xchar *is_remote(/*void*/);
+Xvoid nntp_startup(/*void*/);
+Xvoid nntp_finish(/*void*/);
+XFILE *open_active_fp(/*void*/);
+XFILE *open_art_fp(/*char *group_path, long art*/);
+Xint open_header_fd(/*char *group_path, long art*/);
+Xint base_comp(/*long *a, long *b*/);
+Xvoid setup_base(/*char *group, char *group_path*/);
+Xint get_respcode(/*void*/);
+Xint stuff_nntp(/*char *fnam*/);
+XFILE *nntp_to_fp(/*void*/);
+Xint nntp_to_fd(/*void*/);
+X/* page.c */
+Xint show_page(/*int respnum, char *group, char *group_path*/);
+Xvoid redraw_page(/*int respnum, char *group*/);
+Xvoid show_note_page(/*int respnum, char *group*/);
+Xvoid show_first_header(/*int respnum, char *group*/);
+Xvoid show_cont_header(/*int respnum*/);
+Xvoid open_note(/*long art, char *group_path*/);
+Xvoid note_cleanup(/*void*/);
+Xint prompt_response(/*int ch, int respnum*/);
+Xint choose_resp(/*int i, int n*/);
+Xvoid parse_from(/*char *str, char *addr, char *name*/);
+Xint prev_response(/*int n*/);
+Xint next_response(/*int n*/);
+Xint next_basenote(/*int n*/);
+Xvoid yank_to_addr(/*char *orig, char *addr*/);
+Xint show_last_page(/*void*/);
+X/* post.c */
+Xint user_posted_messages(/*void*/);
+Xvoid update_art_posted_file(/*char *group, char *subj*/);
+Xint post_base(/*char *group*/);
+Xint post_response(/*char *group, int respnum*/);
+Xint mail_to_someone(/*int single_article, char *address*/);
+Xint mail_bug_report(/*void*/);
+Xint mail_to_author(/*int copy_text*/);
+Xvoid find_new_to(/*char *nam, char *mail_to*/);
+X/* prompt.c */
+Xint parse_num(/*int ch, char *prompt*/);
+Xint parse_string(/*char *prompt, char *buf*/);
+Xint prompt_yn(/*int line, char *prompt, int default_ch*/);
+Xvoid continue_prompt(/*void*/);
+X/* rcfile.c */
+Xint read_rcfile(/*void*/);
+Xvoid write_rcfile(/*void*/);
+Xint change_rcfile(/*char *group, int kill_at_once*/);
+Xvoid show_rcfile_menu(/*void*/);
+Xvoid parse_menu_string(/*int line, int col, char *var*/);
+Xvoid expand_rel_abs_pathname(/*int line, int col, char *str*/);
+Xvoid show_menu_help(/*char *help_message*/);
+X/* save.c */
+Xint save_art_to_file(/*int respnum, int index, int mailbox, char *filename*/);
+Xint save_thread_to_file(/*int respnum, int is_mailbox, char *group_path*/);
+Xint save_regex_arts(/*int is_pattern, char *pattern, int is_mailbox, char *group_path*/);
+Xint append_to_existing_file(/*int i*/);
+Xint create_path(/*char *path*/);
+Xint create_sub_dir(/*int i*/);
+Xvoid add_to_save_list(/*int index, struct header *article, int is_mailbox, char *path*/);
+Xvoid sort_save_list(/*void*/);
+Xint save_comp(/*struct save_t *s1, struct save_t *s2*/);
+Xchar *save_filename(/*int i*/);
+Xchar *get_first_savefile(/*void*/);
+Xchar *get_last_savefile(/*void*/);
+Xint post_process_files(/*void*/);
+Xvoid post_process_uud(/*int pp*/);
+Xvoid post_process_sh(/*void*/);
+Xchar *get_archive_file(/*char *dir, char *ext*/);
+Xvoid delete_processed_files(/*void*/);
+Xvoid post_process_patch(/*void*/);
+X/* screen.c */
+Xvoid info_message(/*char *msg*/);
+Xvoid wait_message(/*char *msg*/);
+Xvoid error_message(/*char *template, char *msg*/);
+Xvoid clear_message(/*void*/);
+Xvoid center_line(/*int line, int inverse, char *str*/);
+Xvoid draw_arrow(/*int line*/);
+Xvoid erase_arrow(/*int line*/);
+X/* search.c */
+Xint search_author(/*int current_art, int forward*/);
+Xvoid search_group(/*int forward*/);
+Xvoid search_subject(/*int forward, char *group*/);
+Xint search_article(/*int forward*/);
+Xchar *str_str(/*char *text, char *pattern*/);
+Xvoid make_lower(/*char *s, char *t*/);
+X/* select.c */
+Xvoid selection_index(/*void*/);
+Xvoid group_selection_page(/*void*/);
+Xint prompt_group_num(/*int ch*/);
+Xvoid erase_group_arrow(/*void*/);
+Xvoid draw_group_arrow(/*void*/);
+Xint choose_new_group(/*void*/);
+Xint add_group(/*char *s, int get_unread*/);
+Xint next_unread(/*int n*/);
+Xint prev_unread(/*int n*/);
+Xint reposition_group(/*char *group, int default_num*/);
+Xint catchup_group(/*int goto_next_unread_group*/);
+Xvoid next_unread_group(/*int enter_group*/);
+X/* signal.c */
+Xvoid set_signal_handlers(/*void*/);
+Xvoid signal_handler(/*int sig*/);
+Xvoid set_win_size(/*int *num_lines, int *num_cols*/);
+Xvoid art_suspend(/*int sig*/);
+Xvoid main_suspend(/*int sig*/);
+Xvoid select_suspend(/*int sig*/);
+Xvoid group_suspend(/*int sig*/);
+Xvoid page_suspend(/*int sig*/);
+Xvoid rcfile_suspend(/*int sig*/);
+Xvoid art_resize(/*int sig*/);
+Xvoid main_resize(/*int sig*/);
+Xvoid select_resize(/*int sig*/);
+Xvoid group_resize(/*int sig*/);
+Xvoid page_resize(/*int sig*/);
+X/* time.c */
+Xvoid nicedate(/*char *timestr, char *newstr*/);
+Xvoid nicetime(/*char *timestr, char *newstr*/);
+Xchar *nice_time(/*void*/);
+X/* wildmat.c */
+Xint wildmat(/*char *text, char *p*/);
+X 
+X#endif
+SHAR_EOF
+$TOUCH -am 0903095091 proto.h &&
+chmod 0600 proto.h ||
+echo "restore of proto.h failed"
+set `wc -c proto.h`;Wc_c=$1
+if test "$Wc_c" != "17093"; then
+	echo original size 17093, current size $Wc_c
+fi
+# ============= rcfile.c ==============
+echo "x - extracting rcfile.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > rcfile.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : rcfile.c
+X *  Author    : I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 30-08-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X#define COL2	COLS/2
+X
+Xextern char index_file[LEN+1];
+X
+X/*
+X *  read_rcfile - read defaults from ~/.tin/tinrc
+X */
+X
+Xint read_rcfile ()
+X{
+X	char buf[LEN+1];
+X	FILE *fp;
+X
+X	if ((fp = fopen (rcfile, "r")) != NULL) {
+X		while (fgets (buf, LEN, fp) != NULL) {
+X			if (buf[0] != '#') { 
+X				if (strncmp (buf, "save_archive=", 13) == 0) {
+X					save_archive_name = (strncmp (&buf[13], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "save_separate=", 14) == 0) {
+X					save_separate = (strncmp (&buf[14], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "mark_saved_read=", 16) == 0) {
+X					mark_saved_read = (strncmp (&buf[16], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "kill_articles=", 14) == 0) {
+X					kill_articles = (strncmp (&buf[14], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "show_author=", 12) == 0) {
+X					show_author = (strncmp (&buf[12], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "draw_arrow=", 11) == 0) {
+X					draw_arrow_mark = (strncmp (&buf[11], "ON", 2) == 0 ? TRUE : FALSE);
+X					if (draw_arrow_mark == FALSE && inverse_okay == FALSE) {
+X						inverse_okay = TRUE;
+X					}
+X				} else if (strncmp (buf, "post_process=", 13) == 0) {
+X					post_process = (strncmp (&buf[13], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "print_header=", 13) == 0) {
+X					print_header = (strncmp (&buf[14], "ON", 2) == 0 ? TRUE : FALSE);
+X				} else if (strncmp (buf, "post_process_type=", 18) == 0) {
+X					post_proc_type = atoi (&buf[18]);
+X				} else if (strncmp (buf, "sort_article_type=", 18) == 0) {
+X					sort_art_type = atoi (&buf[18]);
+X				} else if (strncmp (buf, "savedir=", 8) == 0) {
+X					strncpy (savedir, &buf[8], LEN);
+X					savedir[strlen (savedir) - 1] = '\0';
+X					if (savedir[0] == '.' && strlen (savedir) == 1) {
+X#ifdef BSD
+X						getwd (buf);	
+X#else
+X						getcwd (buf, LEN);
+X#endif
+X						my_strncpy (savedir, buf, LEN);
+X					} /*  else if (savedir[0] == '.' && savedir[1] == '.' && strlen (savedir) == 2) {
+X					} */
+X				} else if (strncmp (buf, "maildir=", 8) == 0) {
+X					strncpy (maildir, &buf[8], LEN);
+X					maildir[strlen (maildir) - 1] = '\0';
+X				} else if (strncmp (buf, "printer=", 8) == 0) {
+X					strncpy (printer, &buf[8], LEN);
+X					printer[strlen (printer) - 1] = '\0';
+X				} else if (strncmp (buf, "spooldir=", 9) == 0) {
+X					strncpy (spooldir, &buf[9], LEN);
+X					spooldir[strlen (spooldir) - 1] = '\0';
+X				} else if (strncmp (buf, "signature=", 10) == 0) {
+X					strncpy (signature, &buf[10], LEN);
+X					signature[strlen (signature) - 1] = '\0';
+X				} else if (strncmp (buf, "sig=", 4) == 0) {
+X					strncpy (sig, &buf[4], LEN);
+X					sig[strlen (sig) - 1] = '\0';
+X				}
+X			}
+X		}
+X		fclose (fp);
+X		return TRUE;		
+X	}
+X	return FALSE;		
+X}
+X
+X/*
+X *  write_rcfile - write defaults to ~/.tin/tinrc
+X */
+X
+Xvoid write_rcfile ()
+X{
+X	FILE *fp;
+X
+X	set_real_uid_gid ();
+X	
+X	if ((fp = fopen (rcfile, "w")) != NULL) {
+X		wait_message (txt_saving);
+X
+X		fprintf (fp, "# (-a) if ON articles/threads with Archive-name: in mail header will\n");
+X		fprintf (fp, "# be automatically saved with the Archive-name & part/patch no.\n");
+X		fprintf (fp, "save_archive=%s\n\n", (save_archive_name ? "ON" : "OFF"));
+X		fprintf (fp, "# (-s) if ON articles of a threads will be saved to separate files\n");
+X		fprintf (fp, "# otherwise the whole thread will be saved to one file\n");
+X		fprintf (fp, "save_separate=%s\n\n", (save_separate ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON mark articles that are saved as read\n");
+X		fprintf (fp, "mark_saved_read=%s\n\n", (mark_saved_read ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON show Subject & From otherwise just Subject\n");
+X		fprintf (fp, "show_author=%s\n\n", (show_author ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON use -> otherwise highlighted bar for selection\n");
+X		fprintf (fp, "draw_arrow=%s\n\n", (draw_arrow_mark ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON kill articles that match kill file\n");
+X		fprintf (fp, "kill_articles=%s\n\n", (kill_articles ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON save articles/threads to subdir with Archive-name: under -d directory\n");
+X		fprintf (fp, "print_header=%s\n\n", (print_header ? "ON" : "OFF"));
+X		fprintf (fp, "# if ON post process saved articles/threads\n");
+X		fprintf (fp, "post_process=%s\n\n", (post_process ? "ON" : "OFF"));
+X		fprintf (fp, "# type of post processing to perform\n");
+X		fprintf (fp, "post_process_type=%d\n\n", post_proc_type);
+X		fprintf (fp, "# sort articles by 0) nothing 1) subject 2) from or 3) date field\n");
+X		fprintf (fp, "sort_article_type=%d\n\n", sort_art_type);
+X		fprintf (fp, "# (-d) directory where articles/threads are saved\n");
+X		fprintf (fp, "savedir=%s\n\n", savedir);
+X		fprintf (fp, "# (-M) directory where articles/threads are saved in mailbox format\n");	
+X		fprintf (fp, "maildir=%s\n\n", maildir);	
+X		fprintf (fp, "# (-p) print program with parameters used to print articles/threads\n");
+X		fprintf (fp, "printer=%s\n\n", printer);
+X		fprintf (fp, "# (-S) directory where news is spooled\n");
+X		fprintf (fp, "spooldir=%s\n\n", spooldir);
+X
+X		fprintf (fp, "# .signature file used for replies, followups\n");
+X		fprintf (fp, "signature=%s\n\n", signature);
+X		fprintf (fp, "# .Sig file used for postings\n");
+X		fprintf (fp, "sig=%s\n\n", sig);
+X
+X		fclose (fp);
+X		chmod (rcfile, 0600);
+X	}
+X	set_tin_uid_gid ();
+X}
+X
+X/*
+X *  options menu so that the user can dynamically change parameters
+X */
+X 
+Xint change_rcfile (group, kill_at_once)
+X	char *group;
+X	int kill_at_once;
+X{
+X	char *str;
+X	int ch;
+X	int kill_changed = FALSE;
+X	int orig_kill_state;
+X	int option;
+X	int ret_code = NO_KILLING;
+X#ifdef SIGTSTP
+X	void (*susp)();
+X
+X	if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X		sigemptyset (&rcfile_act.sa_mask);
+X		rcfile_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X		rcfile_act.sa_handler = SIG_DFL;
+X		sigaction (SIGTSTP, &rcfile_act, &old_act);
+X#else
+X		susp = signal (SIGTSTP, SIG_DFL);
+X#endif
+X	}
+X#endif
+X
+X	show_rcfile_menu ();
+X
+X	while (1) {
+X
+X#ifdef SIGTSTP
+X		if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X			sigemptyset (&rcfile_act.sa_mask);
+X			rcfile_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X			rcfile_act.sa_handler = rcfile_suspend;
+X			sigaction (SIGTSTP, &rcfile_act, 0L);
+X#else
+X			signal (SIGTSTP, rcfile_suspend);
+X#endif
+X		}
+X#endif
+X		show_menu_help (txt_select_rcfile_option);
+X		MoveCursor (LINES, 0);
+X		ch = ReadCh ();
+X		if (ch == '0') {
+X			option = 0;
+X		} else {
+X			option = parse_num (ch, "Enter option number> ");
+X		}
+X#ifdef SIGTSTP
+X		if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X			sigemptyset (&rcfile_act.sa_mask);
+X			rcfile_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X			rcfile_act.sa_handler = SIG_IGN;
+X			sigaction (SIGTSTP, &rcfile_act, 0L);
+X#else
+X			signal (SIGTSTP, SIG_IGN);
+X#endif
+X		}
+X#endif
+X		switch (option) {
+X		case 0:
+X			write_rcfile ();
+X			if (kill_changed) {
+X				if (kill_at_once) {
+X					if (kill_articles) {
+X						read_kill_file ();
+X						if (kill_any_articles (group)) {
+X							reload_index_file (group, TRUE);	/* kill arts */
+X						}
+X					} else {
+X						reload_index_file (group, FALSE);	/* add killed arts */
+X					}
+X				}
+X				ret_code = KILLING;
+X			}
+X			clear_note_area ();
+X#ifdef SIGTSTP
+X			if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X				sigemptyset (&rcfile_act.sa_mask);
+X				rcfile_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X				rcfile_act.sa_handler = SIG_IGN;
+X				sigaction (SIGTSTP, &old_act, 0L);
+X#else
+X				signal (SIGTSTP, susp);
+X#endif
+X			}
+X#endif
+X			return ret_code;
+X			
+X		case 1:		/* auto save */
+X			show_menu_help (txt_help_autosave);
+X			do {
+X				MoveCursor (INDEX_TOP, strlen (txt_opt_autosave));
+X				if ((ch = ReadCh()) == ' ') {
+X					save_archive_name = !save_archive_name;
+X					printf ("%s", (save_archive_name ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X
+X		case 2:		/* save sperate */
+X			show_menu_help (txt_help_save_separate);
+X			do {
+X				MoveCursor (INDEX_TOP, COL2 + (int) strlen (txt_opt_save_separate));
+X				if ((ch = ReadCh()) == ' ') {
+X					save_separate = !save_separate;
+X					printf ("%s", (save_separate ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X			
+X		case 3:		/* mark saved articles read */
+X			show_menu_help (txt_help_mark_saved_read);
+X			do {
+X				MoveCursor (INDEX_TOP+2, strlen (txt_opt_mark_saved_read));
+X				if ((ch = ReadCh()) == ' ') {
+X					mark_saved_read = !mark_saved_read;
+X					printf ("%s", (mark_saved_read ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X
+X		case 4:		/* kill articles */
+X			orig_kill_state = kill_articles;
+X			show_menu_help (txt_help_kill_articles);
+X			do {
+X				MoveCursor (INDEX_TOP+2, COL2 + (int) strlen (txt_opt_kill_articles));
+X				if ((ch = ReadCh()) == ' ') {
+X					kill_articles = !kill_articles;
+X					kill_changed = (kill_articles != orig_kill_state ? TRUE : FALSE);
+X					printf ("%s", (kill_articles ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X
+X		case 5:		/* show subject & author / subject only */
+X			show_menu_help (txt_help_show_author);
+X			do {
+X				MoveCursor (INDEX_TOP+4, strlen (txt_opt_show_author));
+X				if ((ch = ReadCh()) == ' ') {
+X					show_author = !show_author;
+X					printf ("%s", (show_author ? "ON " : "OFF"));
+X					fflush(stdout);	
+X				}
+X			} while (ch != CR);
+X			break;
+X			
+X		case 6:		/* draw -> / highlighted bar */
+X			show_menu_help (txt_help_draw_arrow);
+X			do {
+X				MoveCursor (INDEX_TOP+4, COL2 + (int) strlen (txt_opt_draw_arrow));
+X				if ((ch = ReadCh()) == ' ') {
+X					draw_arrow_mark = !draw_arrow_mark;
+X					printf ("%s", (draw_arrow_mark ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			if (draw_arrow_mark == FALSE && inverse_okay == FALSE) {
+X				inverse_okay = TRUE;
+X			}
+X			break;
+X
+X		case 7:		/* post process saved files */
+X			show_menu_help (txt_help_post_process);
+X			do {
+X				MoveCursor (INDEX_TOP+6, strlen (txt_opt_post_process));
+X				if ((ch = ReadCh()) == ' ') {
+X					post_process = !post_process;
+X					printf ("%s", (post_process ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X			
+X		case 8:		/* print header */
+X			show_menu_help (txt_help_print_header);
+X			do {
+X				MoveCursor (INDEX_TOP+6, COL2 + (int) strlen (txt_opt_print_header));
+X				if ((ch = ReadCh()) == ' ') {
+X					print_header = !print_header;
+X					printf ("%s", (print_header ? "ON " : "OFF"));
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X			
+X		case 9:
+X			show_menu_help (txt_help_post_proc_type);
+X			do {
+X				MoveCursor (INDEX_TOP+8, strlen (txt_opt_process_type));
+X				if ((ch	= ReadCh()) == ' ') {
+X					if (post_proc_type + 1 > POST_PROC_PATCH) {
+X						post_proc_type = POST_PROC_SH;
+X					} else {
+X						post_proc_type++;
+X					}
+X					switch (post_proc_type) {
+X						case POST_PROC_SH:
+X							str = txt_post_process_sh;
+X							break;
+X						case POST_PROC_UUD:
+X							str = txt_post_process_uud;
+X							break;
+X						case POST_PROC_UUD_ZOO:
+X							str = txt_post_process_uud_zoo;
+X							break;
+X						case POST_PROC_UUD_LZH:
+X							str = txt_post_process_uud_lzh;
+X							break;
+X						case POST_PROC_UUD_ARC:
+X							str = txt_post_process_uud_arc;
+X							break;
+X						case POST_PROC_UUD_ZIP:
+X							str = txt_post_process_uud_zip;
+X							break;
+X						case POST_PROC_PATCH:
+X							str = txt_post_process_patch;
+X							break;
+X					}
+X					CleartoEOLN (); 
+X					printf ("%s", str);
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X		case 10:
+X			show_menu_help (txt_help_sort_type);
+X			do {
+X				MoveCursor (INDEX_TOP+10, strlen (txt_opt_sort_type));
+X				if ((ch	= ReadCh()) == ' ') {
+X					if (sort_art_type + 1 > SORT_BY_DATE) {
+X						sort_art_type = SORT_BY_NONE;
+X					} else {
+X						sort_art_type++;
+X					}
+X					switch (sort_art_type) {
+X						case SORT_BY_NONE:
+X							str = txt_sort_by_none;
+X							break;
+X						case SORT_BY_SUBJ:
+X							str = txt_sort_by_subj;
+X							break;
+X						case SORT_BY_FROM:
+X							str = txt_sort_by_from;
+X							break;
+X						case SORT_BY_DATE:
+X							str = txt_sort_by_date;
+X							break;
+X					}
+X					CleartoEOLN (); 
+X					printf ("%s", str);
+X					fflush(stdout);
+X				}
+X			} while (ch != CR);
+X			break;
+X		case 11:
+X			show_menu_help (txt_help_savedir);
+X			parse_menu_string (INDEX_TOP+12, strlen (txt_opt_savedir), savedir);
+X			expand_rel_abs_pathname (INDEX_TOP+12, strlen (txt_opt_savedir), savedir);
+X			break;
+X		case 12:
+X			show_menu_help (txt_help_maildir);
+X			parse_menu_string (INDEX_TOP+14, strlen (txt_opt_maildir), maildir);
+X			expand_rel_abs_pathname (INDEX_TOP+14, strlen (txt_opt_maildir), maildir);
+X			break;
+X		case 13:
+X			show_menu_help (txt_help_printer);
+X			parse_menu_string (INDEX_TOP+16, strlen (txt_opt_printer), printer);
+X			expand_rel_abs_pathname (INDEX_TOP+16, strlen (txt_opt_printer), printer);
+X			break;
+X	}
+X	}
+X}
+X
+Xvoid show_rcfile_menu ()
+X{
+X	char *str;
+X
+X	ClearScreen ();
+X	printf("%s\r\n", nice_time());	/* time in upper left */
+X
+X	center_line (1, TRUE, txt_options_menu);
+X	
+X	MoveCursor(INDEX_TOP, 0);
+X	printf ("%s%s\r\n\r\n", txt_opt_autosave, (save_archive_name ? "ON " : "OFF"));
+X	printf ("%s%s\r\n\r\n", txt_opt_mark_saved_read, (mark_saved_read ? "ON " : "OFF"));
+X	printf ("%s%s\r\n\r\n", txt_opt_show_author, (show_author ? "ON " : "OFF"));
+X	printf ("%s%s", txt_opt_post_process, (post_process ? "ON " : "OFF"));
+X
+X	MoveCursor(INDEX_TOP, COL2);
+X	printf ("%s%s", txt_opt_save_separate, (save_separate ? "ON " : "OFF"));
+X	MoveCursor(INDEX_TOP+2, COL2);
+X	printf ("%s%s", txt_opt_kill_articles, (kill_articles ? "ON " : "OFF"));
+X	MoveCursor(INDEX_TOP+4, COL2);
+X	printf ("%s%s", txt_opt_draw_arrow, (draw_arrow_mark ? "ON " : "OFF"));
+X	MoveCursor(INDEX_TOP+6, COL2);
+X	printf ("%s%s", txt_opt_print_header, (print_header ? "ON " : "OFF"));
+X
+X
+X	MoveCursor(INDEX_TOP+8, 0);
+X	switch (post_proc_type) {
+X		case POST_PROC_SH:
+X			str = txt_post_process_sh;
+X			break;
+X		case POST_PROC_UUD:
+X			str = txt_post_process_uud;
+X			break;
+X		case POST_PROC_UUD_ZOO:
+X			str = txt_post_process_uud_zoo;
+X			break;
+X		case POST_PROC_UUD_LZH:
+X			str = txt_post_process_uud_lzh;
+X			break;
+X		case POST_PROC_UUD_ARC:
+X			str = txt_post_process_uud_arc;
+X			break;
+X		case POST_PROC_UUD_ZIP:
+X			str = txt_post_process_uud_zip;
+X			break;
+X		case POST_PROC_PATCH:
+X			str = txt_post_process_patch;
+X			break;
+X	}
+X	printf ("%s%s\r\n\r\n", txt_opt_process_type, str);
+X	
+X	MoveCursor(INDEX_TOP+10, 0);
+X	switch (sort_art_type) {
+X		case SORT_BY_NONE:
+X			str = txt_sort_by_none;
+X			break;
+X		case SORT_BY_SUBJ:
+X			str = txt_sort_by_subj;
+X			break;
+X		case SORT_BY_FROM:
+X			str = txt_sort_by_from;
+X			break;
+X		case SORT_BY_DATE:
+X			str = txt_sort_by_date;
+X			break;
+X	}
+X	printf ("%s%s\r\n\r\n", txt_opt_sort_type, str);
+X
+X	printf ("%s%s\r\n\r\n", txt_opt_savedir, savedir);
+X	printf ("%s%s\r\n\r\n", txt_opt_maildir, maildir);
+X	printf ("%s%s\r\n\r\n", txt_opt_printer, printer);
+X	fflush(stdout);
+X
+X	show_menu_help (txt_select_rcfile_option);
+X	MoveCursor (LINES, 0);
+X}
+X
+X/*
+X *  parse_menu_string
+X *  get a string from the user
+X *  Return TRUE if a valid string was typed, FALSE otherwise
+X */
+X
+Xvoid parse_menu_string (line, col, var)
+X	int line;
+X	int col;
+X	char *var;
+X{
+X	char buf[LEN+1];
+X	char ch;
+X	int len;
+X	int i;
+X
+X	MoveCursor (line, col);
+X	buf[0] = '\0';
+X	len = 0;
+X	ch = ReadCh();
+X	while (ch != '\n' && ch != '\r') {
+X		if (ch == 8 || ch == 127) {
+X			if (len) {
+X				len--;
+X				buf[len] = '\0';
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			} else {
+X				strcpy (var, buf);
+X				MoveCursor(line, col);
+X				CleartoEOLN();
+X			}
+X		} else if (ch == 21) {	/* control-U	*/
+X			for (i = len;i>0;i--) {
+X				putchar('\b');
+X				putchar(' ');
+X				putchar('\b');
+X			}
+X			buf[0] = '\0';
+X			len = 0;
+X		} else if (ch >= ' ' && len < 60) {
+X			buf[len++] = ch;
+X			buf[len] = '\0';
+X			putchar (ch);
+X		} else
+X			putchar(7);
+X		fflush(stdout);
+X		ch = ReadCh();
+X	}
+X
+X	if (buf[0]) {
+X		strcpy (var, buf);
+X	}
+X}
+X
+X/*
+X *  expand ~/News to /usr/username/News and print to screen
+X */
+X 
+Xvoid expand_rel_abs_pathname (line, col, str)
+X	int line;
+X	int col;
+X	char *str;
+X{
+X	char buf[LEN+1];
+X	
+X	if (str[0] == '~') {
+X		if (strlen (str) == 1) {
+X			strcpy (str, homedir);
+X		} else {
+X			sprintf (buf, "%s%s", homedir, str+1);
+X			strcpy (str, buf);
+X		}
+X	}
+X	MoveCursor (line, col);
+X	CleartoEOLN ();
+X	puts (str);
+X	fflush (stdout);
+X}
+X
+X/*
+X *  show_menu_help
+X */
+X 
+Xvoid show_menu_help (help_message)
+X	char *help_message;
+X{
+X	 MoveCursor (INDEX_TOP+18, 0);
+X	 CleartoEOLN ();
+X	 center_line (INDEX_TOP+18, FALSE, help_message);
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 rcfile.c &&
+chmod 0600 rcfile.c ||
+echo "restore of rcfile.c failed"
+set `wc -c rcfile.c`;Wc_c=$1
+if test "$Wc_c" != "16801"; then
+	echo original size 16801, current size $Wc_c
+fi
+# ============= save.c ==============
+echo "x - extracting save.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > save.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : save.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 03-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta, Iain Lea & Wayne Brandt
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X#define	INITIAL		1
+X#define MIDDLE		2
+X#define OFF			3
+X#define END			4
+X
+Xint create_subdir = TRUE;
+X
+Xstruct save_t *save;
+Xint save_num=0;
+Xint max_save;
+X
+X/*
+X * types of archive programs
+X * 0=archiver, 1=extension, 2=extract option, 3=list option
+X */
+X 
+Xstruct archiver_t { 
+X	char *name;
+X	char *ext;
+X	char *extract;
+X	char *list;
+X};
+X
+Xstruct archiver_t archiver[] = {
+X	{ "",      "",    "",         "" },
+X	{ "",      "",    "",         "" },
+X	{ "",      "",    "",         "" },
+X	{ "zoo",   "zoo", "-extract", "-list" },
+X	{ "lharc", "lzh", "x",        "l" },
+X	{ "arc",   "arc", "x",        "l" },
+X	{ "zip",   "zip", "-x",       "-l" },
+X	{ "",      "",    "",         "" }
+X};
+X
+Xextern char *glob_group;
+Xextern char note_h_path[LEN+1];	/* Path:	*/
+Xextern char note_h_date[LEN+1];	/* Date:	*/
+Xextern FILE	*note_fp;			/* the body of the current article */
+Xextern int index_point;
+Xextern int note_end;
+Xextern int note_page;
+Xextern long note_mark[MAX_PAGES];
+X
+X
+Xint save_art_to_file (respnum, index, mailbox, filename)
+X	int respnum;
+X	int index;
+X	int mailbox;
+X	char *filename;
+X{
+X	char file[LEN+1], *p;
+X	char save_art_info[LEN+1];
+X	FILE *fp;
+X	int is_mailbox = FALSE;
+X	int i = 0, ret_code = FALSE;
+X	
+X	if (filename) {
+X		my_strncpy (file, filename, LEN);
+X		is_mailbox = mailbox;
+X		i = index;
+X	} else if (save_archive_name && arts[respnum].archive) {
+X			my_strncpy (file, arts[respnum].archive, LEN);
+X	}
+X
+X	if (! append_to_existing_file (i)) {
+X		save[i].saved = FALSE;
+X		info_message (txt_art_not_saved);
+X		sleep (1);
+X		return (ret_code);
+X	}
+X
+X	set_real_uid_gid ();
+X
+X	if ((fp = fopen (save_filename (i), "a+")) == NULL) {
+X		save[i].saved = FALSE;
+X		info_message (txt_art_not_saved);
+X		set_tin_uid_gid ();
+X		return (ret_code);
+X	}
+X
+X	if (! filename) {
+X		wait_message (txt_saving);
+X	}
+X	
+X	fprintf(fp, "From %s %s\n", note_h_path, note_h_date);
+X
+X	if (fseek(note_fp, 0L, 0) == -1) {
+X		error_message ("fseek error on \"%s\"", arts[respnum].subject);
+X	}
+X	copy_fp(note_fp, fp, "");
+X	fputs("\n", fp);
+X	fclose(fp);
+X	fseek(note_fp, note_mark[note_page], 0);
+X
+X	save[i].saved = TRUE;
+X
+X	if (mark_saved_read) {
+X		arts[respnum].unread = ART_READ;
+X	}
+X	
+X	set_tin_uid_gid ();
+X
+X	if (! filename) {
+X		if (is_mailbox) {
+X			sprintf (save_art_info, txt_saved_to_mailbox, get_first_savefile ());
+X		} else {
+X			sprintf (save_art_info, txt_art_saved_to, get_first_savefile ());
+X		}
+X		info_message(save_art_info);
+X	}
+X	return TRUE;
+X}
+X
+X
+Xint save_thread_to_file (respnum, is_mailbox, group_path)
+X	int respnum;
+X	int is_mailbox;
+X	char *group_path;
+X{
+X	char *p;
+X	char save_thread_info[LEN+1];
+X	char *first_savefile;
+X	FILE *fp;
+X	int count = 0;
+X	int b, i, ret_code = FALSE;
+X
+X	set_real_uid_gid ();
+X
+X	for (i=0 ; i < save_num ; i++) {
+X		if (! append_to_existing_file (i)) {
+X			save[i].saved = FALSE;
+X			info_message (txt_art_not_saved);
+X			sleep (1);
+X			continue;
+X		} else {
+X			sprintf (msg, "%s%d", txt_saving, ++count);
+X			wait_message (msg);
+X		}
+X
+X		if ((fp = fopen (save_filename (i), "a+")) == NULL) {
+X			info_message (txt_thread_not_saved);
+X			set_tin_uid_gid ();
+X			return (ret_code);
+X		}	
+X
+X		open_note (arts[save[i].index].artnum, group_path);
+X		fprintf (fp, "From %s %s\n", note_h_path, note_h_date);
+X		fseek (note_fp, 0L, 0);
+X		copy_fp (note_fp, fp, "");
+X		note_cleanup ();
+X		save[i].saved = TRUE;
+X
+X		if (mark_saved_read) {
+X			arts[save[i].index].unread = ART_READ;
+X		}
+X
+X		fclose (fp);
+X	}
+X	set_tin_uid_gid ();
+X	
+X	if (! (first_savefile = get_first_savefile ())) {
+X		info_message (txt_thread_not_saved);
+X	} else {
+X		if (is_mailbox) {
+X			sprintf (save_thread_info, txt_saved_to_mailbox, first_savefile);
+X		} else {
+X			if (save_num == 1) {
+X				sprintf (save_thread_info, txt_art_saved_to, first_savefile);
+X			} else {
+X				if (save_separate) {
+X					sprintf (save_thread_info, txt_thread_saved_to_many,
+X						first_savefile, get_last_savefile ());
+X				} else {
+X					sprintf (save_thread_info, txt_thread_saved_to,
+X						first_savefile);
+X				}
+X			}
+X			free (first_savefile);
+X			first_savefile = (char *) 0;
+X		}
+X		info_message (save_thread_info);
+X	}
+X	return TRUE;
+X}
+X
+X
+Xint save_regex_arts (is_pattern, pattern, is_mailbox, group_path)
+X	int is_pattern;
+X	char *pattern;
+X	int is_mailbox;
+X	char *group_path;
+X{
+X	char buf[LEN+1];
+X	char buf2[LEN+1];
+X	char dir[LEN+1];
+X	char mailbox[LEN+1];
+X	int i, j, ret_code; 	
+X	
+X	for (i=0 ; i < save_num ; i++) {
+X		sprintf(buf, "%s%d", txt_saving, i+1);
+X		wait_message (buf);
+X
+X		if (is_mailbox) {
+X			strcpy (buf2, mailbox);
+X		}else {
+X			sprintf (buf2, "%s.%02d", save[i].file, i+1);
+X		}
+X
+X		open_note (arts[save[i].index].artnum, group_path);
+X		ret_code = save_art_to_file (save[i].index, i, is_mailbox, buf2);
+X		note_cleanup ();			
+X		save[i].saved = TRUE;
+X	}
+X
+X	if (! save_num) {	
+X		info_message(txt_no_match);
+X	} else {
+X		if (is_mailbox) {
+X			sprintf (buf, txt_saved_to_mailbox, get_first_savefile ());
+X		} else {
+X			sprintf (buf,txt_saved_pattern_to,
+X				get_first_savefile (), get_last_savefile ());
+X		}
+X		info_message(buf);
+X	}
+X	return (ret_code);
+X}
+X
+X
+Xint append_to_existing_file (i)
+X	int i;
+X{
+X	char buf[LEN+1];
+X	char *file;
+X	struct stat st;
+X
+X	if (! save[i].is_mailbox && save_separate) {
+X		file = save_filename (i);
+X		if (stat(file, &st) != -1) {	
+X			sprintf (buf, txt_append_to_file, file); 
+X			if (! prompt_yn (LINES, buf, 'n')) {
+X				free (file);
+X				file = NULL;
+X				return FALSE;
+X			}
+X		}
+X		free (file);
+X		file = NULL;
+X	}
+X	
+X	return TRUE;
+X}
+X
+X
+Xint create_path (path)
+X	char *path;
+X{
+X	char buf [LEN+1];
+X	int i, j, len;
+X	struct stat st;
+X	
+X	/*
+X	 * save in mailbox format to ~/Mail/<group.name>
+X	 */
+X	if (path[0] == '=') {
+X		return TRUE;
+X	}
+X
+X	/*
+X	 * if ~/file expand (ie. /usr/homedir/file)
+X	 */
+X	switch (path[0]) {
+X		case '~':
+X			my_strncpy (buf, path+1, LEN);
+X			sprintf (path, "%s%s", homedir, buf);
+X			break;
+X		case '.':
+X			error_message ("Cannot create %s", buf);
+X			return FALSE;
+X			break;
+X		default:
+X			sprintf (buf, "%s/%s", savedir, path);
+X			my_strncpy (path, buf, LEN);
+X			break;
+X	}
+X
+X	/*
+X	 *  create any directories, otherwise check
+X	 *  errno and give appropiate error message
+X	 */
+X	len = (int) strlen (path);
+X	
+X	for (i=0, j=0 ; i < len ; i++, j++) {
+X		buf[j] = path[i];
+X		if (i+1 < len && path[i+1] == '/') {
+X			buf[j+1] = '\0';
+X			if (stat (buf, &st) == -1) {
+X				if (mkdir (buf, 0755) == -1) {
+X					error_message ("Cannot create %s", buf);
+X					return FALSE;
+X				}
+X			}
+X		}
+X	}
+X	return FALSE;
+X}
+X
+X
+Xint create_sub_dir (i)
+X	int i;
+X{
+X	char dir[LEN+1];
+X	struct stat st;
+X
+X	if (! save[i].is_mailbox && save[i].archive) {
+X		sprintf (dir, "%s/%s", save[i].dir, save[i].archive);
+X		if (stat (dir, &st) == -1) {
+X			mkdir (dir, 0755);
+X			return TRUE;
+X		}
+X		if ((st.st_mode & S_IFMT) == S_IFDIR) {
+X			return TRUE;
+X		} else {
+X			return FALSE;
+X		}
+X	}
+X	return FALSE;
+X}
+X
+X/*
+X *  add files to be saved to save array
+X */
+X
+Xvoid add_to_save_list (index, article, is_mailbox, path)
+X	int index;
+X	struct header *article;
+X	int is_mailbox;
+X	char *path;
+X{
+X	char dir[LEN+1];
+X	char file[LEN+1];
+X	int i;
+X	
+X	dir[0] = '\0';
+X	file[0] = '\0';
+X
+X	if (save_num == max_save-1) {
+X		expand_save ();
+X	}
+X
+X	save[save_num].index   = index;
+X	save[save_num].saved   = FALSE;
+X	save[save_num].is_mailbox = is_mailbox;
+X	save[save_num].dir     = (char *) 0;
+X	save[save_num].file    = (char *) 0;
+X	save[save_num].archive = (char *) 0;
+X	save[save_num].part    = (char *) 0;
+X	save[save_num].patch   = (char *) 0;
+X
+X	save[save_num].subject = str_dup (article->subject);
+X	if (article->archive) {
+X		save[save_num].archive = str_dup (article->archive);
+X	}
+X	if (article->part) {
+X		save[save_num].part = str_dup (article->part);
+X	}
+X	if (article->patch) {
+X		save[save_num].patch = str_dup (article->patch);
+X	}
+X
+X	if (is_mailbox) {
+X		if ((int) strlen (path) > 1) {
+X			if (path[0] == '=') {
+X				strcpy (file, path+1);
+X			} else {
+X				strcpy (file, path);
+X			}
+X		} else {
+X			strcpy (file, glob_group);
+X		}
+X		save[save_num].dir = maildir;
+X		save[save_num].file = str_dup (file);
+X	} else {
+X		if (path[0]) {
+X			for (i=strlen (path) ; i ; i--) {
+X				if (path[i] == '/') {
+X					strncpy (dir, path, i);
+X					dir[i] = '\0';
+X					strcpy (file, path+i+1);
+X					break;
+X				}
+X			}
+X		}
+X		
+X		if (dir[0]) {
+X			save[save_num].dir = str_dup (dir);
+X		} else {
+X			save[save_num].dir = str_dup (savedir);
+X		}
+X
+X		if (file[0]) {
+X			save[save_num].file = str_dup (file);
+X		} else {
+X			if (path[0]) {
+X				save[save_num].file = str_dup (path);
+X			} else {
+X				save[save_num].file = save[save_num].archive;
+X			}
+X		}
+X	}
+X	save_num++;
+X}
+X
+X/*
+X *  print save array of files to be saved
+X */
+X
+Xvoid sort_save_list ()
+X{
+X	qsort (save, save_num, sizeof (struct save_t), save_comp);
+X}
+X
+X/*
+X *  string comparison routine for the qsort()
+X *  ie. qsort(array, 5, 32, save_comp);
+X */
+X
+Xint save_comp (s1, s2)
+X	struct save_t *s1;
+X	struct save_t *s2;
+X{
+X	/* s1->subject less than s2->subject */
+X	if (strcmp (s1->subject, s2->subject) < 0) {
+X		return -1;
+X	}
+X	/* s1->subject greater than s2->subject */
+X	if (strcmp (s1->subject, s2->subject) > 0) {
+X		return 1;
+X	}
+X	return 0;
+X}
+X
+X
+Xchar *save_filename (i)
+X	int i;
+X{
+X	char *filename;
+X
+X	filename = (char *) my_malloc (LEN);
+X
+X	if (save[i].is_mailbox) {
+X		sprintf (filename, "%s/%s", save[i].dir, save[i].file);
+X		return (filename);
+X	}
+X	
+X	if (! save_separate || ! save_archive_name || (! save[i].part && ! save[i].patch)) {
+X		if (! save_separate || save_num == 1) {
+X			sprintf (filename, "%s/%s", save[i].dir, save[i].file);
+X		} else {
+X			sprintf (filename, "%s/%s.%02d", save[i].dir, save[i].file, i+1);
+X		}
+X	} else {
+X		if (save[i].part) {
+SHAR_EOF
+echo "End of tin1.0 part 6"
+echo "File save.c is continued in part 7"
+echo "7" > shar3_seq_.tmp
+exit 0
+
+
+--
+NAME   Iain Lea
+EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+PHONE  +49-911-895-3853, +49-911-895-3877, +49-911-331963

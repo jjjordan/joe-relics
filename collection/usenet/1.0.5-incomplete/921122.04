@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!uunet!noc.near.net!mv!world!jhallen
+From: jhallen@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 8 of 10
+Message-ID: <By2Mrw.LCH@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:55:07 GMT
+Lines: 2303
+
+Submitted-by: jhallen@world.std.com
+Archive-name: joe1.0.5part8
+
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(term),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+#endif
+#endif
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+int x,omode=ttymode;
+char *s=getenv("SHELL");
+if(!s) return;
+ttclsn();
+if(x=fork())
+X {
+X if(x!= -1) wait(0);
+X if(omode) ttopnn();
+X }
+else
+X {
+X signrm();
+X if(cmd) execl(s,s,"-c",cmd,NULL);
+X else
+X  {
+X  fprintf(stderr,"You are at the command shell.  Type 'exit' to return\n");
+X  execl(s,s,NULL);
+X  }
+X _exit(0);
+X }
+}
+X
+static int gotsig;
+X
+static void dosi()
+{
+gotsig=1;
+}
+X
+void ttsusp()
+{
+#ifdef SIGCONT
+int omode=ttymode;
+ttclsn();
+gotsig=0;
+fprintf(stderr,"You have suspended the program.  Type \'fg\' to return\n");
+signal(SIGCONT,dosi);
+sigsetmask(sigmask(SIGCONT));
+kill(0,SIGTSTP);
+while(!gotsig) sigpause(0);
+signal(SIGCONT,SIG_DFL);
+if(omode) ttopnn();
+#else
+ttshell(NULL);
+#endif
+}
+X
+char *getwd();
+char *pwd()
+{
+static buf[1024];
+return getwd(buf);
+}
+SHAR_EOF
+chmod 0600 ttybsd.c ||
+echo 'restore of ttybsd.c failed'
+Wc_c="`wc -c < 'ttybsd.c'`"
+test 5407 -eq "$Wc_c" ||
+	echo 'ttybsd.c: original size 5407, current size' "$Wc_c"
+fi
+# ============= ttyhpux.c ==============
+if test -f 'ttyhpux.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttyhpux.c (File already exists)'
+else
+echo 'x - extracting ttyhpux.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttyhpux.c' &&
+/* TTY interface for HPUX (AT&T SV + BSD EXTENSIONS)
+X   Copyright (C) 1991 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/param.h>
+#include <termio.h>
+#include "config.h"
+#include "heap.h"
+#include "tty.h"
+X
+#ifndef HZ
+#define HZ 10
+#endif
+X
+FILE *term=0;
+X
+static struct termio oldterm;
+X
+char *obuf=0;
+int obufp=0;
+int obufsiz;
+X
+unsigned long upc;
+unsigned baud;
+X
+int have=0;
+static char havec;
+int leave=0;
+static int ttymode=0;
+X
+static int speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+X
+void sigjoe()
+{
+signal(SIGHUP,ttsig);
+signal(SIGTERM,ttsig);
+signal(SIGINT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+}
+X
+void signrm()
+{
+signal(SIGHUP,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+}
+X
+void ttopen()
+{
+sigjoe();
+ttopnn();
+}
+X
+void ttopnn()
+{
+int x;
+struct termio newterm;
+if(!term && !(term=fopen("/dev/tty","r+")))
+X {
+X fprintf(stderr,"Couldn\'t open tty\n");
+X exit(1);
+X }
+if(ttymode) return;
+else ttymode=1;
+fflush(term);
+ioctl(fileno(term),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+newterm.c_oflag=0;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(term),TCSETAW,&newterm);
+upc=0;
+baud=9600;
+for(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  break;
+X  }
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+if(obuf) free(obuf);
+if(!(TIMES*upc)) obufsiz=4096;
+else
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+if(!obufsiz) obufsiz=1;
+obuf=(char *)malloc(obufsiz);
+}
+X
+void ttclose()
+{
+ttclsn();
+signrm();
+}
+X
+void ttclsn()
+{
+int oleave=leave;
+if(ttymode) ttymode=0;
+else return;
+leave=1;
+ttflsh();
+ioctl(fileno(term),TCSETAW,&oldterm);
+leave=oleave;
+}
+X
+static int yep;
+X
+static void dosig() { yep=1; } 
+X
+int ttflsh()
+{
+if(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ && baud<38400)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  signal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(term),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  signal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(term),obuf,obufp);
+X obufp=0;
+X }
+if(!have && !leave)
+X {
+X fcntl(fileno(term),F_SETFL,O_NDELAY);
+X if(read(fileno(term),&havec,1)==1) have=1;
+X fcntl(fileno(term),F_SETFL,0);
+X }
+return 0;
+}
+X
+int ttgetc()
+{
+ttflsh();
+if(have) have=0;
+else if(read(fileno(term),&havec,1)<1) ttsig(0);
+return havec;
+}
+X
+void ttputs(s)
+char *s;
+{
+while(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) ttflsh();
+X }
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+*x=0; *y=0;
+#ifdef TIOCGSIZE
+if(ioctl(fileno(term),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(term),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+#endif
+#endif
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+int x,omode=ttymode;
+char *s=getenv("SHELL");
+if(!s) return;
+ttclsn();
+if(x=fork())
+X {
+X if(x!= -1) wait(0);
+X if(omode) ttopnn();
+X }
+else
+X {
+X signrm();
+X if(cmd) execl(s,s,"-c",cmd,NULL);
+X else
+X  {
+X  fprintf(stderr,"You are at the command shell.  Type 'exit' to return\n");
+X  execl(s,s,NULL);
+X  }
+X _exit(0);
+X }
+}
+X
+static int gotsig;
+X
+static void dosi()
+{
+gotsig=1;
+}
+X
+void ttsusp()
+{
+#ifdef SIGCONT
+int omode=ttymode;
+ttclsn();
+gotsig=0;
+fprintf(stderr,"You have suspended the program.  Type \'fg\' to return\n");
+signal(SIGCONT,dosi);
+sigsetmask(sigmask(SIGCONT));
+kill(0,SIGTSTP);
+while(!gotsig) sigpause(0);
+signal(SIGCONT,SIG_DFL);
+if(omode) ttopnn();
+#else
+ttshell(NULL);
+#endif
+}
+X
+char *getcwd();
+char *pwd()
+{
+static char buf[1024];
+return getcwd(buf,1024);
+}
+SHAR_EOF
+chmod 0600 ttyhpux.c ||
+echo 'restore of ttyhpux.c failed'
+Wc_c="`wc -c < 'ttyhpux.c'`"
+test 4717 -eq "$Wc_c" ||
+	echo 'ttyhpux.c: original size 4717, current size' "$Wc_c"
+fi
+# ============= ttymsdos.c ==============
+if test -f 'ttymsdos.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttymsdos.c (File already exists)'
+else
+echo 'x - extracting ttymsdos.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttymsdos.c' &&
+/* TTY interface for MSDOS using TURBO-C
+X   Copyright (C) 1991 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+#include <stdio.h>
+#include <conio.h>
+#include <bios.h>
+#include "config.h"
+#include "tty.h"
+X
+unsigned baud=38400;
+unsigned long upc;
+int have=0;
+int leave=0;
+static int ttymode=0;
+X
+void ttputs(s)
+char *s;
+{
+fputs(s,stdout);
+if(!have) have=bioskey(1);
+}
+X
+void ttputc(c)
+char c;
+{
+putchar(c);
+if(!have) have=bioskey(1);
+}
+X
+void sigjoe()
+{
+}
+X
+void signrm()
+{
+}
+X
+void ttopen()
+{
+ttopnn();
+}
+X
+void ttopnn()
+{
+fflush(stdout);
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+}
+X
+void ttclose()
+{
+ttclsn();
+}
+X
+void ttclsn()
+{
+ttflsh();
+}
+X
+void ttflsh()
+{
+fflush(stdout);
+if(!have) have=bioskey(1);
+}
+X
+int ttgetc()
+{
+char c;
+have=0;
+c=getch();
+return c;
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+char *s=getenv("COMSPEC");
+if(cmd) system(cmd);
+else if(s) system(s);
+}
+X
+void ttsusp()
+{
+ttshell(NULL);
+}
+X
+char *getcwd();
+char *pwd()
+{
+static char buf[1024];
+return getcwd(buf,1024);
+}
+SHAR_EOF
+chmod 0600 ttymsdos.c ||
+echo 'restore of ttymsdos.c failed'
+Wc_c="`wc -c < 'ttymsdos.c'`"
+test 1705 -eq "$Wc_c" ||
+	echo 'ttymsdos.c: original size 1705, current size' "$Wc_c"
+fi
+# ============= ttyposix.c ==============
+if test -f 'ttyposix.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttyposix.c (File already exists)'
+else
+echo 'x - extracting ttyposix.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttyposix.c' &&
+/* TTY interface for POSIX
+X   Copyright (C) 1991 Joseph H. Allen
+X   (Contributed by Mike Lijewski)
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+You should have received a copy of the GNU General Public License along with
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <termios.h>
+#include <unistd.h>
+#include "config.h"
+#include "heap.h"
+#include "tty.h"
+X
+#ifndef HZ
+#define HZ 10
+#endif
+X
+static struct termios oldterm;
+X
+char *obuf=0;
+int obufp=0;
+int obufsiz;
+unsigned long upc;
+unsigned baud;
+int have=0;
+int leave=0;
+static int ttymode=0;
+static char havec;
+FILE *term=0;
+X
+static speed_t speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400,B19200,19200,
+B38400,38400
+};
+X
+void esignal(a,b)
+int a;
+void (*b)();
+{
+struct sigaction action;
+sigemptyset(&action.sa_mask);
+action.sa_flags=0;
+action.sa_handler=b;
+sigaction(a,&action,NULL);
+}
+X
+void sigjoe()
+{
+esignal(SIGHUP,ttsig);
+esignal(SIGTERM,ttsig);
+esignal(SIGPIPE,SIG_IGN);
+esignal(SIGINT,SIG_IGN);
+esignal(SIGQUIT,SIG_IGN);
+}
+X
+void signrm()
+{
+esignal(SIGHUP,SIG_DFL);
+esignal(SIGTERM,SIG_DFL);
+esignal(SIGQUIT,SIG_DFL);
+esignal(SIGPIPE,SIG_DFL);
+esignal(SIGINT,SIG_DFL);
+}
+X
+void ttopen()
+{
+sigjoe();
+ttopnn();
+}
+X
+void ttopnn()
+{
+int x;
+speed_t bd;
+struct termios newterm;
+if(!term && !(term=fopen("/dev/tty","r+")))
+X {
+X fprintf(stderr,"Couldn\'t open tty\n");
+X exit(1);
+X }
+if(ttymode) return;
+else ttymode=1;
+fflush(term);
+tcdrain(fileno(term));
+tcgetattr(fileno(term),&oldterm);
+newterm=oldterm;
+newterm.c_lflag&=0;
+newterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+newterm.c_oflag&=0;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+tcsetattr(fileno(term),TCSANOW,&newterm);
+upc=0;
+bd=cfgetospeed(&newterm);
+baud=9600;
+for(x=0;x!=34;x+=2)
+X if(bd==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  break;
+X  }
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+if(obuf) free(obuf);
+if(!(TIMES*upc)) obufsiz=4096;
+else
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+if(!obufsiz) obufsiz=1;
+obuf=(char *)malloc(obufsiz);
+}
+X
+void ttclose()
+{
+ttclsn();
+signrm();
+}
+X
+void ttclsn()
+{
+int oleave=leave;
+if(ttymode) ttymode=0;
+else return;
+leave=1;
+ttflsh();
+tcsetattr(fileno(term),TCSANOW,&oldterm);
+leave=oleave;
+}
+X
+static int yep;
+X
+static void dosig() { yep=1; } 
+X
+int ttflsh()
+{
+if(obufp)
+X {
+X struct itimerval a,b;
+X unsigned long usec=obufp*upc;
+X if(usec>=500000/HZ && baud<38400)
+X  {
+X  a.it_value.tv_sec=usec/1000000;
+X  a.it_value.tv_usec=usec%1000000;
+X  a.it_interval.tv_usec=0;
+X  a.it_interval.tv_sec=0;
+X  esignal(SIGALRM,dosig);
+X  yep=0;
+X  sigsetmask(sigmask(SIGALRM));
+X  setitimer(ITIMER_REAL,&a,&b);
+X  write(fileno(term),obuf,obufp);
+X  while(!yep) sigpause(0);
+X  esignal(SIGALRM,SIG_DFL);
+X  }
+X else write(fileno(term),obuf,obufp);
+X obufp=0;
+X }
+if(!have && !leave)
+X {
+X fcntl(fileno(term),F_SETFL,O_NDELAY);
+X if(read(fileno(term),&havec,1)==1) have=1;
+X fcntl(fileno(term),F_SETFL,0);
+X }
+return 0;
+}
+X
+int ttgetc()
+{
+ttflsh();
+if(have) have=0;
+else if(read(fileno(term),&havec,1)<1) ttsig(0);
+return havec;
+}
+X
+void ttputs(s)
+char *s;
+{
+while(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) ttflsh();
+X }
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+*x=0; *y=0;
+#ifdef TIOCGSIZE
+if(ioctl(fileno(term),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(term),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+#endif
+#endif
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+int x,omode=ttymode;
+char *s=getenv("SHELL");
+if(!s) return;
+ttclsn();
+if(x=fork())
+X {
+X if(x!= -1) wait(0);
+X if(omode) ttopnn();
+X }
+else
+X {
+X signrm();
+X if(cmd) execl(s,s,"-c",cmd,NULL);
+X else
+X  {
+X  fprintf(stderr,"You are at the command shell.  Type 'exit' to return\n");
+X  execl(s,s,NULL);
+X  }
+X _exit(0);
+X }
+}
+X
+static int gotsig;
+X
+static void dosi()
+{
+gotsig=1;
+}
+X
+void ttsusp()
+{
+#ifdef SIGCONT
+int omode=ttymode;
+ttclsn();
+gotsig=0;
+fprintf(stderr,"You have suspended the program.  Type \'fg\' to return\n");
+esignal(SIGCONT,dosi);
+sigsetmask(sigmask(SIGCONT));
+kill(0,SIGTSTP);
+while(!gotsig) sigpause(0);
+esignal(SIGCONT,SIG_DFL);
+if(omode) ttopnn();
+#else
+ttshell(NULL);
+#endif
+}
+X
+char *getcwd();
+char *pwd()
+{
+static char buf[1024];
+return getcwd(buf,1024);
+}
+SHAR_EOF
+chmod 0600 ttyposix.c ||
+echo 'restore of ttyposix.c failed'
+Wc_c="`wc -c < 'ttyposix.c'`"
+test 5008 -eq "$Wc_c" ||
+	echo 'ttyposix.c: original size 5008, current size' "$Wc_c"
+fi
+# ============= ttysv.c ==============
+if test -f 'ttysv.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttysv.c (File already exists)'
+else
+echo 'x - extracting ttysv.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttysv.c' &&
+/* TTY interface for SYS V UNIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+#include <stdio.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/param.h>
+#include <termio.h>
+#include "config.h"
+#include "tty.h"
+X
+static struct termio oldterm;
+X
+#ifndef HZ
+#define HZ 10
+#endif
+X
+FILE *term=0;
+X
+char *obuf=0;
+int obufp=0;
+int obufsiz;
+X
+unsigned baud;
+unsigned long upc;
+X
+static int speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+X
+int leave=0;
+static char havec;
+int have=0;
+static int ttymode=0;
+X
+void sigjoe()
+{
+signal(SIGHUP,ttsig);
+signal(SIGTERM,ttsig);
+signal(SIGINT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+signal(SIGQUIT,SIG_IGN);
+}
+X
+void signrm()
+{
+signal(SIGHUP,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+signal(SIGQUIT,SIG_DFL);
+}
+X
+void ttopen()
+{
+sigjoe();
+ttopnn();
+}
+X
+void ttopnn()
+{
+int x;
+struct termio newterm;
+if(!term && !(term=fopen("/dev/tty","r+")))
+X {
+X fprintf(stderr,"Couldn\'t open tty\n");
+X exit(1);
+X }
+if(ttymode) return;
+else ttymode=1;
+fflush(term);
+ioctl(fileno(term),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+newterm.c_oflag=0;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(term),TCSETAW,&newterm);
+upc=0;
+baud=9600;
+for(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  break;
+X  }
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+if(obuf) free(obuf);
+if(!(TIMES*upc)) obufsiz=4096;
+else
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+if(!obufsiz) obufsiz=1;
+obuf=(char *)malloc(obufsiz);
+}
+X
+void ttclose()
+{
+ttclsn();
+signrm();
+}
+X
+void ttclsn()
+{
+int oleave=leave;
+if(ttymode) ttymode=0;
+else return;
+leave=1;
+ttflsh();
+ioctl(fileno(term),TCSETAW,&oldterm);
+leave=oleave;
+}
+X
+int ttflsh()
+{
+if(obufp)
+X {
+X write(fileno(term),obuf,obufp);
+X obufp=0;
+X }
+/* Oh well, nothing but a second timer in SYS V */
+if(!have && !leave)
+X {
+X fcntl(fileno(term),F_SETFL,O_NDELAY);
+X if(read(fileno(term),&havec,1)==1) have=1;
+X fcntl(fileno(term),F_SETFL,0);
+X }
+return 0;
+}
+X
+int ttgetc()
+{
+ttflsh();
+if(have) have=0;
+else if(read(fileno(term),&havec,1)<1) ttsig(0);
+return havec;
+}
+X
+void ttputs(s)
+char *s;
+{
+while(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) ttflsh();
+X }
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+*x=0; *y=0;
+#ifdef TIOCGSIZE
+if(ioctl(fileno(term),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(term),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+#endif
+#endif
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+int x,omode=ttymode;
+char *s=getenv("SHELL");
+if(!s) return;
+ttclsn();
+if(x=fork())
+X {
+X if(x!= -1) wait(0);
+X if(omode) ttopnn();
+X }
+else
+X {
+X signrm();
+X if(cmd) execl(s,s,"-c",cmd,NULL);
+X else
+X  {
+X  fprintf(stderr,"You are at the command shell.  Type 'exit' to return\n");
+X  execl(s,s,NULL);
+X  }
+X _exit(0);
+X }
+}
+X
+static int gotsig;
+X
+static void dosi()
+{
+gotsig=1;
+}
+X
+void ttsusp()
+{
+#ifdef SIGCONT
+int omode=ttymode;
+ttclsn();
+gotsig=0;
+fprintf(stderr,"You have suspended the program.  Type \'fg\' to return\n");
+signal(SIGCONT,dosi);
+sigsetmask(sigmask(SIGCONT));
+kill(0,SIGTSTP);
+while(!gotsig) sigpause(0);
+signal(SIGCONT,SIG_DFL);
+if(omode) ttopnn();
+#else
+ttshell(NULL);
+#endif
+}
+X
+char *getcwd();
+char *pwd()
+{
+static char buf[1024];
+return getcwd(buf,1024);
+}
+SHAR_EOF
+chmod 0600 ttysv.c ||
+echo 'restore of ttysv.c failed'
+Wc_c="`wc -c < 'ttysv.c'`"
+test 4269 -eq "$Wc_c" ||
+	echo 'ttysv.c: original size 4269, current size' "$Wc_c"
+fi
+# ============= ttyxenix.c ==============
+if test -f 'ttyxenix.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ttyxenix.c (File already exists)'
+else
+echo 'x - extracting ttyxenix.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ttyxenix.c' &&
+/* Terminal interface for XENIX
+X   Copyright (C) 1991 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version. 
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+X
+You should have received a copy of the GNU General Public License
+along with JOE; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+X
+#include <stdio.h>
+#include <signal.h>
+#include <termio.h>
+#include "config.h"
+#include "heap.h"
+#include "tty.h"
+X
+FILE *term=0;
+X
+/* Original state of the tty */
+X
+static struct termio oldterm;
+X
+/* Output buffer, index and size */
+X
+char *obuf=0;
+int obufp=0;
+int obufsiz;
+X
+/* Baud rate */
+X
+unsigned long upc;
+unsigned baud;
+X
+/* Baud rate code to baud rate translation table */
+X
+static int speeds[]=
+{
+B50,50,B75,75,B110,110,B134,134,B150,150,B200,200,B300,300,B600,600,B1200,1200,
+B1800,1800,B2400,2400,B4800,4800,B9600,9600,EXTA,19200,EXTB,38400
+};
+X
+/* 'Typeahead' and 'editor is about to exit' flag */
+X
+int have=0;
+int leave=0;
+static int ttymode=0;
+X
+void sigjoe()
+{
+signal(SIGHUP,ttsig);
+signal(SIGTERM,ttsig);
+signal(SIGINT,SIG_IGN);
+signal(SIGPIPE,SIG_IGN);
+}
+X
+void signrm()
+{
+signal(SIGHUP,SIG_DFL);
+signal(SIGTERM,SIG_DFL);
+signal(SIGINT,SIG_DFL);
+signal(SIGPIPE,SIG_DFL);
+}
+X
+void ttopen()
+{
+sigjoe();
+ttopnn();
+}
+X
+void ttopnn()
+{
+int x;
+struct termio newterm;
+if(!term && !(term=fopen("/dev/tty","r+")))
+X {
+X fprintf(stderr,"Couldn\'t open tty\n");
+X exit(1);
+X }
+if(ttymode) return;
+else ttymode=1;
+fflush(term);
+ioctl(fileno(term),TCGETA,&oldterm);
+newterm=oldterm;
+newterm.c_lflag=0;
+newterm.c_iflag&=~(ICRNL|IGNCR|INLCR);
+newterm.c_oflag=0;
+newterm.c_cc[VMIN]=1;
+newterm.c_cc[VTIME]=0;
+ioctl(fileno(term),TCSETAW,&newterm);
+upc=0;
+baud=9600;
+for(x=0;x!=30;x+=2)
+X if((newterm.c_cflag&CBAUD)==speeds[x])
+X  {
+X  baud=speeds[x+1];
+X  break;
+X  }
+{
+char *bs=getenv("BAUD");
+if(bs)
+X {
+X sscanf(bs,"%u",&baud);
+X }
+}
+upc=DIVIDEND/baud;
+if(obuf) free(obuf);
+if(!(TIMES*upc)) obufsiz=4096;
+else
+X {
+X obufsiz=1000000/(TIMES*upc);
+X if(obufsiz>4096) obufsiz=4096;
+X }
+if(!obufsiz) obufsiz=1;
+obuf=(char *)malloc(obufsiz);
+}
+X
+void ttclose()
+{
+ttclsn();
+signrm();
+}
+X
+void ttclsn()
+{
+int oleave=leave;
+if(ttymode) ttymode=0;
+else return;
+leave=1;
+ttflsh();
+ioctl(fileno(term),TCSETAW,&oldterm);
+leave=oleave;
+}
+X
+int ttflsh()
+{
+if(obufp)
+X {
+X write(fileno(term),obuf,obufp);
+X if(baud<38400) if(obufp*upc/1000) nap(obufp*upc/1000);
+X obufp=0;
+X }
+if(!have && !leave) if(rdchk(fileno(term))>0) have=1;
+return 0;
+}
+X
+int ttgetc()
+{
+char c;
+ttflsh();
+if(read(fileno(term),&c,1)<1) ttsig(0);
+have=0;
+return c;
+}
+X
+void ttputs(s)
+char *s;
+{
+while(*s)
+X {
+X obuf[obufp++]= *(s++);
+X if(obufp==obufsiz) ttflsh();
+X }
+}
+X
+void ttgtsz(x,y)
+int *x, *y;
+{
+#ifdef TIOCGSIZE
+struct ttysize getit;
+#else
+#ifdef TIOCGWINSZ
+struct winsize getit;
+#endif
+#endif
+*x=0; *y=0;
+#ifdef TIOCGSIZE
+if(ioctl(fileno(term),TIOCGSIZE,&getit)!= -1)
+X {
+X *x=getit.ts_cols;
+X *y=getit.ts_lines;
+X }
+#else
+#ifdef TIOCGWINSZ
+if(ioctl(fileno(term),TIOCGWINSZ,&getit)!= -1)
+X {
+X *x=getit.ws_col;
+X *y=getit.ws_row;
+X }
+#endif
+#endif
+}
+X
+void ttshell(cmd)
+char *cmd;
+{
+int x,omode=ttymode;
+char *s=getenv("SHELL");
+if(!s) return;
+ttclsn();
+if(x=fork())
+X {
+X if(x!= -1) wait(0);
+X if(omode) ttopnn();
+X }
+else
+X {
+X signrm();
+X if(cmd) execl(s,s,"-c",cmd,NULL);
+X else
+X  {
+X  fprintf(stderr,"You are at the command shell.  Type 'exit' to return\n");
+X  execl(s,s,NULL);
+X  }
+X _exit(0);
+X }
+}
+X
+static int gotsig;
+X
+static void dosi()
+{
+gotsig=1;
+}
+X
+void ttsusp()
+{
+#ifdef SIGCONT
+int omode=ttymode;
+ttclsn();
+gotsig=0;
+fprintf(stderr,"You have suspended the program.  Type \'fg\' to return\n");
+signal(SIGCONT,dosi);
+sigsetmask(sigmask(SIGCONT));
+kill(0,SIGTSTP);
+while(!gotsig) sigpause(0);
+signal(SIGCONT,SIG_DFL);
+if(omode) ttopnn();
+#else
+ttshell(NULL);
+#endif
+}
+X
+char *getcwd();
+char *pwd()
+{
+static char buf[1024];
+return getcwd(buf,1024);
+}
+SHAR_EOF
+chmod 0600 ttyxenix.c ||
+echo 'restore of ttyxenix.c failed'
+Wc_c="`wc -c < 'ttyxenix.c'`"
+test 4223 -eq "$Wc_c" ||
+	echo 'ttyxenix.c: original size 4223, current size' "$Wc_c"
+fi
+# ============= tw.c ==============
+if test -f 'tw.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping tw.c (File already exists)'
+else
+echo 'x - extracting tw.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tw.c' &&
+/* Text editing windows
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "w.h"
+#include "toomany.h"
+#include "termcap.h"
+#include "vfile.h"
+#include "b.h"
+#include "edfuncs.h"
+#include "tty.h"
+#include "kbd.h"
+#include "scrn.h"
+#include "bw.h"
+#include "zstr.h"
+#include "vs.h"
+#include "help.h"
+#include "undo.h"
+#include "main.h"
+#include "macro.h"
+#include "tw.h"
+X
+extern char *exmsg;
+X
+/* Update a text window */
+X
+static void followtw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+bwfllw(bw);
+}
+X
+int starow=0;
+int stacol=0;
+X
+static void disptw(w)
+W *w;
+{
+P *p;
+char buf[40];
+BW *bw=(BW *)w->object;
+TW *tw=(TW *)bw->object;
+X
+w->cury=bw->cursor->line-bw->top->line+bw->y-w->y;
+w->curx=bw->cursor->xcol-bw->offset+bw->x-w->x;
+X
+if(starow!=tw->starow || stacol!=tw->stacol ||
+X   starow || stacol) w->t->t->updtab[w->y]=1;
+if(bw->b->name==tw->stanam) goto nosta0;
+if(bw->b->name && tw->stanam && !zcmp(bw->b->name,tw->stanam)) goto nosta0;
+if(tw->stanam) free(tw->stanam), tw->stanam=0;
+if(bw->b->name) tw->stanam=zdup(bw->b->name);
+w->t->t->updtab[w->y]=1;
+nosta0:
+if(bw->b->chnged!=tw->stamod) w->t->t->updtab[w->y]=1;
+if(tw->stahlp!=!!w->t->wind) w->t->t->updtab[w->y]=1;
+if(tw->starec!=recmac) w->t->t->updtab[w->y]=1;
+X
+if(!w->t->t->updtab[w->y]) goto nosta;
+X
+tw->stahlp=!!w->t->wind;
+tw->stamod=bw->b->chnged;
+tw->starec=recmac;
+tw->stalin=vstrunc(tw->stalin,0);
+X
+tw->starow=starow;
+if(starow)
+X {
+X tw->stalin=vsncpy(tw->stalin,0,sc("R="));
+X sprintf(buf,"%4ld",bw->cursor->line+1);
+X tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sz(buf));
+X tw->stalin=vsadd(tw->stalin,' ');
+X }
+tw->stacol=stacol;
+if(stacol)
+X {
+X tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sc("C="));
+X sprintf(buf,"%3ld",bw->cursor->col+1);
+X tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sz(buf));
+X tw->stalin=vsadd(tw->stalin,' ');
+X }
+if(bw->b->name) tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sz(bw->b->name));
+else tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sc("(Unnamed)"));
+if(bw->b->chnged) tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sc(" (Modified)"));
+if(recmac)
+X {
+X sprintf(buf," (Macro %d recording...)",recmac->n);
+X tw->stalin=vsncpy(tw->stalin,sLEN(tw->stalin),sz(buf));
+X }
+X
+tw->stalin=vstrunc(tw->stalin,w->w);
+if(!w->t->wind && w->w>=40)
+X tw->stalin=vsncpy(tw->stalin,w->w-17,sc("Ctrl-K H for help"));
+X
+/* Output status line */
+X {
+X int z;
+X int *s=w->t->t->scrn+w->x+w->t->t->co*w->y;
+X for(z=0;tw->stalin[z];++z)
+X  {
+X  if(have) goto nosta;
+X  if(s[z]!=(unsigned char)tw->stalin[z]+INVERSE)
+X   {
+X   int c=s[z]=(unsigned char)tw->stalin[z]+INVERSE;
+X   outatr(w->t->t,w->x+z,w->y,c);
+X   }
+X  }
+X }
+w->t->t->updtab[w->y]=0;
+nosta:
+X
+bwgen(bw);
+}
+X
+/* Abort text window */
+X
+static void killtw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+TW *tw=(TW *)bw->object;
+bwrm(bw);
+vsrm(tw->stalin);
+free(tw);
+}
+X
+/* Move text window */
+X
+static void movetw(w,x,y)
+W *w;
+int x,y;
+{
+BW *bw=(BW *)w->object;
+bwmove(bw,x,y+1);
+}
+X
+/* Resize text window */
+X
+static void resizetw(w,wi,he)
+W *w;
+int wi,he;
+{
+BW *bw=(BW *)w->object;
+bwresz(bw,wi,he-1);
+}
+X
+/* Split current window */
+X
+void usplitw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+TW *tw=(TW *)bw->object;
+int newh=getgrouph(w);
+W *new;
+TW *newtw;
+BW *newbw;
+if(newh/2<FITHEIGHT) return;
+new=wcreate(w->t,w->watom,findbotw(w),NULL,w,newh/2+(newh&1),NULL);
+if(!new) return;
+new->object=(void *)(newbw=bwmk(w->t,bw->b,new->x,new->y+1,new->w,new->h-1));
+++bw->b->count;
+newbw->lmargin=bw->lmargin;
+newbw->rmargin=bw->rmargin;
+newbw->autoindent=bw->autoindent;
+newbw->wordwrap=bw->wordwrap;
+newbw->overtype=bw->overtype;
+newbw->indentc=bw->indentc;
+newbw->istep=bw->istep;
+newbw->offset=bw->offset;
+newbw->object=(void *)(newtw=(TW *)malloc(sizeof(TW)));
+newtw->staupd=tw->staupd;
+newtw->stanam=0;
+newtw->stalin=0;
+newtw->stamod=0;
+newtw->stahlp=0;
+pset(newbw->top,bw->top);
+pset(newbw->cursor,bw->cursor);
+new->t->curwin=new;
+}
+X
+/* User routine for aborting a text window */
+X
+void uaborttw(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+TW *tw=(TW *)bw->object;
+if(bw->b->chnged && bw->b->count==1)
+X {
+X int c=query(w,"Loose changes to this file (y,n)? ");
+X if(c!='y' && c!='Y') return;
+X if(bw->b->name)
+X  {
+X  exmsg=vsncpy(NULL,0,sc("File "));
+X  exmsg=vsncpy(exmsg,sLEN(exmsg),sz(bw->b->name));
+X  exmsg=vsncpy(exmsg,sLEN(exmsg),sc(" not saved."));
+X  }
+X else exmsg=vsncpy(NULL,0,sc("File (Unnamed) not saved."));
+X }
+else if(!exmsg)
+X {
+X if(bw->b->name)
+X  {
+X  exmsg=vsncpy(NULL,0,sc("File "));
+X  exmsg=vsncpy(exmsg,sLEN(exmsg),sz(bw->b->name));
+X  exmsg=vsncpy(exmsg,sLEN(exmsg),sc(" not changed so no update needed."));
+X  }
+X else exmsg=vsncpy(NULL,0,sc("File (Unnamed) not changed so no update needed."));
+X }
+wabort(w);		/* Eliminate this window and it's children */
+if(!leave) if(exmsg) vsrm(exmsg), exmsg=0;
+}
+X
+void ucheckp(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+checkp(bw->b);
+}
+X
+void ucheck(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+check(bw->b);
+}
+X
+CONTEXT cmain={"main",0};
+X
+static void instw(w,b,l,n,flg)
+W *w;
+B *b;
+long l,n;
+int flg;
+{
+BW *bw=(BW *)w->object;
+if(b==bw->b) bwins(bw,l,n,flg);
+}
+X
+static void deltw(w,b,l,n,flg)
+W *w;
+B *b;
+long l,n;
+int flg;
+{
+BW *bw=(BW *)w->object;
+if(b==bw->b) bwdel(bw,l,n,flg);
+}
+X
+static WATOM watomtw=
+{
+&cmain,
+disptw,
+followtw,
+killtw,
+resizetw,
+movetw,
+instw,
+deltw,
+TYPETW
+};
+X
+/* Create a text window.  It becomes the last window on the screen */
+X
+W *wmktw(t,b)
+SCREEN *t;
+B *b;
+{
+W *w;
+BW *bw;
+TW *tw;
+w=wcreate(t,&watomtw,NULL,NULL,NULL,t->h,NULL);
+w->object=(void *)(bw=bwmk(t,b,w->x,w->y+1,w->w,w->h-1));
+bw->object=(void *)(tw=(TW *)malloc(sizeof(TW)));
+tw->staupd=1; /* Unneeded? */
+tw->stanam=0;
+tw->starec=recmac;
+tw->stalin=0;
+tw->stamod=0;
+tw->stahlp=0;
+tw->starow=starow;
+tw->stacol=stacol;
+return w;
+}
+SHAR_EOF
+chmod 0600 tw.c ||
+echo 'restore of tw.c failed'
+Wc_c="`wc -c < 'tw.c'`"
+test 6362 -eq "$Wc_c" ||
+	echo 'tw.c: original size 6362, current size' "$Wc_c"
+fi
+# ============= tw.h ==============
+if test -f 'tw.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping tw.h (File already exists)'
+else
+echo 'x - extracting tw.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tw.h' &&
+/* Text editing windows
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Itw
+#define _Itw 1
+X
+#include "config.h"
+#include "kbd.h"
+#include "main.h"
+X
+typedef struct tw TW;
+X
+extern int starow, stacol;
+X
+struct tw
+X {
+X /* Status line info */
+X char *stanam;
+X char *stalin;
+X int stamod;
+X int stahlp;
+X struct recmac *starec;
+X int starow;
+X int stacol;
+X int staupd;			/* Set if status line should get updated */
+X };
+X
+#define TYPETW 0x100
+X
+extern CONTEXT cmain;
+X
+/* W *wmktw(SCREEN *t,B *b)
+X */
+W *wmktw();
+X
+void uaborttw();
+void usplitw();
+void ucheck();
+void ucheckp();
+X
+#endif
+SHAR_EOF
+chmod 0600 tw.h ||
+echo 'restore of tw.h failed'
+Wc_c="`wc -c < 'tw.h'`"
+test 1265 -eq "$Wc_c" ||
+	echo 'tw.h: original size 1265, current size' "$Wc_c"
+fi
+# ============= undo.c ==============
+if test -f 'undo.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping undo.c (File already exists)'
+else
+echo 'x - extracting undo.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'undo.c' &&
+/* UNDO system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "b.h"
+#include "w.h"
+#include "bw.h"
+#include "undo.h"
+X
+static UNDO undos={{&undos,&undos}};
+X
+int inundo=0;
+X
+void undomk(b)
+B *b;
+{
+UNDO *undo=(UNDO *)malloc(sizeof(UNDO));
+undo->nrecs=0;
+undo->ptr=0;
+undo->first=0;
+undo->last=0;
+izque(UNDOREC,link,&undo->recs);
+b->undo=undo;
+enquef(UNDO,link,&undos,undo);
+}
+X
+void undorm(b)
+B *b;
+{
+UNDO *undo=b->undo;
+while(!qempty(UNDOREC,link,&undo->recs))
+X {
+X free(undo->recs.link.next->data);
+X free(deque(UNDOREC,link,undo->recs.link.next));
+X }
+free(deque(UNDO,link,undo));
+}
+X
+void uundo(w)
+W *w;
+{
+UNDOREC *upto;
+BW *bw=(BW *)w->object;
+UNDO *undo=bw->b->undo;
+if(!undo->nrecs) return;
+if(!undo->ptr)
+X {
+X if(undo->recs.link.prev->where!=bw->cursor->byte)
+X  pfwrd(pbof(bw->cursor),undo->recs.link.prev->where);
+X undo->ptr=&undo->recs;
+/* return; */
+X }
+if(undo->ptr->link.prev==&undo->recs) return;
+upto=undo->ptr->link.prev->unit;
+loop:
+undo->ptr=undo->ptr->link.prev;
+if(undo->ptr->where!=bw->cursor->byte)
+X pfwrd(pbof(bw->cursor),undo->ptr->where);
+inundo=1;
+if(undo->ptr->del)
+X {
+X binsm(bw->cursor,undo->ptr->data,undo->ptr->len);
+X undo->ptr->del=0;
+X }
+else
+X {
+X P *q=pdup(bw->cursor);
+X pfwrd(q,undo->ptr->len);
+X bdel(bw->cursor,q);
+X prm(q);
+X undo->ptr->del=1;
+X }
+inundo=0;
+if(upto && upto!=undo->ptr) goto loop;
+if(undo->ptr->first) bw->b->chnged=0;
+}
+X
+void uredo(w)
+W *w;
+{
+UNDOREC *upto;
+BW *bw=(BW *)w->object;
+UNDO *undo=bw->b->undo;
+if(!undo->ptr) return;
+if(undo->ptr==&undo->recs) return;
+upto=undo->ptr->unit;
+loop:
+if(undo->ptr->where!=bw->cursor->byte)
+X pfwrd(pbof(bw->cursor),undo->ptr->where);
+inundo=1;
+if(undo->ptr->del)
+X {
+X binsm(bw->cursor,undo->ptr->data,undo->ptr->len);
+X undo->ptr->del=0;
+X }
+else
+X {
+X P *q=pdup(bw->cursor);
+X pfwrd(q,undo->ptr->len);
+X bdel(bw->cursor,q);
+X prm(q);
+X undo->ptr->del=1;
+X }
+inundo=0;
+undo->ptr=undo->ptr->link.next;
+if(upto && upto!=undo->ptr->link.prev) goto loop;
+}
+X
+static void undogc(undo)
+UNDO *undo;
+{
+UNDOREC *unit=undo->recs.link.next->unit;
+if(unit)
+X while(unit!=undo->recs.link.next)
+X  {
+X  free(undo->recs.link.next->data);
+X  free(deque(UNDOREC,link,undo->recs.link.next));
+X  }
+free(undo->recs.link.next->data);
+free(deque(UNDOREC,link,undo->recs.link.next));
+--undo->nrecs;
+}
+X
+static void undomark1(undo)
+UNDO *undo;
+{
+if(undo->first)
+X {
+X undo->first->unit=undo->last;
+X undo->last->unit=undo->first;
+X undo->first=undo->last=0;
+X if(++undo->nrecs==UNDOKEEP) undogc(undo);
+X }
+}
+X
+void umclear()
+{
+UNDO *undo;
+for(undo=undos.link.next;undo!=&undos;undo=undo->link.next)
+X {
+X UNDOREC *rec;
+X for(rec=undo->recs.link.next;rec!=&undo->recs;rec=rec->link.next)
+X  rec->min=0;
+X }
+}
+X
+void undomark()
+{
+UNDO *undo;
+for(undo=undos.link.next;undo!=&undos;undo=undo->link.next) undomark1(undo);
+}
+X
+static void undoover(undo)
+UNDO *undo;
+{
+if(undo->ptr && undo->ptr!=&undo->recs)
+X {
+X while(undo->recs.link.prev!=undo->ptr)
+X  {
+X  free(undo->recs.link.prev->data);
+X  free(deque(UNDOREC,link,undo->recs.link.prev));
+X  }
+X free(undo->recs.link.prev->data);
+X free(deque(UNDOREC,link,undo->recs.link.prev));
+X }
+undo->ptr=0;
+}
+X
+void undoins(p,size)
+P *p;
+long size;
+{
+UNDOREC *rec;
+if(inundo) return;
+undoover(p->b->undo);
+rec=p->b->undo->recs.link.prev;
+if(rec->min && rec!=&p->b->undo->recs && rec->del==0 && p->byte==rec->where+rec->len)
+X {
+X rec->data=(char *)realloc(rec->data,rec->len+size);
+X brmem(p,rec->data+rec->len,size);
+X rec->len+=size;
+X }
+else if(rec->min &&
+X        rec!=&p->b->undo->recs && rec->del==0 && p->byte==rec->where)
+X {
+X rec->data=(char *)realloc(rec->data,rec->len+size);
+X mmove(rec->data+size,rec->data,rec->len);
+X brmem(p,rec->data,size);
+X rec->len+=size;
+X }
+else
+X {
+X rec=(UNDOREC *)malloc(sizeof(UNDOREC));
+X rec->data=(char *)malloc(size);
+X if(!p->b->undo->first) p->b->undo->first=rec;
+X p->b->undo->last=rec;
+X rec->where=p->byte;
+X rec->min=1;
+X rec->unit=0;
+X rec->len=size;
+X rec->del=0;
+X if(qempty(UNDOREC,link,&p->b->undo->recs) && !p->b->chnged) rec->first=1;
+X else rec->first=0;
+X brmem(p,rec->data,rec->len);
+X enqueb(UNDOREC,link,&p->b->undo->recs,rec);
+X }
+}
+X
+void undodel(p,size)
+P *p;
+long size;
+{
+UNDOREC *rec;
+if(inundo) return;
+undoover(p->b->undo);
+rec=p->b->undo->recs.link.prev;
+if(rec->min && rec!=&p->b->undo->recs && rec->del==1
+X   && p->byte==rec->where)
+X {
+X rec->data=(char *)realloc(rec->data,rec->len+size);
+X brmem(p,rec->data+rec->len,size);
+X rec->len+=size;
+X }
+else if(rec->min &&
+X        rec!=&p->b->undo->recs && rec->del==1 && p->byte+size==rec->where)
+X {
+X rec->data=(char *)realloc(rec->data,rec->len+size);
+X mmove(rec->data+size,rec->data,rec->len);
+X brmem(p,rec->data,size);
+X rec->len+=size;
+X rec->where=p->byte;
+X }
+else
+X {
+X rec=(UNDOREC *)malloc(sizeof(UNDOREC));
+X rec->data=(char *)malloc(size);
+X if(!p->b->undo->first) p->b->undo->first=rec;
+X p->b->undo->last=rec;
+X rec->where=p->byte;
+X rec->min=1;
+X rec->unit=0;
+X rec->len=size;
+X rec->del=1;
+X if(qempty(UNDOREC,link,&p->b->undo->recs) && !p->b->chnged) rec->first=1;
+X else rec->first=0;
+X brmem(p,rec->data,rec->len);
+X enqueb(UNDOREC,link,&p->b->undo->recs,rec);
+X }
+}
+SHAR_EOF
+chmod 0600 undo.c ||
+echo 'restore of undo.c failed'
+Wc_c="`wc -c < 'undo.c'`"
+test 5709 -eq "$Wc_c" ||
+	echo 'undo.c: original size 5709, current size' "$Wc_c"
+fi
+# ============= undo.h ==============
+if test -f 'undo.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping undo.h (File already exists)'
+else
+echo 'x - extracting undo.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'undo.h' &&
+/* UNDO system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iundo
+#define _Iundo 1
+X
+#include "queue.h"
+X
+/* Number of undo records to keep */
+X
+#define UNDOKEEP 100
+X
+typedef struct undorec UNDOREC;
+typedef struct undo UNDO;
+X
+extern int inundo;
+X
+/* An undo record */
+struct undorec
+X {
+X LINK(UNDOREC) link;		/* Doubly linked list of undo records */
+X int first;			/* Set if this is the first undo rec */
+X int min;			/* Set if this is from a minor change */
+X long where;			/* Buffer position this are from */
+X int del;			/* Set for delete, Clr for insert */
+X int len;			/* No. chars in this rec */
+X UNDOREC *unit;			/* Last/First rec in unit */
+X char *data;			/* The chars */
+X };
+X
+/* An undo point */
+struct undo
+X {
+X LINK(UNDO) link;		/* Doubly linked list of undo points */
+X UNDOREC recs;			/* Undo records */
+X int nrecs;			/* Number of undo records */
+X UNDOREC *ptr;			/* Undo/Redo location */
+X UNDOREC *first;		/* First of unit */
+X UNDOREC *last;			/* Last of unit */
+X };
+X
+void umclear();			/* Prevent combinding of undo recs */
+void undomark();		/* Everything from prev. mark is a unit */
+void undoend();
+void undomk();
+void undorm();
+void uundo();
+void uredo();
+void undoins();
+void undodel();
+X
+#endif
+SHAR_EOF
+chmod 0600 undo.h ||
+echo 'restore of undo.h failed'
+Wc_c="`wc -c < 'undo.h'`"
+test 1901 -eq "$Wc_c" ||
+	echo 'undo.h: original size 1901, current size' "$Wc_c"
+fi
+# ============= va.c ==============
+if test -f 'va.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping va.c (File already exists)'
+else
+echo 'x - extracting va.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'va.c' &&
+/* Variable length array of strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "blocks.h"
+#include "heap.h"
+#include "zstr.h"
+#include "va.h"
+X
+aELEMENT(*vamk(len))
+int len;
+{
+int *new=(int *)malloc((1+len)*sizeof(aCAST)+2*sizeof(int));
+new[0]=len;
+new[1]=0;
+((aELEMENT(*))(new+2))[0]=aterm;
+return (aELEMENT(*))(new+2);
+}
+X
+void varm(vary)
+aELEMENT(*vary);
+{
+if(vary)
+X {
+X vazap(vary,0,aLen(vary));
+X free((int *)vary-2);
+X }
+}
+X
+int alen(ary)
+aELEMENT(*ary);
+{
+if(ary)
+X {
+X aELEMENT(*beg)=ary;
+X while(acmp(*ary,aterm)) ++ary;
+X return ary-beg;
+X }
+else return 0;
+}
+X
+aELEMENT(*vaensure(vary,len))
+aELEMENT(*vary);
+int len;
+{
+if(!vary) vary=vamk(len);
+else if(len>aSiz(vary))
+X {
+X int x;
+X len+=(len>>2);
+X vary=(aELEMENT(*))(2+(int *)realloc(
+X       (int *)vary-2,(len+1)*sizeof(aCAST)+2*sizeof(int) ));
+X aSiz(vary)=len;
+X }
+return vary;
+}
+X
+aELEMENT(*vazap(vary,pos,n))
+aELEMENT(*vary);
+int pos,n;
+{
+if(vary)
+X {
+X int x;
+X if(pos<aLen(vary))
+X  if(pos+n<=aLen(vary))
+X   for(x=pos;x!=pos+n;++x) adel(vary[x]);
+X  else
+X   for(x=pos;x!=aLen(vary);++x) adel(vary[x]);
+X }
+return vary;
+}
+X
+aELEMENT(*vatrunc(vary,len))
+aELEMENT(*vary);
+int len;
+{
+if(!vary || len>aLEN(vary)) vary=vaensure(vary,len);
+if(len<aLen(vary))
+X {
+X vary=vazap(vary,len,aLen(vary)-len);
+X vary[len]=vary[aLen(vary)];
+X aLen(vary)=len;
+X }
+else if(len>aLen(vary))
+X {
+X vary=vafill(vary,aLen(vary),ablank,len-aLen(vary));
+X }
+return vary;
+}
+X
+aELEMENT(*vafill(vary,pos,el,len))
+aELEMENT(*vary);
+aELEMENT(el);
+int pos,len;
+{
+int olen=aLEN(vary), x;
+if(!vary || pos+len>aSIZ(vary))
+X vary=vaensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X aLen(vary)=pos+len;
+X }
+for(x=pos;x!=pos+len;++x) vary[x]=adup(el);
+if(pos>olen) vary=vafill(vary,pos,ablank,pos-olen);
+return vary;
+}
+X
+aELEMENT(*vancpy(vary,pos,array,len))
+aELEMENT(*vary);
+aELEMENT(*array);
+int pos, len;
+{
+int olen=aLEN(vary);
+if(!vary || pos+len>aSIZ(vary)) vary=vaensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X aLen(vary)=pos+len;
+X }
+if(pos>olen) vary=vafill(vary,olen,ablank,pos-olen);
+mfwrd(vary+pos,array,len*sizeof(aCAST));
+return vary;
+}
+X
+aELEMENT(*vandup(vary,pos,array,len))
+aELEMENT(*vary);
+aELEMENT(*array);
+int pos, len;
+{
+int olen=aLEN(vary), x;
+if(!vary || pos+len>aSIZ(vary)) vary=vaensure(vary,pos+len);
+if(pos+len>olen)
+X {
+X vary[pos+len]=vary[olen];
+X aLen(vary)=pos+len;
+X }
+if(pos>olen) vary=vafill(vary,olen,ablank,pos-olen);
+for(x=pos;x!=len;++x) vary[x]=adup(array[x]);
+return vary;
+}
+X
+aELEMENT(*vafield(vary,pos,len))
+aELEMENT(*vary);
+int pos,len;
+{
+if(pos+len>aLEN(vary)) vary=vatrunc(vary,pos,len);
+return vary;
+}
+X
+aELEMENT(*vadup(vary))
+aELEMENT(*vary);
+{
+return vandup(NULL,0,vary,aLEN(vary));
+}
+X
+aELEMENT(*_vaset(vary,pos,el))
+aELEMENT(*vary);
+aELEMENT(el);
+int pos;
+{
+if(!vary || pos+1>aSIZ(vary)) vary=vaensure(vary,pos+1);
+if(pos>aLen(vary))
+X {
+X vary=vafill(vary,aLen(vary),ablank,pos-aLen(vary));
+X vary[pos+1]=vary[pos];
+X vary[pos]=el;
+X aLen(vary)=pos+1;
+X }
+else if(pos==aLen(vary))
+X {
+X vary[pos+1]=vary[pos];
+X vary[pos]=el;
+X aLen(vary)=pos+1;
+X }
+else
+X {
+X adel(vary[pos]);
+X vary[pos]=el;
+X }
+return vary;
+}
+X
+aELEMENT(*vains(vary,pos,n))
+aELEMENT(*vary);
+int pos,n;
+{
+if(!vary || aLEN(vary)+n>aSIZ(vary)) vary=vaensure(vary,aLEN(vary)+n);
+if(pos>=aLen(vary)) vary=vatrunc(vary,pos+n);
+else
+X {
+X mbkwd(vary+pos+n,vary+pos,aLen(vary)-(pos+n)+1);
+X aLen(vary)+=n;
+X }
+return vary;
+}

@@ -1,0 +1,1565 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!logixwi!jpm
+From: jpm@Logix.DE (Jan-Piet Mens)
+Subject: SLPD-1.0PL2 - lpr/lpd interface to SYSV LP
+Organization: Logix GmbH, Wiesbaden, Germany
+Date: Tue, 17 Nov 1992 20:15:28 GMT
+Message-ID: <1992Nov17.201528.17134@Logix.DE>
+Lines: 1556
+
+
+Submitted-by: jpm@Logix.DE
+Archive-name: SLPD/part01
+
+---- Cut Here and feed the following to sh ----
+#!/bin/sh
+# This is SLPD, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/17/1992 20:14 UTC by jpm@Logix.DE
+# Source directory /home/jpm/src/slpd
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   2862 -rw-r--r-- README
+#    897 -rw-r--r-- Makefile
+#   2816 -rw-r--r-- slpd.8
+#    482 -rw-r--r-- TODO
+#   6868 -rw-r--r-- slpd.c
+#   5233 -rw-r--r-- util.c
+#   3967 -rw-r--r-- print.c
+#   4021 -rw-r--r-- command.c
+#    609 -rw-r--r-- lock.c
+#    401 -rw-r--r-- copyright.h
+#   5310 -rw-r--r-- config.h
+#     21 -rw-r--r-- patchlevel.h
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+This SLPD 1.0 PL02
+==================
+X
+SLPD is an lpd daemon designed for SYSV. It translates requests initiated
+from LPR clients to the System V LP-spooler equivalent (if possible). 
+Having seen that so many in the USENET community are looking for something
+like this, and having the need ourselves, we decided to try an implementation.
+X
+SLPD only supports a limited amount of requests from an LPR client at the
+moment. I am very willing to increase the functionality of SLPD if I get
+appropriate requests from you. The following are implemented so far:
+X
+X	Client (BSD-LPR)			Server (SysV-LP)
+X	lpr filename			->	lp -s -c filename
+X	lpr -P<printer> filename	->	lp -d<printer> -s -c filename
+X	lpr -l filename			->	lp -s -c filename
+X	lpr -p filename			->	pr -h filename | lp ....
+X	lpr -p -T title filename	->	pr -h title filename | lp ...
+X
+LPRM and LPQ are not supported, because I have not quite yet figured out
+what the protocol is. Help anyone ?
+X
+Please send comments and requests for additions to me. My name is
+Jan-Piet Mens, and my Email address is jpm@Logix.DE
+X
+X	-JP
+X
+X
+Here is how to configure SLPD:
+X
+- Edit config.h and follow instructions on setting pathnames etc.
+- Edit command.c and make sure USG is defined 
+- Edit the Makefile, and set your preferred compiler and CFLAGS.
+X  [ For testing, you can define -DDEBUG in DEFS. This will produce
+X    some crypting output, showing what is actually happening ]
+X  Set BINDIR to the directory where the executable should be installed.
+- Do a ``make''
+- Run ``./slpd -c'' to check the configuration. SLPD will show you
+X  how it was configured!
+- Insert a line like the following in your /etc/services file.
+X
+X	printer    515/tcp    spooler      # line printer spooler
+X
+- Create the spool directory. The name of the spool directory is in
+X  config.h [SPOOLDIR]
+X
+- Do an ``su'' and become root.
+- Execute ./spld -d and test your first spool from a client.
+- If everything works, do a ``make install''
+- Format the man-page. [Please install it manually...]
+- Good luck :-)
+X
+History
+=======
+X	This was built on SCO 3.2.4 with both CC and GCC-2.2.2. [Both work]
+X	I built it because we have several clients on the net who have a
+X	BSD lpr interface, and I don't have a "real" lpd on the SCO machine.
+X	I believe that SCO have released a LPD server in the mean time, but
+X	we can't upgrade at the moment.
+X
+X
+X
+The files command.[c3] in this directory are from:
+|
+|	Mod.sources:  Volume 3, Issue 27
+|	Submitted by: mirror!rs (Rich Salz)
+|
+|	This shar package provides the code and manpage for "command",
+|	a suggested replacement for the "system" routine.  It will avoid
+|	calling a shell if possible, as it can handle >, <, |, and >>
+|	meta-characters internally.
+|
+|	Enjoy,
+|		/r$
+|	Rich $alz {mit-eddie, ihnp4!inmet, wjh12, cca, datacube} !mirror!rs
+|	Mirror Systems	2067 Massachusetts Ave.
+|	617-661-0777	Cambridge, MA, 02140
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 2862 -eq "$Wc_c" ||
+	echo 'README: original size 2862, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+# Makefile for SLPD
+# by Jan-Piet Mens - <jpm@Logix.DE>
+X
+# SLPD will be installed in this directory
+BINDIR=/etc
+X
+X
+CC=cc
+#CC=gcc
+X
+# Add -DDEBUG to DEFS if you want cryptic debugging output.
+DEFS= -DDEBUG
+CFLAGS=-O $(DEFS)
+X
+X
+TARGET	= slpd
+OBJS	= slpd.o util.o print.o command.o lock.o
+SRCS	= slpd.c util.c print.c command.c lock.c
+H	= copyright.h config.h patchlevel.h
+X
+all: $(TARGET)
+X
+$(TARGET): $(OBJS)
+X	$(CC) $(CFLAGS) -o $@ $(OBJS) -lsocket
+install: $(TARGET)
+X	strip $(TARGET)
+X	[ -x /usr/bin/mcs ] && /usr/bin/mcs -d $(TARGET)
+X	[ -d $(BINDIR) ] || mkdir $(BINDIR)
+X	cp $(TARGET) $(BINDIR)/$(TARGET)
+X	chmod 111 $(BINDIR)/$(TARGET)
+X	chown root $(BINDIR)/$(TARGET)
+X
+$(OBJS): $(H)
+X
+clean:
+X	rm -f *.o core a.out
+clobber: clean
+X	rm -f $(TARGET)
+X
+SHARFILES=README Makefile slpd.8 TODO
+X
+dist: $(SRCS) $(SHARFILES) $(H)
+X	shar49 -n SLPD -a -s 'jpm@Logix.DE' -o Part -l 50 -c \
+X		$(SHARFILES) $(SRCS) $(H)
+X
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 897 -eq "$Wc_c" ||
+	echo 'Makefile: original size 897, current size' "$Wc_c"
+fi
+# ============= slpd.8 ==============
+if test -f 'slpd.8' -a X"$1" != X"-c"; then
+	echo 'x - skipping slpd.8 (File already exists)'
+else
+echo 'x - extracting slpd.8 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'slpd.8' &&
+.TH SLPD 8 "Logix GmbH"
+.SH NAME
+slpd \- pseudo line printer daemon
+.SH SYNOPSIS
+.B slpd
+[
+.B -c
+] [
+.B -v
+]
+.SH DESCRIPTION
+.I slpd
+is a line printer daemon and is normally invoked at boot time from the
+.IR rc (8)
+files. It is designed as an interface between the
+.B BSD
+.I lpr
+and the
+.B "System V"
+.I lp
+spoolers.
+.PP
+Upon startup,
+.I slpd
+uses the system calls
+.IR listen (2)
+and
+.IR accept (2)
+to receive requests to print files from remote clients, who have submitted
+print jobs via the
+.I lpr
+interface. In each case
+.I slpd
+forks off a child to handle the request so the parent can continue to
+listen for further requests. The Internet port-number used to rendezvous
+with other processes is obtained with
+.IR getservbyname (3).
+.PP
+Access control is provided as follows: all requests must originate from
+systems listed in the
+.B "host authorization"
+file.
+The
+.I lock
+file in the spool directory is used to prevent mulitple instances of
+.I slpd
+from competing against eachother.
+.SH OPTIONS
+.I slpd
+recognizes the following options:
+.IP "\fB-v\fR 1i
+show version string and release number.
+.IP "\fB-c\fR 1i
+Show how
+.I slpd
+was originally configured. The output could look like
+.sp
+.nf
+.in 1i
+X	SPOOLDIR          = /usr/spool/slpd
+X	LP_CMD            = /usr/bin/lp
+X	LP_LISTNAMES      = |lpstat -p | awk '{if ($1 == "printer") {print $2}}'
+X	MAXPRINTERS       = 20
+X	HOSTAUTHFILE      = /etc/slpd-hosts
+X	Remove Spool files= TRUE
+.in
+.fi
+.sp
+.SH FILES
+.IP "\fB/etc/services\fR" 1.5i
+This file contains the port number for the
+.B printer
+service.
+.IP "\fB/etc/hosts\fR"
+and the resolver files for querying client names.
+.IP "\fBhost authorization\fR"
+This file contains a list of hostnames (clients) that are allowed to print
+on the server.
+.IP "\fBSPOOLDIR/lock\fR"
+The lock file. It is locked by the first copy of the daemon to prevent multiple
+daemons from running simultaneously.
+.SH DIAGNOSTICS
+.IP "\fBCannot create lockfile. Errno=%d\fR"
+The daemon is not able to creat a new lock file. Is the daemon running as priviledged user ?
+.IP "\fBDaemon %s is already running on pid=%d\fR"
+Self explanatory. The PID of the daemon running is shown.
+.IP "\fBRequested printer [%s] does not exist on server\fR"
+This message is sent to the initiating
+.IR lpr .
+.IP "\fBCannot create spool file on server!\fR"
+Deadly.
+.IP "\fBCan't change into spool-dir [%s]\n\fR"
+Deadly.
+.IP "\fBHost [%s] is not authorized to print files\fR"
+Self explanatory.
+.PP
+In DEBUG mode, diagnostics are more or less self-explanatory.
+.SH NOTES
+Many of the original
+.I lpd
+capabilities are missing in
+.IR slpd .
+The author is willing to receive requests for modifications, and will try
+to implement these, time permitting ;-)
+.SH SEE ALSO
+.IR lp (1),
+.IR lpadmin (1m),
+.br
+.IR command (3)
+by Rich Salz
+.SH AUTHOR
+Jan-Piet Mens - <jpm@Logix.DE>
+SHAR_EOF
+chmod 0644 slpd.8 ||
+echo 'restore of slpd.8 failed'
+Wc_c="`wc -c < 'slpd.8'`"
+test 2816 -eq "$Wc_c" ||
+	echo 'slpd.8: original size 2816, current size' "$Wc_c"
+fi
+# ============= TODO ==============
+if test -f 'TODO' -a X"$1" != X"-c"; then
+	echo 'x - skipping TODO (File already exists)'
+else
+echo 'x - extracting TODO (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'TODO' &&
+I'm still working at:
+X
+- Run through spool directory upon startup of daemon and process any spool
+X  files left over from a previous run.
+X
+- Add code to ensure only one copy of the daemon is running
+X	Done.
+X
+- Add code for authorization in /etc/hosts.equiv and perhaps other base.
+X	Done.
+X
+- This will probably break on SCO 3.2 < version 4 if POSIX truncate is
+X  set in the kernel. Shorten the file names that are transmitted to
+X  14 chars max.
+X
+- Add logging and debugging per switch
+SHAR_EOF
+chmod 0644 TODO ||
+echo 'restore of TODO failed'
+Wc_c="`wc -c < 'TODO'`"
+test 482 -eq "$Wc_c" ||
+	echo 'TODO: original size 482, current size' "$Wc_c"
+fi
+# ============= slpd.c ==============
+if test -f 'slpd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping slpd.c (File already exists)'
+else
+echo 'x - extracting slpd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'slpd.c' &&
+#include "copyright.h"
+#include "config.h"
+#include "patchlevel.h"
+#include <ctype.h>
+X
+static char rcs_id[] = "@(#)$Id: slpd.c,v 1.1 1992/11/17 18:06:25 jpm Exp jpm $";
+char *progname;					/* My name */
+X
+int usage()
+{
+X	extern char *progname;
+X	static char *help[] = {
+X	"-v	Show version",
+X	"-c	Show configuration",
+X	NULL };
+X	int i;
+X
+X	fprintf(stderr, "Usage: %s [-v] [-c]\n", progname);
+X	for (i = 0; help[i]; i++)
+X		fprintf(stderr, "\t%s\n", help[i]);
+X	
+X	return (EX_USAGE);
+}
+X
+int main(argc, argv)
+int argc;
+char *argv[];
+{
+X	int sockfd, newsockfd, clen, pid, lockfd, c;
+X	struct sockaddr_in ca;			/* Client Address */
+X	extern int errno;
+X	static char vs[] = "SLPD 1.0 PL%02d by Jan-Piet Mens - <jpm@Logix.DE>\n";
+X
+X	progname = *argv;
+X
+X	while ((c = getopt(argc, argv, "vc")) != EOF) {
+X		switch (c) {
+X			case 'v':
+X				printf(vs, PATCHLEVEL);
+X				return (0);
+X			case 'c':
+X				return showconfig();
+X			default:
+X				return usage();
+X		}
+X	}
+X
+X	/*
+X	 * Change into the spool directory and create a lock file "lock", to
+X	 * prevent several copies of the daemon running.
+X	 */
+X
+X	if (chdir(SPOOLDIR) == -1)
+X		fatal(EX_DATAERR, M_NOSPOOL, SPOOLDIR);
+X	if (((lockfd = open("lock", 2)) == -1) &&
+X			 ((lockfd = creat("lock", 0666)) == -1))
+X		fatal(EX_DATAERR, M_CANTLOCK, errno);
+X	lockit(lockfd);
+X
+X	cache_printers();
+X	sockfd = sockopen();
+X
+X	while (1)
+X	{
+X		/*
+X		 * Wait for a connection from a client process, and then 
+X		 * fork-off a new child to do the work.
+X		 */
+X
+X		clen = sizeof(ca);
+X		newsockfd = accept(sockfd, (struct sockaddr *) &ca, &clen);
+X		if (newsockfd < 0)
+X			fatal(EX_OSERR, "server: accept error");
+X
+X		switch (pid = fork()) {
+X			case -1:
+X				fatal(EX_OSERR, "server: fork error");
+X				/*NOTREACHED*/
+X				break;
+X			case 0:				/* Child */
+#ifdef DEBUG
+X				fprintf(stderr, "STARTUP CHILD\n");
+#endif
+X				close(sockfd);		/* Close socket */
+X				print(newsockfd);	/* Process request */
+X				close(newsockfd);
+X				exit(EX_OK);
+X			default:			/* Parent */
+X				close(newsockfd);	
+X				break;
+X		}
+X	}
+}
+X
+/*
+X * This is executed only by the child process. Wait for lines of text
+X * arriving from the client LPR, and try to find out what it wants.
+X * FD is an open socket to the client.
+X */
+X
+void print(fd)
+int fd;
+{
+X	char buf[BUFSIZ];
+X	long bytes;
+X	char fname[256];
+X	int state = S_START;
+X	string printer, hname;
+X
+X	/*
+X	 * Lines of text will come in, telling us in the first byte what is
+X	 * to be done.
+X	 */
+X
+X	while (readline(fd, buf, BUFSIZ-1) > 0)
+X	{
+X		switch (*buf)
+X		{
+X			/*
+X			 * 0x02 <printername> \n
+X			 *	<printername> was requested by -P to LPR
+X			 */
+X
+X			case REQ_START:
+X				if (state == S_START)
+X				{
+X					if (!auth(fd, hname)) {
+X						cpr(fd, M_NOAUTH, hname);
+X						(void) close(fd);
+X						fatal(EX_PROTOCOL, 
+X							M_NOAUTH, hname);
+X					}
+X					sscanf(buf+1, "%s\n", printer);
+#ifdef DEBUG
+X					printf("Req.Printer = [%s]\n", printer);
+#endif
+X					if (!legal_printer(printer)) {
+X						cpr(fd, M_NOPRINTER, printer);
+X						close(fd);
+X						exit(EX_DATAERR);
+X					}
+X
+X					state = S_STARTED;
+X					ack(fd, "\0", 1);
+X					break;
+X				}
+X				else if (state == S_STARTED)
+X				{
+X					/* We have the data file. Here comes
+X					 * the control file. */
+X
+X					sscanf(buf+1, "%ld %s\n", &bytes,fname);
+X					copyfile(fd, fname, bytes);
+X					close(fd);
+X
+X					/* 
+X					 * Now start the real work!
+X					 */
+X					
+X					printout(fname, printer);
+X					exit(EX_OK);
+X				}
+X				break;
+X
+X			/*
+X			 * 0x03 <bytes> <filename> \n
+X			 *	<bytes>  holds the size of the data file
+X			 *	<filename> is like "dfA860host.my.domain"
+X			 */
+X
+X			case REQ_FILE:
+X				sscanf(buf+1, "%ld %s\n", &bytes, fname);
+X				copyfile(fd, fname, bytes);
+X				break;
+X			case REQ_NOTHING:
+X				ack(fd, "\0", 1);
+X				break;
+X		}
+X	}
+}
+X
+/*
+X * Create a file FNAME in the spool directory. Read BYTES bytes from socket
+X * FD into that file. If something goes wrong, tell the client, and die.
+X */
+X
+void copyfile(fd, fname, bytes)
+int fd;
+char *fname;
+long bytes;
+{
+X	int outfile;
+X	long bytesgot = 0L, n;
+X	char buf[BUFSIZ];
+X
+X	if ((outfile = creat(fname, 0644)) == -1) {
+X		cpr(fd, M_CANTCREATE);
+X		fatal(EX_OSERR, "Can't create file");
+X		close(fd);
+X		exit(EX_OSERR);
+X	}
+X
+X	/* Ack receipt of file name */
+X	ack(fd, "\0", 1);
+X
+X	bytesgot = 0L;
+X	while (bytesgot < bytes) {
+X		n = bytes - bytesgot;
+X		if (n > BUFSIZ - 1)
+X			n = BUFSIZ - 1;
+X		if ((n = readn(fd, buf, n)) < 0)
+X			fatal(EX_PROTOCOL, "readn()");
+X		else if (n == 0)
+X			break;
+X		bytesgot += n;
+X		write(outfile, buf, n);
+X	}
+X	close(outfile);
+X
+X	/* Ack receipt of file */
+X	read(fd, buf, 1);
+X	ack(fd, "\0", 1);
+}
+X
+/*
+X * Open a socket, and bind.
+X */
+X
+int sockopen()
+{
+X	int sockfd; 
+X	struct sockaddr_in serv_addr;
+X	struct servent *sp;
+X
+X	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+X		fatal(EX_OSERR, "server: can't open stream socket");
+X
+X	if ((sp = getservbyname("printer", "tcp")) == (struct servent *)0)
+X		fatal(EX_OSERR, "Can't get port for printer daemon");
+X
+X	/*
+X	 * Bind our local address so that the client can send to us.
+X	 */
+X
+X	bzero((char *) &serv_addr, sizeof(serv_addr));
+X	serv_addr.sin_family      = AF_INET;
+X	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+X	serv_addr.sin_port        = sp->s_port;
+X
+X	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+X		fatal(EX_OSERR, "server: can't bind local address");
+X
+X	listen(sockfd, 5);
+X
+X	return (sockfd);
+}
+X
+/*
+X * Return ZERO if the client on socket SOCKFD is not authorized to use our
+X * printers, TRUE otherwise.
+X */
+X
+#define ALLOWED		(1)
+#define NOTALLOWED	(0)
+X
+int auth(sockfd, hname)
+int sockfd;
+char *hname;
+{
+X	struct sockaddr_in client;
+X	int client_len, rc = NOTALLOWED;
+X	struct hostent *h;
+X	char *inetaddr, *hostname;
+X
+X	client_len = sizeof(client);
+X	if (getpeername(sockfd, &client, &client_len) == -1) {
+X		perror("getpeername");
+X		return (NOTALLOWED);
+X	}
+X	inetaddr = (char *)inet_ntoa(client.sin_addr);
+X	client.sin_port = ntohs((u_short)client.sin_port);
+X        h = gethostbyaddr(&client.sin_addr, sizeof(struct in_addr),client.sin_family);
+X        if (h == (struct hostent *)0)
+X        {
+X                hostname = "unknown";
+X                herror("gethostbyaddr()");
+X		rc = NOTALLOWED;
+X        }
+X        else 
+X	{
+X		hostname = h->h_name;
+X		rc = ALLOWED;
+X	}
+X	strcpy(hname, hostname);
+X
+#ifdef DEBUG
+X        fprintf(stderr, "Remote caller is: %s [%s]\n", hostname, inetaddr);
+#endif
+X
+X	rc = in_auth_file(hname);
+X
+X	return (rc);
+}
+X
+/*
+X * Return ALLOWED if HNAME is in the host-authorization file, and NOTALLOWED
+X * if not. Hosts are matched by whatever is in HNAME.
+X * Blank lines and lines starting with a pound sign are ignored.
+X */
+X
+int in_auth_file(hname)
+char *hname;
+{
+X	FILE *fp = fopen(HOSTAUTHFILE, "r");
+X	char buf[BUFSIZ];
+X	int rc = NOTALLOWED;
+X
+X	if (!fp || ferror(fp))
+X		return (rc);
+X
+X	while (fgets(buf, BUFSIZ, fp) != (char *)0) {
+X		if (*buf == '#' || *buf == '\n')
+X			continue;
+X		buf[strlen(buf) - 1] = '\0';
+X		if (!strcmp(hname, buf)) {
+X			rc = ALLOWED;
+X			break;
+X		}
+X	}
+X	fclose(fp);
+X	return (rc);
+}
+SHAR_EOF
+chmod 0644 slpd.c ||
+echo 'restore of slpd.c failed'
+Wc_c="`wc -c < 'slpd.c'`"
+test 6868 -eq "$Wc_c" ||
+	echo 'slpd.c: original size 6868, current size' "$Wc_c"
+fi
+# ============= util.c ==============
+if test -f 'util.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping util.c (File already exists)'
+else
+echo 'x - extracting util.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'util.c' &&
+#include "copyright.h"
+#include "config.h"
+#include <ctype.h>
+X
+#ifdef __STDC__
+#	include <stdarg.h>
+#else
+#	include <varargs.h>
+#endif
+X
+static char rcs_id[] = "@(#)$Id: util.c,v 1.1 1992/11/17 18:06:25 jpm Exp jpm $";
+static char *pcache[MAXPRINTERS];		/* Printername cache */
+X
+/*
+X * Build a list of legal printer names on this system, and put them into
+X * PC (null-terminated). This is our printer-cache, which will be used
+X * to check whether a legal printername has been requested.
+X * The macro LP_LISTNAMES is the name of a file which must contain one
+X * name per line. Note, this is only done at startup. If LP_LISTNAMES
+X * begins with a vertical bar (|) a pipe from LP_LISTNAMES is read.
+X */
+X
+void cache_printers()
+{
+X	int count = 0;
+X	FILE *fp;
+X	string buf;
+X	unsigned n;
+X	int havepipe = 0;
+X
+#ifdef DEBUG
+X	printf("Doing: %s\n", LP_LISTNAMES);
+#endif
+X	if (*(LP_LISTNAMES) == '|')
+X	{
+X		if ((fp = popen(LP_LISTNAMES+1, "r")) == (FILE *)0)
+X			fatal(EX_OSERR, "Can't read pipe from [%s]\n", 
+X				LP_LISTNAMES+1);
+X		havepipe = 1;
+X	}
+X	else if ((fp = fopen(LP_LISTNAMES, "r")) == (FILE *)0)
+X		fatal(EX_OSERR, "Can't open file [%s]\n", LP_LISTNAMES);
+X	
+X	for (count = 0; (fgets(buf, sizeof(buf), fp) != (char *)0) &&
+X						(count < MAXPRINTERS); ++count)
+X	{
+X		buf[(n = strlen(buf)) - 1] = '\0';	/* Chop NL */
+X		pcache[count] = strsave(buf);
+#ifdef DEBUG
+X		printf("Cached %02d %s\n", count, pcache[count]);
+#endif
+X	}
+X	pcache[count] = (char *)0;
+X	if (havepipe)
+X		pclose(fp);
+X	else
+X		fclose(fp);
+}
+X
+/*
+X * Return TRUE if PNAME is the name of a legal printer on our system, and
+X * FALSE otherwise.
+X */
+X
+int legal_printer(pname)
+char *pname;
+{
+X	int n;
+X
+X	for (n = 0; pcache[n] && n < MAXPRINTERS; n++)
+X		if (!strcmp(pcache[n], pname))
+X			return (1);
+X	
+X	return (0);
+}
+X
+#ifdef __STDC__
+void fatal(int excode, char *fmt, ...)
+#else
+void fatal(excode, fmt, va_alist)
+int excode;
+char *fmt;
+va_dcl
+#endif
+{
+X	va_list args;
+X	extern char *progname;
+X
+#ifdef __STDC__
+X	va_start(args, fmt);
+#else
+X	va_start(args);
+#endif
+X	fprintf(stderr, "%s: ", progname);
+X	vfprintf(stderr, fmt, args);
+X	fprintf(stderr, "\n");
+X	fflush(stderr);
+X	va_end(args);
+X	exit(excode);
+}
+X
+void ack(sockfd, ptr, nbytes)
+int sockfd;
+char *ptr;
+int nbytes;
+{
+X	if (writen(sockfd, ptr, nbytes) <= 0)
+X		fatal(EX_PROTOCOL, "Can't write %d bytes to client\n", nbytes);
+}
+X
+/*
+X * Read "n" bytes from a descriptor.
+X * Use in place of read() when fd is a stream socket.
+X */
+X
+int readn(fd, ptr, nbytes)
+register int	fd;
+register char	*ptr;
+register int	nbytes;
+{
+X	int	nleft, nread;
+X
+X	nleft = nbytes;
+X	while (nleft > 0) {
+X		nread = read(fd, ptr, nleft);
+X		if (nread < 0)
+X			return(nread);		/* error, return < 0 */
+X		else if (nread == 0)
+X			break;			/* EOF */
+X
+X		nleft -= nread;
+X		ptr   += nread;
+X	}
+X	return(nbytes - nleft);		/* return >= 0 */
+}
+/*
+X * Write "n" bytes to a descriptor.
+X * Use in place of write() when fd is a stream socket.
+X */
+X
+int writen(fd, ptr, nbytes)
+register int	fd;
+register char	*ptr;
+register int	nbytes;
+{
+X	int	nleft, nwritten;
+X
+X	nleft = nbytes;
+X	while (nleft > 0) {
+X		nwritten = write(fd, ptr, nleft);
+X		if (nwritten <= 0)
+X			return(nwritten);		/* error */
+X
+X		nleft -= nwritten;
+X		ptr   += nwritten;
+X	}
+X	return(nbytes - nleft);
+}
+X
+/*
+X * Read a line from a descriptor.  Read the line one byte at a time,
+X * looking for the newline.  We store the newline in the buffer,
+X * then follow it with a null (the same as fgets(3)).
+X * We return the number of characters up to, but not including,
+X * the null (the same as strlen(3)).
+X */
+X
+int readline(fd, ptr, maxlen)
+register int	fd;
+register char	*ptr;
+register int	maxlen;
+{
+X	int n, rc;
+X	char c;
+#ifdef DEBUG
+X	char *sp = ptr;
+#endif
+X
+X	for (n = 1; n < maxlen; n++) {
+X		if ( (rc = read(fd, &c, 1)) == 1) {
+X			*ptr++ = c;
+X			if (c == '\n')
+X				break;
+X		} else if (rc == 0) {
+X			if (n == 1)
+X				return(0);	/* EOF, no data read */
+X			else
+X				break;		/* EOF, some data was read */
+X		} else
+X			return(-1);	/* error */
+X	}
+X
+X	*ptr = 0;
+#ifdef DEBUG
+X		vis(sp);
+#endif
+X	return(n);
+}
+X
+#ifdef DEBUG
+X
+/*
+X * Show the content of string S visibly
+X */
+X
+void vis(s)
+char *s;
+{
+X	while (*s) {
+X		if (isprint(*s))
+X			fputc(*s, stderr);
+X		else fprintf(stderr, "\\%03o", *s);
+X		++s;
+X	}
+X	fprintf(stderr, "\n");
+X	fflush(stderr);
+}
+#endif /* DEBUG */
+X
+/*
+X * cpr(sockfd, fmt, ...)
+X *
+X * Do a printf() into socket fd.
+X */
+X
+#ifdef __STDC__
+void cpr(int sockfd, char *fmt, ...)
+#else
+void cpr(sockfd, fmt, va_alist)
+int sockfd;
+char *fmt;
+va_dcl
+#endif
+{
+X	va_list args;
+X	char buf[1024];
+X
+#ifdef __STDC__
+X	va_start(args, fmt);
+#else
+X	va_start(args);
+#endif
+X	vsprintf(buf, fmt, args);
+X	va_end(args);
+X	
+X	strcat(buf, "\n");
+X	writen(sockfd, buf, strlen(buf));
+}
+X
+char *strsave(s)
+char *s;
+{
+X	char *p = (char *)malloc((unsigned)(strlen(s) + 1));
+X
+X	if (!p)
+X		fatal(EX_OSERR, "No memory in strsave()");
+X
+X	(void) strcpy(p, s);
+X	return (p);
+}
+X
+int showconfig()
+{
+X	printf("Compiled-in Configuration:\n");
+X	printf("\tSPOOLDIR          = %s\n", SPOOLDIR);
+X	printf("\tLP_CMD            = %s\n", LP_CMD  );
+X	printf("\tLP_LISTNAMES      = %s\n", LP_LISTNAMES);
+X	printf("\tMAXPRINTERS       = %d\n", MAXPRINTERS );
+X	printf("\tHOSTAUTHFILE      = %s\n", HOSTAUTHFILE);
+X	printf("\tRemove Spool files= %s\n",
+#ifdef NOREMOVE
+X				"FALSE"
+#else
+X				"TRUE"
+#endif
+X		);
+X	return (0);
+}
+SHAR_EOF
+chmod 0644 util.c ||
+echo 'restore of util.c failed'
+Wc_c="`wc -c < 'util.c'`"
+test 5233 -eq "$Wc_c" ||
+	echo 'util.c: original size 5233, current size' "$Wc_c"
+fi
+# ============= print.c ==============
+if test -f 'print.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping print.c (File already exists)'
+else
+echo 'x - extracting print.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'print.c' &&
+#include "copyright.h"
+#include "config.h"
+X
+static char rcs_id[] = "@(#)$Id: print.c,v 1.1 1992/11/17 18:06:25 jpm Exp jpm $";
+X
+/*
+X * CFNAME is the name of the control file in the spool directory. Parse 
+X * through it, finding out what we actually have to do, and print the output
+X * onto printer PRINTER.
+X *
+X * Control files contain lines of text starting with a capital letter,
+X * specifying what is to be done.
+X * The following was extracted from a 1983 BSD manual [lpd(8)]
+X *
+X * +    J<jobname>	String to be used for the job name on the burst page
+X *	C<class>	String to be used for the classification on burst page
+X *	L<literal>	Contains identification info from /etc/passwd
+X * +    T<title>	String to be used as title for pr(1)
+X *	H<host>		Name of machine where LPR was invoked
+X *	P<person>	Login name of person who invoked LPR.
+X *	M<user>		Send mail to the specified user when print job completes
+X * +    f<filename>	Name of formatted file to print (ascii text ?)
+X * +    l<filename>	Like f but passs control chars (Binary)
+X * +    p<filename>	Name of file to print with pr(1)
+X *	t<filename>	Troff file. The file contains troff(1) OUTPUT
+X *	d<filename>	DVI file
+X *	g<filename>	Graph file
+X *	v<filename>	Raster image
+X *	1<filename>	Troff font R
+X *	2<filename>	Troff font I
+X *	3<filename>	Troff font B
+X *	4<filename>	Troff font S
+X *	I<indent>	The number of chars to indent the output by (in ascii)
+X *	U<unlink>	Name of file to remove upon completion of printing
+X *	N<filename>	The name of the file which is being printed, or a blank
+X *			for the standard input (when LPR is invoked in a pipe)
+X *
+X * The entries marked with a + are those implemented here.
+X */
+X
+#define MAXF		200		/* I keep all the file names that come
+X					 * in in an array of this size, so
+X					 * that I can unlink them all when
+X					 * we are finished.
+X					 */
+X
+void printout(cfname, printer)
+char *cfname, *printer;
+{
+X	FILE *fp = fopen(cfname, "r");
+X	char buf[BUFSIZ];
+X	char lpcmd[1024];
+X	string title, options;
+X	int rc;
+#if !defined(NOREMOVE)
+X	int count = 0, i;
+X	char **filenames = (char **)calloc((unsigned)MAXF, sizeof(char *));
+#endif /* !NOREMOVE */
+X
+#ifdef DEBUG
+X	fprintf(stderr, "printout(%s)\n", cfname);
+#endif
+X	if (!fp || ferror(fp))
+X		fatal(EX_OSERR, "Can't re-open control file [%s]\n", cfname);
+#if !defined(NOREMOVE)
+X	if (!filenames)
+X		fatal(EX_OSERR, "No more memory");
+#endif /* !NOREMOVE */
+X
+X	strcpy(options, "-");
+X
+X	/*
+X	 * LP flags
+X	 * -d	destination
+X	 * -s	silent 
+X	 * -c 	copy. (is default now-a-days, but you never know...)
+X	 */
+X
+X	while (fgets(buf, sizeof(buf), fp) != (char *)0)
+X	{
+X		buf[strlen(buf) - 1] = '\0';
+X		switch (*buf) {
+X			case 'f':
+X			case 'l':
+X				sprintf(lpcmd, "%s -d%s -s -c -o%s %s",
+X					LP_CMD,
+X					printer,
+X					options,
+X					buf + 1);
+#if !defined(NOREMOVE)
+X				if (count < MAXF) 
+X					filenames[count++] = strsave(buf+1);
+#endif /* !NOREMOVE */
+X				break;
+X			case 'T':
+X				strcpy(title, buf + 1);
+X				continue;
+X			/*
+X			 * The Job request from LPR is translated into the
+X			 * ``-o'' option for LP.
+X			 */
+X
+X			case 'J':
+X				strcpy(options, buf + 1);
+X				continue;
+X			case 'p':
+X				sprintf(lpcmd,
+X				"/bin/pr -h '%s' %s | %s -d%s -s -o'%s'",
+X					title,
+X					buf+1,		/* Filename */
+X					LP_CMD,
+X					printer,
+X					options);
+#if !defined(NOREMOVE)
+X				if (count < MAXF) 
+X					filenames[count++] = strsave(buf+1);
+#endif /* !NOREMOVE */
+X				break;
+X			default:
+#ifdef DEBUG
+X				fprintf(stderr, "Unsupported option '%c'\n",
+X						*buf);
+X				continue;
+#endif
+X		} /* switch */
+#ifdef DEBUG
+X		fprintf(stderr, "EXEC: %s\n", lpcmd);
+#endif
+X		if ((rc = command(lpcmd, 0)) == 0)
+X			fprintf(stderr, "command [%s] returned %d\n", lpcmd, rc);
+X	}
+X	fclose(fp);
+X	
+#if !defined(NOREMOVE)
+X	/*
+X	 * Remove all files that were processed.
+X	 */
+X
+X	for (i = 0; (i < count) && (filenames[i]); i++) {
+#ifdef DEBUG
+X		fprintf(stderr, "unlink(%s)\n", filenames[i]);
+#endif
+X		if (unlink(filenames[i]) == -1)
+X			perror(filenames[i]);
+X	}
+X	unlink(cfname);
+#endif /* !NOREMOVE */
+}
+SHAR_EOF
+chmod 0644 print.c ||
+echo 'restore of print.c failed'
+Wc_c="`wc -c < 'print.c'`"
+test 3967 -eq "$Wc_c" ||
+	echo 'print.c: original size 3967, current size' "$Wc_c"
+fi
+# ============= command.c ==============
+if test -f 'command.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping command.c (File already exists)'
+else
+echo 'x - extracting command.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'command.c' &&
+/*COMMAND:  FORK AND EXEC COMMAND STRING
+**
+**  DESCRIPTION:
+**		doneok = command(string, inbackground)
+**  This routine takes a full command string and executes it.  It's
+**  different from "system(3)" in that ">", "<", ">>", and "|" are
+**  handled internally.
+**
+**  This code may be freely copied provided that this sentence and
+**  the copyright are retained; all other rights reserved.  Copyright
+**  1985, Richard E. $alz (rs@mirror.UUCP).
+*/
+X
+#include "config.h"
+/* LINTLIBRARY */
+#include <errno.h>
+X
+/* Pick a dialect, any dialect. */
+#undef BSD			/* Bezerkeley	*/
+#define USG			/* Deathstar	*/
+X
+X
+#ifdef	BSD
+#include <sys/file.h>
+#include <sys/wait.h>
+X
+typedef union wait	WAITER;
+#define W_STATUS(w)	w.w_status
+static char		SHELL[] = "/bin/csh";
+#endif
+X
+X
+#ifdef	USG
+#include <fcntl.h>
+X
+typedef int		WAITER;
+#define W_STATUS(w)	w;
+static char		SHELL[] = "/bin/sh";
+#endif
+X
+X
+/* Handy shorthands. */
+#define STDIN		0
+#define STDOUT  	1
+#define SH		 (&SHELL[sizeof SHELL - 3])
+X
+/* Globals and externals. */
+extern int		 errno;
+int			 cmndno;
+int		       (*cmndclean)();
+X
+X
+X
+int
+command(text, background)
+X    register char	 *text;
+X    int			  background;
+{
+X    register char	**vp;
+X    register char	**vector;
+X    register char	 *s;
+X    register char	 *t;
+X    register int	  pid;
+X    register short	  count;
+X    WAITER		  w;
+X    int			  dead;
+X    int			  poop[2];
+X
+X    /* "Vfork" is probably not the right thing to do. */
+X    if ((pid = fork()) == 0)
+X    {
+X	/* Call child cleanup routine, if there is one. */
+X	if (cmndclean)
+X	    (*cmndclean)();
+X
+X	/* If any meta-characters, pass on to the shell. */
+X	for (t = text; *t; t++)
+X	    for (s = ";!~&?*\"\'`\\$(){}"; *s; s++)
+X		if (*s == *t)
+X		{
+X		    (void)execl(SHELL, SH, "-c", text, NULL);
+X		    _exit(99);
+X		}
+X
+X	/* Get number of words, get an array to hold it. */
+X	for (t = text, count = 2; *t; )
+X	    if (*t++ <= ' ')
+X		count++;
+X	vector = (char **)calloc((unsigned int)count, sizeof(char *));
+X
+X	/* Skip leading whitespace. */
+X	while (*text <= ' ')
+X	    text++;
+X
+X	/* Loop over command string. */
+X	for (vp = vector; *text; vp++)
+X	{
+X	    /* Put pointer to start of word in array, move to next. */
+X	    for (*vp = text; *text; text++)
+X		if (*text <= ' ')
+X		{
+X		    /* Null out end, skip multiple spaces. */
+X		    for (*text++ = '\0'; *text <= ' '; )
+X			text++;
+X		    break;
+X		}
+X
+X	    /* Handle redirection of input; note we back up the array
+X	       pointer to overwrite the "<file", but pick up the filename
+X	       as the second character.  Lots of work being done by that
+X	       "*vp-- + 1"! */
+X	    if (**vp == '<')
+X	    {
+X		(void)close(STDIN);
+X		(void)open(*vp-- + 1, O_RDONLY);
+X	    }
+X
+X	    /* Handle redirection of output. */
+X	    if (**vp == '>')
+X	    {
+X		(void)close(STDOUT);
+X		/* Undocumented; handle ">>file", too. */
+X		if ((*vp)[1] == '>')
+X		    (void)open(*vp-- + 2, O_WRONLY | O_CREAT | O_APPEND, 0666);
+X		else
+X		    (void)open(*vp-- + 1, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+X	    }
+X
+X	    /* Handle piping. */
+X	    if (!strcmp(*vp, "|"))
+X	    {
+X		(void)pipe(poop);
+X		if (fork() == 0)
+X		{
+X		    /* Kid is left side of "|"; change stdout, close pipe. */
+X		    (void)close(STDOUT);
+X		    (void)dup(poop[1]);
+X		    (void)close(poop[0]);
+X		    (void)close(poop[1]);
+X		    /* Break out to the exec() part. */
+X		    break;
+X		}
+X		/* Parent is right side of "|"; change stdin, close pipe. */
+X		(void)close(STDIN);
+X		(void)dup(poop[0], STDIN);
+X		(void)close(poop[0]);
+X		(void)close(poop[1]);
+X		/* Cheat; vp is incremented in next pass through loop. */
+X		vp = vector - 1;
+X	    }
+X	}
+X	*vp = NULL;
+X	(void)execvp(*vector, vector);
+X	_exit(99);
+X    }
+X
+X    if (background || pid < 0)
+X	return(pid);
+X
+X    /* Wait until the kid exits, or until errno tells us that we have
+X       no kid (what happened?)  NOTE:  if the caller has other processes
+X       in the background, and they exit first, they will be found, and
+X       ignored, here. */
+X    do
+X	dead = wait(&w);
+X    while (dead != pid && (dead > 0 || errno != ECHILD));
+X
+X    cmndno = W_STATUS(w);
+X    return(cmndno == 0);
+}
+SHAR_EOF
+chmod 0644 command.c ||
+echo 'restore of command.c failed'
+Wc_c="`wc -c < 'command.c'`"
+test 4021 -eq "$Wc_c" ||
+	echo 'command.c: original size 4021, current size' "$Wc_c"
+fi
+# ============= lock.c ==============
+if test -f 'lock.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping lock.c (File already exists)'
+else
+echo 'x - extracting lock.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'lock.c' &&
+#include "copyright.h"
+X
+#include "config.h"
+#include <errno.h>
+#include <fcntl.h>
+X
+int lockit(fd)
+int fd;
+{
+X	struct flock l;
+X	extern char *progname;
+X
+X	l.l_type = F_WRLCK;
+X	l.l_whence = 0;
+X	l.l_start = 0;
+X	l.l_len = 0;
+X
+X	if (fcntl(fd, F_GETLK, &l) == -1)
+X	{
+X		if (errno == EACCES)
+X			fatal(EX_OSERR,M_ISRUNNING, progname, l.l_pid);
+X		perror("fcntl");
+X		exit(99);
+X	}
+X	l.l_type = F_WRLCK;
+X	l.l_whence = 0;
+X	l.l_start = 0;
+X	l.l_len = 0;
+X
+X	if (fcntl(fd, F_SETLK, &l) == -1)
+X	{
+X		if (errno == EACCES || errno == EAGAIN)
+X		{
+X			fatal(EX_OSERR,M_ISRUNNING, progname, l.l_pid);
+X			exit(1);
+X		}
+X		perror("fcntl");
+X	}
+}
+SHAR_EOF
+chmod 0644 lock.c ||
+echo 'restore of lock.c failed'
+Wc_c="`wc -c < 'lock.c'`"
+test 609 -eq "$Wc_c" ||
+	echo 'lock.c: original size 609, current size' "$Wc_c"
+fi
+# ============= copyright.h ==============
+if test -f 'copyright.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping copyright.h (File already exists)'
+else
+echo 'x - extracting copyright.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'copyright.h' &&
+/*
+X * SLPD, Copyright 1992,   Jan-Piet Mens [Logix GmbH, Wiesbaden, Germany]
+X * License to freely use and distribute this software is hereby granted 
+X * by the author, subject to the condition that this copyright notice 
+X * remains intact.  The author retains the exclusive right to publish 
+X * derivative works based on this work, including, but not limited
+X * to, revised versions of this work.
+X */
+SHAR_EOF
+chmod 0644 copyright.h ||
+echo 'restore of copyright.h failed'
+Wc_c="`wc -c < 'copyright.h'`"
+test 401 -eq "$Wc_c" ||
+	echo 'copyright.h: original size 401, current size' "$Wc_c"
+fi
+# ============= config.h ==============
+if test -f 'config.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping config.h (File already exists)'
+else
+echo 'x - extracting config.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'config.h' &&
+#include "copyright.h"
+X
+/*=====================================================================
+X * SPOOLDIR			One of the first things the daemon will
+X *				do is to change into this directory.
+X * The daemon must have write permission here, because it will create
+X * the data and control files in this directory.
+X *====================================================================*/
+#define SPOOLDIR		"/usr/spool/slpd"
+X
+/*=====================================================================
+X * LP_CMD			The full pathname to ``lp''. Options
+X *				are added in print.c
+X *====================================================================*/
+X #define LP_CMD			"/usr/bin/lp"
+X
+/*=====================================================================
+X * LP_LISTNAMES			If this command contains a vertical bar
+X *				as its first character, it will be
+X * considered as the name of a pipe to be read via popen(3).
+X * Otherwise, it is the name of a file that contains a list of printer
+X * names, one on each line.
+X * Both the FILE and the PIPE must produce one legal printer destination
+X * per line. This printer destination will be given to LP_CMD in the
+X * ``-d'' switch.
+X * 
+X *      lpr -Pmyprinter         becomes        ... lp -dmyprinter ...
+X *          ^^^^^^^^^^^                               ^^^^^^^^^^^
+X * A configuration suggestion is
+X *       #define LP_LISTNAMES		\
+X		"|lpstat -p | awk '{if ($1 == \"printer\") {print $2}}'"
+X
+X		^^^^ NOTE THE VERTICAL BAR!
+X * which will read the current printer configuration upon startup of the
+X * SLPD daemon. Note, that this is rather slow.
+X *
+X * In either case, the SLPD daemon will have to be restarted if a new
+X * printer is added to the system.
+X *====================================================================*/
+/* #define LP_LISTNAMES		"/etc/Printers" */
+#define LP_LISTNAMES		\
+X		"|lpstat -p | awk '{if ($1 == \"printer\") {print $2}}'"
+X
+/*=====================================================================
+X * MAXPRINTERS			The maximum number of printer names that
+X * 				should be cached upon startup of the
+X * daemon. Caching is done by parsing the output of LP_LISTNAMES, and
+X * inserting the names of the printers into a dynamically built array.
+X *====================================================================*/
+#define MAXPRINTERS		(20)
+X
+/*=====================================================================
+X * HOSTAUTHFILE			Absolute pathname of a file containing
+X *				a list of host names which are allowed
+X * to access the daemon. The file contains one host per line. Note, that
+X * host names are matched by whatever gethostbyname() returns.
+X *====================================================================*/
+/*#define HOSTAUTHFILE		"/etc/hosts.equiv" */
+#define HOSTAUTHFILE		"/etc/hostlist"
+X
+/*=====================================================================
+X * NOREMOVE			If you want the temporary spool & control
+X *				files to remain in the spool directory,
+X * define NOREMOVE. If this symbol is *not* defined, files will be removed
+X * automagically. This should only be interesting for debugging purposes.
+X *====================================================================*/
+X #undef NOREMOVE
+X
+X
+/*
+X * Messages
+X */
+X
+#define M_CANTLOCK	"Cannot create lockfile. Errno=%d"
+#define M_ISRUNNING	"Daemon %s is already running on pid=%d"
+#define M_NOPRINTER	"\r\nRequested printer [%s] does not exist on server"
+#define M_CANTCREATE	"Cannot create spool file on server!"
+#define M_NOSPOOL	"Can't change into spool-dir [%s]\n"
+#define M_NOAUTH	"Host [%s] is not authorized to print files"
+X
+X
+/* ----- DON'T CHANGE ANYTHING BELOW THIS LINE --------------------------*/
+typedef char string[128];
+X
+#define S_START		(1)	/* Client initiated connection */
+#define S_STARTED	(2)	/* Client has started transferring file */
+#define S_CONTROL	(3)	/* Control file expected */
+X
+#define REQ_NOTHING	0x00	/* ^@ */
+#define REQ_START	0x02	/* ^B */
+#define REQ_FILE	0x03	/* ^C */
+X
+X
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sysexits.h>
+#include <netdb.h>
+#include <string.h>
+X
+#include <stdlib.h>			/* Remove this line if you don't have */
+X
+X
+#if defined(__STDC__) || defined(__cplusplus)
+#define P_(s) s
+#else
+#define P_(s) ()
+#endif
+X
+int main P_((int argc, char *argv[]));
+void print P_((int fd));
+void fatal P_((int excode, char *fmt, ...));
+void cpr P_((int fd, char *fmt, ...));
+int readn P_((register int fd, register char *ptr, register int nbytes));
+int writen P_((register int fd, register char *ptr, register int nbytes));
+int readline P_((register int fd, register char *ptr, register int maxlen));
+void vis P_((char *s));
+int sockopen P_((void));
+void copyfile P_((int fd, char *name, long bytes));
+void cache_printers P_((void));
+void ack P_((int fd, char *s, int nbytes));
+void printout P_((char *filename, char *printer));
+int legal_printer P_((char *pname));
+int command P_((char *shstring, int back));
+char *strsave P_((char *s));
+int auth P_((int sockfd, char *hname));
+int in_auth_file P_((char *hname));
+int lockit P_((int fd));
+int showconfig P_((void));
+X
+extern int accept(), bind(), bzero(), chdir(), close(), creat(),
+X		dup(), execl(), execvp(), fork(), listen(), open(),
+X		pipe(), read(), socket(), wait(), write(), unlink();
+X
+#undef P_
+SHAR_EOF
+chmod 0644 config.h ||
+echo 'restore of config.h failed'
+Wc_c="`wc -c < 'config.h'`"
+test 5310 -eq "$Wc_c" ||
+	echo 'config.h: original size 5310, current size' "$Wc_c"
+fi
+# ============= patchlevel.h ==============
+if test -f 'patchlevel.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping patchlevel.h (File already exists)'
+else
+echo 'x - extracting patchlevel.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'patchlevel.h' &&
+#define PATCHLEVEL	2
+SHAR_EOF
+chmod 0644 patchlevel.h ||
+echo 'restore of patchlevel.h failed'
+Wc_c="`wc -c < 'patchlevel.h'`"
+test 21 -eq "$Wc_c" ||
+	echo 'patchlevel.h: original size 21, current size' "$Wc_c"
+fi
+exit 0
+-- 
+    __  _____   __  __ 
+   |  ||  _  \ |  \/  |    Logix GmbH                             jpm@Logix.DE
+ __|  ||  ___/ |      |    Moritzstrasse 50, +49-611-309797   jpm@logixwi.UUCP
+|_____||__|    |__||__|    D-6200 Wiesbaden  ...!uunet!mcsun!unido!logixwi!jpm

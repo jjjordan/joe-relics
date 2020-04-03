@@ -1,0 +1,2313 @@
+
+Newsgroups: alt.sources
+Path: sparky!uunet!paladin.american.edu!darwin.sura.net!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 4 of 10
+Message-ID: <By2MIq.KwF@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:49:38 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part4
+
+fi
+# ============= help.c ==============
+if test -f 'help.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping help.c (File already exists)'
+else
+echo 'x - extracting help.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'help.c' &&
+/* Help system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "tty.h"
+#include "toomany.h"
+#include "b.h"
+#include "termcap.h"
+#include "kbd.h"
+#include "scrn.h"
+#include "w.h"
+#include "menu.h"
+#include "help.h"
+X
+/* The loaded help screen */
+X
+char *hlptxt=0;
+int hlpsiz=0;
+int hlpbsz=0;
+int hlplns=0;
+X
+static int uphelp=0;
+X
+/* Display help text */
+X
+void dsphlp(t)
+SCREEN *t;
+{
+char *str=hlptxt;
+int y,x,c;
+int atr=0;
+for(y=0;y!=t->wind;++y)
+X {
+X if(t->t->updtab[y])
+X  {
+X  for(x=0;x!=t->w-1;++x)
+X   if(*str=='\n' || !*str)
+X    if(eraeol(t->t,x,y)) return;
+X    else break;
+X   else
+X    {
+X    if(*str=='\\')
+X     if(str[1]=='i' || str[1]=='u' || str[1]=='I' || str[1]=='U')
+X      {
+X      if(str[1]=='i' || str[1]=='I') atr^=INVERSE;
+X      else atr^=UNDERLINE;
+X      str+=2;
+X      --x; continue;
+X      }
+X     else if(str[1]=='\\') c='\\'+atr, str+=2;
+X     else { ++str; --x; continue; }
+X    else c= (unsigned char)*str++ +atr;
+X    if(t->t->scrn[x+y*t->w]!=c)
+X     {
+X     if(have) return;
+X     t->t->scrn[x+y*t->w]=c;
+X     outatr(t->t,x,y,c);
+X     }
+X    }
+X  atr=0; t->t->updtab[y]=0;
+X  }
+X while(*str && *str!='\n') ++str;
+X if(*str=='\n') ++str;
+X }
+}
+X
+/* Create the help window */
+X
+void helpon(t)
+SCREEN *t;
+{
+if(!hlptxt) return;
+t->wind=hlplns;
+if(t->h-t->wind<FITHEIGHT) t->wind=t->h-FITHEIGHT;
+if(t->wind<0)
+X {
+X t->wind=0;
+X return;
+X }
+chsize(t,t->h-t->wind,t->h);
+msetI(t->t->updtab,1,t->wind);
+}
+X
+/* Eliminate the help window */
+X
+void helpoff(t)
+SCREEN *t;
+{
+int z=t->wind;
+t->wind=0;
+chsize(t,t->h,t->h-z);
+}
+X
+/* Toggle help on/off */
+X
+void uhelp(w)
+W *w;
+{
+struct help *h;
+if(w->huh) if(h=get_help(w->huh))
+X {
+X if(w->t->wind) helpoff(w->t);
+X hlptxt=h->hlptxt;
+X hlpsiz=h->hlpsiz;
+X hlpbsz=h->hlpbsz;
+X hlplns=h->hlplns;
+X helpon(w->t);
+X return;
+X }
+uhelpme(w);
+}
+X
+/* Help selection menu */
+X
+void uheol(w) W *w; { MENU *m=(MENU *)w->object; meol(m); }
+void uhbol(w) W *w; { MENU *m=(MENU *)w->object; mbol(m); }
+void uheof(w) W *w; { MENU *m=(MENU *)w->object; meof(m); }
+void uhbof(w) W *w; { MENU *m=(MENU *)w->object; mbof(m); }
+void uhdnarw(w) W *w; { MENU *m=(MENU *)w->object; mdnarw(m); }
+void uhuparw(w) W *w; { MENU *m=(MENU *)w->object; muparw(m); }
+void uhltarw(w) W *w; { MENU *m=(MENU *)w->object; mltarw(m); }
+void uhrtarw(w) W *w; { MENU *m=(MENU *)w->object; mrtarw(m); }
+void hdumb() {}
+void movehelp(w,x,y) W *w; { MENU *m=(MENU *)w->object; menumove(m,x,y); }
+void resizehelp(w,x,y) W *w; { MENU *m=(MENU *)w->object; menuresz(m,x,y); }
+void disphelp(w) W *w;
+X {
+X MENU *m=(MENU *)w->object;
+X menugen(m);
+X w->cury=0;
+X w->curx=(m->cursor-m->top)*(m->width+1);
+X }
+void followhelp(w) W *w; { MENU *m=(MENU *)w->object; menufllw(m); }
+void wkillhelp(w) W *w; { MENU *m=(MENU *)w->object; if(m) menurm(m); }
+X
+int prevcursor=0;
+X
+void uhrtn(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+hlptxt=help_structs[m->cursor]->hlptxt;
+hlpsiz=help_structs[m->cursor]->hlpsiz;
+hlpbsz=help_structs[m->cursor]->hlpbsz;
+hlplns=help_structs[m->cursor]->hlplns;
+prevcursor=m->cursor;
+wabort(w);
+helpon(w->t);
+}
+X
+void uhabort(w)
+W *w;
+{
+MENU *m=(MENU *)w->object;
+prevcursor=m->cursor;
+wabort(w);
+}
+X
+CONTEXT cthelp= {"help",0};
+X
+static WATOM watomhelp=
+{
+&cthelp,
+disphelp,
+followhelp,
+wkillhelp,
+resizehelp,
+movehelp,
+hdumb,
+hdumb,
+TYPEHELP
+};
+X
+void uhelpme(w)
+W *w;
+{
+W *new;
+MENU *m;
+if(w->t->wind)
+X {
+X helpoff(w->t);
+X return;
+X }
+if(!help_names[0]) return;
+if(!help_names[1])
+X {
+X helpon(w->t);
+X return;
+X }
+if(!(new=wcreate(w->t,&watomhelp,w,w,w->main,1,NULL))) return;
+new->object=(void *)(m=mkmenu(new->t,help_names,new->x,new->y,new->w,new->h));
+m->cursor=prevcursor;
+w->t->curwin=new;
+}
+SHAR_EOF
+chmod 0600 help.c ||
+echo 'restore of help.c failed'
+Wc_c="`wc -c < 'help.c'`"
+test 4291 -eq "$Wc_c" ||
+	echo 'help.c: original size 4291, current size' "$Wc_c"
+fi
+# ============= help.h ==============
+if test -f 'help.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping help.h (File already exists)'
+else
+echo 'x - extracting help.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'help.h' &&
+/* Help system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ihelp
+#define _Ihelp 1
+X
+#include "config.h"
+#include "kbd.h"
+X
+extern char *hlptxt;
+extern int hlpsiz, hlpbsz, hlplns;
+void dsphlp();
+X
+void uhelp();
+X
+struct help
+X {
+X  char *hlptxt;
+X  int hlpsiz;
+X  int hlpbsz;
+X  int hlplns;
+X  char *name;
+X  struct help *next;
+X };
+X
+#define TYPEHELP 0x800
+void uhelpme();
+void uhabort();
+void uhrtn();
+X
+void uhrtarw();
+void uhltarw();
+void uhuparw();
+void uhdnarw();
+void uhbof();
+void uheof();
+void uhbol();
+void uheol();
+X
+extern CONTEXT cthelp;
+X
+extern char **help_names;
+extern struct help **help_structs;
+X
+#endif
+SHAR_EOF
+chmod 0600 help.h ||
+echo 'restore of help.h failed'
+Wc_c="`wc -c < 'help.h'`"
+test 1306 -eq "$Wc_c" ||
+	echo 'help.h: original size 1306, current size' "$Wc_c"
+fi
+# ============= joerc ==============
+if test -f 'joerc' -a X"$1" != X"-c"; then
+	echo 'x - skipping joerc (File already exists)'
+else
+echo 'x - extracting joerc (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'joerc' &&
+X                         Initialization file for JOE
+X
+X JOE looks for this file in:
+X	1 - .joerc
+X	2 - $HOME/.joerc
+X	3 - /usr/local/lib/joerc
+X
+X FIRST SECTION: Default global options:
+X
+X Put each option you want set in the first column:
+X
+X -mid		Cursor is recentered when scrolling is necessary
+X -asis		Characters 160 - 254 shown as-is
+X -stacol	Column number in status line
+X -starow	Row number in status line
+X -force		Force final newline when files are saved
+X -help		Start with help on
+X -pg nnn	No. lines to keep for PgUp/PgDn
+X -gtab nnn	Default tab width for prompt windows
+X
+X SECOND SECTION: File name dependant local option settings:
+X
+X Each line with '*' in the first column indicates the modes which should be
+X files which match the regular expression.  If more than one regular
+X expression matches the file name, than the last matching one is chosen.
+X
+X Here is a list of modes which can be set:
+X
+X	-wordwrap		Wordwrap
+X	-autoindent		Auto indent
+X	-overwrite		Overtype mode
+X	-lmargin nnn		Left margin
+X	-rmargin nnn		Right margin
+X	-tab nnn		Tab width
+X	-indentc nnn		Indentation character (32 for space, 9 for tab)
+X	-istep nnn		Number of indentation columns
+*
+-wordwrap
+X
+*.c
+-autoindent
+X
+*.h
+-autoindent
+X
+*akefile
+*AKEFILE
+*joerc
+X
+*.p
+-autoindent
+X
+X THIRD SECTION: Named help screens:
+X
+X Use \i to turn on/off inverse video
+X Use \u to turn on/off underline
+X
+{Basic
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i\uCURSOR\u           \uGO TO\u            \uBLOCK\u      \uDELETE\u   \uMISC\u         \uEXIT\u      \i \i
+\i \i^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save  \i \i
+\i \i^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^TT overtype ^C  abort \i \i
+\i \i^Z previous word ^A  beg. of line ^KM move   ^W >word `   Ctrl-    ^KZ shell \i \i
+\i \i^X next word     ^E  end of line  ^KC copy   ^O word< ^\\  Meta-    \uFILE\u      \i \i
+\i \i\uSEARCH\u           ^KU top of file  ^KW file   ^J >line ^R  retype   ^KE new   \i \i
+\i \i^KF find text    ^KV end of file  ^KY delete ^_ undo  ^@  insert   ^KR insert\i \i
+\i \i^L  find next    ^KL to line No.  ^K/ filter ^^ redo               ^KD save  \i \i
+}
+X
+{Windows
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i^KO Split the window into two.  You can then use ^KE to load a file into the \i \i
+\i \i    new window.                                                              \i \i
+\i \i^KG Make current window bigger         ^KT Make current window smaller       \i \i
+\i \i^KN Go to the window below             ^KP Go to the window above            \i \i
+\i \i^C  Eliminate the current window       ^KI Show all windows / Show one window\i \i
+}
+X
+{Advanced
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i ESC nn   repeat next command nn times     ^G   goto matching ( [ {          \i \i
+\i \i ^K SPACE show position status             ^K-  goto prevous place in        \i \i
+\i \i ^K [ 0-9 begin recording macro n               position history             \i \i
+\i \i ^K ]     stop recording                   ^K=  goto next place              \i \i
+\i \i ^K 0-9   play macro n                     ^K,  indent marked block less     \i \i
+\i \i ^K A     center line                      ^K.  indent marked block more     \i \i
+\i \i ^T X     rectangle mode                   ^K;  tag search                   \i \i
+}
+X
+{Options
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i                                Mode Settings                                \i \i
+\i \i                                                                             \i \i
+\i \i ^TT Insert/Overtype             ^TM Recenter cursor when it goes off window \i \i
+\i \i ^TA Autoindent on/off           ^TF Force final NL when files are written   \i \i
+\i \i ^TW Wordwrap on/off             ^TH Display characters above 127 as-is      \i \i
+\i \i ^TL Left margin                 ^TN Show line number on status line         \i \i
+\i \i ^TR Right margin                ^TC Show column number on status line       \i \i
+\i \i ^TP No. PgUp/PgDn Lines         ^TD Tab width                               \i \i
+\i \i ^TK Indent character            ^TI Indent step column width                \i \i
+\i \i ^TX Rectangle mode                                                          \i \i
+}
+X
+{Search
+\i   Help Screen    turn off with ^KH                                            \i
+\i \iSpecial search sequences:                                                    \i \i
+\i \i    \\^     matches beginning of line     \\$     matches end of line          \i \i
+\i \i    \\<     matches beginning of word     \\>     matches end of word          \i \i
+\i \i    \\?     matches any single character  \\*     matches 0 or more characters \i \i
+\i \i    \\c     matches balanced C expression \\\\     matches a \\                  \i \i
+\i \i    \\[..]  matches one of a set          \\n     matches a newline            \i \i
+\i \i    \\+     matches 0 or more of the character which follows the \\+           \i \i
+\i \iSpecial replace sequences:                                                   \i \i
+\i \i    \\&     replaced with text which matched search string                    \i \i
+\i \i    \\0 - 9 replaced with text which matched Nth \\*, \\?, \\c, \\+, or \\[..]     \i \i
+\i \i    \\\\     replaced with \\               \\n     replaced with newline        \i \i
+}
+X
+{Names
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i Hit TAB at file name prompts to generate menu of file names                 \i \i
+\i \i Or use up/down keys to access history of previously entered names           \i \i
+\i \i Special file names:                                                         \i \i
+\i \i      !command                 Pipe in/out of a shell command                \i \i
+\i \i      >>filename               Append to a file                              \i \i
+\i \i      -                        Read/Write to/from standard I/O               \i \i
+\i \i      filename,START,SIZE      Read/Write a part of a file/device            \i \i
+\i \i          Give START/SIZE in decimal (255), octal (0377) or hex (0xFF)       \i \i
+}
+X
+{Joe
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i Joe Allen's email address:  'jha...@world.std.com' or                      \i \i
+\i \i 'rcarter' on the VWIS Linux BBS (508)793-9568                               \i \i
+}
+X
+X FOURTH SECTION: Key bindings:
+X
+X :main are the main editing bindings
+X :fprompt are file name prompt bindings
+X :prompt are other prompt bindings
+X :tab are file menu bindings
+X :help are help menu bindings
+X
+X Use ^@ through ^_ and ^? for Ctrl chars
+X Use SP for space
+X Use a TO b to generate a range of characters
+X Use UP DOWN RIGHT LEFT HOME END INS DEL PGUP PGDN
+X     F1 F2 F3 F4 F5 F6 F7 F8 F9 F0
+X     for the corresponding termcap key sequence definitions
+X
+X Simple macros can be made by comma seperating 2 or more command names.  For
+X example:
+X
+X bof,bol	^T Z		Goto beginning of last line
+X
+X Also quoted matter is typed in literally:
+X
+X bol,">",dnarw	F1		Quote news article line
+X
+:main
+X
+type		^I		Tab
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abort		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtn		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:prompt
+X
+type		^I		Tab
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abortpw		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtnpw		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:fprompt
+X
+complete	^I		Complete file name
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abortpw		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtnpw		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:tab
+X
+aborttab	^C
+arg		^[ 1 TO 9
+backstab	^?
+backstab	^H
+boftab		^K U
+boftab		^K ^U
+boftab		^K u
+boltab		HOME
+boltab		^A
+dnarwtab	DOWN
+dnarwtab	^N
+dnarwtab	^[ [ B
+dnarwtab	^[ O B
+eoftab		^K V
+eoftab		^K ^V
+eoftab		^K v
+eoltab		END
+eoltab		^E
+explode		^K I
+explode		^K ^I
+explode		^K i
+help		^K H
+help		^K ^H
+help		^K h
+ltarwtab	LEFT
+ltarwtab	^B
+ltarwtab	^[ [ D
+ltarwtab	^[ O D
+nextw		^K N
+nextw		^K ^N
+nextw		^K n
+play		^K 0 TO 9
+prevw		^K P
+prevw		^K ^P
+prevw		^K p
+record		^K [
+retype		^R
+rtarwtab	RIGHT
+rtarwtab	^F
+rtarwtab	^[ [ C
+rtarwtab	^[ O C
+rtntab		SP
+rtntab		^M
+shell		^K Z
+shell		^K ^Z
+shell		^K z
+stop		^K ]
+uparwtab	UP
+uparwtab	^P
+uparwtab	^[ [ A
+uparwtab	^[ O A
+X
+:help
+X
+aborthelp	^C
+arg		^[ 1 TO 9
+bofhelp		^K U
+bofhelp		^K ^U
+bofhelp		^K u
+bolhelp		HOME
+bolhelp		^A
+dnarwhelp	DOWN
+dnarwhelp	^N
+dnarwhelp	^[ [ B
+dnarwhelp	^[ O B
+eofhelp		^K V
+eofhelp		^K ^V
+eofhelp		^K v
+eolhelp		END
+eolhelp		^E
+explode		^K I
+explode		^K ^I
+explode		^K i
+ltarwhelp	LEFT
+ltarwhelp	^B
+ltarwhelp	^[ [ D
+ltarwhelp	^[ O D
+nextw		^K N
+nextw		^K ^N
+nextw		^K n
+play		^K 0 TO 9
+prevw		^K P
+prevw		^K ^P
+prevw		^K p
+record		^K [
+retype		^R
+rtarwhelp	RIGHT
+rtarwhelp	^F
+rtarwhelp	^[ [ C
+rtarwhelp	^[ O C
+rtnhelp		SP
+rtnhelp		^M
+rtnhelp		^K H
+rtnhelp		^K ^H
+rtnhelp		^K h
+shell		^K Z
+shell		^K ^Z
+shell		^K z
+stop		^K ]
+uparwhelp	UP
+uparwhelp	^P
+uparwhelp	^[ [ A
+uparwhelp	^[ O A
+SHAR_EOF
+chmod 0600 joerc ||
+echo 'restore of joerc failed'
+Wc_c="`wc -c < 'joerc'`"
+test 19130 -eq "$Wc_c" ||
+	echo 'joerc: original size 19130, current size' "$Wc_c"
+fi
+# ============= kbd.c ==============
+if test -f 'kbd.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping kbd.c (File already exists)'
+else
+echo 'x - extracting kbd.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'kbd.c' &&
+/* Keyboard handler
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include "config.h"
+#include "heap.h"
+#include "zstr.h"
+#include "va.h"
+X
+/* For help text loading in init. file */
+#include "help.h"
+X
+/* For special key sequence table */
+#include "scrn.h"
+X
+/* For option settings */
+#include "bw.h"
+X
+#include "macro.h"
+#include "kbd.h"
+X
+char **help_names;
+struct help **help_structs;
+struct help *first_help;
+X
+/* Create a KBD */
+X
+KBD *mkkbd(context)
+CONTEXT *context;
+{
+KBD *kbd=(KBD *)malloc(sizeof(KBD));
+kbd->topmap=context->kmap;
+kbd->curmap=context->kmap;
+return kbd;
+}
+X
+/* Eliminate a KBD */
+X
+void rmkbd(k)
+KBD *k;
+{
+free(k);
+}
+X
+/* Lookup key in keyboard table */
+X
+static int findkey(kmap,c)
+KMAP *kmap;
+{
+int x,y,z;
+x=0; y=kmap->len; z= -1;
+if(y)
+X while(z!=(x+y)/2)
+X  {
+X  z=(x+y)/2;
+X  if((kmap->keys[z].k&KEYMASK)==c) return z;
+X  else if((kmap->keys[z].k&KEYMASK)>c) y=z;
+X  else x=z;
+X  }
+return y;
+}
+X
+/* Process next key for KBD */
+X
+MACRO *dokey(kbd,k)
+KBD *kbd;
+{
+int n=findkey(kbd->curmap,k);
+if(n==kbd->curmap->len || (kbd->curmap->keys[n].k&KEYMASK)!=k)
+X kbd->curmap=kbd->topmap;
+else if(kbd->curmap->keys[n].k&KEYSUB)
+X kbd->curmap=kbd->curmap->keys[n].value.submap;
+else
+X {
+X MACRO *macro=kbd->curmap->keys[n].value.macro;
+X kbd->curmap=kbd->topmap;
+X return macro;
+X }
+return 0;
+}
+X
+/* Return command table index for given command name */
+X
+int findcmd(cmdtab,s)
+CMDTAB *cmdtab;
+char *s;
+{
+int x,y,z;
+x=0; y=cmdtab->len; z= -1;
+while(z!=(x+y)/2)
+X {
+X z=(x+y)/2;
+X switch(zcmp(s,cmdtab->cmd[z].name))
+X  {
+X case  1: x=z; break;
+X case -1: y=z; break;
+X case  0: return z;
+X  }
+X }
+return -1;
+}
+X
+/* Return key code for key name */
+X
+static int keyval(s)
+char *s;
+{
+int z1;
+for(z1=0;z1!=NKEYS;++z1) if(!zcmp(s,seqs[z1].name))
+X return seqs[z1].code;
+if(s[0]=='^')
+X if(s[1]=='?') return 127;
+X else return s[1]&0x1f;
+else if(!zcmp(s,"SP")) return ' ';
+else return s[0];
+}
+X
+/* Add a key to a keymap */
+X
+static void addkey(kmap,n,k,v)
+KMAP *kmap;
+MACRO *v;
+{
+if(kmap->len==kmap->size)
+X kmap->keys=(KEY *)realloc(kmap->keys,sizeof(KEY)*(kmap->size+=64));
+mbkwd(kmap->keys+n+1,kmap->keys+n,(kmap->len++-n)*sizeof(KEY));
+kmap->keys[n].k=k;
+kmap->keys[n].value.macro=v;
+}
+X
+/* Eliminate a keymap */
+X
+static void rmkmap(kmap)
+KMAP *kmap;
+{
+int x;
+if(!kmap) return;
+for(x=0;x!=kmap->len;++x)
+X if(kmap->keys[x].k&KEYSUB) rmkmap(kmap->keys[x].value.submap);
+X else rmmacro(kmap->keys[x].value.macro);
+free(kmap->keys);
+free(kmap);
+}
+X
+OPTIONS *options=0;
+extern int mid, dspasis, dspctrl, force, help, pgamnt, starow, stacol,
+X           tabwidth;
+X
+void setoptions(bw,name)
+BW *bw;
+char *name;
+{
+OPTIONS *o;
+for(o=options;o;o=o->next)
+X if(rmatch(o->name,name))
+X  {
+X  bw->overtype=o->overtype;
+X  bw->lmargin=o->lmargin;
+X  bw->rmargin=o->rmargin;
+X  bw->autoindent=o->autoindent;
+X  bw->wordwrap=o->wordwrap;
+X  bw->istep=o->istep;
+X  bw->indentc=o->indentc;
+X  bw->b->tab=o->tab;
+X  break;
+X  }
+}
+X
+/* Process initialization file */
+X
+int prokbd(name,cntxts)
+char *name;
+CONTEXT **cntxts;
+{
+CONTEXT *context=0;		/* Current context */
+KMAP *kmap;			/* Current keymap */
+char buf[256];			/* Input buffer */
+FILE *fd=fopen(name,"r");	/* File */
+MACRO *macro=0;
+struct help *tmp;
+int nhelp=0;
+int line=0;			/* Line number */
+int err=0;			/* Set if there was any errors */
+int x,y,n,z,c,d;
+X
+first_help=NULL;
+help_names=vatrunc(NULL,0);
+X
+if(!fd) return -1;
+X
+fprintf(stderr,"Processing keymap file \'%s\'...",name); fflush(stdout);
+X
+while(++line, fgets(buf,256,fd))
+X {
+X /* Set file-dependant options */
+X if(buf[0]=='*')
+X  {
+X  OPTIONS *n=(OPTIONS *)malloc(sizeof(OPTIONS));
+X  for(x=0;buf[x] && buf[x]!='\n' && buf[x]!=' ' && buf[x]!='\t';++x);
+X  buf[x]=0;
+X  n->lmargin=0;
+X  n->rmargin=76;
+X  n->overtype=0;
+X  n->autoindent=0;
+X  n->wordwrap=0;
+X  n->tab=tabwidth;
+X  n->indentc=' ';
+X  n->istep=1;
+X  n->next=options;
+X  options=n;
+X  n->name=zdup(buf);
+X  continue;
+X  }
+X 
+X if(buf[0]=='-')
+X  {
+X  int v;
+X  for(x=0;buf[x] && buf[x]!='\n' && buf[x]!=' ' && buf[x]!='\t';++x);
+X  c=buf[x]; buf[x]=0;
+X  if(!zcmp(buf+1,"mid")) mid=1;
+X  else if(!zcmp(buf+1,"asis")) dspasis=1;
+X  else if(!zcmp(buf+1,"stacol")) stacol=1;
+X  else if(!zcmp(buf+1,"starow")) starow=1;
+X  else if(!zcmp(buf+1,"force")) force=1;
+X  else if(!zcmp(buf+1,"help")) help=1;
+X  else if(!zcmp(buf+1,"pg") && c) sscanf(buf+x+1,"%d",&pgamnt);
+X  else if(!zcmp(buf+1,"gtab") && c) sscanf(buf+x+1,"%d",&tabwidth);
+X  else
+X   if(options)
+X    if(!zcmp(buf+1,"wordwrap")) options->wordwrap=1;
+X    else if(!zcmp(buf+1,"autoindent")) options->autoindent=1;
+X    else if(!zcmp(buf+1,"overwrite")) options->overtype=1;
+X    else if(!zcmp(buf+1,"lmargin") && c) sscanf(buf+x+1,"%ld",&options->lmargin);
+X    else if(!zcmp(buf+1,"rmargin") && c) sscanf(buf+x+1,"%ld",&options->rmargin);
+X    else if(!zcmp(buf+1,"istep") && c) sscanf(buf+x+1,"%ld",&options->istep);
+X    else if(!zcmp(buf+1,"tab") && c) sscanf(buf+x+1,"%d",&options->tab);
+X    else if(!zcmp(buf+1,"indentc") && c) sscanf(buf+x+1,"%d",&options->indentc);
+X    else fprintf(stderr,"\n%s %d: Unknown option",name,line);
+X   else fprintf(stderr,"\n%s %d: No pattern selected for option",name,line);
+X  continue;
+X  }
+X
+X /* Process help text */
+X if(buf[0]=='{')
+X  {
+X  int bfl;
+X  tmp=(struct help *) malloc(sizeof(struct help));
+X  nhelp++;
+X  tmp->next=first_help;
+X  first_help=tmp;
+X  tmp->name=vsncpy(NULL,0,sz(buf+1)-1);
+X  help_names=vaadd(help_names,tmp->name);
+X  tmp->hlptxt=0;
+X  tmp->hlpsiz=0;
+X  tmp->hlpbsz=0;
+X  tmp->hlplns=0;
+X  up:
+X  if(++line, !fgets(buf,256,fd))
+X   {
+X   err=1;
+X   fprintf(stderr,
+X           "\n%s %d: End of keymap file occured before end of help text",
+X           name,line);
+X   break;
+X   }
+X  if(buf[0]=='}')
+X   {
+X   if(!hlptxt)
+X    hlptxt=tmp->hlptxt,
+X    hlpsiz=tmp->hlpsiz,
+X    hlpbsz=tmp->hlpbsz,
+X    hlplns=tmp->hlplns;
+X   continue;
+X   }
+X  bfl=zlen(buf);
+X  if(tmp->hlpsiz+bfl>tmp->hlpbsz)
+X   {
+X   if(tmp->hlptxt) tmp->hlptxt=(char *)realloc(tmp->hlptxt,tmp->hlpbsz+bfl+1024);
+X   else tmp->hlptxt=(char *)malloc(bfl+1024), tmp->hlptxt[0]=0;
+X   tmp->hlpbsz+=bfl+1024;
+X   }
+X  zcpy(tmp->hlptxt+tmp->hlpsiz,buf);
+X  tmp->hlpsiz+=bfl;
+X  ++tmp->hlplns;
+X  goto up;
+X  }
+X 
+X /* Get context name */
+X if(buf[0]==':')
+X  {
+X  for(x=1;buf[x] && buf[x]!=' ' && buf[x]!='\t' && buf[x]!='\n';++x);
+X  buf[x]=0;
+X  if(x==1) continue;
+X  for(x=0,context=0;cntxts[x];++x)
+X   if(!zcmp(buf+1,cntxts[x]->name))
+X    {
+X    context=cntxts[x];
+X    break;
+X    }
+X  if(!context) fprintf(stderr,"\n%s %d: Unknown context",name,line), err=1;
+X  continue;
+X  }
+X 
+X /* Process Macro */
+X x=0;
+X macro=0;
+X macroloop:
+X if(buf[x]=='\"')
+X  {
+X  ++x;
+X  while(buf[x] && buf[x]!='\"')
+X   {
+X   if(buf[x]=='\\' && buf[x+1])
+X    {
+X    ++x;
+X    switch(buf[x])
+X     {
+X    case 'n': buf[x]=10; break;
+X    case 'r': buf[x]=13; break;
+X    case 'b': buf[x]=8; break;
+X    case 'f': buf[x]=12; break;
+X    case 'a': buf[x]=7; break;
+X    case 't': buf[x]=9; break;
+X    case 'x':
+X     c=0;
+X     if(buf[x+1]>='0' && buf[x+1]<='9') c=c*16+buf[++x]-'0';
+X     else if(buf[x+1]>='a' && buf[x+1]<='f' ||
+X             buf[x+1]>='A' && buf[x+1]<='F') c=c*16+(buf[++x]&0xF)+9;
+X     if(buf[x+1]>='0' && buf[x+1]<='9') c=c*16+buf[++x]-'0';
+X     else if(buf[x+1]>='a' && buf[x+1]<='f' ||
+X             buf[x+1]>='A' && buf[x+1]<='F') c=c*16+(buf[++x]&0xF)+9;
+X     buf[x]=c;
+X     break;
+X    case '0': case '1': case '2': case '3':
+X    case '4': case '5': case '6': case '7':
+X    case '8': case '9':
+X     c=buf[x]-'0';
+X     if(buf[x+1]>='0' && buf[x+1]<='7') c=c*8+buf[++x]-'0';
+X     if(buf[x+1]>='0' && buf[x+1]<='7') c=c*8+buf[++x]-'0';
+X     buf[x]=c;
+X     break;
+X     }
+X    }
+X   if(macro)
+X    {
+X    if(!macro->steps)
+X     {
+X     MACRO *m=macro;
+X     macro=mkmacro(0,1,0);
+X     addmacro(macro,m);
+X     }
+X    addmacro(macro,mkmacro(buf[x],1,findcmd(&cmdtab,"type")));
+X    }
+X   else macro=mkmacro(buf[x],1,findcmd(&cmdtab,"type"));
+X   ++x;
+X   }
+X  if(buf[x]=='\"') ++x;
+X  }
+X else
+X  {
+X  for(y=x;
+X      buf[y] && buf[y]!=',' && buf[y]!=' ' && buf[y]!='\t' && buf[y]!='\n';
+X      ++y);
+X  if(y!=x)
+X   {
+X   z=buf[y]; buf[y]=0;
+X   n=findcmd(&cmdtab,buf+x);
+X   if(n== -1)
+X    {
+X    fprintf(stderr,"\n%s %d: Key function \'%s\' not found",name,line,buf);
+X    err=1;
+X    continue;
+X    }
+X   else if(macro)
+X    {
+X    if(!macro->steps)
+X     {
+X     MACRO *m=macro;
+X     macro=mkmacro(0,1,0);
+X     addmacro(macro,m);
+X     }
+X    addmacro(macro,mkmacro(-1,1,n));
+X    }
+X   else macro=mkmacro(-1,1,n);
+X   buf[x=y]=z;
+X   }
+X  }
+X if(buf[x]==',')
+X  {
+X  ++x;
+X  goto macroloop;
+X  }
+X
+X if(!macro) continue;
+X
+X if(!context)
+X  {
+X  err=1;
+X  fprintf(stderr,"\n%s %d: No context selected for key",name,line);
+X  continue;
+X  }
+X
+X /* Process key sequence */
+X kmap=0;
+X n= -1;
+X while(buf[x]==' ' || buf[x]=='\t') ++x;
+X while(1)
+X  {
+X  int qw,zz;
+X  if(buf[x]==' ') ++x;
+X  if(!buf[x] || buf[x]=='\n' || buf[x]==' ' || buf[x]=='\t') break;
+X  /* Got Next key */
+X  for(zz=x;buf[zz]!=' ' && buf[zz] && buf[zz]!='\t' && buf[zz]!='\n';++zz);
+X  qw=buf[zz]; buf[zz]=0;
+X  d=c=keyval(buf+x);
+X  buf[zz]=qw; x=zz;
+X
+X  if(buf[x]==' ') ++x;
+X  if(buf[x]=='T' && buf[x+1]=='O')
+X   {
+X   x+=2;
+X   if(buf[x]==' ') ++x;
+X   if(buf[x] && buf[x]!='\n' && buf[x]!=' ' && buf[x]!='\t')
+X    {
+X    for(zz=x;buf[zz]!=' ' && buf[zz] && buf[zz]!='\t' && buf[zz]!='\n';++zz);
+X    qw=buf[zz]; buf[zz]=0;
+X    d=keyval(buf+x);
+X    buf[zz]=qw; x=zz;
+X    }
+X   }
+X  if(d<c) d=c;
+X
+X  /* Add it as if it were a submap */
+X  if(!kmap)
+X   {
+X   if(!(kmap=context->kmap))
+X    {
+X    kmap=(KMAP *)malloc(sizeof(KMAP));
+X    kmap->keys=(KEY *)malloc((kmap->size=128)*sizeof(KEY));
+X    kmap->len=0;
+X    context->kmap=kmap;
+X    }
+X   }
+X  else
+X   if(kmap->keys[n].k&KEYSUB) kmap=kmap->keys[n].value.submap;
+X   else
+X    {
+X    kmap->keys[n].value.submap=(KMAP *)malloc(sizeof(KMAP));
+X    kmap->keys[n].k|=KEYSUB;
+X    kmap=kmap->keys[n].value.submap;
+X    kmap->keys=(KEY *)malloc((kmap->size=128)*sizeof(KEY));
+X    kmap->len=0;
+X    }
+X  n=findkey(kmap,c);
+X  if(n==kmap->len || (kmap->keys[n].k&KEYMASK)!=c) addkey(kmap,n,c,NULL);
+X  }
+X while(c<=d)
+X  {
+X  n=findkey(kmap,c);
+X  if(n==kmap->len || (kmap->keys[n].k&KEYMASK)!=c)
+X   addkey(kmap,n,c,c==d?macstk(macro,c):dupmacro(macstk(macro,c)));
+X  else
+X   {
+X   if(kmap->keys[n].k&KEYSUB)
+X    rmkmap(kmap->keys[n].value.submap),
+X    kmap->keys[n].k&=~KEYSUB;
+X   else
+X    rmmacro(kmap->keys[n].value.macro);
+X   kmap->keys[n].value.macro=(c==d?macstk(macro,c):dupmacro(macstk(macro,c)));
+X   }
+X  ++c;
+X  }
+X }
+fclose(fd);
+if(err) fprintf(stderr,"\ndone\n");
+else fprintf(stderr,"done\n");
+if (nhelp)
+X {
+X  help_structs=(struct help **) malloc(sizeof(struct help *)*nhelp);
+X  tmp=first_help;
+X  while(nhelp--)
+X   {
+X    help_structs[nhelp]=tmp;
+X    tmp=tmp->next;
+X   }
+X }
+return 0;
+}
+X
+struct help *get_help(name)
+X char *name;
+X {
+X  struct help *tmp;
+X  for(tmp=first_help;tmp && zcmp(tmp->name,name);tmp=tmp->next);
+X  return tmp;
+X }
+X 
+SHAR_EOF
+chmod 0600 kbd.c ||
+echo 'restore of kbd.c failed'
+Wc_c="`wc -c < 'kbd.c'`"
+test 11368 -eq "$Wc_c" ||
+	echo 'kbd.c: original size 11368, current size' "$Wc_c"
+fi
+# ============= kbd.h ==============
+if test -f 'kbd.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping kbd.h (File already exists)'
+else
+echo 'x - extracting kbd.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'kbd.h' &&
+/* Keyboard handler
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ikbd
+#define _Ikbd 1
+X
+#include "config.h"
+#include "macro.h"
+X
+typedef struct key KEY;
+typedef struct kmap KMAP;
+typedef struct cmd CMD;
+typedef struct context CONTEXT;
+typedef struct cmdtab CMDTAB;
+typedef struct kbd KBD;
+X
+/* The command table */
+X
+extern CMDTAB cmdtab;
+X
+typedef struct options OPTIONS;
+struct options
+X {
+X OPTIONS *next;
+X char *name;
+X int overtype;
+X long lmargin;
+X long rmargin;
+X int autoindent;
+X int wordwrap;
+X int tab;
+X int indentc;
+X long istep;
+X };
+X
+void setoptions();
+X
+/* A key to macro binding in a keymap */
+X
+struct key
+X {
+X int k;			/* Key value */
+X union
+X  {
+X  MACRO *macro;		/* Macro or */
+X  KMAP *submap;		/* Submap address (for prefix keys) */
+X  } value;
+X };
+X
+/* A map of keycode to command/sub-map bindings */
+X
+struct kmap
+X {
+X int len;		/* Number of KEY entries */
+X int size;		/* Malloc size of block */
+X KEY *keys;		/* KEYs.  Sorted. */
+X };
+X
+/* Masks & bits for 'k' entry in KEY */
+X
+#define KEYMASK 0x7fff	/* Mask to get key value */
+#define KEYSUB 0x8000	/* Bit set for prefix key */
+X
+/* Command entry */
+X
+struct cmd
+X {
+X char *name;		/* Command name */
+X int flag;		/* Execution flags */
+X void (*func)();	/* Function bound to name */
+X };
+X
+/* A Context (a set of bindings) */
+X
+struct context
+X {
+X char *name;		/* Name of this context */
+X KMAP *kmap;		/* Keymap for this context */
+X };
+X
+/* Command table */
+X
+struct cmdtab
+X {
+X CMD *cmd;		/* The entries themselves (sorted by name) */
+X int len;		/* Number of entries */
+X };
+X
+/* A keyboard handler */
+X
+struct kbd
+X {
+X KMAP *curmap;		/* Current keymap */
+X KMAP *topmap;		/* Top-level keymap */
+X };
+X
+/* KBD *mkkbd(CONTEXT *context);
+X   Create a keyboard handler for the given context.
+*/
+KBD *mkkbd();
+X
+/* void rmkbd(KBD *);
+X *
+X * Eliminate a keyboard handler
+X */
+void rmkbd();
+X
+/* MACRO *dokey(KBD *kbd,char k);
+X   Handle a key for a KBD:
+X
+X     Returns 0 for invalid or prefix keys
+X
+X     Returns a macro address for completed key-sequences
+*/
+MACRO *dokey();
+X
+/* int prokbd(char *name,CONTEXT **cmds);  Process a keymap set-up file into
+X   the list of contexts.  Returns 0 for success or -1 for error
+*/
+int prokbd();
+X
+/* int findcmd(CMDTAB *cmdtab,char *s);
+X * Return command table index for the named command
+X */
+int findcmd();
+X
+struct help *get_help();
+X
+#endif
+SHAR_EOF
+chmod 0600 kbd.h ||
+echo 'restore of kbd.h failed'
+Wc_c="`wc -c < 'kbd.h'`"
+test 2999 -eq "$Wc_c" ||
+	echo 'kbd.h: original size 2999, current size' "$Wc_c"
+fi
+# ============= macro.c ==============
+if test -f 'macro.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping macro.c (File already exists)'
+else
+echo 'x - extracting macro.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'macro.c' &&
+/* Keyboard macros
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "main.h"
+#include "macro.h"
+X
+/* Create a macro */
+X
+MACRO *mkmacro(k,arg,n)
+{
+MACRO *macro=(MACRO *)malloc(sizeof(MACRO));
+macro->steps=0;
+macro->size=0;
+macro->arg=arg;
+macro->n=n;
+macro->k=k;
+return macro;
+}
+X
+/* Eliminate a macro */
+X
+void rmmacro(macro)
+MACRO *macro;
+{
+if(macro)
+X {
+X if(macro->steps)
+X  {
+X  int x;
+X  for(x=0;x!=macro->n;++x) rmmacro(macro->steps[x]);
+X  free(macro->steps);
+X  }
+X free(macro);
+X }
+}
+X
+/* Add a step to block macro */
+X
+void addmacro(macro,m)
+MACRO *macro, *m;
+{
+if(macro->n==macro->size)
+X macro->steps=(MACRO **)realloc(macro->steps,(macro->size+=5)*sizeof(MACRO *));
+macro->steps[macro->n++]=m;
+}
+X
+/* Duplicate a macro */
+X
+MACRO *dupmacro(mac)
+MACRO *mac;
+{
+MACRO *m=(MACRO *)malloc(sizeof(MACRO));
+int x;
+m->k=mac->k;
+m->n=mac->n;
+m->arg=mac->arg;
+if(mac->steps)
+X {
+X int x;
+X m->steps=(MACRO **)malloc((m->size=mac->n)*sizeof(MACRO *));
+X for(x=0;x!=m->n;++x) m->steps[x]=dupmacro(mac->steps[x]);
+X }
+else m->steps=0, m->size=0;
+return m;
+}
+X
+MACRO *macstk(m,k)
+MACRO *m;
+{
+m->k=k;
+return m;
+}
+X
+MACRO *macsta(m,a)
+MACRO *m;
+{
+m->arg=a;
+return m;
+}
+X
+/* Keyboard macro recorder */
+X
+MACRO *kbdmacro[10];
+int playmode[10];
+X
+struct recmac *recmac=0;
+X
+void unmac()
+{
+if(recmac) rmmacro(recmac->m->steps[--recmac->m->n]);
+}
+X
+void record(m)
+MACRO *m;
+{
+if(recmac) addmacro(recmac->m,dupmacro(m));
+}
+X
+void urecord(w)
+W *w;
+{
+int c;
+int n;
+struct recmac *r;
+n=query(w,"Macro to record (0-9 or ^C to abort): ");
+if(n>'9' || n<'0') return;
+unmac(); unmac();
+r=(struct recmac *)malloc(sizeof(struct recmac));
+r->m=mkmacro(0,1,0);
+r->next=recmac;
+r->n=n-'0';
+recmac=r;
+}
+X
+void ustop()
+{
+unmac();
+if(recmac)
+X {
+X struct recmac *r=recmac;
+X MACRO *m;
+X recmac=r->next;
+X if(kbdmacro[r->n]) rmmacro(kbdmacro[r->n]);
+X kbdmacro[r->n]=r->m;
+X if(recmac) record(m=mkmacro(r->n+'0',1,findcmd(&cmdtab,"play"))), rmmacro(m);
+X free(r);
+X }
+}
+X
+void uplay(w,c)
+W *w;
+{
+if(c>'9' || c<'0') return;
+c-='0';
+if(playmode[c] || !kbdmacro[c]) return;
+playmode[c]=1;
+exmacro(kbdmacro[c]);
+playmode[c]=0;
+}
+SHAR_EOF
+chmod 0600 macro.c ||
+echo 'restore of macro.c failed'
+Wc_c="`wc -c < 'macro.c'`"
+test 2755 -eq "$Wc_c" ||
+	echo 'macro.c: original size 2755, current size' "$Wc_c"
+fi
+# ============= macro.h ==============
+if test -f 'macro.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping macro.h (File already exists)'
+else
+echo 'x - extracting macro.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'macro.h' &&
+/* Keyboard macros
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Imacro
+#define _Imacro 1
+X
+#include "config.h"
+X
+typedef struct macro MACRO;
+X
+struct macro
+X {
+X int k;		/* Keycode */
+X int arg;	/* Repeat argument */
+X int n;		/* Command number or number of steps */
+X int size;	/* Malloc size of steps */
+X MACRO **steps;	/* Block */
+X };
+X
+struct recmac
+X {
+X struct recmac *next;
+X int n;
+X MACRO *m;
+X };
+X
+extern struct recmac *recmac;	/* Set when macro is recording */
+X
+MACRO *mkmacro();
+void addmacro();
+MACRO *dupmacro();
+void rmmacro();
+MACRO *macstk();
+MACRO *macsta();
+void uplay();
+void ustop();
+void urecord();
+void record();
+void unmac();
+X
+#endif
+SHAR_EOF
+chmod 0600 macro.h ||
+echo 'restore of macro.h failed'
+Wc_c="`wc -c < 'macro.h'`"
+test 1344 -eq "$Wc_c" ||
+	echo 'macro.h: original size 1344, current size' "$Wc_c"
+fi
+# ============= main.c ==============
+if test -f 'main.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping main.c (File already exists)'
+else
+echo 'x - extracting main.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'main.c' &&
+/* Editor startup and main edit loop
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include "config.h"
+#include "vfile.h"
+#include "blocks.h"
+#include "tty.h"
+#include "toomany.h"
+#include "termcap.h"
+#include "scrn.h"
+#include "b.h"
+#include "bw.h"
+#include "tw.h"
+#include "w.h"
+#include "kbd.h"
+#include "zstr.h"
+#include "macro.h"
+#include "tab.h"
+#include "pw.h"
+#include "edfuncs.h"
+#include "poshist.h"
+#include "pattern.h"
+#include "help.h"
+#include "vs.h"
+#include "main.h"
+X
+/* Message to display when exiting the editor */
+X
+int help=0;
+X
+char *exmsg=0;
+X
+/* Main screen */
+X
+SCREEN *maint;
+X
+/* Command table */
+X
+#define EMID 1
+#define ECHKXCOL 2
+#define EFIXXCOL 4
+#define EMINOR 8
+#define EPOS 16
+#define EMOVE 32
+X
+int typen;
+X
+static CMD cmds[]=
+{
+X  { "abort", TYPETW, uaborttw },
+X  { "aborthelp", TYPEHELP, uhabort },
+X  { "abortpw", TYPEPW, uabortpw },
+X  { "aborttab", TYPETAB, tuabort },
+X  { "arg", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uarg },
+X  { "backs", TYPETW+TYPEPW+ECHKXCOL+EFIXXCOL+EMINOR, ubacks },
+X  { "backstab", TYPETAB, tbacks },
+X  { "backw", TYPETW+TYPEPW+ECHKXCOL+EFIXXCOL, ubackw },
+X  { "blkcpy", TYPETW+TYPEPW+0, ublkcpy },
+X  { "blkdel", TYPETW+TYPEPW+EFIXXCOL, ublkdel },
+X  { "blkmove", TYPETW+TYPEPW+EFIXXCOL, ublkmove },
+X  { "blksave", TYPETW+TYPEPW+0, ublksave },
+X  { "bof", TYPETW+TYPEPW+EMOVE+EFIXXCOL, ubof },
+X  { "bofhelp", TYPEHELP, uhbof },
+X  { "boftab", TYPETAB, tbof },
+X  { "bol", TYPETW+TYPEPW+EFIXXCOL, ubol },
+X  { "bolhelp", TYPEHELP, uhbol },
+X  { "boltab", TYPETAB, tbol },
+X  { "center", TYPETW+TYPEPW+EFIXXCOL, ucenter },
+X  { "check", TYPETW+TYPEPW+0, ucheck },
+X  { "checkp", TYPETW+TYPEPW+0, ucheckp },
+X  { "complete", TYPETW+TYPEPW, ucmplt },
+X  { "delbol", TYPETW+TYPEPW+EFIXXCOL, udelbl },
+X  { "delch", TYPETW+TYPEPW+ECHKXCOL+EFIXXCOL+EMINOR, udelch },
+X  { "deleol", TYPETW+TYPEPW+0, udelel },
+X  { "dellin", TYPETW+TYPEPW+EFIXXCOL, udelln },
+X  { "delw", TYPETW+TYPEPW+EFIXXCOL+ECHKXCOL, udelw },
+X  { "dnarw", TYPETW+TYPEPW+EMOVE, udnarw },
+X  { "dnarwhelp", TYPEHELP, uhdnarw },
+X  { "dnarwtab", TYPETAB, tdnarw },
+X  { "dnslide", TYPETW+EMOVE, udnslide },
+X  { "edit", TYPETW+TYPEPW, uedit },
+X  { "eof", TYPETW+TYPEPW+EFIXXCOL+EMOVE, ueof },
+X  { "eofhelp", TYPEHELP, uheof },
+X  { "eoftab", TYPETAB, teof },
+X  { "eol", TYPETW+TYPEPW+EFIXXCOL, ueol },
+X  { "eolhelp", TYPEHELP, uheol },
+X  { "eoltab", TYPETAB, teol },
+X  { "explode", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uexpld },
+X  { "exsave", TYPETW+TYPEPW, uexsve },
+X  { "ffirst", TYPETW+TYPEPW+EMOVE, pffirst },
+X  { "filt", TYPETW+TYPEPW+0, ufilt },
+X  { "fnext", TYPETW+TYPEPW+EFIXXCOL+EMID+EMOVE, pfnext },
+X  { "format", TYPETW+TYPEPW+EFIXXCOL, uformat },
+X  { "groww", TYPETW, ugroww },
+X  { "help", TYPETW+TYPEPW+TYPETAB, uhelp },
+X  { "iasis", TYPETW+TYPEPW+TYPETAB+TYPEHELP+EFIXXCOL, uiasis },
+X  { "iforce", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uiforce },
+X  { "iindent", TYPETW+TYPEPW, uiindent },
+X  { "iindentc", TYPETW+TYPEPW, uicindent },
+X  { "iistep", TYPETW+TYPEPW, uiistep },
+X  { "ilmargin", TYPETW+TYPEPW, uilmargin },
+X  { "imid", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uimid },
+X  { "insc", TYPETW+TYPEPW+EFIXXCOL, uinsc },
+X  { "insf", TYPETW+TYPEPW+0, uinsf },
+X  { "ipgamnt", TYPETW+TYPEPW, uipgamnt },
+X  { "irmargin", TYPETW+TYPEPW+TYPETAB, uirmargin },
+X  { "isquare", TYPETW+TYPEPW, uisquare },
+X  { "istacol", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uistacol },
+X  { "istarow", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uistarow },
+X  { "itab", TYPETW+TYPEPW, uitab },
+X  { "itype", TYPETW+TYPEPW, uitype },
+X  { "iwrap", TYPETW+TYPEPW, uiwrap },
+X  { "lindent", TYPETW+TYPEPW+0, ulindent },
+X  { "line", TYPETW+TYPEPW+EMOVE, uline },
+X  { "ltarw", TYPETW+TYPEPW+EFIXXCOL+ECHKXCOL, ultarw },
+X  { "ltarwhelp", TYPEHELP, uhltarw },
+X  { "ltarwtab", TYPETAB, tltarw },
+X  { "markb", TYPETW+TYPEPW+0, umarkb },
+X  { "markk", TYPETW+TYPEPW+0, umarkk },
+X  { "nedge", TYPETW+TYPEPW+EFIXXCOL, unedge },
+X  { "nextpos", TYPETW+TYPEPW+EFIXXCOL+EMID+EPOS, unextpos },
+X  { "nextw", TYPETW+TYPEPW+TYPETAB+TYPEHELP, unextw },
+X  { "nextword", TYPETW+TYPEPW+EFIXXCOL, unxtwrd },
+X  { "open", TYPETW+TYPEPW+EFIXXCOL, uopen },
+X  { "pedge", TYPETW+TYPEPW+EFIXXCOL, upedge },
+X  { "pgdn", TYPETW+EMOVE, upgdn },
+X  { "pgup", TYPETW+EMOVE, upgup },
+X  { "play", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uplay },
+X  { "prevpos", TYPETW+TYPEPW+EPOS+EMID+EFIXXCOL, uprevpos },
+X  { "prevw", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uprevw },
+X  { "prevword", TYPETW+TYPEPW+EFIXXCOL+ECHKXCOL, uprvwrd },
+X  { "quote", TYPETW+TYPEPW+EFIXXCOL, uquote },
+X  { "quote8", TYPETW+TYPEPW+EFIXXCOL, uquote8 },
+X  { "record", TYPETW+TYPEPW+TYPETAB+TYPEHELP, urecord },
+X  { "redo", TYPETW+TYPEPW+EFIXXCOL, uredo },
+X  { "retype", TYPETW+TYPEPW+TYPETAB+TYPEHELP, uretyp },
+X  { "rindent", TYPETW+TYPEPW+0, urindent },
+X  { "rtarw", TYPETW+TYPEPW+EFIXXCOL, urtarw },
+X  { "rtarwhelp", TYPEHELP, uhrtarw },
+X  { "rtarwtab", TYPETAB, trtarw },
+X  { "rtn", TYPETW+TYPEPW+EFIXXCOL, urtn },
+X  { "rtnhelp", TYPEHELP, uhrtn },
+X  { "rtnpw", TYPEPW+EMID, upromptrtn },
+X  { "rtntab", TYPETAB, trtn },
+X  { "save", TYPETW+TYPEPW, usave },
+X  { "shell", TYPETW+TYPEPW+TYPETAB+TYPEHELP, ushell },
+X  { "shrinkw", TYPETW, ushrnk },
+X  { "splitw", TYPETW, usplitw },
+X  { "stat", TYPETW+TYPEPW, ustat },
+X  { "stop", TYPETW+TYPEPW+TYPETAB+TYPEHELP, ustop },
+X  { "tag", TYPETW+TYPEPW, utag },
+X  { "tomatch", TYPETW+TYPEPW+ECHKXCOL+EFIXXCOL, utomatch },
+X  { "type", TYPETW+TYPEPW+EFIXXCOL+EMINOR, utype },
+X  { "undo", TYPETW+TYPEPW+EFIXXCOL, uundo },
+X  { "uparw", TYPETW+TYPEPW+EMOVE, uuparw },
+X  { "uparwhelp", TYPEHELP, uhuparw },
+X  { "uparwtab", TYPETAB, tuparw },
+X  { "upslide", TYPETW+EMOVE, uupslide }
+};
+X
+CMDTAB cmdtab={cmds,sizeof(cmds)/sizeof(CMD)};
+X
+void dofollows()
+{
+W *w=maint->curwin; do
+X {
+X if(w->y!= -1) w->watom->follow(w);
+X w=(W *)(w->link.next);
+X }
+X while(w!=maint->curwin);
+}
+X
+/* Execute a command */
+X
+void execmd(n,k)
+{
+BW *bw=(BW *)maint->curwin->object;
+if((cmdtab.cmd[n].flag&ECHKXCOL) && bw->cursor->xcol!=bw->cursor->col)
+X goto skip;
+if(!(cmdtab.cmd[n].flag&maint->curwin->watom->what)) goto skip;
+cmdtab.cmd[n].func(maint->curwin,k);
+if(leave) return;
+bw=(BW *)maint->curwin->object;
+X
+if(!(cmdtab.cmd[n].flag&EPOS) &&
+X   (maint->curwin->watom->what&(TYPETW|TYPEPW)))
+X afterpos(maint->curwin,bw->cursor);
+if(!(cmdtab.cmd[n].flag&(EMOVE|EPOS)) &&
+X   (maint->curwin->watom->what&(TYPETW|TYPEPW)))
+X aftermove(maint->curwin,bw->cursor);
+X
+skip:
+if(cmdtab.cmd[n].flag&EFIXXCOL) bw->cursor->xcol=bw->cursor->col;
+if(cmdtab.cmd[n].flag&EMID)
+X {
+X int omid=mid; mid=1;
+X dofollows();
+X mid=omid;
+X }
+}
+X
+MACRO *curmacro=0;
+int macroptr;
+X
+void exmacro(m)
+MACRO *m;
+{
+int arg=maint->arg;
+int flg=0;
+maint->arg=0;
+X
+if(!arg) arg=1;
+X
+if( m->steps ||
+X    arg!=1 ||
+X    !(cmdtab.cmd[m->n].flag&EMINOR)
+X  ) flg=1;
+X
+if(flg) umclear();
+while(arg-- && !leave)
+X if(m->steps)
+X  {
+X  MACRO *tmpmac=curmacro;
+X  int tmpptr=macroptr;
+X  int x=0;
+X  while(m && x!=m->n && !leave)
+X   {
+X   MACRO *d;
+X   d=m->steps[x++];
+X   curmacro=m;
+X   macroptr=x;
+X   exmacro(d);
+X   m=curmacro;
+X   x=macroptr;
+X   }
+X  curmacro=tmpmac;
+X  macroptr=tmpptr;

@@ -1,0 +1,2258 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 02/10)
+Message-ID: <1992Nov15.155000.20056@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:50:00 GMT
+Lines: 2245
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part02
+
+#!/bin/sh
+# this is tin.shar.02 (part 2 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 2; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X! o  Added tinrc variable 'default_sigfile=' to allow user random/fixed sigs.
+X! o  Added tinrc variable 'slow_speed_terminal=' to allow fast display via modem.
+X! o  Added group attribute 'organization=STRING'
+X! o  Added group attribute 'printer=STRING'.
+X! o  Added username/password capability for NNTP servers running authorization.
+X! o  Added path formating (ie, ~user/file) to group attribute variables.
+X! o  Added 'C'atchup and goto next unread group from article viewer level.
+X! o  Added auto-unpacking of multi-part lharc archives (AmigaDOS only).
+X! o  Added auto-unpacking of multi-part zip archives.
+X! o  Added integrity testing of unpacked zoo & zip archives.
+X! o  Added user abort (Esc Q q) when locally indexing a group.
+X! o  Added Followup-To: header to followup arts when more than 1 newsgroup.
+X! o  Changed 'C'ancel article to 'D'elete article for better command structure.
+X! o  Changed 'f'ollowup to art & 'F'ollowup to art with quoted text around.
+X! o  Changed 'r'eply thru mail & 'R'eply thru mail with quoted text around.
+X! o  Changed 1st time startup to subscribe to all groups by default.
+X! o  Changed tinrc variable 'maildir=' to 'default_maildir='.
+X! o  Changed tinrc variable 'savedir=' to 'default_savedir='.
+X! o  Changed tinrc variable 'printer=' to 'default_printer='.
+X! o  Fixed SIGSEGV caused by '?' search backwards at group selection level.
+X! o  Fixed SIGSEGV caused by load group_hash[] if group had 'x' in active file.
+X! o  Fixed SIGSEGV caused if new newswgroup had 'x' in active file.
+X! o  Fixed NNTP server patch that was causing compile problems on SunOS.
+X! o  Fixed saving of articles via NNTP that was causing art to be opened twice.
+X! o  Fixed "Welcome to tin..." message so its displayed 1st time tin is started.
+X! o  Fixed LOCK_FILE & LOG_USER_FILE #defines that caused old compilers to barf.
+X! o  Fixed spooldir level arrow that was using group level routine.
+X! o  Fixed so that aliased groups with '=' in active file are not loaded.
+X! o  Fixed extra newline in From: field when reading gateway name from file.
+X! o  Fixed offset problems when editing a file in editor that supports +N.
+X! o  Fixed 1 off article count if new group has never been read.
+X! o  Fixed screen always been redrawn when article is unavailable.
+X! o  Fixed so that when article is unavailable it skips to the next unread.
+X! o  Fixed parsing of From: line to handle exotic uucp addresses.
+X! o  Fixed cancel article so that Distribution: header is taken into account.
+X! o  Fixed reading of groups from cmd line & rereading of the active file.
+X  
+X  -------------------------------------------------------------------------------
+X  
+X***************
+X*** 61,72 ****
+X  
+X  For compilation and installation information read the INSTALL file.
+X  
+X  For ftp & non-ftp source & binary availability read the FTP file.
+X  
+X  -------------------------------------------------------------------------------
+X  
+X  I wish to thank all the people that sent me bug fixes and comments
+X! (especially Mark Tomlinson). I still  want to hear of any bug reports,
+X  gripes and comments but *PLEASE* read the INSTALL, TODO and tin.1 
+X  manual page before doing anything :-)!.
+X  
+X--- 82,95 ----
+X  
+X  For compilation and installation information read the INSTALL file.
+X  
+X+ For info. about my NNTP patches read the README.NNTP & INSTALL.NNTP files.
+X+ 
+X  For ftp & non-ftp source & binary availability read the FTP file.
+X  
+X  -------------------------------------------------------------------------------
+X  
+X  I wish to thank all the people that sent me bug fixes and comments
+X! (especially John Schmitz). I still  want to hear of any bug reports,
+X  gripes and comments but *PLEASE* read the INSTALL, TODO and tin.1 
+X  manual page before doing anything :-)!.
+X  
+XFiles ../1.16/README.AMIGA and ./README.AMIGA are identical
+Xdiff -rcs ../1.16/README.NNTP ./README.NNTP
+X*** ../1.16/README.NNTP	Sun Nov 15 18:41:35 1992
+X--- ./README.NNTP	Thu Nov  5 13:30:03 1992
+X***************
+X*** 1,9 ****
+X  This patch enables the TIN newsreader index files to be fetched from a
+X! NNTP server. The patch adds the following to the NNTP server nntpd:
+X  
+X!   o  XINDEX command to retrieve tin group index file from server.
+X       Syntax:  XINDEX alt.sources
+X  
+X    o  XUSER command to log tin clients username to nntp logfile.
+X       Syntax:  XUSER Iain Lea
+X  
+X--- 1,13 ----
+X  This patch enables the TIN newsreader index files to be fetched from a
+X! NNTP server. The patch adds the following to the NNTP 1.5.11 server:
+X  
+X!   o  XINDEX command to retrieve tin style or .overview style (ala Cnews)
+X!      group index files from the server.
+X       Syntax:  XINDEX alt.sources
+X  
+X+   o  XMOTD command to display a news message of the day file from server.
+X+      Syntax:  XMOTD 921231 235959
+X+ 
+X    o  XUSER command to log tin clients username to nntp logfile.
+X       Syntax:  XUSER Iain Lea
+X  
+X***************
+X*** 14,20 ****
+X       file /usr/lib/news/subscriptions.
+X       Syntax: LIST SUBSCRIPTIONS
+X  
+X!   o  HELP command changed to list XINDEX & XUSER as extensions.
+X  
+X    o  Added comments /* */ around '#endif /* text */' to stop some
+X       compilers producing warnings about text after '#endif text'.
+X--- 18,24 ----
+X       file /usr/lib/news/subscriptions.
+X       Syntax: LIST SUBSCRIPTIONS
+X  
+X!   o  HELP command changed to list XINDEX, XMOTD & XUSER as extensions.
+X  
+X    o  Added comments /* */ around '#endif /* text */' to stop some
+X       compilers producing warnings about text after '#endif text'.
+Xdiff -rcs ../1.16/TODO ./TODO
+X*** ../1.16/TODO	Sun Nov 15 18:41:30 1992
+X--- ./TODO	Sun Nov 15 12:57:25 1992
+X***************
+X*** 1,24 ****
+X  FIX FEATURES V1.x
+X  -----------------
+X  
+X! o  Fix(?) after save the '+' is not updated as art read.
+X  
+X! o  Refix broken pattern save (Hakan).
+X  
+X! o  Let user enter offset from GMT then print time format at art viewer level
+X!    with time_t -+ OFFset in time without having GMT,EST,-400 on the end.
+X!    Also get a strftime() function for formatting time string.
+X  
+X! o  Add Esc/^C to interrupt indexing a large group.
+X  
+X! o  Add tinrc variable so that len of groupname can be set. (Dave Sch??).
+X  
+X! o  Check RFC about group command for min, max & num of arts
+X  
+X! o  Mod tinrc & attributes files so that ~/Mail ~/News $ENV/zbc /home/iain
+X!    are understud when reading in and are converted back when written.
+X!    Will allow more portablabilty between machines.
+X  
+X  o  Fix so that 'x' crossposted arts that are tagged do not query the user
+X     if a yes is answered to the first crossposted art.
+X  
+X--- 1,87 ----
+X  FIX FEATURES V1.x
+X  -----------------
+X  
+X! o  WHEN creating the patch to PL6 don't forget to add the following files:
+X!      amiga.h
+X!      mail.c
+X!      sigfile.c
+X!      strftime.c
+X!      strftime.3
+X!      xmotd.c
+X! 
+X! -------- PL 8 ---------------
+X! 
+X! o  Add global attributes file for site. LIST ATTRIBUTES / LIBDIR/attributes
+X! 
+X! o  Fix '+' & '=' in strfpath() to allow mailbox & groupname dir saving.
+X! 
+X! o  Fix 423 problems that cause assert() failure in thread.c.
+X! 
+X! o  Fix pattern/hot save so that archive-name is not used but explicit 
+X!    entered path (Hakan).
+X! 
+X! o  Add default_organiztion= to tinrc therefore replacing ~/.tin/organization
+X! 
+X! o  Fix mailing so that if editor is never entered the screen will not be 
+X!    redrawn.
+X! 
+X! o  When 'tin -R' is used don't reread the active file ever.
+X! 
+X! o  Fix thread & hot saves so that arts are in correct order.
+X! 
+X! o  Use stat_article() when doing 'File exists a)ppend o)verwrite q)uit: q'
+X!    to stop art being brought over via NNTP and therefore wasting bandwidth.
+X! 
+X! o  Modify low level parsing routines so that upper level does'nt give a damn 
+X!    where it gets its data from (tin / .overview files). When first passed the 
+X!    groupname stat() the groupdir for an .overview file and if found return it 
+X!    otherwise go with the present tin index file method.
+X! 
+X! o  Fix 'z' command mark all unread when in R mode at group select level.
+X!    It is not recognizing current group but group when all groups are been
+X!    read. Is my_group[] or index_point been used as index?
+X! 
+X! o  Add ROT13 as option on cmd line post menu. Encode from End of Header
+X!    to -- before sig. Put [Rot13 encoded text follows] as note for reader.
+X  
+X! o  Fix 'm' mail thread and then q)uit still mails the thread.
+X  
+X! o  Add scrolling patch from John Schmitz
+X  
+X! o  Fix 'm'ove group when all groups are shown (R off).
+X  
+X! o  Fix -R (read saved news) to use mail_active code to save to active.save
+X!    mail should use active.mail.
+X!    All other groups should be not allowed to be read. 
+X!    The saved groups are written to save.active if attr.batch_save=ON
+X!    What should happen if -f Newsrc-file is specified on command line?
+X  
+X! o  I can help with this one.  You have two options:  '|' the thread
+X!    into 'cat > file' or use '=' as the first letter of the save
+X!    filename.  The '=' causes the save to be in mailbox form (which is
+X!    one file), but it has the disadvantage that the sorting order is
+X!    lost (this doesn't happen with piping).
+X  
+X! o  When in unread mode only apply saves print etc. to unread arts.
+X  
+X+ o  msplit -m mbox format   msplit -M MH format
+X+ 
+X+ o  Fix 'm' 'g' & 'R' is in force and group has no unread reset 'R' mode 
+X+    to show all and then goto it.
+X+ 
+X+ o  Fix Floating point exception on SCO Unix when doing a 'q' menu.
+X+ 
+X+ o  Fix compile problems on MX331 when compiled over net.
+X+ 
+X+ o  Add "Reconnecting to %s..." when -1 received from nntp. set IO FILE
+X+    pointers to NULL before redoing a server_init() ?.
+X+ 
+X+ o  smtp_open() smtp_close() in smtplib.[ch] (plus #defines for SMTP responses.
+X+    burp_open() burp_close() in burplib.[ch] (plus #defines for BURP responses.
+X+    All will use the nntplib C routines from clientlib.c 
+X+ 
+X+ o  Fix(?) after save the '+' is not updated as art read.
+X+ 
+X  o  Fix so that 'x' crossposted arts that are tagged do not query the user
+X     if a yes is answered to the first crossposted art.
+X  
+X***************
+X*** 80,86 ****
+X  
+X  o  Change write_attributes_file () to write active attributes that are 
+X     different than global settings. Also a menu 'M' interface to set all 
+X!    the options PL7.
+X  
+X  o  Add options to 'M' menu to allow setting all the variables that are now in 
+X     the tinrc file.
+X--- 143,149 ----
+X  
+X  o  Change write_attributes_file () to write active attributes that are 
+X     different than global settings. Also a menu 'M' interface to set all 
+X!    the options PL8.
+X  
+X  o  Add options to 'M' menu to allow setting all the variables that are now in 
+X     the tinrc file.
+X***************
+X*** 133,141 ****
+X  
+X  o  Find out how good hash routine is on active file.
+X  
+X- o  Add tinrc variable to allow the length of groupnames to be defined 
+X-    so that more of the newsgroups text can be shown. (Dvae Sch??)
+X- 
+X  o  Add Xref handling of articles so that read ones are marked read in 
+X     other groups. Use update_group() to do it?
+X     Needs to handle 'c' 'C' 'k' 'K' commands. Perhaps it should be an
+X--- 196,201 ----
+X***************
+X*** 200,221 ****
+X  o  Add Virtual newsgroups (combination of newsgroups ie. virtual.ibm
+X     consists of comp.sys.ibm.* groups). ~/.tin/virtual
+X  
+X! Group        Read    Thread    Save  Savedir  Maildir  Sigfile    
+X!              Unread  Unthread  Mail  ProcTyp  Mailbox
+X! -----------------------------------------------------------------------------
+X! junk         Unread  OFF       OFF   Default  Default  Default
+X! alt.sources  Read    ON        ON    $SRC/alt Default  ~/.Sig-alt
+X! 
+X! Also following fields (to override globally defined ones in tinrc):
+X! replyto:
+X! organization:
+X! cc:
+X! 
+X! Add a menu interface to define all this. Also add edit menu for entries in
+X! kill file.
+X! 
+X! Each group could have a field to say which NNTP/local connection to use so
+X! as to be able to plug into different NNTP servers for different newsgroups
+X! 
+X! Add global attributes file for site. LIST ATTRIBUTES ??
+X! 
+X--- 260,264 ----
+X  o  Add Virtual newsgroups (combination of newsgroups ie. virtual.ibm
+X     consists of comp.sys.ibm.* groups). ~/.tin/virtual
+X  
+X! o  Each group could have a field to say which NNTP/local connection to use so
+X!    as to be able to plug into different NNTP servers for different newsgroups
+XOnly in .: XX
+Xdiff -rcs ../1.16/active.c ./active.c
+X*** ../1.16/active.c	Sun Nov 15 18:41:44 1992
+X--- ./active.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : active.c
+X   *  Author    : I.Lea
+X   *  Created   : 16-02-92
+X!  *  Updated   : 12-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : active.c
+X   *  Author    : I.Lea
+X   *  Created   : 16-02-92
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 38,48 ****
+X  		free_active_arrays ();
+X  		max_active = DEFAULT_ACTIVE_NUM;
+X  		expand_active ();
+X! 		read_active_file ();
+X  		read_attributes_file ();
+X  		read_newsgroups_file ();
+X! 		read_newsrc (TRUE);
+X! 		toggle_my_groups (show_only_unread_groups, old_group);
+X  		set_groupname_len (FALSE);
+X  		set_alarm_signal ();
+X  		mail_setup ();
+X--- 38,52 ----
+X  		free_active_arrays ();
+X  		max_active = DEFAULT_ACTIVE_NUM;
+X  		expand_active ();
+X! 		read_mail_active_file ();
+X! 		read_news_active_file ();
+X  		read_attributes_file ();
+X+ 		read_mailgroups_file ();
+X  		read_newsgroups_file ();
+X! 		if (! read_cmd_line_groups ()) {
+X! 			read_newsrc (TRUE);
+X! 			toggle_my_groups (show_only_unread_groups, old_group);
+X! 		}
+X  		set_groupname_len (FALSE);
+X  		set_alarm_signal ();
+X  		mail_setup ();
+X***************
+X*** 78,174 ****
+X  }
+X  
+X  /*
+X!  *  Load the active file into active[] and create copy of active ~/.tin/active
+X   */
+X  
+X! void read_active_file ()
+X  {
+X  	FILE *fp;
+X- 	char *p, *q, *r;
+X  	char buf[LEN];
+X! 	char moderated = 'y';
+X  	int i;
+X! 	long h;
+X  		
+X- 	num_active = 0;
+X- 
+X  	if ((update && update_fork) || ! update) {
+X! 		wait_message (txt_reading_active_file);
+X  	}
+X  
+X! 	if ((fp = open_active_fp ()) == NULL) {
+X  		if (compiled_with_nntp) {
+X! 			sprintf (msg, txt_cannot_open_active_file, active_file, progname);
+X  			error_message (msg, "");
+X  		} else {
+X  			if (cmd_line) {
+X  				fputc ('\n', stderr);
+X  			}
+X! 			error_message (txt_cannot_open, active_file);
+X  		}
+X! 		exit (1);
+X  	}
+X  
+X! 	for (i = 0; i < TABLE_SIZE; i++) {
+X! 		group_hash[i] = -1;
+X  	}
+X  
+X  	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X! 		for (p = buf; *p && *p != ' ' && *p != '\n'; p++)
+X! 			continue;
+X! 		if (*p != ' ') {
+X! 			error_message (txt_bad_active_file, buf);
+X  			continue;
+X  		}
+X- 		*p++ = '\0';
+X- 
+X- 		if (num_active >= max_active) {
+X- 			debug_nntp ("read_active_file", "EXPANDING active file");
+X- 			expand_active ();
+X- 		}
+X- 
+X- 		h = hash_groupname (buf);
+X  
+X! 		if (group_hash[h] == -1) {
+X! 			group_hash[h] = num_active;
+X! 		} else {				/* hash linked list chaining */
+X! 			for (i=group_hash[h]; active[i].next >= 0; i=active[i].next) {
+X! 				if (strcmp(active[i].name, buf) == 0) {
+X! 					goto read_active_continue;		/* kill dups */
+X! 				}
+X  			}
+X- 			if (strcmp(active[i].name, buf) == 0)
+X- 				goto read_active_continue;
+X- 			active[i].next = num_active;
+X- 		}
+X  
+X! 		for (q = p; *q && *q != ' '; q++)
+X! 			continue;
+X! 		if (*q != ' ') {
+X! 			error_message (txt_bad_active_file, buf);
+X! 			continue;
+X! 		}
+X! 		*q++ = '\0';
+X  
+X! 		for (r = q; *r && *r != '\n'; r++) {
+X! 			if (*r == 'y' || *r == 'm' || *r == 'x') {
+X! 				moderated = *r;
+X! 				break;
+X  			}
+X- 		}
+X  
+X- 		/*
+X- 		 * Don't load group if 'x' junked group in active file
+X- 		 */
+X- 		if (moderated != 'x') {
+X  			/*
+X! 			 * Group info.
+X  			 */
+X  			active[num_active].name = str_dup (buf);
+X  			active[num_active].description = (char *) 0;
+X! 			active[num_active].max = (long) atol (p);
+X! 			active[num_active].min = (long) atol (q);
+X! 			active[num_active].moderated = moderated;
+X  			active[num_active].next = -1;			/* hash chaining */
+X  			active[num_active].my_group = UNSUBSCRIBED;	/* not in my_group[] yet */
+X  			active[num_active].unread = 0;
+X--- 82,223 ----
+X  }
+X  
+X  /*
+X!  * parse line from news or mail active files
+X!  */
+X!  
+X! int parse_active_line (line, max, min, moderated)
+X! 	char *line;
+X! 	long *max;
+X! 	long *min;
+X! 	char *moderated;
+X! {
+X! 	char *p, *q, *r;
+X! 	
+X! 	if (line[0] == '#' || line[0] == '\n') {
+X! 		return FALSE;
+X! 	}
+X! 	
+X! 	for (p = line; *p && *p != ' ' && *p != '\n'; p++) {
+X! 		continue;
+X! 	}
+X! 	if (*p != ' ') {
+X! 		error_message (txt_bad_active_file, line);
+X! 		return FALSE;
+X! 	}
+X! 	*p++ = '\0';
+X! 
+X! 	for (q = p; *q && *q != ' '; q++) {
+X! 		continue;
+X! 	}
+X! 	if (*q != ' ') {
+X! 		error_message (txt_bad_active_file, line);
+X! 		return FALSE;;
+X! 	}
+X! 	*q++ = '\0';
+X! 
+X! 	for (r = q; *r && *r != ' '; r++) {
+X! 		continue;
+X! 	}
+X! 	if (*r != ' ') {
+X! 		error_message (txt_bad_active_file, line);
+X! 		return FALSE;;
+X! 	}
+X! 	*r++ = '\0';
+X! 
+X! 	if (*r) {
+X! 		strcpy (moderated, r);
+X! 		if (r = (char *) strchr (moderated, '\n')) {
+X! 			*r = '\0';
+X! 		}
+X! 	}
+X! 
+X! 	*max = (long) atol (p);
+X! 	*min = (long) atol (q);
+X! 
+X! 	return TRUE;
+X! }
+X! 
+X! /*
+X!  *  Load the news active file into active[] and create copy 
+X!  *  of active ~/.tin/active
+X   */
+X  
+X! void read_news_active_file ()
+X  {
+X  	FILE *fp;
+X  	char buf[LEN];
+X! 	char moderated[PATH_LEN];
+X  	int i;
+X! 	long h, min, max;
+X  		
+X  	if ((update && update_fork) || ! update) {
+X! 		wait_message (txt_reading_news_active_file);
+X  	}
+X  
+X! 	if ((fp = open_news_active_fp ()) == NULL) {
+X  		if (compiled_with_nntp) {
+X! 			sprintf (msg, txt_cannot_open_active_file, news_active_file, progname);
+X  			error_message (msg, "");
+X  		} else {
+X  			if (cmd_line) {
+X  				fputc ('\n', stderr);
+X  			}
+X! 			error_message (txt_cannot_open, news_active_file);
+X  		}
+X! 		tin_done (1);
+X  	}
+X  
+X! 	if (num_active == -1) {
+X! 		num_active = 0;
+X! 		for (i = 0; i < TABLE_SIZE; i++) {
+X! 			group_hash[i] = -1;
+X! 		}
+X  	}
+X+ 	strcpy (moderated, "y");
+X  
+X  	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X! 		if (! parse_active_line (buf, &max, &min, moderated)) {
+X  			continue;
+X  		}
+X  
+X! 		/*
+X! 		 * Don't load group into active[] from active file if 
+X! 		 * 'x'  junked group
+X! 		 * '='  aliased group
+X! 		 */
+X! 		if (moderated[0] != 'x' && moderated[0] != '=') {
+X! 			/*
+X! 			 * Load group into group hash table
+X! 			 */
+X! 			if (num_active >= max_active) {
+X! 				expand_active ();
+X  			}
+X  
+X! 			h = hash_groupname (buf);
+X  
+X! 			if (group_hash[h] == -1) {
+X! 				group_hash[h] = num_active;
+X! 			} else {	/* hash linked list chaining */
+X! 				for (i=group_hash[h]; active[i].next >= 0; i=active[i].next) {
+X! 					if (strcmp(active[i].name, buf) == 0) {
+X! 						goto read_news_active_continue;	/* kill dups */
+X! 					}
+X! 				}
+X! 				if (strcmp(active[i].name, buf) == 0)
+X! 					goto read_news_active_continue;
+X! 				active[i].next = num_active;
+X  			}
+X  
+X  			/*
+X! 			 * Load group info.
+X  			 */
+X+ 			active[num_active].type = GROUP_TYPE_NEWS;
+X  			active[num_active].name = str_dup (buf);
+X+ 			active[num_active].spooldir = spooldir;
+X  			active[num_active].description = (char *) 0;
+X! 			active[num_active].max = max;
+X! 			active[num_active].min = min;
+X! 			active[num_active].moderated = moderated[0];
+X  			active[num_active].next = -1;			/* hash chaining */
+X  			active[num_active].my_group = UNSUBSCRIBED;	/* not in my_group[] yet */
+X  			active[num_active].unread = 0;
+X***************
+X*** 177,185 ****
+X  #endif
+X  			num_active++;
+X  		}
+X! 
+X! read_active_continue:;
+X! 
+X  	}
+X  	fclose (fp);
+X  
+X--- 226,232 ----
+X  #endif
+X  			num_active++;
+X  		}
+X! read_news_active_continue:;
+X  	}
+X  	fclose (fp);
+X  
+X***************
+X*** 187,198 ****
+X  	 *  exit if active file is empty
+X  	 */
+X  	if (! num_active) {
+X! 		error_message (txt_active_file_is_empty, active_file);
+X! 		exit (1);
+X  	}
+X  
+X  	if ((cmd_line && ! update && ! verbose) || (update && update_fork)) {
+X- /* || ! update && ! verbose) { */
+X  		wait_message ("\n");
+X  	}
+X  
+X--- 234,244 ----
+X  	 *  exit if active file is empty
+X  	 */
+X  	if (! num_active) {
+X! 		error_message (txt_active_file_is_empty, news_active_file);
+X! 		tin_done (1);
+X  	}
+X  
+X  	if ((cmd_line && ! update && ! verbose) || (update && update_fork)) {
+X  		wait_message ("\n");
+X  	}
+X  
+X***************
+X*** 277,283 ****
+X  		backup_active (TRUE);
+X  		strcpy (new_active_file_server, "local");
+X  		max_old_active = num_active;
+X! 		if (stat (active_file, &sb) >= 0) {
+X  			sprintf (new_active_file_attribute, "%d", sb.st_size);
+X  		}
+X  	}
+X--- 323,329 ----
+X  		backup_active (TRUE);
+X  		strcpy (new_active_file_server, "local");
+X  		max_old_active = num_active;
+X! 		if (stat (news_active_file, &sb) >= 0) {
+X  			sprintf (new_active_file_attribute, "%d", sb.st_size);
+X  		}
+X  	}
+X***************
+X*** 321,327 ****
+X  	if ((fp = open_newgroups_fp (active_index)) == (FILE *) 0) {
+X  		goto notify_groups_done;
+X  	}
+X- debug_nntp ("check_for_any_new_groups", "Opened newsgroups file");
+X  
+X  	Raw (TRUE);
+X  
+X--- 367,372 ----
+X***************
+X*** 333,342 ****
+X  	
+X  	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X  		if (buf[0] == '.') {
+X- debug_nntp ("check_for_any_new_groups", "Breaking out of loop after reading '.'");
+X  			break;
+X  		}
+X- debug_nntp ("check_for_any_new_groups", buf);
+X  		strncpy (old_active[num].name, buf, sizeof (old_active[num].name));		
+X  		old_active[num].len = strlen (old_active[num].name)-1;
+X  		old_active[num].name[old_active[num].len] = '\0';
+X--- 378,385 ----
+X***************
+X*** 356,363 ****
+X  
+X  
+X  	if (read_news_via_nntp) {
+X! 		for (i = 0 ; i < num ; i++) {	
+X  			if (! prompt_subscribe_group (old_active[i].name)) {
+X  				goto notify_groups_done;
+X  			}
+X  		}
+X--- 399,413 ----
+X  
+X  
+X  	if (read_news_via_nntp) {
+X! 		for (i = 0 ; i < num ; i++) {
+X! 			if (find_group_index (old_active[i].name) == -1) {
+X! 				continue;
+X! 			}
+X  			if (! prompt_subscribe_group (old_active[i].name)) {
+X+ 				if (cmd_line) {
+X+ 					printf ("\r\n");
+X+ 					fflush (stdout);
+X+ 				}
+X  				goto notify_groups_done;
+X  			}
+X  		}
+X***************
+X*** 380,385 ****
+X--- 430,439 ----
+X  			update_old_active = TRUE;
+X  	
+X  			if (! prompt_subscribe_group (active[i].name)) {
+X+ 				if (cmd_line) {
+X+ 					printf ("\r\n");
+X+ 					fflush (stdout);
+X+ 				}
+X  				goto notify_groups_done;
+X  			}
+X  		}
+X***************
+X*** 409,415 ****
+X  				if (ch == CR) {
+X  					ch = ch_default;
+X  				}
+X! 			} while (ch != 'y' && ch != 'n' && ch != 'q');
+X  	
+X  			switch (ch) {
+X  				case 'y':
+X--- 463,469 ----
+X  				if (ch == CR) {
+X  					ch = ch_default;
+X  				}
+X! 			} while (! strchr ("nqy\033", ch));
+X  	
+X  			switch (ch) {
+X  				case 'y':
+X***************
+X*** 416,421 ****
+X--- 470,476 ----
+X  					delete_group (old_active[j].name);
+X  					break;	   
+X  				case 'q':
+X+ 				case ESC:
+X  					goto notify_groups_done;	   
+X  				case 'n':
+X  				default:
+X***************
+X*** 422,427 ****
+X--- 477,483 ----
+X  					break;	   
+X  			}		
+X  			printf ("\r\n");
+X+ 			fflush (stdout);
+X  		}
+X  	}
+X  	
+X***************
+X*** 476,483 ****
+X  	do {
+X  		if (cmd_line) {
+X  			fputc ('\r', stdout);
+X  		}
+X- 		CleartoEOLN ();
+X  		printf (txt_subscribe_to_new_group, group, ch_default);
+X  		fflush (stdout);
+X  		ch = ReadCh ();
+X--- 532,541 ----
+X  	do {
+X  		if (cmd_line) {
+X  			fputc ('\r', stdout);
+X+ 			CleartoEOLN ();
+X+ 		} else {
+X+ 			clear_message ();
+X  		}
+X  		printf (txt_subscribe_to_new_group, group, ch_default);
+X  		fflush (stdout);
+X  		ch = ReadCh ();
+X***************
+X*** 487,492 ****
+X--- 545,551 ----
+X  	} while (! strchr ("nqy\033", ch));
+X  		
+X  	fputc (ch, stdout);
+X+ 	fflush (stdout);
+X  	
+X  	switch (ch) {
+X  		case 'y':
+X***************
+X*** 529,535 ****
+X--- 588,597 ----
+X  		active[i].attribute.maildir = default_maildir;
+X  		active[i].attribute.savedir = default_savedir;
+X  		active[i].attribute.sigfile = default_sigfile;
+X+ 		active[i].attribute.organization = 
+X+ 			(default_organization[0] ? default_organization : (char *) 0);
+X  		active[i].attribute.followup_to = (char *) 0;
+X+ 		active[i].attribute.printer = default_printer;
+X  		active[i].attribute.read_during_session = FALSE;
+X  		active[i].attribute.show_only_unread = default_show_only_unread;
+X  		active[i].attribute.thread_arts = default_thread_arts;
+X***************
+X*** 548,566 ****
+X   *
+X   *  attribute.maildir          = STRING
+X   *  attribute.savedir          = STRING
+X   *  attribute.sigfile          = STRING
+X   *  attribute.followup_to      = STRING
+X   *  attribute.auto_save        = ON/OFF
+X   *  attribute.batch_save       = ON/OFF
+X   *  attribute.delete_tmp_files = ON/OFF
+X   *  attribute.show_only_unread = ON/OFF
+X   *  attribute.thread_arts      = ON/OFF
+X-  *  attribute.sort_art_type    = NUM
+X-  *    0=??, 1=??, 2=??, 3=??, 4=??
+X   *  attribute.show_author      = NUM
+X!  *    
+X   *  attribute.post_proc_type   = NUM
+X!  *  
+X   */
+X  
+X  void read_attributes_file ()
+X--- 610,636 ----
+X   *
+X   *  attribute.maildir          = STRING
+X   *  attribute.savedir          = STRING
+X+  *  attribute.organization     = STRING
+X   *  attribute.sigfile          = STRING
+X   *  attribute.followup_to      = STRING
+X+  *  attribute.printer          = STRING
+X   *  attribute.auto_save        = ON/OFF
+X   *  attribute.batch_save       = ON/OFF
+X   *  attribute.delete_tmp_files = ON/OFF
+X   *  attribute.show_only_unread = ON/OFF
+X   *  attribute.thread_arts      = ON/OFF
+X   *  attribute.show_author      = NUM
+X!  *    0=none, 1=name, 2=addr, 3=both
+X!  *  attribute.sort_art_type    = NUM
+X!  *    0=none, 1=subj descend, 2=subj ascend
+X!  *    3=from descend, 4=from ascend
+X!  *    5=date descend, 6=date ascend
+X   *  attribute.post_proc_type   = NUM
+X!  *    0=none, 1=unshar, 2=uudecode
+X!  *    3=uudecode & list zoo (unix) / lha (AmigaDOS) archive 
+X!  *    4=uudecode & extract zoo (unix) / lha (AmigaDOS) archive
+X!  *    5=uudecode & list zip archive
+X!  *    6=uudecode & extract zip archive
+X   */
+X  
+X  void read_attributes_file ()
+X***************
+X*** 598,604 ****
+X  			if (index >= 0) {
+X  				active[index].attribute.maildir = str_dup (buf);
+X  if (debug == 2) {
+X! 	error_message("maildir=[%s]",active[index].attribute.maildir);
+X  }
+X  			}
+X  			continue;
+X--- 668,675 ----
+X  			if (index >= 0) {
+X  				active[index].attribute.maildir = str_dup (buf);
+X  if (debug == 2) {
+X! 	sprintf (msg, "maildir=[%s]", active[index].attribute.maildir);
+X! 	error_message (msg, "");
+X  }
+X  			}
+X  			continue;
+X***************
+X*** 607,613 ****
+X  			if (index >= 0) {
+X  				active[index].attribute.savedir = str_dup (buf);
+X  if (debug == 2) {
+X! 	error_message("savedir=[%s]",active[index].attribute.savedir);
+X  }
+X  			}
+X  			continue;
+X--- 678,685 ----
+X  			if (index >= 0) {
+X  				active[index].attribute.savedir = str_dup (buf);
+X  if (debug == 2) {
+X! 	sprintf (msg, "savedir=[%s]", active[index].attribute.savedir);
+X! 	error_message (msg, "");
+X  }
+X  			}
+X  			continue;
+X***************
+X*** 616,622 ****
+X  			if (index >= 0) {
+X  				active[index].attribute.sigfile = str_dup (buf);
+X  if (debug == 2) {
+X! 	error_message("sigfile=[%s]",active[index].attribute.sigfile);
+X  }
+X  			}
+X  			continue;
+X--- 688,704 ----
+X  			if (index >= 0) {
+X  				active[index].attribute.sigfile = str_dup (buf);
+X  if (debug == 2) {
+X! 	sprintf (msg, "sigfile=[%s]", active[index].attribute.sigfile);
+X! 	error_message (msg, "");
+X! }
+X! 			}
+X! 			continue;
+X! 		}
+X! 		if (match_string (line, "organization=", buf, sizeof (buf))) {
+X! 			if (index >= 0) {
+X! 				active[index].attribute.organization = str_dup (buf);
+X! if (debug == 2) {
+X! 	error_message("organization=[%s]",active[index].attribute.organization);
+X  }
+X  			}
+X  			continue;
+X***************
+X*** 630,635 ****
+X--- 712,726 ----
+X  			}
+X  			continue;
+X  		}
+X+ 		if (match_string (line, "printer=", buf, sizeof (buf))) {
+X+ 			if (index >= 0) {
+X+ 				active[index].attribute.printer = str_dup (buf);
+X+ if (debug == 2) {
+X+ 	error_message("printer=[%s]",active[index].attribute.printer);
+X+ }
+X+ 			}
+X+ 			continue;
+X+ 		}
+X  		if (match_boolean (line, "show_only_unread=", &num)) {
+X  			if (index >= 0) {
+X  				active[index].attribute.show_only_unread = num;
+X***************
+X*** 707,738 ****
+X  		wait_message (txt_writing_attributes_file);
+X  	}
+X  
+X! 	fprintf (fp, "# Group attributes file\n");
+X! 	fprintf (fp, "#\n");
+X  	fprintf (fp, "#  show_author=NUM\n");
+X! 	fprintf (fp, "#    0=none, 1=name, 2=addr, 3=both\n");
+X! 	fprintf (fp, "#\n");
+X  	fprintf (fp, "#  sort_art_type=NUM\n");
+X  	fprintf (fp, "#    0=none, 1=subj descend, 2=subj ascend,\n"); 
+X  	fprintf (fp, "#    3=from descend, 4=from ascend,\n");
+X! 	fprintf (fp, "#    5=date descend, 6=date ascend\n");
+X! 	fprintf (fp, "#\n");
+X  	fprintf (fp, "#  post_proc_type=NUM\n");
+X! 	fprintf (fp, "#    0=none, 1=shar, 2=uudecode,\n"); 
+X! 	fprintf (fp, "#    3=uudecode & list zoo,\n"); 
+X! 	fprintf (fp, "#    4=uudecode & extract zoo\n\n");
+X  
+X  	for (i = 0 ; i < num_active ; i++) {
+X  		fprintf (fp, "newsgroup=%s\n", active[i].name);
+X  		fprintf (fp, "maildir=%s\n", active[i].attribute.maildir);
+X  		fprintf (fp, "savedir=%s\n", active[i].attribute.savedir);
+X  		fprintf (fp, "sigfile=%s\n", active[i].attribute.sigfile);
+X  		fprintf (fp, "followup_to=%s\n", active[i].attribute.followup_to);
+X! 		fprintf (fp, "show_only_unread=%s\n", active[i].attribute.show_only_unread);
+X! 		fprintf (fp, "thread_arts=%s\n", active[i].attribute.thread_arts);
+X! 		fprintf (fp, "auto_save=%s\n", active[i].attribute.auto_save);
+X! 		fprintf (fp, "batch_save=%s\n", active[i].attribute.batch_save);
+X! 		fprintf (fp, "delete_tmp_files=%s\n", active[i].attribute.delete_tmp_files);
+X  		fprintf (fp, "sort_art_type=%d\n", active[i].attribute.sort_art_type);
+X  		fprintf (fp, "show_author=%d\n", active[i].attribute.show_author);
+X  		fprintf (fp, "post_proc_type=%d\n", active[i].attribute.post_proc_type);
+X--- 798,851 ----
+X  		wait_message (txt_writing_attributes_file);
+X  	}
+X  
+X! 	fprintf (fp, "# Group attributes file\n#\n");
+X! 	fprintf (fp, "#  maildir=STRING\n");
+X! 	fprintf (fp, "#  savedir=STRING\n");
+X! 	fprintf (fp, "#  organization=STRING\n");
+X! 	fprintf (fp, "#  sigfile=STRING\n");
+X! 	fprintf (fp, "#  followup_to=STRING\n");
+X! 	fprintf (fp, "#  printer=STRING\n");
+X! 	fprintf (fp, "#  auto_save=ON/OFF\n");
+X! 	fprintf (fp, "#  batch_save=ON/OFF\n");
+X! 	fprintf (fp, "#  delete_tmp_files=ON/OFF\n");
+X! 	fprintf (fp, "#  show_only_unread=ON/OFF\n");
+X! 	fprintf (fp, "#  thread_arts=ON/OFF\n#\n");
+X  	fprintf (fp, "#  show_author=NUM\n");
+X! 	fprintf (fp, "#    0=none, 1=name, 2=addr, 3=both\n#\n");
+X  	fprintf (fp, "#  sort_art_type=NUM\n");
+X  	fprintf (fp, "#    0=none, 1=subj descend, 2=subj ascend,\n"); 
+X  	fprintf (fp, "#    3=from descend, 4=from ascend,\n");
+X! 	fprintf (fp, "#    5=date descend, 6=date ascend\n#\n");
+X  	fprintf (fp, "#  post_proc_type=NUM\n");
+X! 	fprintf (fp, "#    0=none, 1=unshar, 2=uudecode,\n"); 
+X! #ifdef AMIGA
+X! 	fprintf (fp, "#    3=uudecode & list lha archive,\n"); 
+X! 	fprintf (fp, "#    4=uudecode & extract lha archive\n");
+X! #else
+X! 	fprintf (fp, "#    3=uudecode & list zoo archive,\n"); 
+X! 	fprintf (fp, "#    4=uudecode & extract zoo archive\n");
+X! #endif
+X! 	fprintf (fp, "#    5=uudecode & list zip archive,\n"); 
+X! 	fprintf (fp, "#    6=uudecode & extract zip archive\n\n");
+X  
+X  	for (i = 0 ; i < num_active ; i++) {
+X  		fprintf (fp, "newsgroup=%s\n", active[i].name);
+X  		fprintf (fp, "maildir=%s\n", active[i].attribute.maildir);
+X  		fprintf (fp, "savedir=%s\n", active[i].attribute.savedir);
+X+ 		fprintf (fp, "organization=%s\n", active[i].attribute.organization);
+X  		fprintf (fp, "sigfile=%s\n", active[i].attribute.sigfile);
+X  		fprintf (fp, "followup_to=%s\n", active[i].attribute.followup_to);
+X! 		fprintf (fp, "printer=%s\n", active[i].attribute.printer);
+X! 		fprintf (fp, "show_only_unread=%s\n", 
+X! 			(active[i].attribute.show_only_unread ? "ON" : "OFF"));
+X! 		fprintf (fp, "thread_arts=%s\n", 
+X! 			(active[i].attribute.thread_arts ? "ON" : "OFF"));
+X! 		fprintf (fp, "auto_save=%s\n", 
+X! 			(active[i].attribute.auto_save ? "ON" : "OFF"));
+X! 		fprintf (fp, "batch_save=%s\n", 
+X! 			(active[i].attribute.batch_save ? "ON" : "OFF"));
+X! 		fprintf (fp, "delete_tmp_files=%s\n", 
+X! 			(active[i].attribute.delete_tmp_files ? "ON" : "OFF"));
+X  		fprintf (fp, "sort_art_type=%d\n", active[i].attribute.sort_art_type);
+X  		fprintf (fp, "show_author=%d\n", active[i].attribute.show_author);
+X  		fprintf (fp, "post_proc_type=%d\n", active[i].attribute.post_proc_type);
+X***************
+X*** 744,817 ****
+X  }
+X  
+X  /*
+X-  *  Load the text description from LIBDIR/newsgroups for each group into the 
+X-  *  active[] array. Save a copy locally if reading via NNTP to save bandwidth.
+X-  */
+X- 
+X- void read_newsgroups_file ()
+X- {
+X- #ifndef INDEX_DAEMON
+X- 
+X- 	FILE *fp;
+X- 	FILE *fp_save = (FILE *) 0;
+X- 	char *p, *q;
+X- 	char buf[LEN];
+X- 	char group[PATH_LEN];
+X- 	int i, save_ok = FALSE;
+X- 	
+X- 	if (show_description == FALSE || save_news || catchup) {
+X- 		return;
+X- 	}
+X- 
+X- 	if ((fp = open_newsgroups_fp ()) == (FILE *) 0) {
+X- 		return;
+X- 	}
+X- 
+X- 	if (read_news_via_nntp && ! read_local_newsgroups_file) {
+X- 		if ((fp_save = fopen (local_newsgroups_file, "w")) != (FILE *) 0) {
+X- 			save_ok = TRUE;
+X- 		}
+X- 	}
+X- 	
+X- 	wait_message (txt_reading_newsgroups_file);
+X- 
+X- 	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X- 		if (save_ok && read_news_via_nntp && ! read_local_newsgroups_file) {
+X- 			fputs (buf, fp_save);
+X- 		}
+X- 
+X- 		buf[strlen (buf)-1] = '\0';
+X- 
+X- 		for (p = buf, q = group ; *p && *p != ' ' && *p != '\t' ; p++, q++) {
+X- 			*q = *p;
+X- 		}
+X- 		*q = '\0';
+X- 
+X- 		while (*p == '\t' || *p == ' ') {
+X- 			p++;
+X- 		}	
+X- 
+X- 		i = find_group_index (group);
+X- 		 
+X- 		if (i >= 0 && active[i].description == (char *) 0) {
+X- 			active[i].description = str_dup (p);
+X- 		}
+X- 	}
+X- 	fclose (fp);
+X- 
+X- 	if (save_ok && read_news_via_nntp && ! read_local_newsgroups_file) {
+X- 		fclose (fp_save);
+X- 		read_local_newsgroups_file = TRUE;
+X- 	}
+X- 
+X- 	if (cmd_line && ! update && ! verbose) {
+X- 		wait_message ("\n");
+X- 	}
+X- #endif	/* INDEX_DAEMON */
+X- }
+X- 
+X- 
+X- /*
+X   *  Load the last updated time for each group in the active file so that
+X   *  tind is more efficient and only has to stat the group dir and compare
+X   *  the last changed time with the time read from the ~/.tin/active.times
+X--- 857,862 ----
+X***************
+X*** 957,959 ****
+X--- 1002,1090 ----
+X  
+X  	return (found ? i : -1);
+X  }
+X+ 
+X+ /*
+X+  *  check for message of the day (motd) file
+X+  *
+X+  * If reading news locally stat() the active file to get its
+X+  * mtime otherwise do a XMOTD command to the NNTP server
+X+  */
+X+ 
+X+ void read_motd_file ()
+X+ {
+X+ #ifndef INDEX_DAEMON
+X+ 
+X+ 	char buf[LEN];
+X+ 	char motd_file_date[32];
+X+ 	FILE *fp = (FILE *) 0;
+X+ 	int lineno = 0;
+X+ 	long new_motd_date = 0L;
+X+ 	long old_motd_date = 0L;
+X+ 	struct stat sb;
+X+ 	struct tm *tm;
+X+ 
+X+ 	if (update && ! update_fork) {
+X+ 		return;
+X+ 	}
+X+ 	
+X+ 	old_motd_date = atol (motd_file_info);
+X+ 
+X+ 	/*
+X+ 	 * reading news locally (local) or via NNTP (server name)
+X+ 	 */	
+X+ 	if (read_news_via_nntp) {
+X+ 		time (&new_motd_date);
+X+ 		tm = localtime (&new_motd_date);
+X+ 		if (! old_motd_date) {
+X+ 			strcpy (motd_file_date, "920101 000000");
+X+ 		} else {
+X+ 			sprintf (motd_file_date, "%02d%02d%02d %02d%02d%02d",
+X+ 				tm->tm_year, tm->tm_mon+1, tm->tm_mday, 
+X+ 				tm->tm_hour, tm->tm_min, tm->tm_sec);
+X+ 		}
+X+ 	} else {
+X+ 		if (stat (motd_file, &sb) >=0) {
+X+ 			new_motd_date = sb.st_mtime;
+X+ 		}
+X+ 	}
+X+ 	
+X+ 	if (old_motd_date && new_motd_date <= old_motd_date) {
+X+ 		goto read_motd_done;
+X+ 	}
+X+ 
+X+ 	/*
+X+ 	 * Only check if spooldir is active news feed
+X+ 	 */
+X+ 	if (strcmp (spooldir_alias, "news") != 0) {
+X+ 		goto read_motd_done;
+X+ 	}
+X+ 	
+X+ 	if ((fp = open_motd_fp (motd_file_date)) != (FILE *) 0) {
+X+ 		while (fgets (buf, sizeof (buf), fp) != NULL) {
+X+ 			if (buf[0] == '.') {
+X+ 				break;
+X+ 			}
+X+ 			printf ("%s", buf);
+X+ 			lineno++;
+X+ 		}
+X+ 		fclose (fp);
+X+ 		
+X+ 		if (lineno) {
+X+ 			wait_message (txt_cmdline_hit_any_key);
+X+ 			Raw (TRUE);
+X+ 			ReadCh ();	
+X+ 			Raw (FALSE);
+X+ 			wait_message ("\n");
+X+ 		}
+X+ 	}
+X+ 
+X+ read_motd_done:
+X+ 	
+X+ 	/*
+X+ 	 * update motd tinrc entry with new date
+X+ 	 */
+X+ 	sprintf (motd_file_info, "%ld", new_motd_date);
+X+ 
+X+ #endif	/* INDEX_DAEMON */
+X+ }
+X+ 
+Xdiff -rcs ../1.16/actived.c ./actived.c
+X*** ../1.16/actived.c	Sun Nov 15 18:41:35 1992
+X--- ./actived.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : actived.c
+X   *  Author    : M.Tomlinson & I.Lea
+X   *  Created   : 23-08-92
+X!  *  Updated   : 23-08-92
+X   *  Notes     : Creates an active file  by looking through all the 
+X   *              .next files in  the news directories, and  writing 
+X   *              this to UULIB:newactive. The UULIB:newsgroups file 
+X--- 3,9 ----
+X   *  Module    : actived.c
+X   *  Author    : M.Tomlinson & I.Lea
+X   *  Created   : 23-08-92
+X!  *  Updated   : 17-09-92
+X   *  Notes     : Creates an active file  by looking through all the 
+X   *              .next files in  the news directories, and  writing 
+X   *              this to UULIB:newactive. The UULIB:newsgroups file 
+X***************
+X*** 23,29 ****
+X  main ()
+X  {
+X  	char groupname[81];
+X! 	char next_path[90], 
+X  	char *p, last[21];
+X  	FILE *fp, *ng, *active;
+X  	long x;
+X--- 23,29 ----
+X  main ()
+X  {
+X  	char groupname[81];
+X! 	char next_path[90];
+X  	char *p, last[21];
+X  	FILE *fp, *ng, *active;
+X  	long x;
+Xdiff -rcs ../1.16/amiga.c ./amiga.c
+X*** ../1.16/amiga.c	Sun Nov 15 18:41:45 1992
+X--- ./amiga.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : amiga.c
+X   *  Author    : M.Tomlinson & I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 12-08-92
+X   *  Notes     : Extra functions for Amiga port
+X   *  Copyright : (c) Copyright 1991-92 by Mark Tomlinson & Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : amiga.c
+X   *  Author    : M.Tomlinson & I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 04-10-92
+X   *  Notes     : Extra functions for Amiga port
+X   *  Copyright : (c) Copyright 1991-92 by Mark Tomlinson & Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 21,27 ****
+X  #include	<pragmas/dos_lib.h>
+X  #include	<ctype.h>
+X  #include	<fcntl.h>
+X! #include	<amiga.h>
+X  
+X  extern struct DosLibrary *DOSBase;
+X  
+X--- 21,27 ----
+X  #include	<pragmas/dos_lib.h>
+X  #include	<ctype.h>
+X  #include	<fcntl.h>
+X! #include	"amiga.h"
+X  
+X  extern struct DosLibrary *DOSBase;
+X  
+X***************
+X*** 57,64 ****
+X   */
+X  
+X  joinpath (str,dir,file)
+X! 	char *str, 
+X! 	char *dir, 
+X  	char *file;
+X  {	
+X  	char c;
+X--- 57,64 ----
+X   */
+X  
+X  joinpath (str,dir,file)
+X! 	char *str; 
+X! 	char *dir; 
+X  	char *file;
+X  {	
+X  	char c;
+X***************
+X*** 186,192 ****
+X  	}
+X  
+X  	/* get rid of funnies */
+X! 	if (c == ':' || c == '?') 
+X  		return '?'; 
+X  	}
+X  
+X--- 186,192 ----
+X  	}
+X  
+X  	/* get rid of funnies */
+X! 	if (c == ':' || c == '?') { 
+X  		return '?'; 
+X  	}
+X  
+X***************
+X*** 298,303 ****
+X--- 298,308 ----
+X  	}
+X  }
+X  */
+X+ 
+X+ #else
+X+ /* To satisfy a really picky Ansi compiler */
+X+ 
+X+ ;
+X  
+X  #endif	/* AMIGA */
+X  
+XOnly in .: amiga.h
+Xdiff -rcs ../1.16/art.c ./art.c
+X*** ../1.16/art.c	Sun Nov 15 18:41:45 1992
+X--- ./art.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : art.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : art.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 96,104 ****
+X  {
+X  	register int i;
+X  
+X! 	for (i = 0; i < top; i++)
+X! 		if (arts[i].artnum == art)
+X  			return i;
+X  
+X  	return -1;
+X  }
+X--- 96,106 ----
+X  {
+X  	register int i;
+X  
+X! 	for (i = 0; i < top; i++) {
+X! 		if (arts[i].artnum == art) {
+X  			return i;
+X+ 		}
+X+ 	}
+X  
+X  	return -1;
+X  }
+X***************
+X*** 105,122 ****
+X  
+X  /*
+X   *  Return TRUE if arts[] contains any expired articles
+X!  *  (articles we have an entry for which don't have a corresponding
+X!  *   article file in the spool directory)
+X   */
+X  
+X! int purge_needed ()
+X  {
+X  	register int i;
+X  
+X! 	for (i = 0; i < top; i++)
+X! 		if (arts[i].thread == ART_EXPIRED)
+X  			return TRUE;
+X! 
+X  	return FALSE;
+X  }
+X  
+X--- 107,127 ----
+X  
+X  /*
+X   *  Return TRUE if arts[] contains any expired articles
+X!  *  (articles we have an entry for which don't have a 
+X!  *  corresponding article file in the spool directory)
+X   */
+X  
+X! int purge_needed (group_path)
+X! 	char *group_path;
+X  {
+X  	register int i;
+X  
+X! 	for (i = 0; i < top; i++) {
+X! 		if (arts[i].thread == ART_EXPIRED) {
+X  			return TRUE;
+X! 		}
+X! 	}
+X! 	
+X  	return FALSE;
+X  }
+X  
+X***************
+X*** 130,148 ****
+X   *  and attempt to write a new index if necessary.
+X   */
+X  
+X! void index_group (group, group_path)
+X  	char *group;
+X  	char *group_path;
+X  {
+X  	int index; 
+X  	int killed = FALSE;
+X  	int modified = FALSE;
+X  	glob_art_group = group;
+X  
+X- 	set_alarm_clock_off ();
+X- 
+X- 	set_signals_art ();
+X- 	
+X  	if (! update) {
+X  		sprintf (msg, txt_group, group);
+X  		wait_message (msg);
+X--- 135,152 ----
+X   *  and attempt to write a new index if necessary.
+X   */
+X  
+X! int index_group (group, group_path)
+X  	char *group;
+X  	char *group_path;
+X  {
+X  	int index; 
+X  	int killed = FALSE;
+X+ 	int expired = FALSE;
+X  	int modified = FALSE;
+X+ 	register int i;
+X+ 	
+X  	glob_art_group = group;
+X  
+X  	if (! update) {
+X  		sprintf (msg, txt_group, group);
+X  		wait_message (msg);
+X***************
+X*** 149,154 ****
+X--- 153,162 ----
+X  	}
+X  
+X  	if ((index = find_group_index (group)) >= 0) {
+X+ 		set_alarm_clock_off ();
+X+ 
+X+ 		set_signals_art ();
+X+ 
+X  		hash_reclaim ();
+X  		free_art_array ();
+X  
+X***************
+X*** 162,168 ****
+X  		 */
+X  		modified = read_group (group, group_path);
+X  
+X! 		if (modified || purge_needed ()) {
+X  			write_index_file (group);
+X  		}
+X  	
+X--- 170,210 ----
+X  		 */
+X  		modified = read_group (group, group_path);
+X  
+X! 		/*
+X! 		 *  check that user did not abort indexing
+X! 		 */
+X! 		if (modified == -1) {  
+X! 			set_alarm_clock_on ();
+X! 			return FALSE;
+X! 		}
+X! 
+X! 		/*
+X! 		 * Stat all articles to see if any have expired
+X! 		 */
+X! 		if (purge_index_files) {
+X! 			if (! cmd_line) {
+X! 				sprintf (msg, txt_purge, group);
+X! 				wait_message (msg);
+X! 			}			
+X! 			for (i = 0 ; i < top ; i++) {
+X! 				if (! stat_article (arts[i].artnum, group_path)) {
+X! 					expired = TRUE;
+X! 					if (cmd_line && verbose) {
+X! 						fputc ('P', stdout);
+X! 						fflush (stdout);
+X! 					}
+X! 				}
+X! 			}
+X! 			if (expired && cmd_line && verbose) {
+X! 				fputc ('\n', stdout);
+X! 				fflush (stdout);
+X! 			}
+X! 		}
+X! 
+X! 		/*
+X! 		 * If reading index file via XINDEX this is useless
+X! 		 */
+X! 		if (expired || modified || purge_needed (group_path)) {
+X  			write_index_file (group);
+X  		}
+X  	
+X***************
+X*** 174,186 ****
+X  		if ((modified || killed) && ! update) {
+X  			clear_message ();
+X  		}
+X  	}
+X! 	set_alarm_clock_on ();
+X  }
+X  
+X  /*
+X   *  Index a group.  Assumes any existing index has already been
+X!  *  loaded.
+X   */
+X  
+X  int read_group (group, group_path)
+X--- 216,232 ----
+X  		if ((modified || killed) && ! update) {
+X  			clear_message ();
+X  		}
+X+ 		set_alarm_clock_on ();
+X  	}
+X! 	return TRUE;
+X  }
+X  
+X  /*
+X   *  Index a group.  Assumes any existing index has already been
+X!  *  loaded. Return values are:
+X!  *    TRUE   loaded index and modified it
+X!  *    FALSE  loaded index but not modified
+X!  *    -1     user aborted indexing operation
+X   */
+X  
+X  int read_group (group, group_path)
+X***************
+X*** 187,209 ****
+X  	char *group;
+X  	char *group_path;
+X  {
+X  	FILE *fp;
+X  	int count = 0;
+X  	int modified = FALSE;
+X! 	int respnum;
+X  	long art;
+X  	register int i;
+X  
+X! 	setup_base (group, group_path);	/* load article numbers into base[] */
+X  
+X  	for (i = 0; i < top_base; i++) {	/* for each article # */
+X  		art = base[i];
+X  
+X! /*
+X!  *  Do we already have this article in our index?  Change thread from
+X!  *  (ART_EXPIRED) to (ART_NORMAL) if so and skip the header eating.
+X!  */
+X! 
+X  		if ((respnum = valid_artnum (art)) >= 0 || art <= last_read_article) {
+X  			if (respnum >= 0) {
+X  				arts[respnum].thread = ART_NORMAL;
+X--- 233,279 ----
+X  	char *group;
+X  	char *group_path;
+X  {
+X+ 	char buf[PATH_LEN];
+X+ 	char dir[PATH_LEN];
+X  	FILE *fp;
+X  	int count = 0;
+X  	int modified = FALSE;
+X! 	int respnum, total = 0;
+X  	long art;
+X  	register int i;
+X  
+X! 	/*
+X! 	 * change to groups spooldir to optimize fopen()'s on local articles
+X! 	 */
+X! 	get_cwd (dir);
+X! 	joinpath (buf, active[my_group[cur_groupnum]].spooldir, group_path);
+X! 	chdir (buf);
+X! 
+X! 	buf[0] = '\0';
+X! 	 
+X! 	/* 
+X! 	 * load article numbers into base[] 
+X! 	 */
+X! 	setup_base (group, group_path);
+X! 
+X! 	/*
+X! 	 *  Count num of arts to index so the user has an idea of index time
+X! 	 */
+X! 	for (i = 0; i < top_base; i++) {
+X! 		if (base[i] <= last_read_article || valid_artnum (base[i]) >= 0) {
+X! 			continue;
+X! 		}
+X! 		total++;
+X! 	}
+X  
+X  	for (i = 0; i < top_base; i++) {	/* for each article # */
+X  		art = base[i];
+X  
+X! 		/*
+X! 		 *  Do we already have this article in our index?  Change 
+X! 		 *  thread from (ART_EXPIRED) to (ART_NORMAL) if so and 
+X! 		 *  skip the header eating.
+X! 		 */
+X  		if ((respnum = valid_artnum (art)) >= 0 || art <= last_read_article) {
+X  			if (respnum >= 0) {
+X  				arts[respnum].thread = ART_NORMAL;
+X***************
+X*** 212,231 ****
+X  			continue;
+X  		}
+X  
+X  		if (! modified) {
+X! 			modified = TRUE;   /* we've modified the index */
+X! 							   /* it will need to be re-written */
+X  		}
+X  
+X! 		if ((fp = open_header_fp (group_path, art)) == (FILE *) 0) {
+X  			continue;
+X  		}
+X! 		
+X  		/*
+X  		 *  Add article to arts[]
+X  		 */
+X! 		if (top >= max_art)
+X  			expand_art();
+X  
+X  		arts[top].artnum = art;
+X  		arts[top].thread = ART_NORMAL;
+X--- 282,304 ----
+X  			continue;
+X  		}
+X  
+X+ 		/* 
+X+ 		 * we've modified the index so it will need to be re-written 
+X+ 		 */
+X  		if (! modified) {
+X! 			modified = TRUE;
+X  		}
+X  
+X! 		if ((fp = open_header_fp (art)) == (FILE *) 0) {
+X  			continue;
+X  		}
+X! 
+X  		/*
+X  		 *  Add article to arts[]
+X  		 */
+X! 		if (top >= max_art) {
+X  			expand_art();
+X+ 		}
+X  
+X  		arts[top].artnum = art;
+X  		arts[top].thread = ART_NORMAL;
+X***************
+X*** 233,239 ****
+X  		set_article (&arts[top]);
+X  
+X  		if (! parse_headers (fp, &arts[top])) {
+X! 			debug_nntp ("read_group", "FAILED parse_header()");
+X  			fclose (fp);
+X  			continue;
+X  		}
+X--- 306,313 ----
+X  		set_article (&arts[top]);
+X  
+X  		if (! parse_headers (fp, &arts[top])) {
+X! 			sprintf (buf, "FAILED parse_header(%ld)", art);
+X! 			debug_nntp ("read_group", buf);
+X  			fclose (fp);
+X  			continue;
+X  		}
+X***************
+X*** 243,253 ****
+X  		top++;
+X  
+X  		if (++count % MODULO_COUNT_NUM == 0 && ! update) {
+X! #ifndef SLOW_SCREEN_UPDATE
+X! 			sprintf (msg, txt_indexing_num, group, count);
+X! #else
+X! 			sprintf (msg, txt_indexing, group);
+X! #endif
+X  			wait_message (msg);
+X  		}
+X  		if (update && verbose) {
+X--- 317,332 ----
+X  		top++;
+X  
+X  		if (++count % MODULO_COUNT_NUM == 0 && ! update) {
+X! 			if (input_pending ()) {
+X! 				if (read (STDIN_FILENO, buf, sizeof (buf)-1)) {
+X! 					if (buf[0] == ESC || buf[0] == 'q' || buf[0] == 'Q') {
+X! 						if (prompt_yn (LINES, txt_abort_indexing, 'y')) {
+X! 							return -1;
+X! 						}
+X! 					}	
+X! 				}
+X! 			}
+X! 			sprintf (msg, txt_indexing_num, group, count, total);
+X  			wait_message (msg);
+X  		}
+X  		if (update && verbose) {
+X***************
+X*** 261,266 ****
+X--- 340,350 ----
+X  		fflush (stdout);
+X  	}
+X  
+X+ 	/*
+X+ 	 * change to previous dir before indexing started
+X+ 	 */
+X+ 	chdir (dir);
+X+ 
+X  	return modified;
+X  }
+X  
+X***************
+X*** 366,377 ****
+X  	char art_from_addr[LEN];
+X  	char art_full_name[LEN];
+X  	char *ptr, *ptrline, *s;
+X! 	int flag, n = 0;
+X! 	int len = 0, lineno = 0;
+X! 	int got_subject = FALSE;
+X! 	int got_from = FALSE;
+X! 	int got_date = FALSE;
+X  	int got_archive = FALSE;
+X  	extern int errno;
+X  
+X  	while ((n = fread (buf, 1, sizeof (buf)-1, fp)) == 0) {
+X--- 450,463 ----
+X  	char art_from_addr[LEN];
+X  	char art_full_name[LEN];
+X  	char *ptr, *ptrline, *s;
+X! 	int flag, n = 0, len = 0;
+X! 	int lineno = 0;
+X! 	int max_lineno = 25;
+X  	int got_archive = FALSE;
+X+ 	int got_date = FALSE;
+X+ 	int got_from = FALSE;
+X+ 	int got_received = FALSE;
+X+ 	int got_subject = FALSE;
+X  	extern int errno;
+X  
+X  	while ((n = fread (buf, 1, sizeof (buf)-1, fp)) == 0) {
+X***************
+X*** 409,425 ****
+X  		lineno++;
+X  
+X  		switch (*ptrline) {
+X! 			case 'F':
+X  				if (! got_from) {
+X! 					if (match_header (ptrline, "From", buf2, HEADER_LEN)) {
+X! 						parse_from (buf2, art_from_addr, art_full_name); 
+X  						h->from = hash_str (art_from_addr);
+X! 						h->name = hash_str (art_full_name);
+X  						got_from = TRUE;
+X  					}
+X  				}
+X  				break;
+X! 			case 'S':
+X  				if (! got_subject) {
+X  					if (match_header (ptrline, "Subject", buf2, HEADER_LEN)) {
+X  						s = eat_re (buf2);
+X--- 495,523 ----
+X  		lineno++;
+X  
+X  		switch (*ptrline) {
+X! 			case 'F':	/* From:  mandatory */
+X! 			case 'T':	/* To:    mandatory (mailbox) */
+X  				if (! got_from) {
+X! 					if (match_header (ptrline, "From", buf2, HEADER_LEN) ||
+X! 					    match_header (ptrline, "To", buf2, HEADER_LEN)) {
+X! 						parse_from (buf2, art_from_addr, art_full_name);
+X  						h->from = hash_str (art_from_addr);
+X! 						if (art_full_name[0]) {
+X! 							h->name = hash_str (art_full_name);
+X! 						}
+X  						got_from = TRUE;
+X  					}
+X  				}
+X  				break;
+X! 			case 'R':	/* Received:  If found its probably a mail article */
+X! 				if (! got_received) {
+X! 					if (match_header (ptrline, "Received", buf2, HEADER_LEN)) {
+X! 						max_lineno = 50;
+X! 						got_received = TRUE;
+X! 					}
+X! 				}
+X! 				break;
+X! 			case 'S':	/* Subject:  mandatory */	
+X  				if (! got_subject) {
+X  					if (match_header (ptrline, "Subject", buf2, HEADER_LEN)) {
+X  						s = eat_re (buf2);
+X***************
+X*** 428,442 ****
+X  					}
+X  				}
+X  				break;
+X! 			case 'D':
+X  				if (! got_date) {
+X  					if (match_header (ptrline, "Date", buf2, HEADER_LEN)) {
+X! 						h->date = parsedate (buf2, (char *) 0);
+X  						got_date = TRUE;
+X  					}
+X  				}
+X  				break;
+X! 			case 'A':
+X  				if (match_header (ptrline, "Archive-name", buf2, HEADER_LEN) ||
+X  				    match_header (ptrline, "Archive-Name", buf2, HEADER_LEN)) {
+X  					if ((s = (char *) strchr (buf2, '/')) != (char *) 0) {
+X--- 526,540 ----
+X  					}
+X  				}
+X  				break;
+X! 			case 'D':	/* Date:  mandatory */
+X  				if (! got_date) {
+X  					if (match_header (ptrline, "Date", buf2, HEADER_LEN)) {
+X! 						h->date = parsedate (buf2, (struct _TIMEINFO *) 0);
+X  						got_date = TRUE;
+X  					}
+X  				}
+X  				break;
+X! 			case 'A':	/* Archive-name:  optional */
+X  				if (match_header (ptrline, "Archive-name", buf2, HEADER_LEN) ||
+X  				    match_header (ptrline, "Archive-Name", buf2, HEADER_LEN)) {
+X  					if ((s = (char *) strchr (buf2, '/')) != (char *) 0) {
+X***************
+X*** 469,476 ****
+X  				break;
+X  		}
+X  
+X! 		if (! flag || lineno > 25 || got_archive) {
+X! 			if (got_subject && got_from && got_date) {
+X  				debug_print_header (h);
+X  				return TRUE;
+X  			} else {
+X--- 567,577 ----
+X  				break;
+X  		}
+X  
+X! 		if (! flag || lineno > max_lineno || got_archive) {
+X! 			if (got_from && got_date) {
+X! 				if (! got_subject) {
+X! 					h->subject = hash_str ("<No subject>");
+X! 				}
+X  				debug_print_header (h);
+X  				return TRUE;
+X  			} else {
+X***************
+X*** 493,499 ****
+X--- 594,603 ----
+X  	char nam[LEN];
+X  	FILE *fp;
+X  	int *iptr;
+X+ 	int index;
+X  	int realnum;
+X+ 	long min_artnum = 0L;
+X+ 	long max_artnum = 0L;
+X  	register int i;
+X  
+X  	set_tin_uid_gid();
+X***************
+X*** 508,514 ****
+X  	/*
+X  	 *  dump group header info.
+X  	 */
+X! 	if (active[my_group[cur_groupnum]].attribute.sort_art_type != SORT_BY_NOTHING) {
+X  		qsort ((char *) arts, top, sizeof (struct article_t), artnum_comp);
+X  	}
+X  	fprintf (fp, "%s\n", group);
+X--- 612,619 ----
+X  	/*
+X  	 *  dump group header info.
+X  	 */
+X! 	index = my_group[cur_groupnum];
+X! 	if (active[index].attribute.sort_art_type != SORT_BY_NOTHING) {
+X  		qsort ((char *) arts, top, sizeof (struct article_t), artnum_comp);
+X  	}
+X  	fprintf (fp, "%s\n", group);
+X***************
+X*** 516,528 ****
+X  	if (top <= 0) {
+X  		fprintf (fp, "0\n");
+X  	} else {
+X! 		if (last_read_article > arts[top-1].artnum) {
+X  			fprintf (fp, "%ld\n", last_read_article);
+X  		} else {
+X! 			fprintf (fp, "%ld\n", arts[top-1].artnum);
+X  		}
+X  	}
+X! 
+X  	/*
+X  	 *  dump articles
+X  	 */
+X--- 621,650 ----
+X  	if (top <= 0) {
+X  		fprintf (fp, "0\n");
+X  	} else {
+X! 		min_artnum = arts[0].artnum;
+X! 		max_artnum = arts[top-1].artnum;
+X! 		if (last_read_article > max_artnum) {
+X! 			max_artnum = last_read_article;
+X  			fprintf (fp, "%ld\n", last_read_article);
+X  		} else {
+X! 			fprintf (fp, "%ld\n", max_artnum);
+X! 		}
+X! 		if (active[index].type == GROUP_TYPE_MAIL) {
+X! 			i = FALSE;
+X! 			if (min_artnum > active[index].min) {
+X! 				active[index].min = min_artnum;
+X! 				i = TRUE;
+X! 			}
+X! 			if (max_artnum > active[index].max) {
+X! 				active[index].max = max_artnum;
+X! 				i = TRUE;
+X! 			}
+X! 			if (i) {
+X! 				write_mail_active_file ();
+X! 			}
+X  		}
+X  	}
+X! 	
+X  	/*
+X  	 *  dump articles
+X  	 */
+X***************
+X*** 623,629 ****
+X  }
+X  
+X  /*
+X!  *  Read in an index file.
+X   *
+X   *  index file header 
+X   *    1.  newsgroup name (ie. alt.sources)
+X--- 745,751 ----
+X  }
+X  
+X  /*
+X!  *  Read in an index file. 
+X   *
+X   *  index file header 
+X   *    1.  newsgroup name (ie. alt.sources)
+X***************
+X*** 642,653 ****
+X   *    8.  Patch number of Archive: name (ie. 01)    [optional]
+X   */
+X  
+X! int read_index_file (group_name)
+X  	char *group_name;
+X  {
+X  	int error = 0;
+X  	int i, n;
+X- 	char buf[LEN], *p;
+X  	FILE *fp = NULL;
+X  
+X  	top = 0;
+X--- 764,775 ----
+X   *    8.  Patch number of Archive: name (ie. 01)    [optional]
+X   */
+X  
+X! void read_index_file (group_name)
+X  	char *group_name;
+X  {
+X+ 	char buf[LEN], *p;
+X  	int error = 0;
+X  	int i, n;
+X  	FILE *fp = NULL;
+X  
+X  	top = 0;
+X***************
+X*** 654,660 ****
+X  	last_read_article = 0L;
+X  
+X  	if ((fp = open_index_fp (group_name)) == NULL) {
+X! 		return FALSE;
+X  	}
+X  
+X  	/*
+X--- 776,782 ----
+X  	last_read_article = 0L;
+X  
+X  	if ((fp = open_index_fp (group_name)) == NULL) {
+X! 		return;
+X  	}
+X  
+X  	/*
+X***************
+X*** 679,685 ****
+X  	/*
+X  	 *  load articles
+X  	 */
+X! 	for (; top < i ; top++) {
+X  		if (top >= max_art) {
+X  			expand_art ();
+X  		}
+X--- 801,807 ----
+X  	/*
+X  	 *  load articles
+X  	 */
+X! 	while (top < i) {
+X  		if (top >= max_art) {
+X  			expand_art ();
+X  		}
+X***************
+X*** 688,694 ****
+X  		set_article (&arts[top]);
+X  
+X  		/*
+X! 		 * Article no.
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 2;
+X--- 810,816 ----
+X  		set_article (&arts[top]);
+X  
+X  		/*
+X! 		 * 0.  Article no.
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 2;
+X***************
+X*** 697,703 ****
+X  		arts[top].artnum = (long) atol (buf);
+X  
+X  		/*
+X! 		 * Subject:
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 3;
+X--- 819,825 ----
+X  		arts[top].artnum = (long) atol (buf);
+X  
+X  		/*
+X! 		 * 1.  Subject:
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 3;
+X***************
+X*** 722,728 ****
+X  		}
+X  			
+X  		/*
+X! 		 * From: (addr part)
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 6;
+X--- 844,850 ----
+X  		}
+X  			
+X  		/*
+X! 		 * 2.  From: (addr part)
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 6;
+X***************
+X*** 747,753 ****
+X  		}
+X  
+X  		/*
+X! 		 * From: (full name)
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 9;
+X--- 869,875 ----
+X  		}
+X  
+X  		/*
+X! 		 * 3.  From: (name part)
+X  		 */
+X  		if (fgets (buf, sizeof buf, fp) == NULL) {
+X  			error = 9;
+X***************
+X*** 769,775 ****
+X  			for (p = &buf[1];  *p && *p != '\n'; p++)
+X  				continue;
+X  			*p = '\0';
+X! 			arts[top].name = hash_str (&buf[1]);
+X  		} else {
+X  			error = 11;
+X  			goto corrupt_index;
+X--- 891,899 ----
+X  			for (p = &buf[1];  *p && *p != '\n'; p++)
+X  				continue;
+X  			*p = '\0';
+X! 			if (buf[1]) {
+X! 				arts[top].name = hash_str (&buf[1]);
+X! 			}
+X  		} else {
+X  			error = 11;
+X  			goto corrupt_index;
+X***************
+X*** 776,782 ****
+X  		}
+X  
+X  		/*
+X! 		 * Date:
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 12;
+X--- 900,906 ----
+X  		}
+X  
+X  		/*
+X! 		 * 4.  Date:
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 12;
+X***************
+X*** 787,793 ****
+X  		arts[top].date = atol (buf);
+X  
+X  		/*
+X! 		 * Archive-name:
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 13;
+X--- 911,917 ----
+X  		arts[top].date = atol (buf);
+X  
+X  		/*
+X! 		 * 5.  Archive-name:
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 13;
+X***************
+X*** 814,820 ****
+X  		}
+X  
+X  		/*
+X! 		 * part no.
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 16;
+X--- 938,944 ----
+X  		}
+X  
+X  		/*
+X! 		 * 6.  Part no.
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 16;
+X***************
+X*** 827,833 ****
+X  		}
+X  
+X  		/*
+X! 		 * patch no.
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 17;
+X--- 951,957 ----
+X  		}
+X  
+X  		/*
+X! 		 * 7.  Patch no.
+X  		 */
+X  		if (fgets(buf, sizeof buf, fp) == NULL) {
+X  			error = 17;
+X***************
+X*** 840,849 ****
+X  		}
+X  
+X  		debug_print_header (&arts[top]);
+X- 	}
+X  
+X  	fclose(fp);
+X! 	return TRUE;
+X  
+X  corrupt_index:
+X  	if (! update) {
+X--- 964,995 ----
+X  		}
+X  
+X  		debug_print_header (&arts[top]);
+X  
+X+ 		top++;
+X+ 	}
+X  	fclose(fp);
+X! 	
+X! 	/*
+X! 	 * If reading in a mail group index check if min & max numbers are
+X! 	 * consistant with what has been read from index file.
+X! 	 */
+X! 	i = my_group[cur_groupnum]; 
+X! 	if (active[i].type == GROUP_TYPE_MAIL) {
+X! 		n = FALSE;
+X! 		if (top && top > active[i].max) {
+X! 			active[i].max = top;
+X! 			n = TRUE;
+X! 		}
+X! 		if (top && arts[0].artnum > active[i].min) {
+X! 			active[i].min = arts[0].artnum;
+X! 			n = TRUE;
+X! 		}
+X! 		if (n) {
+X! 			write_mail_active_file ();
+X! 		}
+X! 	}
+X! 	 
+X! 	return;
+X  
+X  corrupt_index:
+X  	if (! update) {
+X***************
+X*** 860,914 ****
+X  	if (fp) {
+X  		fclose(fp);
+X  	}	
+X! 	set_tin_uid_gid();
+X  	unlink (index_file);
+X! 	set_real_uid_gid();
+X  	top = 0;
+X- 	return FALSE;
+X  }
+X  
+X  
+X  /*
+X!  *  Look in the local $HOME/RCDIR/INDEXDIR (or wherever) directory for the
+X!  *  index file for the given group.  Hashing the group name gets
+X!  *  a number.  See if that #.1 file exists; if so, read first line.
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 2'
+echo 'File tin-1.17.patch is continued in part 3'
+echo 3 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

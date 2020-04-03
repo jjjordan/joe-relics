@@ -1,0 +1,343 @@
+Path: funic!news.funet.fi!sunic!lth.se!newsuser
+From: d89cb@efd.lth.se (Christian Brunschen)
+Newsgroups: alt.sources
+Subject: LED's on a vt100
+Message-ID: <1991Aug29.075659.360@lth.se>
+Date: 29 Aug 91 07:56:59 GMT
+Sender: newsuser@lth.se (LTH network news server)
+Reply-To: d89cb@efd.lth.se (Christian Brunschen)
+Organization: Lund Institute of Technology, Sweden
+Lines: 332
+
+
+Here comes a little program that will do some interesting things with the
+LED's on a vt100-compatible. The Control sequences are hardcoded, so it
+isn't easily portable to other terminal types, and it requires a system that 
+has the usleep() system call, but other than that, it should run pretty much
+everywhere .. I hope. It has only been tested on a few Sun 3/50 and 3/80s
+under SunOS 4.1 ... 
+
+
+// Christian
+
+--
++----------------------------------+------------------------+
+| Christian Brunschen              |   SnailMail:           |
+| Internet : d89cb@efd.lth.se      |   Husmansv{gen 26      |
+| IRC      : snooker               |   S - 222 38 Lund      |
+| Phone #  : +46 46 131984         |   Sweden               |
++----------------------------------+------------------------+
+| Unix is a registered bell of AT&T trademark laboratories. |
++-----------------------------------------------------------+
+| All above mentioned opinions are (c) Christian Brunschen, |
+| unless otherwise stated. Feel free to copy & distribute.  |
++-----------------------------------------------------------+
+
+--- cut here ---
+#!/bin/sh
+# This is a shell archive.  Remove anything before the "#!/bin/sh" line
+# then unpack it by saving it in a file and typing "sh file"
+# (Files unpacked will be owned by you and have default permissions).
+# This archive contains the following files:
+#	./leds.c
+#	./leds.mk
+#	./README.leds
+#
+if `test ! -s ./leds.c`
+then
+echo "writing ./leds.c"
+sed 's/^Z//' > ./leds.c << '___END_OF_THIS_FILE'
+Z#include <stdio.h>
+Z#include <sys/types.h>
+Z#include <sys/time.h>
+Z
+Zenum {BOUNCE, ROLL_LEFT, ROLL_RIGHT, RANDOM, N_MODES};
+Z
+Zchar * led_progname;
+Z
+Zvoid led_error (s1, s2)
+Zchar * s1, s2;
+Z{
+Z   fprintf (stderr, "%s: %s%s\n", led_progname, s1, s2);
+Z   exit (-1);
+Z}
+Z
+Zvoid light (i)
+Zint i;
+Z{
+Z   printf ("\033[%iq", i);
+Z}
+Z
+Zvoid flash (i)
+Zint i;
+Z{
+Z   printf ("\033[?%it", i);
+Z}
+Z
+Zvoid clear ()
+Z{
+Z   printf ("\033[0q\033[?0t");
+Z}
+Z
+Zvoid load (v)
+Zint v;
+Z{
+Z   int i, y;
+Z   y=v;
+Z   clear();
+Z   for (i=4; i>0; i--)
+Z   {
+Z      switch (y % 10)
+Z      {
+Z      case 0: /* dark */
+Z	 /* do nothing */
+Z	 break;
+Z      case 1: /* lit */
+Z	 light (i);
+Z	 break;
+Z      case 2: /* flashing */
+Z	 flash (i);
+Z	 break;
+Z      }
+Z      y /= 10;
+Z   }
+Z}
+Z
+Zvoid bounce (t)
+Zunsigned int t;
+Z{
+Z   int i;
+Z   unsigned int s;
+Z   s = t / 6;
+Z   for (i=1; i<4; i++)
+Z   {
+Z      clear();
+Z      light (i);
+Z      fflush (stdout);
+Z      usleep (s);
+Z   }
+Z   for (i=4; i>1; i--)
+Z   {
+Z      clear();
+Z      light (i);
+Z      fflush (stdout);
+Z      usleep (s);
+Z   }
+Z}
+Z
+Zvoid roll (t, min, max, step)
+Zunsigned int t;
+Zint min, max, step;
+Z{
+Z   int i;
+Z   unsigned int s;
+Z   s = t / ((abs (max - min)) / abs (step));
+Z   for (i = min; i != max; i += step)
+Z   {
+Z      clear();
+Z      light (i);
+Z      fflush (stdout);
+Z      usleep (s);
+Z   }
+Z}
+Z
+Zvoid random (t)
+Zunsigned int t;
+Z{
+Z   int i, ran, mran;
+Z   clear();
+Z   ran = rand();
+Z   for (i=1; i<5; i++)
+Z   {
+Z      mran = ran % 3;
+Z      switch (mran)
+Z      {
+Z      case 0: /* dark */
+Z	 /* do nothing -- cleared */
+Z	 break;
+Z      case 1: /* lit */
+Z	 light (i);
+Z	 break;
+Z      case 2: /* flashing */
+Z	 flash (i);
+Z	 break;
+Z      }
+Z      ran /= 3;
+Z   }
+Z   fflush (stdout);
+Z   usleep (t);
+Z}
+Z
+Zmain(argc, argv)
+Zint argc;
+Zchar ** argv;
+Z{
+Z   unsigned int time_between=1000000, argn, mode=0, random_mode = 0;
+Z   led_progname = argv[0];
+Z   srand (time(NULL));
+Z   for (argn = 1; argn < argc && argv[argn][0] == '-'; argn++)
+Z   {
+Z      switch (argv[argn][1])
+Z      {
+Z      case 't':
+Z	 time_between = 1000 * atoi(argv[++argn]);
+Z	 break;
+Z      case 'm':
+Z	 argn++;
+Z	 if (!strcmp(argv[argn], "bounce"))
+Z	    mode = BOUNCE;
+Z	 else if (!strcmp(argv[argn], "left"))
+Z	    mode = ROLL_LEFT;
+Z	 else if (!strcmp(argv[argn], "right"))
+Z	    mode = ROLL_RIGHT;
+Z	 else if (!strcmp(argv[argn], "random"))
+Z	    mode = RANDOM;
+Z	 else if (!strcmp(argv[argn], "mode"))
+Z	    random_mode = 1;
+Z	 else
+Z	    led_error ("Unknown Mode : ", argv[argn]);
+Z	 break;
+Z      case 'l':
+Z	 load (atoi(argv[++argn]));
+Z	 exit (0);
+Z      default:
+Z	 led_error ("Unkown Flag : ", argv[argn]);
+Z      }
+Z   }
+Z   if (argn < argc)
+Z      led_error ("Unknown Option : ", argv[argn]);
+Z
+Z   while (1)
+Z   {
+Z      if (random_mode)
+Z	 mode = rand () % N_MODES;
+Z      switch (mode)
+Z      {
+Z      case BOUNCE:
+Z	 bounce (time_between);
+Z	 break;
+Z      case ROLL_LEFT:
+Z	 roll (time_between, 1, 5, 1);
+Z	 break;
+Z      case ROLL_RIGHT:
+Z	 roll (time_between, 4, 0, -1);
+Z	 break;
+Z      case RANDOM:
+Z	 random (time_between);
+Z	 break;
+Z      }
+Z   }
+Z}
+Z
+___END_OF_THIS_FILE
+else
+  echo "will not over write ./leds.c"
+fi
+if [ `wc -c ./leds.c | awk '{printf $1}'` -ne 2943 ]
+then
+echo `wc -c ./leds.c | awk '{print "Got " $1 ", Expected " 2943}'`
+fi
+if `test ! -s ./leds.mk`
+then
+echo "writing ./leds.mk"
+sed 's/^Z//' > ./leds.mk << '___END_OF_THIS_FILE'
+ZCC=	gcc
+ZCFLAGS=	-O -s
+Z
+Zleds : leds.c
+Z	$(CC) $(CFLAGS) -o leds leds.c
+___END_OF_THIS_FILE
+else
+  echo "will not over write ./leds.mk"
+fi
+if [ `wc -c ./leds.mk | awk '{printf $1}'` -ne 69 ]
+then
+echo `wc -c ./leds.mk | awk '{print "Got " $1 ", Expected " 69}'`
+fi
+if `test ! -s ./README.leds`
+then
+echo "writing ./README.leds"
+sed 's/^Z//' > ./README.leds << '___END_OF_THIS_FILE'
+Zleds.README
+Z===========
+Z
+ZAn introduction to the `leds' program.
+Z
+ZWhat does it do ?
+Z=================
+ZNot much. It plays with the 4 little LED's that can be found on the keyboard
+Zof a vt100-compatible terminal. It can display a number of different pattern,
+Zand can be used to load your own ones as well.
+Z
+ZSynopsis:
+Z
+Z	leds [[-t time] [-m mode] | [-l pattern]]
+Z
+ZOptions:
+Z
+Z	-t time
+Z		sets the time it takes for leds to conclude 1 `round'
+Z		of the current pattern. Used only with  -m mode.
+Z
+Z	-m mode
+Z		sets `leds' to run continuously, displaying a patter according
+Z		to `mode'. `mode' may be one of:
+Z
+Z		`bounce'
+Z			one lit led bounces back and forth, left-right.
+Z
+Z		`left'
+Z			one lit led `rolls' from right to left, again and 
+Z			again.
+Z
+Z		`right'
+Z			as `left', but miving left-to-right instead.
+Z
+Z		`random'
+Z			after each interval, a new random pattern of lit,
+Z			dark and flashing led's is loaded.
+Z
+Z		`mode'
+Z			after each interval, one of the other modes is
+Z			randomly chosen, and displayed for the next interval.
+Z
+Z	-l value
+Z		loads the led's with `value', which is a 4-digit decimal
+Z		number, where each digit corresponds to one led, and is
+Z		interpreted as:
+Z
+Z		0	dark
+Z		1	lit
+Z		2	flashing
+Z
+Z		All other digits are ignored.
+Z
+ZBUGS
+Z	No much error checking. Bogus options usually result in a core dump.
+Z
+Z	No real manual page -- just this README file.
+Z
+ZFEATURES
+Z	Since this program does an `fflush' after each change in the LED's,
+Z	it can be run as a background process, and , even over a serial line,
+Z	the output from `leds', does not interfere with other output (since it
+Z	is intercepted by the terminal), as long as you are running something
+Z	interactive (like a shell or so). However, it quite naturally _would_
+Z	interfere with any files you tried to download :) This, btw, is not
+Z	something I have researched -- but it _is_ observed behaviour on a
+Z	Sun 3/80 with a vt100 over a modem at 2400 baud.
+Z
+ZAUTHOR
+Z	Christian Brunschen (d89cb@efd.lth.se)
+Z
+___END_OF_THIS_FILE
+else
+  echo "will not over write ./README.leds"
+fi
+if [ `wc -c ./README.leds | awk '{printf $1}'` -ne 1945 ]
+then
+echo `wc -c ./README.leds | awk '{print "Got " $1 ", Expected " 1945}'`
+fi
+echo "Finished archive 1 of 1"
+# if you want to concatenate archives, remove anything after this line
+exit

@@ -1,0 +1,58 @@
+Xref: funic comp.lang.tcl:1849 alt.sources:4964
+Newsgroups: comp.lang.tcl,alt.sources
+Path: funic!fuug!mcsun!uunet!psinntp!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Subject: countpay - see how much money you're making, with realtime update
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Date: Tue, 24 Nov 1992 16:55:35 GMT
+Message-ID: <By8CCy.KF8@NeoSoft.com>
+Lines: 48
+
+Here's a little hack that grew out of a conversation Brad Morrison
+(brad@neosoft.com) and I have been having off and on for a few years,
+namely, whether or not people would feel more guilty about screwing off 
+at work if you paid them in cash a couple of times a day.
+
+Barring that, you can simulate it with the Tk script, countpay, below.
+It shows elapsed time and how much money you've made since you started it.
+You'll need Extended Tcl time and date functions.  (Tcl, Tk and Extended Tcl
+are available from sprite.berkeley.edu and barkley.berkeley.edu)
+
+#
+# countpay - cute hack that shows how much you're making over time to help
+# you feel guilty and stop screwing off, or whatever.  Requires Extended Tcl.
+#
+# usage: wish -f countpay dollars_per_hour
+# where dollars per hour is a floating point value.
+#
+# It could be made to be a lot more efficient, but this way it's nice & short.
+#
+
+label .time -font "*fixed-medium-r-normal--*-200-*"
+pack append . .time {bottom expand}
+
+proc countpay {widget timeAtStart hourlyRate} {
+    after 1000 countpay $widget $timeAtStart $hourlyRate
+    set secondsElapsed [expr {[getclock] - $timeAtStart}]
+
+    set days [expr {$secondsElapsed / 86400}]
+    set hours [expr {($secondsElapsed % 86400) / 3600}]
+    set minutes [expr {($secondsElapsed % 3600) / 60}]
+    set seconds [expr {$secondsElapsed % 60}]
+
+    set pay [expr {($hourlyRate * $secondsElapsed) / 3600.0 + 0.005}]
+
+    .time configure -text [format "%3d:%02d:%02d:%02d $%.2f" $days $hours $minutes $seconds $pay]
+}
+
+if !$interactiveSession {
+    if {[llength $argv] != 1} {
+        puts stderr {usage: 'countpay 50.00' to count pay at $50/hour.}
+        exit 1
+    }
+    countpay .time [getclock] $argv
+}
+
+-- 
+-- Email info@NeoSoft.com for info on getting interactive Internet access.
+"Turn on your hot tub by email now.  Ask me how."

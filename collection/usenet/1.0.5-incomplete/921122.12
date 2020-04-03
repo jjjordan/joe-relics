@@ -1,0 +1,1407 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!psinntp!psinntp!tnl!norstar
+From: norstar@tnl.com (Daniel Ray)
+Subject: newer improved-er INTERNETSERV (aka FTPmail script)
+Organization: The Northern Lights
+Date: Wed, 18 Nov 1992 05:00:08 GMT
+Message-ID: <BxwB8A.GCr@tnl.com>
+
+#!/bin/sh
+# to extract, remove the header and type "sh filename"
+if `test ! -s ./internetserv.1`
+then
+echo "writing ./internetserv.1"
+cat > ./internetserv.1 << '\Rogue\Monster\'
+
+
+INTERNETSERV(1)			The Northern Lights		INTERNETSERV(1)
+
+
+Name
+	internetserv - Requsests Internet services to be sent via return email
+
+
+Syntax
+	internetserv				(Interactive mode)
+	internetserv archie			(Interactive archie mode)
+	internetserv nslookup			(Interactive nslookup mode)
+	internetserv oracle			(Interactive oracle mode)
+	internetserv pitmanager			(Interactive pitmanager mode)
+	internetserv help			(Command line help)
+
+	internetserv /file/name user@host.site	(Command line FTPmail)
+	internetmail user@host.site /file/name	(Command line FTPmail)
+
+
+Services
+
+	FTPmail		via ftpmail@decwrl.dec.com
+
+	FTPmail is the sending of file Get request(s) to decwrl. It, being
+	directly on the Internet, will queue and then, usually within 3-6
+	hours, actually perform the FTP. It then sends the text output or
+	uuencodes/btoas and sends the binary output to the requesting machine.
+	This is an indespensible service for machines that do not possess
+	direct Internet hookups, and is internetserv's major function.
+
+	ARCHIE		via archie@archie.ans.net (and various other sites)
+
+	Archie allows one to enter a regular expression to be used to
+	search all Internet anonymous and archival FTP sites. A list of matches
+	is mailed back to the user. Archie is the perfect companion to FTPmail.
+	It allows you to find a desired program. Then, use FTPmail to actu-
+	ally obtain the program.
+
+	NSLOOKUP	via resolve@cs.widener.edu
+
+	A standard Internet service that looks up an Internet IP number (4
+	groups of numbers sepearated by periods) from that machine's domain
+	address.
+
+	ORACLE		via oracle@cs.indiana.edu
+
+	A long-standing "humor/entertainment" service which also can server
+	as a valuable anonymous consultation tool, standing between the Oracle
+	of Delphi and Dear Abby. While anonymity is guaranteed, some of the
+	best questions and answers are posted to the USENET newsgroup:
+
+			rec.humor.oracle
+
+	and even  rec.humor.funny once in a while. Anyone posting to this
+	service may be THEMSELVES required to answer a question, in the Oracle
+	style and tradition, and as witty as possible. The USENET Oracle is
+	self-perpetuating. I've tried it personally, and it is both funny and
+	refreshing. Since it is not likely to go away, it is included here
+	in the internetserv program.
+
+	PITMANAGER	via mail-server@pit-manager.mit.edu
+
+	For want of a better name I've dubbed this service "Pitmanager." Men-
+	tioned in some detail in the "How to discover the email addresses of
+	people you want to contact" manual circulated in comp.mail.misc, this
+	group is a resource to search the list of most or all USENET Posters
+	in the last 2 or so years for matching usernames and hostname domain
+	address components. ALL SEARCHES ARE OR, THAT IS, EACH SUBMITTED WORD
+	STRING IS SEARCHED SEPARATELY, and the report includes the GECOS field
+	which usually contains their first and last name. So if you searched for
+	smith ihnp4	Pitmanager will search for all USERNAMES equal to the
+	string 'smith' or 'ihnp4', and also all hostnames or middle or high
+	domain components equal to 'ihnp4' or 'smith'. So it would turn up
+	both: smith@foo.bar.com and xyzzy@pringles.ihnp4.net and also turn
+	up xyzzy@smith.com and sort these into one BIG report. It is left up
+	to the user to determine which partial match is *the* match they
+	are looking for. NAMES that are 'smith' without their usernames reflec-
+	ting the fact are overlooked.
+
+	FUTURE SERVICES AND SERVICES PASSED UP
+
+	There is a nice system in France that does REVERSE NSLOOKUP, and MX
+	RECORD searches, etc. It may be added in a future release. Passed up
+	were either new or temporary-sounding services, such as a Russian
+	semi-free system that offered Fax by email and Postal letters by email.
+	Most Internet services require telnet, not email, anyway, so we are
+	still hoping some of the good ones such as the Weather Underground will
+	start to offer email service....which is not so delayed when you consi-
+	der the *fast* less than 1 hour turnaround time for email directly to
+	and from a machine on the Internet, such as UUNET or PSI.
+
+
+Usage of services
+
+	The internetserv script KNOWS all the rules and destination systems for
+each service supported, including maximum requests per email message. These, in
+some cases, can be overridden or changed by editing the USER CONFIGURATION
+SECTION which is manditory to edit anyway, to include such things as your
+default domain host name. Caution: Do not change any service user@domain.name
+address EXCEPT ARCHIE, which can be picked from the list, whichever is the
+closest to you phisically or virtually.
+
+	All prompts have online help available by typing ? or H, and a Q will
+quit, and an S will show the body of any message it is forming for you. Every
+service will require a confirmatory Y or N to send the request if invoked in-
+teractively.
+
+	ONLY THE FTPmail SERVICE AND Archie SERVICE ARE SUPPORTED NONINTERAC-
+TIVELY FROM THE COMMAND LINE. However, you can type 'internetserv oracle' to
+choose Oracle mode without having to type this as your answer to the Ftp:
+prompt. This program will first want you to supply either the IP or domain
+address of the Internet machine to FTP from, unless you are using Archie, Ns-
+lookup, Oracle, or Pitmanager modes, in which case enter one of these words.
+Then internetserv will ask Chdir: to request the public FTP directory for you
+to CHDIR to (like UNIX 'cd' and used in the Internet version of FTP). Then it
+will supply a looping Get: prompt, where you continually enter program names
+from the CHDIRed directory until you either: type a <return> at a blank Get:
+line, or reach the max. requests per message maximum. Then, finally, this
+script will ask Send? at which you may type either a Y for yes or N for no,
+or type an S for show to show the message body it has composed. If you make
+a mistake type N and START OVER. There is no editing of requests.
+
+	One more note is that, prior to entering the files to Get:, you must
+employ A for ASCII (or type 'ascii'), or B for binary (or type 'binary') to
+specify the DATA TYPE. Since types vary greatly, we decided not to include a
+default data type as a check against user forgetfulness. However, we *did*
+employ a data encoding default type of 'uuencode', since this program is
+popular and available for so many different system types. You may also enter
+'btoa' at a Get: prompt to change the encoding to use the BTOA and ATOB pro-
+grams, which are also used but not as frequently as uuencode. Typing an H
+at a Get: prompt reveals all the options you have. One other one worth no-
+ting is 'compress', which can be used to compress binary type data that is
+not *already* in compressed *.Z form on the FTP archive machine. Using 'btoa'
+and/or 'compress' will only work if a B for binary has been typed and is in
+current force. The script will know and inform you if not. This enforcement is
+done SINCE THE FTPmail SERVICE DOES IT, like virtually all seeming "quirks" of
+internetserv.
+
+	This file was first released at the start of November 1992 as the file
+'ftpmail', but we were informed there already *is* an ftpmail, so we changed
+the name to 'internetserv'. Since FTPmail mode is the default and major use
+of this script, you still may want to call it 'ftpmail' as a command when you
+install it into one of your machine's bin/command directories. Also install the
+other included short little scripts 'oracle', 'nslookup', and 'archie' since
+they simply invoke internetserv in the corresponding interactive mode, and save
+typing on the command line.
+
+
+Other files included in this release
+
+	Are the OFFICIAL HELP FILES from ftpmail@decwrl.dec.com, the not
+supported but possibly soon to be French system that does NSLOOKUP type
+functions, the mail-server@pit-manager.mit.com help file, which does not
+contain any mention of our "Pitmanager" service that internetserv uses (it
+is also an archive server machine), and the good USENET Oracle help file.
+
+
+Target systems
+
+	Internetserv will ONLY WORK ON BOURNE-SHELL SUPPORTED UNIX systems,
+and although no real problems have been reported (that were not due to the
+required USER CONFIGURATION or the TOP LINE OF THE PROGRAM, or internal-vs.-
+external use of the 'echo' command), no guarantees of any kind are inferred.
+Data is "as is" without express or implied warranty of any kind, and you
+take your chances.
+
+	All commercial use is permitted ONLY with prior authorization from
+the author Daniel Ray.   Good Luck!
+
+
+INTERNETSERV(1)			The Northern Lights		INTERNETSERV(1)
+
+\Rogue\Monster\
+else
+  echo "will not over write ./internetserv.1"
+fi
+if `test ! -s ./README`
+then
+echo "writing ./README"
+cat > ./README << '\Rogue\Monster\'
+
+This is the  internetserv  Bourne UNIX shell program previously known as
+'ftpmail' as of two weeks ago when released to USENET alt.sources. Written
+by Daniel Ray of The Northern Lights  <norstar@tnl.com>.
+
+Allows you to use FTPmail, Archie by email, and other email mediated services
+that are usually only available on directly connected true Internet sites.
+
+Start by reading the man file  internetserv.1  then CONFIGURE THE SCRIPT
+by editing the appropriate MARKED configuration section of the script
+itself.
+
+Install:  internetserv  (perhaps as filename 'ftpmail'), archie, nslookup,
+and oracle  in bin or command directories local to your system.  Install the
+files *.1 in an appropriate 'man' directory, perhaps after PACKing them first.
+Finally, install inetserv.help  as the UNIX help file /usr/lib/help/ftpmail
+or /usr/lib/help/internetserv  (whatever you named the main script).
+
+THEN GIVE IT A TRY, PERHAPS STARTING WITH TRYING TO USE THE Archie MODE
+TO SEARCH FOR A PROGRAM YOU WANT TO GET. Then you can actually get it via
+FTPmail.  Good Luck!
+
+dan ray
+admin The Northern Lights, Troy NY
+norstar@tnl.com
+
+p.s. The file 'nslookup.franc' is not currently supported, but is included for
+informational purposes for you to read. May be included in a future release
+soon.
+
+\Rogue\Monster\
+else
+  echo "will not over write ./README"
+fi
+if `test ! -s ./ftpmail.1`
+then
+echo "writing ./ftpmail.1"
+cat > ./ftpmail.1 << '\Rogue\Monster\'
+
+
+FTPMAIL(1)MS			decwrl.dec.com			FTPMAIL(1)MS
+
+
+Name
+	ftpmail - ftpmail@decwrl.dec.com FTP to email server
+
+
+DEC ftpmail administrator
+
+	ftpmail-admin@uucp-gw-2.pa.dec.com - send mail ONLY if you are sure
+
+
+TNL Command
+
+	ftpmail - shell script to compose your email request, then automatically
+		  sends to ftpmail@decwrl.dec.com for processing.
+
+
+Help file to create your own ftp mail message
+
+You sent ftpmail a blank message, perhaps thinking that we would look in the
+Subject: line for your command.  We ignore the Subject: line other than to
+use it as a identifying tag on all the responses we send from each ftpmail
+session.  Since we don't know what you want, we're sending you our 'help'
+file.  Good luck.
+
+$Id: help-text,v 1.4 1992/09/29 01:34:33 vixie Exp $
+
+>>> commands are:
+
+	reply <MAILADDR>	set reply addr, since headers are usually wrong
+	connect [HOST [USER [PASS]]]  defaults to gatekeeper.dec.com, anonymous
+	ascii			files grabbed are printable ascii
+	binary			files grabbed are compressed or tar or both
+	chdir PLACE		"get" and "ls" commands are relative to PLACE
+					(only one CHDIR per ftpmail session,
+					and it executes before any LS/DIR/GETs)
+	compress		compress binaries using Lempel-Ziv encoding
+	compact			compress binaries using Huffman encoding
+	uuencode		binary files will be mailed in uuencode format
+	btoa			binary files will be mailed in btoa format
+	chunksize SIZE		split files into SIZE-byte chunks (def: 64000)
+	ls (or dir) PLACE	short (long) directory listing
+	get FILE		get a file and have it mailed to you
+					(max 10 GET's per ftpmail session)
+	quit			terminate script, ignore rest of mail message
+					(use if you have a .signature or
+					 are a VMSMAIL user)
+
+>>> notes:
+
+	-> you should send complaints to the ftpmail-admin address.  our
+	   postmaster does not handle ftpmail problems and you can save her
+	   the trouble of forwarding your complaints by just mailing them to
+	   the right address.  the "ftpmail-request" address is gone; don't
+	   use it.
+
+	-> the "Subject:" of your request will be contained in the "Subject:"
+	   of all of ftpmail's responses to you regarding that request.  You
+	   can therefore use it to "tag" different requests if you have more
+	   than one outstanding at any given time.
+
+	-> you must give a "connect" command, default host is
+	   gatekeeper.dec.com, default user is anonymous, default
+	   password is your mail address.
+
+	-> binary files will not be compressed unless 'compress' or 'compact'
+	   command is given; use this if at all possible, it helps a lot.
+	   note that many files are already compressed.  if you use any of
+	   the binary-file qualifiers (compress, compact, uuencode, btoa)
+	   without setting 'binary' first, your session will abort in error.
+
+	-> binary files will always be formatted into printable ASCII
+	   with "btoa" or "uuencode" (default is "btoa").  if you don't
+	   use the "binary" command, ftpmail will cheerfully try to mail
+	   you the binary data, which will absolutely, positively fail.
+
+	-> all retrieved files will be split into chunks and mailed.  the
+	   size of the chunk is 64000 characters unless you change it with
+	   the "chunksize" command.  CompuServe users will need to set this
+	   to 49000.  there is no way to set it higher than 100000, so please
+	   don't ask.
+
+	-> if you ask for more than 10 files in a session, you will receive
+	   an error message and your entire request will be rejected.
+
+	-> VMS/DOS/Mac versions of uudecode, atob, compress and compact
+	   are available, ask your LOCAL wizard about them if you can't
+	   locate them (but try gatekeeper.dec.com in /archive/pub/VMS
+	   if you're still using a VMS system.)
+
+	-> several mail unsplitters are hiding on gatekeeper.dec.com in
+	   /pub/mail/ua/misc/unsplit.  there is one in c, one in perl,
+	   and one in VMS DCL.
+
+	-> there is no way to request only certain parts of a file and we
+	   do not plan to add one in the near future, so please don't ask.
+
+	-> there is no way to delete things from the queue or to find out
+	   the status of things in the queue, and we do not plan to add
+	   either feature in the near future, so please don't ask.
+
+>>> examples:
+
+	-> connect to gatekeeper.dec.com and get a root directory listing:
+		connect
+		ls
+		quit
+
+	-> connect to gatekeeper.dec.com and get the README.ftp file:
+		connect
+		get README.ftp
+		quit
+
+	-> connect to gatekeeper.dec.com and get the gnuemacs sources:
+		connect
+		binary
+		uuencode
+		chdir /pub/GNU
+		get emacs-18.58.tar.Z
+		quit
+
+	-> connect to ftp.uu.net as anonymous and get a root directory list:
+		connect ftp.uu.net
+		binary
+		chdir /index/master
+		get by-name.Z
+		quit
+
+
+FTPMAIL(1)MS			decwrl.dec.com			FTPMAIL(1)MS
+\Rogue\Monster\
+else
+  echo "will not over write ./ftpmail.1"
+fi
+if `test ! -s ./archie.1`
+then
+echo "writing ./archie.1"
+cat > ./archie.1 << '\Rogue\Monster\'
+
+
+ARCHIEMAIL(1)		  archie@archie.rutgers.edu		ARCHIEMAIL(1)
+
+
+See:  man internetserv  and  man ftpmail
+
+
+			The ARCHIE Mail Server
+
+HELP for the archie mail server, as of 9 April, 1991 (modified from the 
+KISS help file)
+
+Requests to this server should be addressed to archie@archie.rutgers.edu
+
+
+To contact us humans, mail to archie-l@archie.rutgers.edu
+
+For your information anonymous FTP may be performed through the mail by
+various ftp-mail servers. Send a message with the word 'help' in it to:
+
+		bitftp@pucc.princeton.edu
+
+or
+
+		ftpmail@decwrl.dec.com
+
+for an explanations on how to use them.
+
+
+NOTE: The Subject: line is processed as if it were part of the main message
+body. No special keywords are required.
+
+
+Note that the "help" command is exclusive. All other commands in the same 
+message are ignored.
+
+Command lines begin in the first column. All lines that do not match a valid
+commands are ignored. 
+
+Results are now sorted by archive hostname in lexical order.
+
+An archie UNIX man page and it's straight ASCII text file equivalent are
+available on quiche.cs.mcgill.ca in the ~ftp/archie/doc directory as
+archie.man.roff and archie.man.txt respectively. If you would like it
+mailed to you send mail to bajan@cs.mcgill.ca asking for it.
+
+The server recognizes six commands. If a message not containing any valid 
+requests or an empty message is received, it will be considered to be a 
+'help' request.
+
+
+path <path>     This lets the requestor override the address that would
+		normally be extracted from the header.  If you do not
+		hear from the archive server within oh, about 2 days, you
+		might consider adding a "path" command to your request.  The
+		path describes how to mail a message from cs.mcgill.ca to your
+		address. cs.mcgill.ca is fully connected to the Internet.
+
+		BITNET users can use the convention
+
+			user@site.BITNET
+
+		UUCP user can use the convention
+
+			user@site.uucp
+
+
+help            Will send you this message.
+
+
+prog <reg expr1> [<reg exp2> ...]
+
+		A search of the "archie" database is performed with each
+		<reg exp> (a regular expression as defined by ed(1)) in
+		turn, and any matches found are returned to the requestor.
+		Note that multiple <reg exp> may be placed on one line, in
+		which case the results will be mailed back to you in one
+		message.  If you have multiple "prog" lines, then multiple
+		messages will be returned, one for each line [This doesn't
+                work as expected at the moment... stay tuned].
+
+		Any regular expression containing spaces must be quoted with
+		single (') or double (") quotes. ALL OTHER ed(1) rules must
+		be followed.
+
+		NOTE: The searches are CASE SENSITIVE. The ability to change 
+		this will hopefully be added soon.
+
+
+site <site name> | <site IP address> 
+
+		A listing of the given <site name> will be returned. The
+		fully qualified domain name or IP address may be used.
+
+
+compress	ALL of your files in the current mail message will be
+		"compressed" and "uuencoded". When you receive the reply,
+		remove everything before the "begin" line and run it through
+		"uudecode". This will produce a .Z file. You can then run
+		"uncompress" on this file and get the results of your
+		request. 
+
+
+quit            Nothing past this point is interpreted. This is provided so
+		that the occasional lost soul whose signature contains a line
+		that looks like a command can still use the server without
+		getting a bogus response.
+
+
+			List of Archie Server Sites (Nov/1992)
+
+
+       archie@archie.mcgill.ca                   (Canada)
+       archie@archie.funet.fi                    (Finland/Eur.)
+       archie@archie.au                          (Aussie/NZ)
+       archie@archie.cs.huji.ac.il               (Israel)
+       archie@archie.doc.ic.ac.uk                (UK/Ireland)
+       archie@archie.sura.net                    (USA: Maryland)
+       archie@archie.unl.edu                     (USA: Nebraska)
+       archie@archie.ans.net                     (USA: New York)
+       archie@archie.rutgers.edu                 (USA: New Jersey)
+       archie@archie.kuis.kyoto-u.ac.jp          (JAPAN)
+
+
+ARCHIEMAIL(1)		  archie@archie.rutgers.edu		ARCHIEMAIL(1)
+
+
+\Rogue\Monster\
+else
+  echo "will not over write ./archie.1"
+fi
+if `test ! -s ./oracle.1`
+then
+echo "writing ./oracle.1"
+cat > ./oracle.1 << '\Rogue\Monster\'
+
+ORACLE(1)MS		oracle@cs.indiana.edu	 	    ORACLE(1)MS
+
+
+			   THE USENET ORACLE
+
+The Usenet Oracle is available to answer all your questions.  You may
+mail them to:
+                         oracle@cs.indiana.edu
+
+The "Subject:" of the message must be something like "Oracle Most Wise,
+please tell me ...".  Actually, all it has to have is "tell me" or
+"tellme" somewhere in it.  Capitalization doesn't matter.  The body of
+the mail should contain only your question.  You should receive a reply
+within a few days at most, probably much sooner.
+
+In the meantime, the Oracle may require that you answer a question for
+it as payment for its services.  You will receive this question in the
+mail.  You should respond with as most wise and witty an answer as you
+can.  Mail the response to oracle@cs.indiana.edu, preserving the
+message's "Subject:" line.  Usually, this can be done by simply replying
+to the mail through the normal means in your mail program, for example,
+using the "r" command in the standard Berkeley mail program.  Actually,
+the subject just has to contain the word "answer" and the question
+number somewhere in it.  The body of your mail response should contain
+only your answer -- you don't have to include the question itself.
+Please try to respond within at most a day's time.  If you take longer,
+there is a chance that the question will be answered by someone else
+first.
+
+Mailing the Oracle with the word "help" in the "Subject:" line will get
+you the most recent version of this help file mailed back.  If you mail
+the Oracle with "ask me" or "askme" somewhere in the subject, the Oracle
+will send you a question to answer, if there are any available.
+
+Your questions, comments and even complaints about the Oracle are
+welcome.  Please address them to oracle-people@cs.indiana.edu.
+
+			       ETIQUETTE
+
+The Usenet Oracle is intended primarily as a cooperative effort for
+creative humor.  Since its main purpose is just to let folks have fun,
+there are intentionally few rules.  However, an etiquette has developed
+among its participants.
+
+A series of identical questions submitted is not appreciated since the
+same person often ends up answering many of them.  It is okay to
+resubmit a question after you have received a reply, especially if you
+believe that the answerer did not do it justice.
+
+If you find yourself unable to give due consideration to a question you
+are to answer, it may be better to not answer the question at all than
+to give it a trivial answer and disappoint the questioner.  However,
+doing this too much can cause a buildup of unanswered questions and slow
+down the Oracle's response time for everyone.
+
+It's probably worthwhile to read some issues of the Usenet Oracularities
+(see below) to get an idea of the conventions and style of writing in
+Oracle questions and answers.  Here are some general guidelines for
+those upon whom the Muse of the Oracle has descended and who are to
+write an answer as an incarnation of the Oracle:
+
+  -  Creativity and humor are valued.  Many people find the anonymity of
+     the Oracle a license to express themselves creatively and uniquely
+     -- often to surprising success.
+
+  -  Participants in the Oracle like to feel they've gotten out of it as
+     much as they've put in.  Please keep this in mind when answering
+     questions.
+
+  -  Remember that brevity and clarity are key points of good writing.
+     Overly long answers will reduce an Oracularity's chance of being
+     published in the Usenet Oracularities (see below) since it must
+     really be worth the extra length to have it selected to be read by
+     tens of thousands of people.
+
+  -  In general, avoid obscenity, slang, jargon, and obscure references.
+     People of all different backgrounds located all over the world use
+     the Oracle.
+
+  -  Try to be sensitive to new participants or to people who seem to
+     have asked serious questions.
+
+  -  Don't flame the questioner for not asking a "good question".  An
+     off-the-wall or vague question calls for creativity, not rudeness,
+     in the answer -- consider it a challenge.
+
+			THE USENET ORACULARITIES
+
+The Oracle's priesthood receives a duplicate copy of all answered
+questions, or Oracularities as they're called.  This is so that the best
+ones can be selected and posted to rec.humor.oracle and a mail
+distribution list as the Usenet Oracularities -- the chronicle of the
+mythos of the Usenet Oracle.  Your use of this program implies your
+approval of this usage.
+
+Rec.humor.oracle is a moderated newsgroup.  If your news system is
+properly configured, any postings you make to rec.humor.oracle will be
+forwarded directly to the Oracle and so you can ask questions of the
+Oracle by posting to the newsgroup.  Rec.humor.oracle.d is unmoderated
+and anyone may post to it.  It is a public forum for discussion and
+questions about the Oracle.  If your system doesn't carry these
+newsgroups, encourage your news administrator to do so!
+
+Readers of the Oracularities may mail in ratings of each published
+Oracularity, the results of which are returned to the authors of the
+Oracularities and published in a later posting.  They are also used to
+select occasional postings to rec.humor.funny.  Instructions on how to
+mail in your ratings are given at the top of each issue.
+
+If you don't have access to rec.humor.oracle and would like to receive
+the Oracularities via mail, send mail to
+
+	oracle-request@cs.indiana.edu
+
+to get on (or off) the mail distribution list.  Include the word
+"subscribe" (or "unsubscribe") in the "Subject:" line.
+
+Back postings and ratings are available via anonymous ftp on
+cs.indiana.edu (129.79.254.191) in the directory pub/oracle, or via mail
+-- send the word "help" in the body of a mail to
+
+	mailserv@cs.indiana.edu
+
+for more details.
+
+			       ANONYMITY
+
+The Oracle is a confidential and anonymous service.  The anonymity of
+the participants is preserved within all Oracle mailings and
+Oracularities postings.  However, if you append a signature file to your
+mail, this will appear in your question or answer.  Signature files are
+edited out from Oracularities postings.  If you do not wish to remain
+anonymous, you may include a phrase in your answer like "incarnated as
+<insert your name and/or address here>".
+
+			       DISCLAIMER
+
+Since its users actually give the answers to all questions, neither the
+Oracle nor its priesthood take any responsibility for the content of the
+questions or answers.
+
+				HISTORY
+
+Throughout the history of mankind, there have been many Oracles who have
+been consulted by many mortals, and some immortals.  The great Hercules
+was told by the Delphic Oracle to serve Eurystheus, king of Mycenae, for
+twelve years to atone for the murder of his own children.  It was the
+Oracle of Ammon who told King Cepheus to chain his daughter Andromeda to
+the rocks of Joppa to appease the terrible sea monster that was ravaging
+the coasts.  That solution was never tested, though, as Perseus saved
+the girl in the nick of time.
+
+With the advent of the electronic age, and especially high-speed e-mail
+communication, the spirit of the Oracles found a new outlet, and we now
+recognize another great Oracle, the Usenet Oracle.
+
+Local oracle programs have existed in various places for many years.
+The Usenet Oracle was inspired by the "oracle" program written by Lars
+Huttar (huttar@occs.oberlin.edu) and posted to alt.sources in August
+1989.  I'm told that Huttar wrote his program after being given a
+description of an oracle program at Murray Hill Bell Labs that may have
+been written by Robert T Morris.  Other early oracle programs were at
+Interactive Systems (by Peter S Langston circa 1980), Johns Hopkins
+University (run by Erica Liebman circa 1984) and another by Morris at
+Harvard University.
+
+Steve Kinzler (kinzler@cs.indiana.edu), a graduate student and systems
+administrator at Indiana University, installed Huttar's program on
+silver.ucs.indiana.edu, where it proved to be quite popular.  The best
+Oracularities were posted to in.bizarre, a group local to Indiana.
+
+Ray Moody (moody@pittpa.cray.com), a graduate student at Purdue
+University, after correspondence with Kinzler, wrote the core software
+for the Usenet Oracle, a mail-based oracle program to be run on
+iuvax.cs.indiana.edu for net-wide use, where it proved to be an
+immediate success.
+
+Kinzler continued development of the software, adding support for the
+Oracularities postings and ratings and, eventually, the Oracle
+Priesthood -- a hardy and loyal band of volunteers who read through the
+hundreds of questions and answers each week to choose the best for
+publication, thus helping to make the Usenet Oracle self-sustaining.
+Jon Monsarrat (jgm@cs.brown.edu) and Randal Schwartz
+(merlyn@iwarp.intel.com) also contributed to aspects of the software
+development.  Michael Nolan (nolan@helios.unl.edu) went through the
+newsgroup creation process for the rec.humor.oracle newsgroups.
+
+Of course, it is the thousands of Oracle participants over the years who
+have created the personality, mythos and history of the Usenet Oracle.
+Long live the Usenet Oracle (in all its incarnations)!
+
+------------------------------------------------------------------------
+Written:	8 October 1989			Steve Kinzler
+Last Revised:	1 October 1992			kinzler@cs.indiana.edu
+
+Thanks to Joshua.R.Poulson@cyber.widener.edu and Jim Cheetham
+(J.Cheetham@bra0116.wins.icl.co.uk) for assistance with portions of this
+document.
+
+ORACLE(1)MS		oracle@cs.indiana.edu	 	    ORACLE(1)MS 
+
+\Rogue\Monster\
+else
+  echo "will not over write ./oracle.1"
+fi
+if `test ! -s ./pitmanager.1`
+then
+echo "writing ./pitmanager.1"
+cat > ./pitmanager.1 << '\Rogue\Monster\'
+From pit-manager.MIT.EDU!daemon Mon Nov 16 01:39:37 1992
+Received: by tnl.com (Smail2.5 tnlE+deliver)
+	id AA20164; 16 Nov 92 01:39:37 EST (Mon)
+Received: from PIT-MANAGER.MIT.EDU by uu3.psi.com (5.65b/4.0.071791-PSI/PSINet)
+	id AA08849; Mon, 16 Nov 92 01:20:19 -0500
+Received:  by pit-manager.MIT.EDU (5.61/2.1JIK)
+	id <AA28595@pit-manager.MIT.EDU>; Mon, 16 Nov 92 01:20:14 -0500
+Date: Mon, 16 Nov 92 01:20:14 -0500
+From: Mr Background <daemon@pit-manager.MIT.EDU>
+Message-Id: <9211160620.AA28595@pit-manager.MIT.EDU>
+Subject: Reply from mserv re: help (part 1 of 1)
+Reply-To: mail-server@pit-manager.mit.edu
+X-Problems-To: postmaster@pit-manager.mit.edu
+Precedence: bulk
+To: Daniel Ray <root@tnl.com>
+Status: RO
+
+-----cut here-----
+Commands should be sent to "mail-server@pit-manager.mit.edu".
+
+You can use the following commands:
+
+path <path>	Specify a return mail path to use other than the mail
+		path in the header of your message.  
+
+help            Get this help.
+
+index		Get the top-level index of files available from the
+		archive server.
+
+send <filename>	Get a particular file.  For example, to get the "Mel"
+		file in the "humor" archive, you would use "send
+		humor/Mel".  To get an index for one of the archives,
+		you would use "send <archive>/index", e.g. "send
+		humor/index".
+
+		Some notes:
+
+		1) Archives can nest.  For example, to get the first
+		shar file in the sources for "delete", you would use
+		"send delete/delete/Part01".
+
+		2) The special filename "-listing-" will retrieve a
+		list of the files in an archive.  For example, to get
+		a list of the newsgroups which have FAQs archived in
+		the "usenet" archive (i.e. which have subarchives
+		under the "usenet" archive), you could use "send
+		usenet/-listing-".
+
+		3) If the final component of a specified path is "*",
+		all files in the archive will be sent.  No other
+		wildcards or combinations of wildcards are allowed;
+		only "*" to match every file in an archive is allowed.
+
+		4) The special sub-archive "usenet-addresses", can be
+		used to search a large list of addresses of people on
+		the Usenet.  To find out more, send "send
+		usenet-addresses/help".
+
+size <number>	Specify the maximum size, in bytes, of the mailed
+		responses from the mail server.  The default is 50000
+		characters.  Note that the mail server will subtract
+		some from the value specified in order to leave room
+		for mail headers.
+
+		If the response from the mail server is larger than
+		the specified size, it will be broken up into multiple
+		messages which will be mailed to you separately.
+
+		Note that a "size" command with an invalid number will
+		be silently ignored, and that a specified size smaller
+		than 10000 will be silently changed to 10000 (i.e.,
+		10000 is the minimum size).
+
+		For example, you could use "size 100000" if you know
+		that messages that are 100000 characters in length
+		will reach you successfully.
+
+vote <vote>	Cast a vote with the mail server's automatic voting
+		software.  To find out currently valid votes, send
+		"vote help".
+
+quit            Stop parsing your message at this point.
+
+If you do not understand something in these instructions, or if you need to
+talk to a real person about the mail server for some other reason, please
+send mail to "postmaster@pit-manager.mit.edu".
+-----cut here-----
+
+\Rogue\Monster\
+else
+  echo "will not over write ./pitmanager.1"
+fi
+if `test ! -s ./internetserv`
+then
+echo "writing ./internetserv"
+cat > ./internetserv << '\Rogue\Monster\'
+: NON-XENIX SITES WANT TO DELETE THIS LINE. NECESSARY ON XENIX TO PREVENT CSH.
+#!/bin/sh --
+# PATH=/bin:/usr/bin:/var/bin:/usr/ucb:/var/ucb:/usr/local/bin:/var/local/bin
+# =============================================================================
+#
+# @(#) internetserv v8 17-Nov-1992		  (TNL v2) The Northern Lights
+#Original name follows (this name used by another program, thus new name above)
+# @(#) ftpmail v8 17-Nov-1992                     (TNL v2) The Northern Lights
+#
+# Copyright (c) 1992 by Daniel Ray - Noncommercial use is authorized, all other
+#  rights reserved.
+#							UPDATED AS OF 17NOV1992
+# =============================================================================
+# =============================================================================
+#
+# Can set $FTPREPLY to import recipient other than invoking user@local.machine
+# =============================================================================
+# CONFIGURATION SECTION FOLLOWS - KEEP BOTH DESTINATION SITES CURRENT !
+# ALL SITES SHOULD BE IN THE FORM USER@DOMAIN.NAME.ETC - Do not use UUCP symbols
+# ADVISORY: REVERIFY BOTH HOST DESTINATIONS PERIODICALLY. THINGS CHANGE.
+#
+# The following should be your FQDN registered domain electronic mail systemname
+# or you may embed `uname -n` or other command to return domain address string
+SITENAME="Yoursystem.COM"
+# The following line should be a very short abbeviation/descriptive name of your
+# system, not for electronic mail purposes.
+FTPSYSTEM="CONFIGURE-ME"
+#
+# The following line should be a site that performs public FTPmail service
+# Must include both user and machine domain name. If you use anything other
+# than decwrl.dec.com, you may break program syntax.
+FTPSERVER="ftpmail@decwrl.dec.com"
+#
+# The following line should be the most LOCAL site performing ARCHIE via email
+# Must include both user and machine domain name. All Archie servers use the
+# same syntax. Choices of Archie servers as of program version date:
+#      archie@archie.mcgill.ca                   (Canada)
+#      archie@archie.funet.fi                    (Finland/Eur.)
+#      archie@archie.au                          (Aussie/NZ)
+#      archie@archie.cs.huji.ac.il               (Israel)
+#      archie@archie.doc.ic.ac.uk                (UK/Ireland)
+#      archie@archie.sura.net                    (USA: Maryland)
+#      archie@archie.unl.edu                     (USA: Nebraska)
+#      archie@archie.ans.net                     (USA: New York)
+#      archie@archie.rutgers.edu                 (USA: New Jersey)
+#      archie@archie.kuis.kyoto-u.ac.jp          (JAPAN)
+ARCHIESERVER="archie@archie.ans.net"
+#
+# The following line must not be changed unless this single-system service
+# migrates. Primary use is humor/entertainment related.
+ORACLESERVER="oracle@cs.indiana.edu"
+#
+# The following line is for email NSLOOKUP service that accepts site aa.bb.cc
+# type syntax. Do not change unless forced to.
+NSSERVER="resolve@cs.widener.edu"
+#
+# The following line is for searching for addresses of anyone who has posted
+# to USENET, using the name as search key. Do not change, single-system service
+PITSERVER="mail-server@pit-manager.mit.edu"
+#
+# The following line is the MAXIMUM REQUESTS per email message request
+# Note: some servers set their own max. requests independent of local policy.
+# decwrl.dec.com has a request limit of 10. All Archie servers have a limit
+# of 1 but may be upgraded in the future.
+FTPTHRESH="10"
+#
+# The following line should be the average time/interval from transmit to
+# receive including time units such as hours or days, as actually experienced.
+# If you poll constantly, actual turnaround for decwrl.dec.com is approx. 3 hrs.
+# Note: do not include an ending period if abbreviating hrs etc.
+TURNAROUND="6-18 hrs"
+#
+# Enter the version string below
+VERS="v8"
+#
+# The following line should be your desired MUA mailer program, that can
+# accept a Subject: option on the command line
+FTPMUA="/bin/elm"
+# Follow this by the command option to include a Subject: on the command line
+# If a space must follow the command option letter(s), include it before the
+# ending quote.
+FTPMUAS="-s"
+#
+# The following should embed the `command` to return the invokers login username
+# which serves as the default return address for FTPmail/ARCHIE requests
+FTPUSER="`/usr/bin/logname`"
+#
+# LAST DATE VERIFIED ACCURATE/OPERATIONAL:  17NOV1992
+# END OF CONFIGURATION SECTION - DO NOT TOUCH REMAINDER UNLESS COMMANDS CHANGE
+# =============================================================================
+#
+case "$1" in				# LIST OF COMMANDS FROM SHELL PROMPT
+?|-?*|[Hh]elp|HELP) echo "\n$FTPSYSTEM FTPmail/Archie email-based Internet client services $VERS\n
+FTPmail: Obtain files from the Internet to be mailed to you as electronic mail.
+Archie: Search for files on the Internet using keywords, results sent as email.\n
+Noninteractive FTP commands. File(s) are sent to invoking user account on TNL.
+   $ $0 remote.site.domain.name file/to/get
+   $ $0 file/to/get remote.site.domain.name [account [password]]\n
+Interactive FTP command. Help is available at all prompts by typing a ?.
+   $ $0\n
+Noninteractive Archie search command. Single-quote any regexp metacharacters.
+   $ $0 archie 'keyword'\n
+Interactive Archie search command. Adds several other features, type ? to list.
+   $ $0 archie\n
+FTPmail service currently provided via $FTPSERVER
+ARCHIE service currently provided via $ARCHIESERVER\n" ; exit 8 ;;
+*) FTPDIR="" ; FTPGET="" ; FTPANS="" ;;		# INITIALIZE PROGRAM VARIABLES
+esac
+#
+# START OF INTERACTIVE PROGRAM
+#						  DEFAULT VARIABLES
+T=/tmp/ftpm$$ ; export T		# temp filename
+FTPREPLY1="${FTPUSER}@${SITENAME}"	# LEAVE ALONE
+FTPREPLY="${FTPREPLY:-$FTPREPLY1}"	# LEAVE ALONE - $FTPREPLY importable
+COD="uuencode"				# leave or change to 'btoa'
+ANON="anonymous"			# LEAVE ALONE
+FTPORACLE=""				# LEAVE ALONE
+#
+trap "/bin/rm -f $T ; exit 1" 1
+trap "/bin/rm -f $T ; echo 'Aborted\n' ; exit 1" 2 3 15
+#
+# THIS SECTION PROCESSES NONINTERACTIVE FTPMAIL AND ARCHIE COMMANDS
+# Start here if NOT invoked in ARCHIE-only mode
+if test -z "$ARCHIEBYPASS" ; then
+case "$2" in
+"") case "$1" in
+"") echo "\n$FTPSYSTEM Internet mail server $VERS\n\nFTPmail via $FTPSERVER\nARCHIE via $ARCHIESERVER\nNSLOOKUP via $NSSERVER\nORACLE via $ORACLESERVER\nPITMANAGER via $PITSERVER\n"
+FTPSITE="" ;;
+# MODE SELECT COMMAND LINE SHORTCUTS
+[Oo]racle|ORACLE) FTPARCHIE=Y ; FTPORACLE=Q ; FTPSITE="$1" ;;
+[Pp]it|PIT|[Pp]itmanager|PITMANAGER) FTPARCHIE=Y ; FTPORACLE=U ; FTPSITE="$1" ;; # ORACLE SHORTCUT
+[Nn][Ss]|[Nn]slookup|NSLOOKUP) FTPARCHIE=Y ; FTPORACLE=N ; FTPSITE="$1" ;;
+[Aa]rchie|ARCHIE) FTPARCHIE=Y ; FTPSITE="$1" ;;
+?*.?*) FTPSITE="$1" ;;
+*) echo "$0: invalid domain.address string ${1}" >&2 ; exit 9 ;;
+esac ;;
+# BELOW IS ALL FOR INVOCATIONS WITH 2 OR MORE ARGS
+[Ll][Ss]) echo "reply $FTPREPLY\nconnect ${1} anonymous\nascii\nls\nquit" |
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1
+exit 0 ;;
+[Dd][Ii][Rr]) echo "reply $FTPREPLY\nconnect ${1} anonymous\nascii\ndir\nquit" |
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1
+exit 0 ;;
+[Aa]rchie|ARCHIE) echo "path $FTPREPLY\nprog ${1}\nquit" |   # ARCHIE CMDLINE
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1
+exit 0 ;;
+*) case "$1" in					    # DETERMINE COMMAND ORDER
+*/?*) FTPSITE="$2" ; FTPDIR="`/bin/dirname $1`" ; FTPGET="`/bin/basename $1`"
+shift ; shift ; ANON="${*:-anonymous}"
+echo "reply $FTPREPLY\nconnect $FTPSITE $ANON\nchdir $FTPDIR\nbinary\nuuencode\nget $FTPGET\nquit" |
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1
+exit 0 ;;
+[Aa]rchie|ARCHIE) echo "path $FTPREPLY\nprog ${2}\nquit" |   # ARCHIE CMDLINE
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1
+exit 0 ;;
+?*.?*) FTPSITE="$1" ; case "$2" in		    # SILENT COMMAND MODE 2ARGS
+*/?*) FTPDIR="`/bin/dirname $2`" ; FTPGET="`/bin/basename $2`"
+echo "reply $FTPREPLY\nconnect $FTPSITE anonymous\nchdir $FTPDIR\nbinary\nuuencode\nget $FTPGET\nquit" |
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1 ;;
+*) FTPGET="$2" ; echo "reply $FTPREPLY\nconnect $FTPSITE anonymous\nbinary\nuuencode\nget $FTPGET\nquit" |
+${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPSERVER} >/dev/null 2>&1 ;;
+esac ; exit 0 ;;
+*) echo "Usage: $0 remote.domain.name ftp/file/name" >&2 ; exit 9 ;;
+esac ; esac
+#
+#
+until test -n "$FTPSITE" ; do		# START FTPMAIL/ARCHIE INTERACTIVE MODE
+echo "Ftp: \c" ; read FTPSITE
+case "$FTPSITE" in
+""|[QqXx]|[Qq]uit|QUIT|[Ee]xit|EXIT) exit 4 ;;
+[Mm]an|MAN) FTPSITE="" ; /usr/bin/man ftpmail ; echo ;;
+[Ff]tpmail|FTPMAIL) echo "FTPmail is the default mode. To use it, type in the system to FTP from." ; FTPSITE="" ;;
+[Rr]eply|REPLY) echo "You must follow 'reply' with the mailing@add.ress to send to." ; FTPSITE="" ;;
+[Rr]eply" "*?@?*|REPLY" "*?@?*) set $FTPSITE ; FTPREPLY="${2:-$FTPREPLY}" ; FTPSITE="" ; echo "Ok" ;;
+[Rr]eply*!*|REPLY*!*) echo "Sorry, you cannot use UUCP paths with FTPmail." ; FTPSITE="" ;;
+[Rr]eply*?@?*|REPLY*?@?*) echo "Invalid domain address construction." ; FTPSITE="" ;;
+[Rr]eply*|REPLY*) set $FTPSITE ; FTPREPLY="${2}@$SITENAME" ; FTPSITE="" ; echo "New reply to $FTPREPLY" ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nSupply the domain name of the site to connect to for FTP or type Q to quit.
+You may also use the command 'reply new@add.ress' to change the reply address.\n
+FTPmail is used to obtain files from the Internet via FTP. Since $FTPSYSTEM is
+not directly connected to the Internet, the files are obtained by sending
+an email request to ${FTPSERVER}, a machine that is on the net. This
+machine then uses email to send the files to the $FTPSYSTEM user that requested
+them. This program will construct a message to be automatically executed by the
+FTPmail service.\n
+Or type ARCHIE to perform Internet-wide Archie search for FTP-able files.\n
+Or type NSLOOKUP to find the IP Internet address from a domain address.\n
+Or type ORACLE to ask a question of the USENET Oracle.\n
+Or type PITMANAGER to search for USENET posters by their username/hostname.\n"
+FTPSITE="" ;;
+[Aa]rchie|ARCHIE) FTPARCHIE=Y ;;
+[Oo]racle|ORACLE) FTPARCHIE=Y ; FTPORACLE=Q ;;
+[Pp]it|PIT|[Pp]itmanager|PITMANAGER) FTPARCHIE=Y ; FTPORACLE=U ;;
+[Nn][Ss]|[Nn]slookup|NSLOOKUP) FTPARCHIE=Y ; FTPORACLE=N ;;
+[Cc]onnect|CONNECT) echo "You need not use the word CONNECT. Just specify the site to connect to." ; FTPSITE="" ;;
+[Cc]onnect" "?*.?*" "?*|CONNECT" "?*.?*" "?*) set $FTPSITE ; shift ; FTPSITE="$*" ; ANON="" ;;
+[Cc]onnect" "?*.?*|CONNECT" "?*.?*) set $FTPSITE ; shift ; FTPSITE="$*" ;;
+?*.?*" "?*) ANON="" ;;
+?*.?*) ;;
+*) echo "Invalid domain address string for network hosts." ; FTPSITE="" ;;
+esac
+done
+else FTPARCHIE=Y				# ELSE IN ARCHIE-ONLY MODE
+echo "\n$FTPSYSTEM Internet mail server $VERS\n\nARCHIE via $ARCHIESERVER\n"
+fi
+#
+#				    ORACLE AND ARCHIE-ONLY INTERACTIVE SECTION
+if test -n "$FTPARCHIE" ; then
+if test "$FTPORACLE" = "Q" ; then			# USENET ORACLE MODE
+echo "Your question for the USENET Oracle" ; FTPOR="~START~"
+TURNAROUND="several days"
+until test -n "$FTPOROK" -a -z "$FTPOR" ; do
+echo "? \c" ; read FTPOR
+case "$FTPOR" in
+"") ;;
+[Mm]an|MAN) /usr/bin/man oracle ; echo "Now finish entering your question or type Q to quit\n" ;;
+[QqXx]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 1 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nEnter a question, and ONLY a question, for the USENET Oracle.\n
+Although anonymity is preserved, publication of the question and answer is
+possible. Your question may be read by a human instead of a machine. You should
+indicate if question is serious, since this service is primarily for humor.\n" ;;
+*) echo "$FTPOR" >> $T ; FTPOROK=Y ;;
+esac ; done
+#
+elif test "$FTPORACLE" = "N" ; then		# NSLOOKUP MODE
+FTPNSLOOKUP=""
+until test -n "$FTPNSLOOKUP" ; do
+echo "Domain address: \c" ; read FTPNSLOOKUP
+case "$FTPNSLOOKUP" in
+"") ;;
+[QqXx]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 1 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nEnter a domain address to be resolved into a TCP/IP Internet address\n"
+FTPNSLOOKUP="" ;;
+*[a-zA-Z]*) echo "site $FTPNSLOOKUP" > $T ;;
+*) echo "Enter the alphanumeric domain.add.ress only, not a numeric address"
+FTPNSLOOKUP="" ;;
+esac ; done
+#
+elif test "$FTPORACLE" = "U" ; then		# PITMANAGER ADDRESS SRCH MODE
+FTPUSENET=""
+until test -n "$FTPUSENET" ; do
+echo "Name(s): \c" ; read FTPUSENET
+case "$FTPUSENET" in
+"") ;;
+[QqXx]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 1 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nEnter username(s) or component(s) of their machine host or domain separated by
+SPACEs. Each word forms part of an OR statement for search from a list of all
+relatively recent USENET POSTERS. This means the report that is mailed to you
+will usually include many more matches than what you are looking for. You must
+then carefully examine it for the username/person's name you are looking for.\n
+If this person has posted recently to USENET, $PITSERVER
+may find their electronic mail address, and will display the GECOS (usually
+personal name) field associated with this electronic address. Since each SEARCH
+WORD is searched by itself, you should limit your search to suspected username
+and/or hostname, but should NOT INCLUDE high-level domains such as 'com' or
+'edu' or 'uunet'. Do not include the atsign or periods in your search words.\n"
+FTPUSENET="" ;;
+# check for nonmatching separators
+*.*) echo "Do not enter full domain addresses. Period character not allowed."
+FTPUSENET="" ;;
+*@*) echo "Do not enter full domain addresses. Atsign not allowed."
+FTPUSENET="" ;;
+# check for overly matching domains/hosts
+com|COM|com" "*|COM" "*|*" "com|*" "COM|*" "com" "*|*" "COM" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+org|ORG|org" "*|ORG" "*|*" "org|*" "ORG|*" "org" "*|*" "ORG" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+edu|EDU|edu" "*|EDU" "*|*" "edu|*" "EDU|*" "edu" "*|*" "EDU" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+net|NET|net" "*|NET" "*|*" "net|*" "NET|*" "net" "*|*" "NET" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+gov|GOV|gov" "*|GOV" "*|*" "gov|*" "GOV|*" "gov" "*|*" "GOV" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+mil|MIL|mil" "*|MIL" "*|*" "mil|*" "MIL|*" "mil" "*|*" "MIL" "*) echo "Do not use high-level domains in your search words!"
+FTPUSENET="" ;;
+uunet|UUNET|uunet" "*|UUNET" "*|*" "uunet|*" "UUNET|*" "uunet" "*|*" "UUNET" "*) echo "Do not use highly used hosts in your search words!"
+FTPUSENET="" ;;
+*) echo "send usenet-addresses/${FTPUSENET}" > $T ;;
+esac ; done
+#
+else echo "path $FTPREPLY" > $T			# ARCHIE MODE
+until test -n "$FTPARCH" ; do
+echo "Search: \c" ; read FTPARCH
+case "$FTPARCH" in
+[QqXx]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 1 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nSupply a regular expression to be used for Archie searching.\n
+You may also type COMPRESS to compress and uuencode your search results.
+Or type SITE DOMAIN.NAME to find all files at a given node.\n" ; FTPARCH="" ;;
+[Cc]ompress|COMPRESS) echo "compress" >> $T ; echo "Compress" ; FTPARCH="" ;;
+[Ss]ite|SITE) echo "Site command must be followed by domain or IP address.\n" ; FTPARCH="" ;;
+[Ss]ite" "?*.?*|SITE" "?*.?*) set $FTPARCH ; echo "site $2" >> $T ;;
+[Ss]ite" "*|SITE" "*) echo "Invalid SITE, not an internet address.\n" ; FTPARCH="" ;;
+*\"*) echo "Use SINGLE QUOTES ONLY in your search expression.\n" ; FTPARCH="" ;;
+?*" "?*) echo "Do not use MORE THAN ONE keyword or regular expression. No SPACEs.\n" ; FTPARCH="" ;;
+?*) echo "prog ${FTPARCH}" >> $T ;;
+esac ; done
+fi
+# END ARCHIE-ONLY SECTION
+#							RESUME FTPMAIL SECTION
+else echo "reply $FTPREPLY\nconnect $FTPSITE $ANON" > $T
+FTPRQC="0"
+if test "$FTPREPLY1" != "$FTPREPLY" ; then
+echo "Reply -> $FTPREPLY"		# Report if not the invokers address
+fi
+until test -n "$FTPDIR" ; do
+echo "Chdir: \c" ; read FTPDIR
+case "$FTPDIR" in
+[QqXx]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 1 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nSupply the subdirectory off the root public directory where your file(s) are
+located. You must know this from a listing for this site.\n" ; FTPDIR="" ;;
+*\"*) echo "Do not use DOUBLE QUOTES.\n" ; FTPDIR="" ;;
+esac
+done
+echo "chdir $FTPDIR" >> $T
+FTPGET=Y
+#
+# FTPMAIL GETFILE SECTION - MAIN LOOP, MAX. 10 GETS PER MESSAGE
+until test "$FTPRQC" -ge "$FTPTHRESH" -o \( -n "$FTPOK" -a -z "$FTPGET" \) ; do
+echo "Get: \c" ; read FTPGET
+case "$FTPGET" in
+"") ;;
+*\"*) echo "Do not use DOUBLE QUOTES.\n" ; FTPGET="" ;;
+[Qq]|[Qq]uit|QUIT) /bin/rm -f $T ; echo 'Aborted\n' ; exit 3 ;;
+\?|[Hh]|[Hh]elp|HELP) echo "\nUse one of the commands:\n
+	ascii binary chunksize compress dir ls man quit show\n
+You must start with 'ascii' or 'binary' to specify file type, where ascii is
+a text file, and binary a compressed file, archive file, or program executable.
+After typing 'binary' you can optionally type 'compress' to compress the data
+if it is not already in compressed form, to shrink the size. Type 'ls' to have
+FTPMAIL send the file list in the given directory.\n
+Use 'show' to review the actual created ASCII message that will be sent
+to FTPMAIL. Type 'man' to read the online manual page for FTPMAIL. Or type
+'quit' to abort. All nontext files will be UUENCODED. FTPmail defaults with
+sending your file(s) in chunks of 64000 bytes. To change that use the command
+CHUNKSIZE. Maximum of $FTPTHRESH file GETs per FTPmail transaction.\n" ;;
+#
+[Ss]|[Ss]how|SHOW) /bin/cat $T ; echo ;;
+[Mm]an|MAN) /usr/bin/man ftpmail ; echo "Resuming FTPmail\n" ;;
+[Aa]|[Aa]scii|ASCII) echo "ascii" >> $T ; echo "Ascii" ; FTPOK="" ; FTPSET=Y ;;
+[Bb]|[Bb]inary|BINARY) echo "binary" >> $T ; echo "Binary" ; FTPOK="" ; FTPSET=YY ;;
+[Cc]ompress|COMPRESS) case "$FTPSET" in
+YY) echo "compress" >> $T ; echo "Compress" ;;
+*) echo "Must first set to BINARY" ;;
+esac ;;
+[Cc]ompact|COMPACT) case "$FTPSET" in
+YY) echo "compact" >> $T ; echo "Compact" ;;
+*) echo "Must first set to BINARY" ;;
+esac ;;
+[Bb]toa|BTOA) case "$FTPSET" in
+YY) COD="btoa" ; echo "Btoa" ;;
+*) echo "Must first set to BINARY" ;;
+esac ; FTPGET="" ;;
+[Uu]encode|UUENCODE) case "$FTPSET" in
+YY) COD="uuencode" ; echo "Uuencode" ;;
+*) echo "Must first set to BINARY" ;;
+esac ; FTPGET="" ;;
+[Dd]ir|DIR) echo "dir" >> $T ; FTPOK=YYY ; FTPRQC="`/bin/expr $FTPRQC + 1`" ;;
+[Ll][Ss]) echo "ls" >> $T ; FTPOK=YYY ; FTPRQC="`/bin/expr $FTPRQC + 1`" ;;
+[Cc]hunksize|CHUNKSIZE) echo "You must follow 'chunksize' with the number of bytes for each chunk" ;;
+[Cc]hunksize" "*[a-zA-Z]*|CHUNKSIZE" "*[a-zA-Z]*) echo "Chunksize must be followed by the number of bytes only" ;;
+[Cc]hunksize" "[1-9]*|CHUNKSIZE" "[1-9]*) echo "$FTPGET" >> $T ; echo "Ok" ;;
+[Cc]hdir|CHDIR|[Cc]hdir" "?*|CHDIR" "?*) echo "Sorry, only 1 CHDIR allowed per session." ;;
+#
+?*" "?*) echo "Get commands for files cannot have SPACEs in them" ;;
+*) case "$FTPSET" in
+"") echo "Must set ASCII or BINARY first" ;;
+Y|YYY) echo "get $FTPGET" >> $T ; FTPOK=Y ; FTPRQC="`/bin/expr $FTPRQC + 1`" ;;
+*) case "$FTPOK" in
+"") echo "$COD\nget $FTPGET" >> $T ; FTPRQC="`/bin/expr $FTPRQC + 1`" ;;
+*) echo "get $FTPGET" >> $T ; FTPRQC="`/bin/expr $FTPRQC + 1`" ;;
+esac ; FTPOK=Y ;;
+esac ;;
+esac ; done
+if test "$FTPRQC" -ge "$FTPTHRESH" ; then
+echo "No more requests: maximum of $FTPTHRESH requests per message\n"
+fi ; fi
+#						START FINAL CONFIRMATION SECTION
+until test -n "$FTPANS" ; do
+echo "Send? \c" ; read FTPANS
+case "$FTPANS" in
+*\"*) echo "Do not use DOUBLE QUOTES.\n" ; FTPANS="" ;;
+[Ss]|[Ss]how|SHOW) /bin/cat $T ; echo ; FTPANS="" ;;
+\?|[Hh]|[Hh]elp|HELP) echo "Type Yes or No or 'show' to see your message" ; FTPANS="" ;;
+#
+[YyOo]|[Yy]es|YES|[Oo]ui|OUI) if test -z "$FTPORACLE" ; then
+echo "quit" >> $T		# YES - TRANSMIT
+fi
+case "$FTPARCHIE$FTPORACLE" in
+"") FTPDEST="$FTPSERVER" ;;
+Y) FTPDEST="$ARCHIESERVER" ;;
+YQ) ;;							# DEALT WITH BELOW
+YN) FTPDEST="$NSSERVER" ;;
+YU) FTPDEST="$PITSERVER" ;;
+*) echo "$0: malfunction - exiting without sending request" >&2 ; exit 10 ;;
+esac							# MAIL IT
+if test "$FTPORACLE" = "Q" ; then			# EXCEPTION FOR ORACLE
+${FTPMUA} ${FTPMUAS}"O Oracle greatest of all, please tell me" ${ORACLESERVER} < $T
+elif test "$FTPORACLE" = "U" ; then			# EXCEPTION FOR PITMGR
+${FTPMUA} ${FTPMUAS}"path ${FTPREPLY}" ${FTPDEST} < $T
+# NORMAL SUBJECT LINE FOR FTPMAIL/ARCHIE/NSLOOKUP/PITMANAGER
+else ${FTPMUA} ${FTPMUAS}"${FTPUSER}@${SITENAME};$$" ${FTPDEST} < $T
+fi
+case "$FTPARCHIE$FTPRQC$FTPORACLE" in
+Y*Q) FTPVERB="answer" ;;
+Y*) FTPVERB="search" ;;
+1) FTPVERB="request" ;;
+*) FTPVERB="$FTPRQC requests" ;;
+esac
+echo "Your $FTPVERB may not be received for ${TURNAROUND}. Watch your email.\n" ;;
+#
+#							  NO - ABORT
+[Nn]|[Nn][Oo]*) echo "Aborted\n" ;;
+*) echo "Please type either a Yes or No to send or abort sending FTPmail" ; FTPANS="" ;;
+esac ; done
+#
+/bin/rm -f $T
+exit 0
+# =============================================================================
+# @(#) internetserv v8 17-Nov-1992		  (TNL v2) The Northern Lights
+#Original name follows (this name used by another program, thus new name above)
+# @(#) ftpmail v8 17-Nov-1992                     (TNL v2) The Northern Lights
+#
+# Copyright (c) 1992 by Daniel Ray - Limited noncommercial use is authorized,
+# all other rights reserved.
+#							UPDATED AS OF 17NOV1992
+# =============================================================================
+\Rogue\Monster\
+else
+  echo "will not over write ./internetserv"
+fi
+if `test ! -s ./archie`
+then
+echo "writing ./archie"
+cat > ./archie << '\Rogue\Monster\'
+:
+# @(#) archiemail v1 22OCT1992
+# The Northern Lights
+#
+# Execs /bin/ftpmail to force archie service
+#
+ARCHIEBYPASS=Y ; export ARCHIEBYPASS
+exec /bin/ftpmail
+echo "$0: can't exec /bin/ftpmail, aborting" >&2
+exit 2
+\Rogue\Monster\
+else
+  echo "will not over write ./archie"
+fi
+if `test ! -s ./oracle`
+then
+echo "writing ./oracle"
+cat > ./oracle << '\Rogue\Monster\'
+:
+# @(#) oracle v1 16-Nov-1992
+# The Northern Lights
+#
+# FTPMAIL ORACLE-MODE LOADER PROGRAM
+#
+exec /bin/ftpmail oracle
+echo "$0: can't exec /bin/ftpmail" >&2
+exit 2
+\Rogue\Monster\
+else
+  echo "will not over write ./oracle"
+fi
+if `test ! -s ./nslookup`
+then
+echo "writing ./nslookup"
+cat > ./nslookup << '\Rogue\Monster\'
+:
+# @(#) nslookup v1 16-Nov-1992
+# The Northern Lights
+#
+# FTPMAIL NSLOOKUP-MODE LOADER PROGRAM
+#
+exec /bin/ftpmail nslookup
+echo "$0: can't exec /bin/ftpmail" >&2
+exit 2
+\Rogue\Monster\
+else
+  echo "will not over write ./nslookup"
+fi
+if `test ! -s ./nslookup.franc`
+then
+echo "writing ./nslookup.franc"
+cat > ./nslookup.franc << '\Rogue\Monster\'
+From grasp.insa-lyon.fr!dns-request Sun Nov 15 13:41:57 1992
+Received: by tnl.com (Smail2.5 tnlE+deliver)
+	id AA09594; 15 Nov 92 13:41:57 EST (Sun)
+Received: from grasp1.univ-lyon1.fr by uu3.psi.com (5.65b/4.0.071791-PSI/PSINet)
+	id AA27709; Sun, 15 Nov 92 13:22:53 -0500
+Received: by grasp1.univ-lyon1.fr (5.67a8/IDA-1.5)
+  via Rocad with DNServ id AA13497; Sun, 15 Nov 1992 19:22:48 +0100
+Date: Sun, 15 Nov 1992 19:22:48 +0100
+Message-Id: <199211151822.AA13497@grasp1.univ-lyon1.fr>
+From: dns-request@grasp.insa-lyon.fr (Mail Name Server)
+Subject: Reply to your queries
+To: norstar@tnl.com
+X-Charset: ASCII
+X-Char-Esc: 29
+Status: RO
+
+you> help
+
+   Available commands are:
+
+      help                              ; get this
+      ip host.foo.bar                   ; get host's addresses
+      addr host.foo.bar                 ; same
+      name ip#                          ; get host name from address
+      host ip#                          ; same
+      mx host.foo.bar                   ; get MX records
+      ns host.foo.bar                   ; get name servers
+      soa foo.bar                       ; get authority record
+
+   Zone transfers can not be requested using this service.
+
+   Functions to be implemented soon:
+      uucp node                         ; get map entry for an uucp node
+      path node                         ; short path from the Internet
+
+   Example of requests:
+      ip grasp1.univ-lyon1.fr
+      host 134.214.100.25
+      mx grasp.insa-lyon.fr
+      ns fr
+      soa ch
+
+   The requests are interfaced to the 'dig' name server lookup
+   program.
+
+   If you prefer you may wish to use the nslookup syntax which is
+   also recognized.
+
+   Should you have questions, please mail them to the alias
+   <dns-request@grasp.insa-lyon.fr>, where a human will read
+   the mail.
+   
+
+you> help
+
+   Available commands are:
+
+      help                              ; get this
+      ip host.foo.bar                   ; get host's addresses
+      addr host.foo.bar                 ; same
+      name ip#                          ; get host name from address
+      host ip#                          ; same
+      mx host.foo.bar                   ; get MX records
+      ns host.foo.bar                   ; get name servers
+      soa foo.bar                       ; get authority record
+
+   Zone transfers can not be requested using this service.
+
+   Functions to be implemented soon:
+      uucp node                         ; get map entry for an uucp node
+      path node                         ; short path from the Internet
+
+   Example of requests:
+      ip grasp1.univ-lyon1.fr
+      host 134.214.100.25
+      mx grasp.insa-lyon.fr
+      ns fr
+      soa ch
+
+   The requests are interfaced to the 'dig' name server lookup
+   program.
+
+   If you prefer you may wish to use the nslookup syntax which is
+   also recognized.
+
+   Should you have questions, please mail them to the alias
+   <dns-request@grasp.insa-lyon.fr>, where a human will read
+   the mail.
+   
+
+\Rogue\Monster\
+else
+  echo "will not over write ./nslookup.franc"
+fi
+echo "Finished archive 1 of 1"
+exit
+-- 
+norstar
+The Northern Lights, Troy NY                                 |      
+tnl dialins: 518 237-2163 @ 2400 bps 8N1 $free             ` | /    
+------------------------------------------------------   --- * ---  
+UUCP: uunet!uupsi3!tnl!norstar                             / | .    
+Internet: norstar@tnl.com                                    |      

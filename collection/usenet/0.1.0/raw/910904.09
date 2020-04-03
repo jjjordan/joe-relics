@@ -1,0 +1,2179 @@
+Path: funic!fuug!mcsun!unido!estevax!norisc!iain
+From: iain@norisc.UUCP (Iain Lea)
+Newsgroups: alt.sources
+Subject: tin v1.0 Patchlevel 1 Newsreader (part 02/08)
+Message-ID: <600@norisc.UUCP>
+Date: 3 Sep 91 10:57:31 GMT
+Sender: iain@norisc.UUCP (Iain Lea)
+Organization: What organization?
+Lines: 2169
+
+Submitted-by: iain@estevax.uucp
+Archive-name: tin1.0/part02
+
+#!/bin/sh
+# this is tin.shar.02 (part 2 of tin1.0)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file art.c continued
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+if test ! -r shar3_seq_.tmp; then
+	echo "Please unpack part 1 first!"
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 2; then
+	echo "Please unpack part $Scheck next!"
+	exit 1
+ else
+	exit 0
+ fi
+) < shar3_seq_.tmp || exit 1
+echo "x - Continuing file art.c"
+sed 's/^X//' << 'SHAR_EOF' >> art.c &&
+X			break;
+X		*p++ = *q++;
+X	}
+X	*p = '\0';
+X}
+X
+X/*
+X *  Read in an index file.
+X *
+X *  index file header 
+X *    1.  newsgroup name (ie. alt.sources)
+X *    2.  number of articles (ie. 26)
+X *    3.  number of last read article (ie. 210)
+X *    4.  Is this a complete/killed index file (ie. COMPLETE/KILLED)
+X *  index file record
+X *    1.  article number   (ie. 183)                [mandatory]
+X *    2.  Subject: line    (ie. Which newsreader?)  [mandatory]
+X *    3.  From: line       (ie. iain@norisc)        [mandatory]
+X *    4.  Date: of posting (ie. 911231125959)       [mandatory]
+X *    5.  Archive: name    (ie. compiler)           [optional]
+X *    6.  Part number of Archive: name  (ie. 01)    [optional]
+X *    7.  Patch number of Archive: name (ie. 01)    [optional]
+X */
+X
+Xint load_index ()
+X{
+X	int error = 0;
+X	int i, n;
+X	char buf[LEN+1], *p;
+X	FILE *fp;
+X
+X	top = 0;
+X	last_read_article = 0L;
+X
+X	if ((fp = fopen (index_file, "r")) == NULL) {
+X		return FALSE;
+X	}
+X
+X	debug_print_comment ("*** LOADING ***");
+X
+X	/*
+X	 *  load header - discard group name, num. of arts in index file after any arts were killed
+X	 */
+X	if (fgets(buf, LEN, fp) == NULL ||
+X		fgets(buf, LEN, fp) == NULL) {
+X		error = 0;			
+X		goto corrupt_index;	
+X	}
+X	i = atoi (buf);
+X
+X	/*
+X	 * num. of last_read_article including any that were killed
+X	 */
+X	if (fgets(buf, LEN, fp) == NULL) {
+X		error = 1;				
+X		goto corrupt_index;	
+X	}							
+X	last_read_article = atol (buf);
+X	
+X	/*
+X	 * is index file complete or were articles killed when it was dumped
+X	 */
+X	if (fgets(buf, LEN, fp) == NULL) {
+X		error = 2;				
+X		goto corrupt_index;	
+X	}
+X	index_file_killed = (buf[0] == 'K' ? TRUE : FALSE);
+X	
+X	/*
+X	 *  load articles
+X	 */
+X	for (; top < i ; top++) {
+X		if (top >= max_art) {
+X			expand_art ();
+X		}
+X
+X		arts[top].thread = ART_EXPIRED;
+X		set_article (&arts[top]);
+X
+X		/*
+X		 * Article no.
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 3;
+X			goto corrupt_index;
+X		}
+X		arts[top].artnum = atol(buf);
+X
+X		/*
+X		 * Subject:
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 4;
+X			goto corrupt_index;
+X		}
+X
+X		if (buf[0] == '%') {
+X			n = atoi (&buf[1]);
+X			if (n >= top || n < 0) {
+X				error = 5;
+X				goto corrupt_index;
+X			}
+X			arts[top].subject = arts[n].subject;
+X		} else if (buf[0] == ' ') {
+X			for (p = &buf[1];  *p && *p != '\n'; p++) ;	
+X			*p = '\0';
+X			buf[max_subj+max_from] = '\0';
+X			arts[top].subject = hash_str (&buf[1]);
+X		} else {
+X			error = 6;
+X			goto corrupt_index;
+X		}
+X			
+X		/*
+X		 * From:
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 7;
+X			goto corrupt_index;
+X		}
+X
+X		if (buf[0] == '%') {
+X			n = atoi (&buf[1]);
+X			if (n >= top || n < 0) {
+X				error = 8;
+X				goto corrupt_index;
+X			}
+X			arts[top].from = arts[n].from;
+X		} else if (buf[0] == ' ') {
+X			for (p = &buf[1];  *p && *p != '\n'; p++) ;
+X			*p = '\0';
+X			buf[max_from] = '\0';
+X			arts[top].from = hash_str (&buf[1]);
+X		} else {
+X			error = 9;
+X			goto corrupt_index;
+X		}
+X
+X		/*
+X		 * Date:
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 10;
+X			goto corrupt_index;
+X		}
+X
+X		buf[strlen (buf)-1] = '\0';
+X		my_strncpy (arts[top].date, buf, 12);
+X
+X		/*
+X		 * Archive-name:
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 11;
+X			goto corrupt_index;
+X		}
+X
+X		if (buf[0] == '\n') {
+X			arts[top].archive = (char *) 0;
+X		} else if (buf[0] == '%') {
+X			n = atoi (&buf[1]);
+X			if (n > top || n < 0) {
+X				error = 12;
+X				goto corrupt_index;
+X			}
+X			arts[top].archive = arts[n].archive;
+X		} else if (buf[0] == ' ') {
+X			for (p = &buf[1];  *p && *p != '\n'; p++) ;
+X			*p = '\0';
+X			buf[MAX_ARCH] = '\0';
+X			arts[top].archive = hash_str (&buf[1]);
+X		} else {
+X			error = 13;
+X			goto corrupt_index;
+X		}
+X
+X		/*
+X		 * part no.
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 14;
+X			goto corrupt_index;
+X		}
+X
+X		if (buf[0] != ' ') { 
+X			buf[strlen (buf)-1] = '\0';
+X			arts[top].part = str_dup (buf);
+X		}
+X
+X		/*
+X		 * patch no.
+X		 */
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			error = 15;
+X			goto corrupt_index;
+X		}
+X
+X		if (buf[0] != ' ') { 
+X			buf[strlen (buf)-1] = '\0';
+X			arts[top].patch = str_dup (buf);
+X		}
+X
+X		debug_print_header (&arts[top]);
+X	}
+X
+X	fclose(fp);
+X	return TRUE;
+X
+Xcorrupt_index:
+X	if (! update) {
+X		sprintf (msg, txt_corrupt_index, index_file, error, top); 
+X		error_message (msg, NULL);
+X	}
+X
+X	if (debug) {
+X		sprintf (msg, "cp %s INDEX.BAD", index_file);
+X		system (msg);
+X	}
+X
+X	unlink (index_file);
+X	top = 0;
+X	return FALSE;
+X}
+X
+X
+X/*
+X *  Look in the local $HOME/RCDIR/INDEXDIR (or wherever) directory for the
+X *  index file for the given group.  Hashing the group name gets
+X *  a number.  See if that #.1 file exists; if so, read first line.
+X *  Group we want?  If no, try #.2.  Repeat until no such file or
+X *  we find an existing file that matches our group.
+X */
+X
+Xvoid find_local_index (group)
+X	char *group;
+X{
+X	unsigned long h;
+X	static char buf[LEN+1];
+X	int i;
+X	char *p;
+X	FILE *fp;
+X
+X	h = hash_groupname (group);
+X
+X	i = 1;
+X	while (1) {
+X		sprintf(index_file, "%s/%lu.%d", indexdir, h, i);
+X
+X		if ((fp = fopen(index_file, "r")) == NULL) {
+X			return;
+X		}
+X
+X		if (fgets(buf, LEN, fp) == NULL) {
+X			fclose(fp);
+X			return;
+X		}
+X		fclose(fp);
+X
+X		for (p = buf; *p && *p != '\n'; p++) ;
+X		*p = '\0';
+X
+X		if (strcmp(buf, group) == 0)
+X			return;
+X
+X		i++;
+X	}
+X}
+X
+X
+X/*
+X *  Run the index file updater only for the groups we've loaded.
+X */
+X
+Xvoid do_update()
+X{
+X	int i, j;
+X	char group_path[LEN+1];
+X	char *p;
+X
+X	for (i = 0; i < local_top; i++) {
+X		strcpy(group_path, active[my_group[i]].name);
+X		for (p = group_path; *p; p++) {
+X			if (*p == '.') {
+X				*p = '/';
+X			}
+X		}
+X		if (verbose) {
+X			printf ("%s %s\n", (catchup ? "catchup" : "updating"),
+X					active[my_group[i]].name);
+X			fflush (stdout);
+X		}
+X		index_group (active[my_group[i]].name, group_path);
+X		if (catchup) {
+X			for (j = 0; j < top; j++) {
+X				arts[j].unread = ART_READ;
+X			}
+X			update_newsrc (active[my_group[i]].name, my_group[i]);
+X		}
+X	}
+X}
+X
+X/*
+X *  reload index after any articles have been killed
+X */
+X 
+Xvoid reload_index_file (group, killed)
+X	char *group;
+X	int killed;
+X{
+X	char group_path[LEN+1];
+X	char *p;
+X	int i, respnum;
+X	long art;
+X
+X	if (local_index) {			/* writing index in home directory */
+X		set_real_uid_gid ();	/* so become them */
+X	}
+X
+X	strcpy (group_path, group);			/* turn comp.unix.amiga into */
+X	for (p = group_path; *p; p++)		/* comp/unix/amiga */
+X		if (*p == '.')
+X			*p = '/';
+X
+X	if (killed) {
+X		if (! update) {
+X			wait_message ("Killing...");
+X		}
+X		index_file_killed = TRUE;
+X		setup_base (group, group_path);
+X		dump_index (group, killed);
+X		load_index ();
+X	} else {
+X		if (! update) {
+X			wait_message ("Unkilling...");
+X		}
+X		if (local_index) {
+X			find_local_index (group);
+X		} else {
+X			sprintf (index_file, "%s/%s/%s", spooldir, group_path, INDEXDIR);
+X		}
+X
+X		unlink (index_file);	/* delete index file */
+X
+X		index_file_killed = FALSE;
+X		last_read_article = 0L;
+X
+X		if (read_group (group, group_path)) {
+X			dump_index (group, killed);
+X		}
+X	}
+X
+X	make_threads (TRUE);
+X	find_base ();
+X
+X	if (local_index) {
+X		set_tin_uid_gid ();
+X	}
+X
+X	return; 
+X}
+X
+X/*
+X * convert date from "24 Jul 91 12:59:59" to "910724125959"
+X */
+X
+Xchar *parse_date (date, str)
+X	char *date;
+X	char *str;
+X{
+X	char buf[4];
+X	int i = 3;
+X
+X	if (date[1] == ' ') {	/* ie. "2 Aug..." instead of "12 Aug... */
+X		str[4] = '0';		/* day */
+X		str[5] = date[0];
+X		i = 2;
+X	} else {
+X		str[4] = date[0];		/* day */
+X		str[5] = date[1];
+X	}
+X	
+X	buf[0] = date[i++];		/* month in Jan,Feb,.. form */
+X	buf[1] = date[i++];
+X	buf[2] = date[i++];
+X	buf[3] = '\0';
+X
+X	i++;
+X	
+X	str[0] = date[i++];		/* year */
+X	str[1] = date[i++];
+X	
+X	i++;
+X	
+X	if (strcmp (buf, "Jan") == 0) {		/* convert Jan to 01 etc */
+X		str[2] = '0';
+X		str[3] = '1';
+X	} else if (strcmp (buf, "Feb") == 0) {
+X		str[2] = '0';
+X		str[3] = '2';
+X	} else if (strcmp (buf, "Mar") == 0) {
+X		str[2] = '0';
+X		str[3] = '3';
+X	} else if (strcmp (buf, "Apr") == 0) {
+X		str[2] = '0';
+X		str[3] = '4';
+X	} else if (strcmp (buf, "May") == 0) {
+X		str[2] = '0';
+X		str[3] = '5';
+X	} else if (strcmp (buf, "Jun") == 0) {
+X		str[2] = '0';
+X		str[3] = '6';
+X	} else if (strcmp (buf, "Jul") == 0) {
+X		str[2] = '0';
+X		str[3] = '7';
+X	} else if (strcmp (buf, "Aug") == 0) {
+X		str[2] = '0';
+X		str[3] = '8';
+X	} else if (strcmp (buf, "Sep") == 0) {
+X		str[2] = '0';
+X		str[3] = '9';
+X	} else if (strcmp (buf, "Oct") == 0) {
+X		str[2] = '1';
+X		str[3] = '0';
+X	} else if (strcmp (buf, "Nov") == 0) {
+X		str[2] = '1';
+X		str[3] = '1';
+X	} else if (strcmp (buf, "Dec") == 0) {
+X		str[2] = '1';
+X		str[3] = '2';
+X	} else {
+X		str[2] = '0';
+X		str[3] = '0';
+X	}
+X	
+X	str[6] = date[i++];		/* hour */
+X	str[7] = date[i++];
+X
+X	i++;
+X	
+X	str[8] = date[i++];		/* minutes */
+X	str[9] = date[i++];
+X	
+X	i++;
+X	
+X	str[10] = date[i++];	/* seconds */
+X	str[11] = date[i++];
+X
+X	str[12] = '\0';		/* terminate string */
+X
+X	return (str);
+X}
+X
+X
+Xint artnum_comp (s1, s2)
+X	struct header *s1;
+X	struct header *s2;
+X{
+X	/* s1->artnum less than s2->artnum */
+X	if (s1->artnum < s2->artnum) {
+X		return -1;
+X	}
+X	/* s1->artnum greater than s2->artnum */
+X	if (s1->artnum > s2->artnum) {
+X		return 1;
+X	}
+X	return 0;
+X}
+X
+X
+Xint subj_comp (s1, s2)
+X	struct header *s1;
+X	struct header *s2;
+X{
+X	/* s1->subject less than s2->subject */
+X	if (strcmp (s1->subject, s2->subject) < 0) {
+X		return -1;
+X	}
+X	/* s1->subject greater than s2->subject */
+X	if (strcmp (s1->subject, s2->subject) > 0) {
+X		return 1;
+X	}
+X	return 0;
+X}
+X
+X
+Xint from_comp (s1, s2)
+X	struct header *s1;
+X	struct header *s2;
+X{
+X	/* s1->from less than s2->from */
+X	if (strcmp (s1->from, s2->from) < 0) {
+X		return -1;
+X	}
+X	/* s1->from greater than s2->from */
+X	if (strcmp (s1->from, s2->from) > 0) {
+X		return 1;
+X	}
+X	return 0;
+X}
+X
+X
+Xint date_comp (s1, s2)
+X	struct header *s1;
+X	struct header *s2;
+X{
+X	/* s1->date less than s2->date */
+X	if (strcmp (s1->date, s2->date) < 0) {
+X		return -1;
+X	}
+X	/* s1->date greater than s2->date */
+X	if (strcmp (s1->date, s2->date) > 0) {
+X		return 1;
+X	}
+X	return 0;
+X}
+X
+X
+Xset_article (art)
+X	struct header *art;
+X{	
+X	art->subject = (char *) 0;
+X	art->from = (char *) 0;
+X	art->date[0] = '\0';
+X	art->archive = (char *) 0;
+X	art->part = (char *) 0;
+X	art->patch = (char *) 0;
+X	art->unread = ART_UNREAD;
+X	art->inthread = FALSE;
+X	art->tagged = FALSE;
+X}
+SHAR_EOF
+echo "File art.c is complete" &&
+$TOUCH -am 0903095091 art.c &&
+chmod 0600 art.c ||
+echo "restore of art.c failed"
+set `wc -c art.c`;Wc_c=$1
+if test "$Wc_c" != "23272"; then
+	echo original size 23272, current size $Wc_c
+fi
+# ============= curses.c ==============
+echo "x - extracting curses.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > curses.c &&
+X/*
+X *  curses.c
+X */
+X 
+X/*
+X *  This is a screen management library borrowed with permission from the
+X *  Elm mail system (a great mailer--I highly recommend it!).
+X *
+X *  I've hacked this library to only provide what Tass needs.
+X *
+X *  Original copyright follows:
+X */
+X
+X/*******************************************************************************
+X *  The Elm Mail System  -  $Revision: 2.1 $   $State: Exp $
+X *
+X * 			Copyright (c) 1986 Dave Taylor
+X ******************************************************************************/
+X
+X#include <stdio.h>
+X#include <curses.h>
+X#include <sys/ioctl.h>
+X
+X#ifdef TRUE
+X#undef TRUE
+X#define		TRUE		1
+X#endif
+X
+X#ifdef FALSE
+X#undef FALSE
+X#define		FALSE		0
+X#endif
+X
+X#define		BACKSPACE	'\b'
+X#define		VERY_LONG_STRING	2500
+X
+Xint LINES=23;
+Xint COLS=80;
+X
+Xint inverse_okay = TRUE;
+X
+X#ifdef BSD
+X#  ifndef BSD4_1
+X#    include <sgtty.h>
+X#  else
+X#    include <termio.h>
+X#  endif
+X#else
+X#  ifndef SYSV
+X#    include <termio.h>
+X#  endif
+X#endif
+X
+X
+X#include <ctype.h>
+X
+X/*
+X#ifdef BSD
+X#undef tolower
+X#endif
+X*/
+X
+X#define TTYIN	0
+X
+X#ifdef SHORTNAMES
+X# define _clearinverse	_clrinv
+X# define _cleartoeoln	_clrtoeoln
+X# define _cleartoeos	_clr2eos
+X#endif
+X
+X#ifndef BSD
+Xstruct termio _raw_tty, 
+X              _original_tty;
+X#else
+X#define TCGETA	TIOCGETP
+X#define TCSETAW	TIOCSETP
+X
+Xstruct sgttyb _raw_tty,
+X	      _original_tty;
+X#endif
+X
+Xstatic int _inraw = 0;                  /* are we IN rawmode?    */
+X
+X#define DEFAULT_LINES_ON_TERMINAL	24
+X#define DEFAULT_COLUMNS_ON_TERMINAL	80
+X
+Xstatic
+Xchar *_clearscreen, *_moveto, *_cleartoeoln, *_cleartoeos,
+X	*_setinverse, *_clearinverse, *_setunderline, *_clearunderline;
+X
+Xstatic
+Xint _lines,_columns;
+X
+Xstatic char _terminal[1024];              /* Storage for terminal entry */
+Xstatic char _capabilities[1024];           /* String for cursor motion */
+X
+Xstatic char *ptr = _capabilities;	/* for buffering         */
+X
+Xint    outchar();			/* char output for tputs */
+Xchar  *tgetstr(),     		       /* Get termcap capability */
+X      *tgoto();				/* and the goto stuff    */
+X
+Xint InitScreen()
+X{
+X	int  tgetent(),      /* get termcap entry */
+X	     err;
+X	char termname[40];
+X	char *strcpy(), *getenv();
+X	
+X	if (getenv("TERM") == NULL) {
+X		fprintf(stderr,
+X		  "TERM variable not set; Tass requires screen capabilities\n");
+X		return(FALSE);
+X	}
+X	if (strcpy(termname, getenv("TERM")) == NULL) {
+X		fprintf(stderr,"Can't get TERM variable\n");
+X		return(FALSE);
+X	}
+X	if ((err = tgetent(_terminal, termname)) != 1) {
+X		fprintf(stderr,"Can't get entry for TERM\n");
+X		return(FALSE);
+X	}
+X
+X	/* load in all those pesky values */
+X	_clearscreen       = tgetstr("cl", &ptr);
+X	_moveto            = tgetstr("cm", &ptr);
+X	_cleartoeoln       = tgetstr("ce", &ptr);
+X	_cleartoeos        = tgetstr("cd", &ptr);
+X	_lines	      	   = tgetnum("li");
+X	_columns	   = tgetnum("co");
+X	_setinverse        = tgetstr("so", &ptr);
+X	_clearinverse      = tgetstr("se", &ptr);
+X	_setunderline      = tgetstr("us", &ptr);
+X	_clearunderline    = tgetstr("ue", &ptr);
+X
+X	if (!_clearscreen) {
+X		fprintf(stderr,
+X			"Terminal must have clearscreen (cl) capability\n");
+X		return(FALSE);
+X	}
+X	if (!_moveto) {
+X		fprintf(stderr,
+X			"Terminal must have cursor motion (cm)\n");
+X		return(FALSE);
+X	}
+X	if (!_cleartoeoln) {
+X		fprintf(stderr,
+X			"Terminal must have clear to end-of-line (ce)\n");
+X		return(FALSE);
+X	}
+X	if (!_cleartoeos) {
+X		fprintf(stderr,
+X			"Terminal must have clear to end-of-screen (cd)\n");
+X		return(FALSE);
+X	}
+X	if (_lines == -1)
+X		_lines = DEFAULT_LINES_ON_TERMINAL;
+X	if (_columns == -1)
+X		_columns = DEFAULT_COLUMNS_ON_TERMINAL;
+X	return(TRUE);
+X}
+X
+Xvoid ScreenSize(num_lines, num_columns)
+X	int *num_lines, *num_columns;
+X{
+X	/** returns the number of lines and columns on the display. **/
+X
+X	if (_lines == 0) _lines = DEFAULT_LINES_ON_TERMINAL;
+X	if (_columns == 0) _columns = DEFAULT_COLUMNS_ON_TERMINAL;
+X
+X	*num_lines = _lines - 1;		/* assume index from zero*/
+X	*num_columns = _columns;		/* assume index from one */
+X}
+X
+Xvoid ClearScreen()
+X{
+X	/* clear the screen: returns -1 if not capable */
+X
+X	tputs(_clearscreen, 1, outchar);
+X	fflush(stdout);      /* clear the output buffer */
+X}
+X
+Xvoid MoveCursor(row, col)
+Xint row, col;
+X{
+X	/** move cursor to the specified row column on the screen.
+X            0,0 is the top left! **/
+X
+X	char *stuff, *tgoto();
+X
+X	stuff = tgoto(_moveto, col, row);
+X	tputs(stuff, 1, outchar);
+X	fflush(stdout);
+X}
+X
+Xvoid CleartoEOLN()
+X{
+X	/** clear to end of line **/
+X
+X	tputs(_cleartoeoln, 1, outchar);
+X	fflush(stdout);  /* clear the output buffer */
+X}
+X
+Xvoid CleartoEOS()
+X{
+X	/** clear to end of screen **/
+X
+X	tputs(_cleartoeos, 1, outchar);
+X	fflush(stdout);  /* clear the output buffer */
+X}
+X
+X
+Xvoid StartInverse()
+X{
+X	/** set inverse video mode **/
+X
+X	if (_setinverse && inverse_okay)
+X		tputs(_setinverse, 1, outchar);
+X	fflush(stdout);
+X}
+X
+X
+Xvoid EndInverse()
+X{
+X	/** compliment of startinverse **/
+X
+X	if (_clearinverse && inverse_okay)
+X		tputs(_clearinverse, 1, outchar);
+X	fflush(stdout);
+X}
+X
+X
+Xint RawState()
+X{
+X	/** returns either 1 or 0, for ON or OFF **/
+X
+X	return( _inraw );
+X}
+X
+X
+Xvoid Raw(state)
+X	int state;
+X{
+X	/** state is either TRUE or FALSE, as indicated by call **/
+X
+X	if (state == FALSE && _inraw) {
+X	  (void) ioctl(TTYIN, TCSETAW, &_original_tty);
+X	  _inraw = 0;
+X	}
+X	else if (state == TRUE && ! _inraw) {
+X
+X	  (void) ioctl(TTYIN, TCGETA, &_original_tty);	/** current setting **/
+X
+X	  (void) ioctl(TTYIN, TCGETA, &_raw_tty);    /** again! **/
+X#ifdef BSD
+X	  _raw_tty.sg_flags &= ~(ECHO | CRMOD);	/* echo off */
+X	  _raw_tty.sg_flags |= CBREAK;	/* raw on    */
+X#else
+X	  _raw_tty.c_lflag &= ~(ICANON | ECHO);	/* noecho raw mode        */
+X
+X	  _raw_tty.c_cc[VMIN] = '\01';	/* minimum # of chars to queue    */
+X	  _raw_tty.c_cc[VTIME] = '\0';	/* minimum time to wait for input */
+X#endif
+X
+X	  (void) ioctl(TTYIN, TCSETAW, &_raw_tty);
+X
+X	  _inraw = 1;
+X	}
+X}
+X
+Xint ReadCh()
+X{
+X	/** read a character with Raw mode set! **/
+X
+X	register int result;
+X	char ch;
+X	result = read(0, &ch, 1);
+X        return((result <= 0 ) ? EOF : ch & 0x7F);
+X}
+X
+X
+Xint outchar(c)
+Xchar c;
+X{
+X	/** output the given character.  From tputs... **/
+X	/** Note: this CANNOT be a macro!              **/
+X
+X	putc(c, stdout);
+X}
+X
+SHAR_EOF
+$TOUCH -am 0903095091 curses.c &&
+chmod 0600 curses.c ||
+echo "restore of curses.c failed"
+set `wc -c curses.c`;Wc_c=$1
+if test "$Wc_c" != "6065"; then
+	echo original size 6065, current size $Wc_c
+fi
+# ============= debug.c ==============
+echo "x - extracting debug.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > debug.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : debug.c
+X *  Author    : I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 22-08-91
+X *  Release   : 1.0
+X *  Notes     : debug routines
+X *  Copyright : (c) Copyright 1991 by Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include "tin.h"
+X
+Xint debug;
+X
+X
+Xdebug_print_arts ()
+X{
+X	int i;
+X
+X	if (! debug)
+X		return;
+X
+X	for (i = 0; i < top; i++) {	/* for each group */
+X		debug_print_header (&arts[i]);
+X	}
+X}
+X
+X
+Xvoid debug_print_header (s)
+X	struct header *s;
+X{
+X	FILE *fp;
+X
+X	if (! debug)
+X		return;
+X
+X	if ((fp = fopen ("/tmp/DUMP","a+")) != NULL) {
+X		fprintf (fp,"art=[%5ld] killed=[%s]\n", s->artnum,
+X		(s->tagged ? "TRUE" : "FALSE"));
+X		fprintf (fp,"subj=[%-38s]  from=[%-20s]\n", s->subject, s->from);
+X		fprintf (fp,"arch=[%-38s]  part=[%s]  patch=[%s]\n", s->archive, s->part, s->patch);
+X		fprintf (fp,"thread=[%s]  inthread=[%s]  unread=[%s]\n",
+X		(s->thread == ART_NORMAL ? "ART_NORMAL" : "ART_EXPIRED"),
+X		(s->inthread ? "TRUE" : "FALSE"),
+X		(s->unread ? "TRUE" : "FALSE"));
+X		fflush (fp);
+X		fclose (fp);
+X		chmod ("/tmp/DUMP", 0666);
+X	}
+X}
+X
+X
+Xdebug_print_comment (comment)
+X	char *comment;
+X{
+X	FILE *fp;
+X
+X	if (! debug)
+X		return;
+X
+X	if ((fp = fopen ("/tmp/BASE","a+")) != NULL) {
+X		fprintf (fp,"\n%s\n\n", comment);
+X		fflush (fp);
+X		fclose (fp);
+X		chmod ("/tmp/BASE", 0666);
+X	}
+X}
+X
+X
+Xvoid debug_print_base ()
+X{
+X	FILE *fp;
+X	int i;
+X
+X	if (! debug)
+X		return;
+X
+X	if ((fp = fopen ("/tmp/BASE","a+")) != NULL) {
+X		for (i = 0; i < top_base; i++) {
+X			fprintf (fp, "base[%3d]=[%5ld]\n",i,base[i]);
+X		}
+X		fflush (fp);
+X		fclose (fp);
+X		chmod ("/tmp/BASE", 0666);
+X	}
+X}
+X
+X
+Xvoid debug_print_active ()
+X{
+X	FILE *fp;
+X	int i;
+X
+X	if (! debug)
+X		return;
+X
+X	if ((fp = fopen ("/tmp/ACTIVE","w")) != NULL) {
+X		for (i = 0; i < num_active; i++) {	/* for each group */
+X			fprintf (fp, "[%4d]=[%-28s] max=[%4ld] min=[%4ld] nxt=[%4d] flag=[%d]\n",
+X				i, active[i].name, active[i].max, active[i].min, active[i].next, active[i].flag);
+X		}
+X		fflush (fp);
+X		fclose (fp);
+X		chmod ("/tmp/ACTIVE", 0666);
+X	}
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 debug.c &&
+chmod 0600 debug.c ||
+echo "restore of debug.c failed"
+set `wc -c debug.c`;Wc_c=$1
+if test "$Wc_c" != "2276"; then
+	echo original size 2276, current size $Wc_c
+fi
+# ============= feed.c ==============
+echo "x - extracting feed.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > feed.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : feed.c
+X *  Author    : I.Lea
+X *  Created   : 31-08-91
+X *  Updated   : 03-09-91
+X *  Release   : 1.0
+X *  Notes     : provides same interface to mail,pipe,print and save commands
+X *  Copyright : (c) Copyright 1991 by Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+Xextern char *glob_group;			/* Group name */
+Xextern char note_h_subj[LEN+1];		/* Subject:	*/
+Xextern char note_h_from[LEN+1];		/* From:	*/
+Xextern FILE *note_fp;				/* the body of the current article */
+Xextern int note_end;				/* end of article ? */
+Xextern int note_page;				/* what page we're on */
+Xextern long note_mark[MAX_PAGES];	/* ftells on beginnings of pages */
+X
+Xchar default_regex_pattern[LEN+1];
+X
+X
+Xint feed_articles (function, level, prompt, respnum, group_path)
+X	int function;
+X	int level;
+X	char *prompt;
+X	int respnum;
+X	char *group_path;
+X{
+X	char address[LEN+1];
+X	char command[LEN+1];
+X	char file[LEN+1], *p;
+X	char mailbox[LEN+1];
+X	char pattern[LEN+1];
+X	char ch = 'a', ch_default = 'a';
+X	FILE *fp;
+X	int b, i, j, count = 1;
+X	int error = FALSE;
+X	int is_mailbox = FALSE;
+X	int orig_note_end;
+X	int orig_note_page;
+X	int ret1, ret2;
+X	int saved_ok = FALSE;
+X	int redraw_screen = FALSE;
+X	
+X	if (level == PAGE_LEVEL) {
+X		orig_note_end = note_end;
+X		orig_note_page = note_page;
+X	}
+X
+X	b = which_base (respnum);
+X
+X	if (num_of_tagged_files) {
+X		ch_default = 'T';
+X	}
+X	if (! num_of_tagged_files && nresp (b)) {
+X		ch_default = 't';
+X	}
+X	do {
+X		sprintf (msg, "%s%s%c", prompt, txt_art_thread_regex_tag, ch_default);
+X		wait_message (msg);
+X		MoveCursor (LINES, strlen (msg)-1);
+X		if ((ch = ReadCh ()) == CR)
+X			ch = ch_default;
+X	} while (ch != 'a' && ch != 't' && ch != 'T' && ch != 'r');
+X
+X	if (ch == 'r') {
+X		sprintf (msg, txt_feed_pattern, default_regex_pattern);
+X		if (! parse_string (msg, pattern)) {
+X			clear_message ();
+X			return FALSE;
+X		}	
+X		if (strlen (pattern)) {
+X			my_strncpy (default_regex_pattern, pattern, LEN);
+X		} else {
+X			if (default_regex_pattern[0]) {
+X				my_strncpy (pattern, default_regex_pattern, LEN);
+X			} else {
+X				info_message (txt_no_match);
+X				return FALSE;
+X			}
+X		}
+X	}
+X
+X	switch (function) {
+X		case FEED_MAIL:
+X			if (ch != 'a') {
+X				if (! parse_string (txt_mail_art_to, address)) {
+X					clear_message ();
+X					return FALSE;
+X				}	
+X				if (address[0] == '\0') {
+X					info_message (txt_no_mail_address);
+X					return FALSE;
+X				}
+X			}
+X			break;
+X		case FEED_PIPE:
+X			if (! parse_string (txt_pipe_to_command, command)) {
+X				clear_message ();
+X				return FALSE;
+X			}
+X			if (command[0] == '\0') {
+X				info_message (txt_no_command);
+X				return FALSE;
+X			}
+X			if ((fp = popen (command, "w")) == NULL) {
+X				error_message (txt_command_failed_s, command);
+X				return FALSE;
+X			}
+X			Raw (FALSE);
+X			break;
+X		case FEED_PRINT:	
+X			if (default_printer) {
+X				sprintf (command, "%s -P%s > /dev/null 2>&1",
+X					printer, get_val ("PRINTER","ps0"));
+X			} else {
+X				sprintf (command, "%s > /dev/null 2>&1", printer);
+X			}
+X			if ((fp = popen (command, "w")) == NULL) {
+X				error_message (txt_command_failed_s, command);
+X				return FALSE;
+X			}
+X			break;
+X		case FEED_SAVE:		/* ask user for filename */
+X			free_save_array ();
+X			if ((save_archive_name == FALSE || arts[respnum].archive == (char *) 0)) {
+X				if (! parse_string (txt_save_filename, file)) {
+X					clear_message ();
+X					return FALSE;
+X				}
+X				if (file[0] == '\0') {
+X					info_message (txt_no_filename);
+X					return FALSE;
+X				}
+X				for (p = file; *p && (*p == ' ' || *p == '\t'); p++) {
+X					;
+X				}
+X				if (! *p) {
+X					info_message (txt_no_filename);
+X					return FALSE;
+X				}
+X				if (is_mailbox = create_path (file)) {
+X					if ((int) strlen (file) > 1) {
+X						my_strncpy (mailbox, file+1, LEN);		
+X					} else {
+X						my_strncpy (mailbox, glob_group, LEN);
+X						/*
+X						 *  convert 1st letter to uppercase
+X						 */
+X						if (mailbox[0] >= 'a' && mailbox[0] <= 'z') {
+X							mailbox[0] = mailbox[0] - 32;
+X						}
+X					}
+X					my_strncpy (file, mailbox, LEN);
+X				}
+X			}
+X			clear_message ();
+X			break;
+X	}
+X	
+X	switch (ch) {
+X		case 'a':		/* article */
+X			if (level == GROUP_LEVEL) {
+X				open_note (arts[respnum].artnum, group_path);	
+X			}
+X			switch (function) {
+X				case FEED_MAIL:
+X					redraw_screen = mail_to_someone (TRUE, "");
+X					break;
+X				case FEED_PIPE:
+X					fseek (note_fp, 0L, 0);
+X					copy_fp (note_fp, fp, "");
+X					break;
+X				case FEED_PRINT:
+X					wait_message (txt_printing);
+X					if (print_header) {
+X						fseek(note_fp, 0L, 0);
+X					} else {
+X						fprintf (fp, "From: %s\n", note_h_from);
+X						fprintf (fp, "Subject: %s\n\n", note_h_subj);
+X						fseek (note_fp, note_mark[0], 0);
+X					}
+X					copy_fp(note_fp, fp, "");
+X					pclose (fp);		
+X					break;
+X				case FEED_SAVE:
+X					add_to_save_list (0, &arts[respnum], is_mailbox, file);
+X					saved_ok = save_art_to_file (respnum, 0, FALSE, NULL);
+X					break;
+X			}
+X			if (level == GROUP_LEVEL) {
+X				note_cleanup ();
+X			}
+X			break;
+X			
+X		case 't': 		/* thread */
+X			for (i = base[b]; i >= 0; i = arts[i].thread) {
+X				if (function == FEED_PRINT) {
+X					if ((fp = popen (command, "w")) == NULL) {
+X						error_message (txt_command_failed_s, command);
+X						return FALSE;
+X					}
+X				}
+X				if (level == PAGE_LEVEL) {
+X					note_cleanup ();
+X				}
+X				open_note (arts[i].artnum, group_path);	
+X				switch (function) {
+X					case FEED_MAIL:
+X						mail_to_someone (FALSE, address);
+X						break;
+X					case FEED_PIPE:
+X						fseek (note_fp, 0L, 0);
+X						copy_fp (note_fp, fp, "");
+X						break;
+X					case FEED_PRINT:
+X						sprintf (msg, "%s%d", txt_printing, count++);
+X						wait_message (msg);
+X						if (print_header) {
+X							fseek(note_fp, 0L, 0);
+X						} else {
+X							fprintf (fp, "From: %s\n", note_h_from);
+X							fprintf (fp, "Subject: %s\n\n", note_h_subj);
+X							fseek (note_fp, note_mark[0], 0);
+X						}
+X						copy_fp(note_fp, fp, "");
+X						pclose (fp);
+X						break;
+X					case FEED_SAVE:
+X						add_to_save_list (i, &arts[i], is_mailbox, file);
+X						break;
+X				}
+X			}
+X			if (function == FEED_SAVE) {
+X				sort_save_list ();
+X				saved_ok = save_thread_to_file (respnum, is_mailbox, group_path);
+X			}
+X			break;
+X
+X		case 'T': 		/* tagged articles */
+X			for (i=1 ; i <= num_of_tagged_files ; i++) {
+X				for (j=0 ; j < top ; j++) {
+X					if (arts[j].tagged && arts[j].tagged == i) { 
+X						if (function == FEED_PRINT) {
+X							if ((fp = popen (command, "w")) == NULL) {
+X								error_message (txt_command_failed_s, command);
+X								return FALSE;
+X							}
+X						}
+X						if (level == PAGE_LEVEL) {
+X							note_cleanup ();
+X						}
+X						open_note (arts[j].artnum, group_path);	
+X						switch (function) {
+X							case FEED_MAIL:
+X								mail_to_someone (FALSE, address);
+X								break;
+X							case FEED_PIPE:
+X								fseek (note_fp, 0L, 0);
+X								copy_fp (note_fp, fp, "");
+X								break;
+X							case FEED_PRINT:
+X								sprintf (msg, "%s%d", txt_printing, count++);
+X								wait_message (msg);
+X								if (print_header) {
+X									fseek(note_fp, 0L, 0);
+X								} else {
+X									fprintf (fp, "From: %s\n", note_h_from);
+X									fprintf (fp, "Subject: %s\n\n", note_h_subj);
+X									fseek (note_fp, note_mark[0], 0);
+X								}
+X								copy_fp(note_fp, fp, "");
+X								pclose (fp);
+X								break;
+X							case FEED_SAVE:
+X								add_to_save_list (j, &arts[j], is_mailbox, file);
+X								break;
+X						}
+X					}
+X				}
+X			}
+X			if (function == FEED_SAVE) {				
+X				saved_ok = save_regex_arts (FALSE, pattern, is_mailbox, group_path);
+X			}
+X			break;
+X
+X		case 'r': 		/* regex pattern matched articles */
+X			for (i=0 ; i < top ; i++) {
+X#ifdef DONT_USE_REGEX 
+X				if (str_str (arts[i].subject, pattern) != 0) {
+X#else		
+X				if (wildmat (arts[i].subject, pattern)) {
+X#endif		
+X					if (function == FEED_PRINT) {
+X						if ((fp = popen (command, "w")) == NULL) {
+X							error_message (txt_command_failed_s, command);
+X							return FALSE;
+X						}
+X					}
+X					if (level == PAGE_LEVEL) {
+X						note_cleanup ();
+X					}
+X					open_note (arts[i].artnum, group_path);	
+X					switch (function) {
+X						case FEED_MAIL:
+X							mail_to_someone (FALSE, address);
+X							break;
+X						case FEED_PIPE:
+X							fseek (note_fp, 0L, 0);
+X							copy_fp (note_fp, fp, "");
+X							break;
+X						case FEED_PRINT:
+X							sprintf (msg, "%s%d", txt_printing, count++);
+X							wait_message (msg);	
+X							if (print_header) {
+X								fseek(note_fp, 0L, 0);
+X							} else {
+X								fprintf (fp, "From: %s\n", note_h_from);
+X								fprintf (fp, "Subject: %s\n\n", note_h_subj);
+X								fseek (note_fp, note_mark[0], 0);
+X							}
+X							copy_fp(note_fp, fp, "");
+X							pclose (fp);
+X							break;
+X						case FEED_SAVE:
+X							add_to_save_list (i, &arts[i], is_mailbox, file);
+X							break;
+X					}
+X				}
+X			}
+X			if (function == FEED_SAVE) {				
+X				sort_save_list ();
+X				saved_ok = save_regex_arts (TRUE, pattern, is_mailbox, group_path);
+X			}
+X			break;
+X	}
+X
+X	switch (function) {
+X		case FEED_PIPE:
+X			pclose (fp);		
+X			Raw (TRUE);
+X			continue_prompt ();
+X			redraw_screen = TRUE;
+X			break;
+X		case FEED_PRINT:	
+X			info_message (txt_printed);
+X			redraw_screen = mail_check ();	/* in case of sending to oneself */
+X			break;
+X		case FEED_SAVE:
+X			ret1 = (mark_saved_read ? TRUE : FALSE);
+X			if (saved_ok) {
+X				ret2 = post_process_files ();
+X			}
+X			if (ret1 || ret2) {
+X				redraw_screen = TRUE;
+X			}
+X			free_save_array ();
+X			break;
+X	}
+X
+X	if (level == PAGE_LEVEL) {
+X		if (ch != 'a') {
+X			open_note (arts[respnum].artnum, group_path);
+X		}
+X		note_end = orig_note_end;
+X		note_page = orig_note_page;
+X		fseek (note_fp, note_mark[note_page], 0);
+X		if (redraw_screen) {
+X			if (note_page == 0) {
+X				show_note_page (respnum, glob_group);
+X			} else {
+X				redraw_page (respnum, glob_group);
+X			}
+X		}
+X	} else {
+X		if (redraw_screen) {
+X			show_group_page (glob_group);
+X		}
+X	}
+X}
+SHAR_EOF
+$TOUCH -am 0903095091 feed.c &&
+chmod 0600 feed.c ||
+echo "restore of feed.c failed"
+set `wc -c feed.c`;Wc_c=$1
+if test "$Wc_c" != "9921"; then
+	echo original size 9921, current size $Wc_c
+fi
+# ============= group.c ==============
+echo "x - extracting group.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > group.c &&
+X/*
+X *  Project   : tin - a visual threaded usenet newsreader
+X *  Module    : group.c
+X *  Author    : R.Skrenta / I.Lea
+X *  Created   : 01-04-91
+X *  Updated   : 01-09-91
+X *  Release   : 1.0
+X *  Notes     :
+X *  Copyright : (c) Copyright 1991 by Rich Skrenta & Iain Lea
+X *	            You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+Xextern char cvers[LEN+1];
+Xextern int cur_groupnum;
+Xextern int last_resp;		/* page.c */
+Xextern int this_resp;		/* page.c */
+Xextern int space_mode;		/* select.c */
+X
+Xchar *glob_group;
+Xint index_point;
+Xint first_subj_on_screen;
+Xint last_subj_on_screen;
+X
+X
+Xvoid group_page (group)
+X	char *group;
+X{
+X	char buf[LEN+1];
+X	char group_path[LEN+1];
+X	char ch;
+X	char *p;
+X	int flag, i, n;
+X	int kill_state;
+X	long old_artnum;
+X	int old_top;
+X	int ret1, ret2;
+X	int sav_groupnum;
+X	int thread_marked_unread = FALSE;
+X
+X	glob_group = group;
+X	sav_groupnum = cur_groupnum;
+X	
+X	strcpy (group_path, group);			/* turn comp.unix.amiga into */
+X	for (p = group_path; *p; p++)		/* comp/unix/amiga */
+X		if (*p == '.')
+X			*p = '/';
+X
+X	last_resp = -1;
+X	this_resp = -1;
+X	index_group (group, group_path);	/* update index file */
+X	read_newsrc_line (group);			/* get sequencer information */
+X
+X	if (space_mode) {
+X		for (i = 0; i < top_base; i++) {
+X			if (new_responses (i)) {
+X				break;
+X			}
+X		}
+X		if (i < top_base) {
+X			index_point = i;
+X		} else {
+X			index_point = top_base - 1;
+X		}
+X	} else {
+X		index_point = top_base - 1;
+X	}
+X	
+X	clear_note_area ();
+X
+X	show_group_page (group);
+X
+X	while (1) {
+X		ch = ReadCh();
+X
+X		if (ch > '0' && ch <= '9') {	/* 0 goes to basenote */
+X			prompt_subject_num(ch, group);
+X		} else switch (ch) {
+X			case '!':
+X				shell_escape ();
+X				show_group_page (group);
+X				break;
+X
+X			case '$':	/* show last page of articles */
+Xend_of_list:			
+X				index_point = top_base - 1;
+X				show_group_page (group);
+X				break;
+X				
+X			case '-':	/* go to last viewed article */
+X				if (this_resp < 0) {
+X					info_message(txt_no_last_message);
+X					break;
+X				}
+X				index_point = show_page (this_resp, group, group_path);
+X				if (index_point < 0) {
+X					space_mode = FALSE;
+X					goto group_done;
+X				}
+X				clear_note_area ();
+X				show_group_page (group);
+X				break;
+X
+X			case '|':	/* pipe article/thread/tagged arts to command */
+X				if (index_point >= 0) {
+X					feed_articles (FEED_PIPE, GROUP_LEVEL, "Pipe",
+X						base[index_point], group_path);
+X				}
+X				break;
+X
+X			case '/':	/* forward/backward search */
+X			case '?':
+X				i = (ch == '/');
+X				search_subject (i, group);
+X				break;
+X
+X			case '\r':
+X			case '\n':	/* read current basenote */
+X				if (index_point < 0) {
+X					info_message(txt_no_arts);
+X					break;
+X				}
+X				i = (int) base[index_point];
+X				index_point = show_page(i, group, group_path);
+X				if (index_point < 0) {
+X					space_mode = FALSE;
+X					goto group_done;
+X				}
+X				clear_note_area ();
+X				show_group_page (group);
+X				break;
+X
+X			case '\t':
+X				space_mode = TRUE;
+X
+X				if (index_point < 0
+X				|| (n=next_unread((int) base[index_point]))<0) {
+X					for (i = cur_groupnum+1;
+X							i < local_top; i++)
+X						if (unread[i] > 0)
+X							break;
+X					if (i >= local_top)
+X						goto group_done;
+X
+X					cur_groupnum = i;
+X					index_point = -3;
+X					goto group_done;
+X				}
+X				index_point = show_page(n, group, group_path);
+X				if (index_point < 0)
+X					goto group_done;
+X				clear_note_area ();
+X				show_group_page(group);
+X				break;
+X	
+X			case 27:	/* common arrow keys */
+X				ch = ReadCh();
+X				if (ch == '[' || ch == 'O')
+X					ch = ReadCh();
+X				switch (ch) {
+X				case 'A':
+X				case 'D':
+X					goto group_up;
+X
+X				case 'B':
+X				case 'C':
+X					goto group_down;
+X
+X				case 'G':		/* ansi  PgDn */
+X				case 'U':		/* at386 PgDn */
+X					goto group_page_down;
+X
+X				case 'I':		/* ansi  PgUp */
+X				case 'V':		/* at386 PgUp */
+X					goto group_page_up;
+X
+X				case 'H':		/* at386  Home */
+X					index_point = 0;
+X					show_group_page (group);
+X					break;
+X					
+X				case 'F':		/* ansi  End */
+X				case 'Y':		/* at386  End */
+X					goto end_of_list;
+X				}
+X				break;
+X
+X			case ctrl('D'):		/* page down */
+X			case ' ':	
+Xgroup_page_down:
+X				if (!top_base || index_point == top_base - 1)
+X					break;
+X
+X				erase_subject_arrow();
+X				index_point += NOTESLINES / 2;
+X				if (index_point >= top_base)
+X					index_point = top_base - 1;
+X
+X				if (index_point < first_subj_on_screen
+X				|| index_point >= last_subj_on_screen)
+X					show_group_page(group);
+X				else
+X					draw_subject_arrow();
+X				break;
+X
+X			case ctrl('K'):		/* kill article */
+X 				if (index_point < 0) {
+X 					info_message (txt_no_arts);
+X					break;
+X				}
+X				if (kill_articles) {
+X					old_top = top;
+X					n = base[index_point];
+X					old_artnum = arts[n].artnum;
+X					if (kill_art_menu (group, (int) base[index_point])) {
+X						kill_any_articles (group);
+X						reload_index_file (group, TRUE);
+X						index_point = find_new_pos (old_top, old_artnum, index_point);
+X					}
+X					show_group_page (group);
+X				} else {
+X					info_message (txt_switch_on_kill_art_menu);
+X				}
+X				break;
+X
+X			case ctrl('L'):		/* return to index */
+X			case ctrl('R'):
+X			case ctrl('W'):
+X#ifndef USE_CLEARSCREEN
+X				ClearScreen ();
+X#endif
+X				show_group_page(group);
+X				break;
+X
+X			case ctrl('N'):
+X			case 'j':		/* line down */
+Xgroup_down:
+X				if (!top_base || index_point + 1 >= top_base)
+X					break;
+X
+X				if (index_point + 1 >= last_subj_on_screen) {
+X#ifndef USE_CLEARSCREEN
+X					erase_subject_arrow();
+X#endif					
+X					index_point++;
+X					show_group_page(group);
+X				} else {
+X					erase_subject_arrow();
+X					index_point++;
+X					draw_subject_arrow();
+X				}
+X				break;
+X
+X			case ctrl('P'):
+X			case 'k':		/* line up */
+Xgroup_up:
+X				if (!top_base || !index_point)
+X					break;
+X
+X				if (index_point <= first_subj_on_screen) {
+X					index_point--;
+X					show_group_page(group);
+X				} else {
+X					erase_subject_arrow();
+X					index_point--;
+X					draw_subject_arrow();
+X				}
+X				break;
+X
+X			case ctrl('U'):		/* page up */
+X			case 'b':
+Xgroup_page_up:
+X				if (!top_base)
+X					break;
+X
+X#ifndef USE_CLEARSCREEN
+X				clear_message ();
+X#endif
+X				erase_subject_arrow();
+X				index_point -= NOTESLINES / 2;
+X				if (index_point < 0)
+X					index_point = 0;
+X				if (index_point < first_subj_on_screen
+X				|| index_point >= last_subj_on_screen)
+X					show_group_page(group);
+X				else
+X					draw_subject_arrow();
+X				break;
+X
+X			case 'a':	/* author search forward */
+X			case 'A':	/* author search backward */
+X				if (index_point < 0) {
+X					info_message(txt_no_arts);
+X					break;
+X				}
+X
+X				i = (ch == 'a');
+X
+X				n = search_author((int) base[index_point], i);
+X				if (n < 0)
+X					break;
+X
+X				index_point = show_page(n, group, group_path);
+X				if (index_point < 0) {
+X					space_mode = FALSE;
+X					goto group_done;
+X				}
+X				clear_note_area ();
+X				show_group_page (group);
+X				break;
+X
+X			case 'B':	/* bug/gripe/comment mailed to author */
+X				mail_bug_report ();
+X#ifndef USE_CLEARSCREEN
+X				ClearScreen ();
+X#endif
+X				show_group_page (group);
+X				break;
+X				
+X			case 'c':	/* catchup--mark all articles as read */
+X			    if (prompt_yn (LINES, txt_mark_all_read, 'y')) {
+X					for (n = 0; n < top; n++) {
+X						arts[n].unread = ART_READ;
+X					}
+X					if (cur_groupnum + 1 < local_top) {
+X						cur_groupnum++;
+X					}
+X					goto group_done;
+X			    }
+X			    break;
+X
+X			case 'g':	/* choose a new group by name */
+X				n = choose_new_group ();
+X				if (n >= 0 && n != cur_groupnum) {
+X					cur_groupnum = n;
+X					index_point = -3;
+X					goto group_done;
+X				}
+X				break;
+X
+X			case 'h':
+X				show_help_page (help_group, txt_index_page_com);
+X				show_group_page (group);
+X				break;
+X
+X			case 'H':
+X				help_group_info ();
+X				show_group_page (group);
+X				break;
+X
+X			case 'I':	/* toggle inverse video */
+X				inverse_okay = !inverse_okay;
+X				if (inverse_okay)
+X					info_message(txt_inverse_on);
+X				else
+X					info_message(txt_inverse_off);
+X				show_group_page(group);
+X				break;
+X
+X			case 'K':	/* mark rest of thread as read */
+X				if (index_point < 0) {
+X					info_message (txt_no_next_unread_art);
+X					break;
+X				}
+X				if (new_responses (index_point)) {
+X				    for (i = base[index_point]; i >= 0; i = arts[i].thread)
+X						arts[i].unread = 0;
+X					if (draw_arrow_mark) {
+X					    MoveCursor(INDEX_TOP + (index_point - first_subj_on_screen), 8);
+X						putchar(' ');
+X						MoveCursor (LINES, 0);
+X					    fflush(stdout);
+X					} else {
+X						i =	index_point-first_subj_on_screen;
+X						screen[i].col[8] = ' ';
+X						draw_subject_arrow();
+X					}
+X				    flag = FALSE;
+X				} else
+X				    flag = TRUE;
+X
+X				n = next_unread (next_response ((int) base[index_point]));
+X				if (n < 0) {
+X				    if (flag)
+X						info_message (txt_no_next_unread_art);
+X				    else
+X						MoveCursor (LINES, 0);
+X				    break;
+X				}
+X
+X				if ((n = which_base(n)) < 0) {
+X					info_message("Internal error: K which_base < 0");
+X					break;
+X				}
+X
+X				if (n >= last_subj_on_screen) {
+X					index_point = n;
+X					show_group_page (group);
+X				} else {
+X					erase_subject_arrow ();
+X					index_point = n;
+X					draw_subject_arrow ();
+X				}
+X				break;
+X
+X			case 'm':	/* mail article to somebody */
+X				if (index_point >= 0) {
+X					feed_articles (FEED_MAIL, GROUP_LEVEL, "Mail",
+X						base[index_point], group_path);
+X				}
+X				break;
+X
+X			case 'M':	/* options menu */
+X				old_top = top;
+X				n = base[index_point];
+X				old_artnum = arts[n].artnum;
+X				n = sort_art_type;
+X				kill_state = change_rcfile (group, TRUE);
+X				if (kill_state == NO_KILLING && n != sort_art_type) {
+X					make_threads (TRUE);
+X					find_base ();
+X				}
+X				index_point = find_new_pos (old_top, old_artnum, index_point);
+X				show_group_page (group);
+X			    break;
+X
+X			case 'n':	/* next group */
+X				clear_message();
+X				if (cur_groupnum + 1 >= local_top)
+X					info_message(txt_no_more_groups);
+X				else {
+X					cur_groupnum++;
+X					index_point = -3;
+X					space_mode = FALSE;
+X					goto group_done;
+X				}
+X				break;
+X
+X			case 'N':	/* go to next unread article */
+X				if (index_point < 0) {
+X					info_message(txt_no_next_unread_art);
+X					break;
+X				}
+X
+X				n = next_unread( (int) base[index_point]);
+X				if (n == -1)
+X					info_message(txt_no_next_unread_art);
+X				else {
+X					index_point = show_page(n, group, group_path);
+X					if (index_point < 0) {
+X						space_mode = FALSE;
+X						goto group_done;
+X					}
+X					clear_note_area ();
+X					show_group_page(group);
+X				}
+X				break;
+X
+X			case 'o':	/* output art/thread/tagged arts to printer */
+X				if (index_point >= 0) {
+X					feed_articles (FEED_PRINT, GROUP_LEVEL, "Print",
+X						base[index_point], group_path);
+X				}
+X				break;
+X
+X			case 'p':	/* previous group */
+X				clear_message();
+X				if (cur_groupnum <= 0)
+X					info_message(txt_no_prev_group);
+X				else {
+X					cur_groupnum--;
+X					index_point = -3;
+X					space_mode = FALSE;
+X					goto group_done;
+X				}
+X				break;
+X
+X			case 'P':	/* go to previous unread article */
+X				if (index_point < 0) {
+X				    info_message(txt_no_prev_unread_art);
+X				    break;
+X				}
+X				n = prev_response( (int) base[index_point]);
+X				n = prev_unread(n);
+X				if (n == -1)
+X				    info_message(txt_no_prev_unread_art);
+X				else {
+X					index_point = show_page (n, group, group_path);
+X					if (index_point < 0) {
+X						space_mode = FALSE;
+X						goto group_done;
+X					}
+X					clear_note_area ();
+X					show_group_page (group);
+X				}
+X				break;
+X
+X			case 'q':		/* quit */
+X				index_point = -2;
+X				space_mode = FALSE;
+X				goto group_done;
+X
+X			case 's':	/* save regex pattern to file/s */
+X				if (index_point >= 0) {
+X					if (feed_articles (FEED_SAVE, GROUP_LEVEL, "Save",
+X							base[index_point], group_path)) {
+X						show_group_page (group);
+X					}
+X				}
+X				break;
+X			
+X			case 't':
+X			case 'i':	/* return to group selection page */
+X				goto group_done;
+X
+X			case 'T':	/* tag/untag article for saving */
+X 				if (index_point >= 0) {
+X					if (arts[base[index_point]].tagged) {
+X						arts[base[index_point]].tagged = 0;
+X						show_group_page (group);
+X						info_message (txt_untagged_art);
+X					} else {
+X						arts[base[index_point]].tagged = ++num_of_tagged_files;
+X						show_group_page (group);
+X						info_message (txt_tagged_art);
+X					}
+X				}
+X				break;
+X
+X			case 'U':	/* untag all articles */
+X 				if (index_point >= 0) {
+X					untag_all_articles ();
+X					show_group_page (group);
+X				}
+X				break;
+X
+X			case 'v':
+X				info_message (cvers);
+X				break;
+X
+X			case 'w':	/* post a basenote */
+X				if (post_base (group)) {
+X					update_newsrc (group, my_group[cur_groupnum]);
+X					index_group (group, group_path);
+X					read_newsrc_line (group);
+X					index_point = top_base - 1;
+X					show_group_page (group);
+X				}
+X				break;
+X
+X			case 'W':	/* display messages posted by user */
+X				if (user_posted_messages ()) {
+X					show_group_page(group);
+X				}
+X				break;
+X
+X			case 'z':	/* mark article as unread (to return) */
+X 				if (index_point < 0) {
+X 					info_message (txt_no_arts);
+X					break;
+X				}
+X				i = base[index_point];
+X				arts[i].unread = ART_UNREAD;
+X				i = index_point-first_subj_on_screen;
+X				screen[i].col[8] = '+';
+X				if (draw_arrow_mark) {
+X				    MoveCursor(INDEX_TOP + (index_point - first_subj_on_screen), 8);
+X					putchar ('+');
+X				} else {
+X					draw_subject_arrow();
+X				}
+X				info_message(txt_art_marked_as_unread);
+X				break;
+X
+X			case 'Z':	/* mark thread as unread */
+X 				if (index_point < 0) {
+X 					info_message (txt_no_arts);
+X					break;
+X				}
+X				for (i = base[index_point] ; i != -1 ; i = arts[i].thread) {
+X					arts[i].unread = ART_UNREAD;
+X					thread_marked_unread = TRUE;
+X				}
+X				if (thread_marked_unread) {
+X					i = index_point-first_subj_on_screen;
+X					screen[i].col[8] = '+';
+X					if (draw_arrow_mark) {
+X					    MoveCursor(INDEX_TOP + (index_point - first_subj_on_screen), 8);
+X						putchar ('+');
+X					} else {
+X						draw_subject_arrow();
+X					}
+X					info_message(txt_thread_marked_as_unread);
+X					thread_marked_unread = FALSE;
+X				}
+X				break;
+X
+X			default:
+X			    info_message(txt_bad_command);
+X		}
+X	}
+X
+Xgroup_done:
+X	fix_new_highest (sav_groupnum);
+X	update_newsrc (group, my_group[sav_groupnum]);
+X	clear_note_area ();
+X
+X	if (index_point == -2)
+X		tin_done(0);
+X}
+X
+X
+X/*
+X *  Correct highest[] for the group selection page display since
+X *  new articles may have been read or marked unread
+X */
+X
+Xvoid fix_new_highest (groupnum)
+X	int groupnum;
+X{
+X	register int i;
+X	int sum = 0;
+X
+X	for (i = 0; i < top; i++) {
+X		if (arts[i].unread) {
+X			sum++;
+X		}
+X	}
+X	
+X	unread[groupnum] = sum;
+X}
+X
+X
+Xvoid show_group_page (group)
+X	char *group;
+X{
+X	char new_resps[8];
+X	char resps[8];
+X	char from[LEN+1];
+X	char subject[LEN+1];
+X	int i, j;
+X	int n;
+X	int respnum;
+X
+X#ifdef SIGTSTP
+X	if (do_sigtstp) {
+X#ifdef POSIX_JOB_CONTROL
+X		sigemptyset (&group_act.sa_mask);
+X		group_act.sa_flags = SA_RESTART | SA_RESETHAND;
+X		group_act.sa_handler = group_suspend;
+X		sigaction (SIGTSTP, &group_act, 0L);
+X#else
+X		signal (SIGTSTP, group_suspend);
+X#endif
+X	}
+X#endif
+X
+X#ifdef SIGWINCH
+X	signal (SIGWINCH, group_resize);
+X#endif
+X
+X#ifdef USE_CLEARSCREEN
+X	ClearScreen();
+X#else
+X	MoveCursor(0, 0);		/* top left corner */
+X	CleartoEOLN ();
+X#endif
+X
+X	printf("%s\r\n", nice_time());	/* time in upper left */
+X
+X#ifndef USE_CLEARSCREEN
+X	MoveCursor(1, 0);
+X	CleartoEOLN ();
+X	MoveCursor(2, 0);
+X	CleartoEOLN ();
+X#endif
+X
+X	center_line(1, TRUE, group);
+X
+X	MoveCursor(0, (COLS - (int) strlen (txt_type_h_for_help))+1);	/* upper right */
+X	if (mail_check()) {			/* you have mail message in */
+X		printf(txt_you_have_mail);
+X	} else {
+X		printf(txt_type_h_for_help);
+X	}
+X
+X	MoveCursor(1, (COLS - (int) strlen (txt_type_h_for_help))+1);	/* in upper middle */
+X	if (kill_articles) {		/* display KILL on screen */
+X		printf("KILL ON   ");
+X	} else {
+X		printf("          ");
+X	}
+X	if (post_process) {		/* display POST on screen */
+X		printf("POST ON");
+X	} else {
+X		printf("       ");
+X	}
+X		
+X	MoveCursor(INDEX_TOP, 0);
+X
+X	first_subj_on_screen = (index_point / NOTESLINES) * NOTESLINES;
+X	if (first_subj_on_screen < 0)
+X		first_subj_on_screen = 0;
+X
+X	last_subj_on_screen = first_subj_on_screen + NOTESLINES;
+X	if (last_subj_on_screen >= top_base) {
+X		last_subj_on_screen = top_base;
+X		first_subj_on_screen = top_base - NOTESLINES;
+X
+X		if (first_subj_on_screen < 0)
+X			first_subj_on_screen = 0;
+X	}
+X
+X	for (j=0, i = first_subj_on_screen; i < last_subj_on_screen; i++, j++) {
+X		respnum = base[i];
+X
+X		if (arts[respnum].tagged) {
+X			sprintf (new_resps, "%2d", arts[respnum].tagged);
+X		} else if (new_responses(i)) {
+X			strcpy (new_resps, " +");
+X		} else {
+X			strcpy (new_resps, "  ");
+X		}
+X
+X		n = nresp(i);
+X		if (n)
+X			sprintf (resps, "%4d", n);
+X		else
+X			strcpy (resps, "    ");
+X
+X		if (show_author) {
+X			my_strncpy (subject, arts[respnum].subject, max_subj);
+X			my_strncpy (from, arts[respnum].from, max_from);
+X
+X			sprintf (screen[j].col, "  %4d %s  %-*s%s %-*s\r\n",
+X			       i+1, new_resps, max_subj, subject, resps, max_from-BLANK_GROUP_COLS, from);
+X		} else {
+X			sprintf(screen[j].col, "  %4d %s  %-*s %s\r\n",
+X			       i+1, new_resps, max_subj+max_from-BLANK_GROUP_COLS, arts[respnum].subject, resps);
+X		}
+X		printf("%s", screen[j].col);
+X	}
+X
+X#ifndef USE_CLEARSCREEN
+X	CleartoEOS ();
+X#endif
+X
+X	if (top_base <= 0) {
+X		info_message(txt_no_arts);
+X		return;
+X	} else if (last_subj_on_screen == top_base) {
+X		info_message(txt_end_of_arts);
+X	} else if (last_subj_on_screen != top_base) {
+X#ifndef SLOW_SCREEN_UPDATE
+X		draw_percent_mark (last_subj_on_screen, top_base);
+X#endif
+X	}
+X
+X	draw_subject_arrow();
+X}
+X
+Xvoid draw_subject_arrow()
+X{
+X	draw_arrow (INDEX_TOP + (index_point-first_subj_on_screen));
+SHAR_EOF
+echo "End of tin1.0 part 2"
+echo "File group.c is continued in part 3"
+echo "3" > shar3_seq_.tmp
+exit 0
+
+
+--
+NAME   Iain Lea
+EMAIL  norisc!iain@estevax.UUCP  ...!unido!estevax!norisc!iain
+SNAIL  Siemens AG, AUT 922C, Postfach 4848, Nuernberg, Germany
+PHONE  +49-911-895-3853, +49-911-895-3877, +49-911-331963

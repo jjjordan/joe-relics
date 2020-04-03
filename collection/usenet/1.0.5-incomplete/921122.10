@@ -1,0 +1,517 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!logixwi!jpm
+From: jpm@Logix.DE (Jan-Piet Mens)
+Subject: lgrep1.0 - search for filenames in ls - output
+Organization: Logix GmbH, Wiesbaden, Germany
+Date: Wed, 18 Nov 1992 16:03:32 GMT
+Message-ID: <1992Nov18.160332.13080@Logix.DE>
+Lines: 508
+
+Submitted-by: jpm@Logix.DE
+Archive-name: LGREP/part01
+
+Lgrep reads the input from "ls -R" or "ls -lR" listings and searches for
+file names by regular expression, keeping track of the directory name
+nestings, in order to build a pathname from the "ls" list relative to
+the top of the list. So, 
+
+	$ lgrep -P"uucp host!~ftp/" -A"/tmp"    ".*\.c"  archive-list | sh
+
+whould transfer all C source files to your /tmp directory. (This could be
+rather expensive :-)
+
+
+---- Cut Here and feed the following to sh ----
+#!/bin/sh
+# This is LGREP, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/18/1992 16:01 UTC by jpm@Logix.DE
+# Source directory /home/jpm/src/lgrep
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#    919 -rw-r--r-- README
+#   1303 -rw-r--r-- Makefile
+#   2440 -rw-r--r-- lgrep.1
+#   3330 -rw-r--r-- lgrep.c
+#     21 -rw-r--r-- patchlevel.h
+#    402 -rw-r--r-- copyright.h
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+This is Lgrep-1.0 PL0
+=====================
+X
+Lgrep reads the input from "ls -R" or "ls -lR" listings and searches for
+file names by regular expression, keeping track of the directory name
+nestings, in order to build a pathname from the "ls" list relative to
+the top of the list. So, 
+X
+X	$ lgrep -P"uucp host!~ftp/" -A"/tmp"    ".*\.c"  archive-list | sh
+X
+whould transfer all C source files to your /tmp directory. (This could be
+rather expensive :-)
+X
+Installation:
+X
+X	- Edit the Makefile
+X		Set either one of REGCMP or RE_COMP in DEFS 
+X		REGCMP is for System V, SCO, ... and
+X		RE_COMP is for BSD-type systems
+X
+X		If you have neither in your libraries, get regexp.[ch]
+X		from Emacs, compile them into regexp.o.
+X		Define -DRE_COMP and continue;
+X
+X	- Do a ``make''
+X	- If everythings works ok (why shouldn't it ?) do a
+X	  ``make install''. This will copy the binary to BINDIR
+X	- Install the man-page.
+X	- Done.
+X
+X
+X	Regards,
+X		-JP
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 919 -eq "$Wc_c" ||
+	echo 'README: original size 919, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+#
+# DEFS
+#  -DREGCMP	for System-V regular-expression routines
+#  -DRE_COMP	for BSD-ish regular-expression routines
+#	If you have neither/nor, get regex.[ch] from Emacs, and define RE_COMP
+#
+#  -DBSD	If you need <strings.h>
+X
+# DEFS=-DRE_COMP -DBSD
+DEFS=-DREGCMP
+X
+BINDIR=/usr/local/bin
+X
+#CC=cc
+#CFLAGS=-g $(DEFS) -Wall
+CC=gcc
+CFLAGS= -O $(DEFS)
+X
+# On SCO, when compiling with GCC, you'll need ``-lintl''
+# On SYSV, you may need -lPW for the reg* routines.
+X
+LIBS=-lintl
+#LIBS=-PW
+#LIBS=
+X
+# If you have regex.o from Emacs or from Henry Spencer, add ``regexp.o''
+# to the OBJS= list below.
+X
+OBJS= lgrep.o # regexp.o
+SRCS= lgrep.c
+TARGET= lgrep
+H=	patchlevel.h copyright.h
+X
+all: $(TARGET)
+X
+$(TARGET): $(OBJS)
+X	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
+X
+$(OBJS): $(SRCS) $(H)
+X
+clean:
+X	rm -f *.o core a.out
+clobber: clean
+X	rm -f $(TARGET) Part.?? *.a
+X
+install: $(TARGET)
+X	strip $(TARGET)
+X	[ -x /usr/bin/mcs ] && /usr/bin/mcs -d $(TARGET)
+X	[ -d $(BINDIR) ] || mkdir $(BINDIR)
+X	cp $(TARGET) $(BINDIR)/$(TARGET)
+X	chmod 111 $(BINDIR)/$(TARGET)
+X	chown root $(BINDIR)/$(TARGET)
+X
+SHARFILES=README Makefile lgrep.1
+X
+dist: $(SRCS) $(SHARFILES) $(H)
+X	shar49 -n LGREP -a -s 'jpm@Logix.DE' -o Part -l 50 -c \
+X		$(SHARFILES) $(SRCS) $(H)
+X
+diffs:
+X	(for i in $(H) $(SRCS) $(SHARFILES) ; do rcsdiff -c $$i ; done) || exit 0
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 1303 -eq "$Wc_c" ||
+	echo 'Makefile: original size 1303, current size' "$Wc_c"
+fi
+# ============= lgrep.1 ==============
+if test -f 'lgrep.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping lgrep.1 (File already exists)'
+else
+echo 'x - extracting lgrep.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'lgrep.1' &&
+.TH LGREP 1 "Logix GmbH"
+.SH NAME
+lgrep \- search for filenames in ls - output
+.SH SYNOPSIS
+.B lgrep
+[
+.B -P
+.I prepend
+] [
+.B -A
+.I append
+] [
+.B -v
+]
+.B pattern
+[
+.IR files ...
+]
+.SH DESCRIPTION
+.I lgrep
+is a filter designed to scan the output of a recursive directory listing as
+produced by
+.IR ls ,
+to search for and build pathnames from the input.
+.I lgrep
+will read the named 
+.I files
+in order, or standard input if no
+.I files
+are specified, and will apply the regular expression given in
+.B pattern
+to each line read from the input, keeping track of directory nesting to
+finally produce full pathnames [relative to the top of the listing].
+If a file name is specified as
+.B - 
+the standard input is read.
+.SH OPTIONS
+.I lgrep
+recognizes the following options:
+.IP "\fB-v\fR"
+show version string and release number.
+.IP "\fB-P\fR \fIprepend\fR" 1i
+The string in
+.I prepend
+is prepended to the output produced by
+.IR lgrep .
+If
+.I prepend
+contains white space or shell meta characters, it should be quoted.
+.IP "\fB-A\fR \fIappend\fR" 1i
+The string given in
+.I append
+is appended to the output produced for each pathname, in a similar way as
+with
+.I prepend.
+.SH EXAMPLE
+Supposing the output of 
+.I "ls -R"
+where
+.nf
+.in 0.5i
+total 378
+-rw-r--r--   1 jpm      logix       2591 Apr 11  1992 INSTALL
+-r--r--r--   1 jpm      logix       1459 Aug 12  1991 mail.c
+-r--r--r--   1 jpm      logix        886 Aug 12  1991 mailserv.c
+-rw-r--r--   1 jpm      logix       3270 Apr 11  1992 mail-server.1
+-rw-r--r--   1 jpm      logix        914 Aug 15  1991 Makefile
+drwxr-xr-x   2 jpm      logix        192 May 27 14:58 RCS
+-rw-r--r--   1 jpm      logix       3890 May 27 14:58 send.o
+X
+./RCS:
+total 62
+-r--r--r--   1 jpm      logix       1789 Aug 12  1991 mail.c,v
+-r--r--r--   1 jpm      logix        869 Aug 12  1991 mailserv.c,v
+-r--r--r--   1 jpm      logix       5027 May 27 14:58 send.c,v
+.in
+.fi
+.PP
+then
+.PP
+.in 0.5i
+.nf
+X $ ls -lR | lgrep mail
+X ./mail.c
+X ./mailserv.c
+X ./mail-server.1
+X ./RCS/mail.c,v
+X ./RCS/mailserv.c,v
+X $ lgrep -P"cp " -A " /tmp" ".*,v"  archive-list
+X cp ./RCS/mail.c,v /tmp
+X cp ./RCS/mailserv.c,v /tmp
+X cp ./RCS/send.c,v /tmp
+.in
+.fi
+.PP
+.SH NOTES
+The
+.B pattern
+given
+to
+.I lgrep
+is a regular expression and not shell-glob specification.
+.I lgrep
+may be fooled if a file name ends in a colon.
+.SH SEE ALSO
+.IR ls (1)
+and
+.IR ed (1)
+for a discussion on regular expressions.
+.SH AUTHOR
+Jan-Piet Mens - <jpm@Logix.DE>
+SHAR_EOF
+chmod 0644 lgrep.1 ||
+echo 'restore of lgrep.1 failed'
+Wc_c="`wc -c < 'lgrep.1'`"
+test 2440 -eq "$Wc_c" ||
+	echo 'lgrep.1: original size 2440, current size' "$Wc_c"
+fi
+# ============= lgrep.c ==============
+if test -f 'lgrep.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping lgrep.c (File already exists)'
+else
+echo 'x - extracting lgrep.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'lgrep.c' &&
+#include "patchlevel.h"
+#include "copyright.h"
+X
+#include <stdio.h>
+#include <sysexits.h>
+#include <errno.h>
+#ifdef BSD
+#	include <strings.h>
+#	define  strchr index
+#	define	strrchr rindex
+#else
+#	include <string.h>
+#endif
+X
+#if !defined(REGCMP) && !defined(RE_COMP)
+#	error must define one of REGCMP or RE_COMP
+#endif
+X
+#if defined(REGCMP) && defined(RE_COMP)
+#	error must define ONLY one of REGCMP or RE_COMP
+#endif
+X
+#ifdef REGCMP
+X	extern char *regcmp(), *regex();
+#else
+X	extern char *re_comp();
+X	extern int re_exec();
+#endif
+X
+#ifndef MAXPATHLEN
+# define MAXPATHLEN	128
+#endif
+X
+typedef char string[MAXPATHLEN+1];
+static char rcs_id[] = "@(#)$Id: lgrep.c,v 1.1 1992/11/18 15:41:18 jpm Exp jpm $";
+X
+static string Prepend, Append;
+static char *progname;
+X
+int main(argc, argv)
+int argc;
+char **argv;
+{
+X	FILE *fp = stdin;
+X	int c, i;
+X	extern char *optarg;
+X	extern int optind;
+X	char *re;
+X
+X	progname = *argv;
+X	while ((c = getopt(argc, argv, "P:A:v")) != EOF) {
+X		switch (c) {
+X			case 'P':
+X				strcpy(Prepend, optarg);
+X				break;
+X			case 'A':
+X				strcpy(Append, optarg);
+X				break;
+X			case 'v':
+X				printf("LGREP 1.0PL%d by Jan-Piet Mens - <jpm@Logix.DE>\n",
+X					PATCHLEVEL);
+X				return (0);
+X			default:
+X				return (err(1, (char *)0));
+X		}
+X	}
+X
+X	if (optind == argc)
+X		return (err(1, (char *)0));
+X
+X	re = argv[optind];
+X	if (optind + 1 == argc)
+X		grep(stdin, re);
+X	else {
+X		for (i = optind + 1; i < argc; i++) {
+X			if (!strcmp(argv[i], "-"))
+X				fp = stdin;
+X			else if ((fp = fopen(argv[i], "r")) == (FILE *)0) {
+X				fprintf(stderr, "%s: Can't open %s: %s\n",
+X					progname, argv[i], sys_errlist[errno]);
+X				continue;
+X			}
+X			grep(fp, re);
+X			if (fp != stdin)
+X				fclose(fp);
+X		}
+X	}
+X	return (EX_OK);
+}
+X
+/*
+X * FP is an open file, and RE is a Regular Expression that must be compiled.
+X * Run through FP, which contains the output of an ``ls -R'' listing, and
+X * find hits, building full pathnames as appropriate.
+X */
+X
+int grep(fp, re)
+FILE *fp;
+char *re;
+{
+X	string dirname, buf;
+X	char *bp, *compiled, *ptr;
+X	int n;
+X
+#ifdef REGCMP
+X	if ((compiled = regcmp(re, (char *)0)) == (char *)0)
+X		return (err(0, re));
+#else
+X	if (re_comp(re) != (char *)0)
+X		return (err(0, re));
+#endif
+X	strcpy(dirname, ".");
+X
+X	while ((bp = fgets(buf, sizeof(buf), fp)) != (char *)0) {
+X
+X		buf[n = (strlen(buf) - 1)] = '\0';
+X
+X		/*
+X		 * If the last char is now a colon, then we have a directory
+X		 * name from ``ls''; keep it, and read next line.
+X		 */
+X
+X		if (buf[n - 1] == ':') {
+X			strcpy(dirname, buf);
+X			dirname[n - 1] = '\0';
+X			continue;
+X		}
+X
+X		/* Is there a space starting from the right ? If no, then
+X		 * we have an ``ls -R''. If yes, an ``ls -lR''
+X		 */
+X
+X		if ((bp = strrchr(bp, ' ')) != (char *)0)
+X			++bp;
+X		else
+X			bp = buf;
+X
+X		/*
+X		 * BP now points to the file name in the ``ls'' output.
+X		 * Match it agains the compiled reg-expression, and if
+X		 * that works, we have a hit!
+X		 */
+X
+#ifdef REGCMP
+X		if ((ptr = regex(compiled, bp)) != (char *)0)
+#else
+X		if (re_exec(bp) == 1)
+#endif
+X		{
+X			printf("%s%s/%s%s\n",
+X				Prepend, 
+X				dirname,
+X				bp,
+X				Append);
+X		}
+X	}
+X
+#ifdef REGCMP
+X	(void) free(compiled);
+#endif
+X	return (0);
+}
+X
+int err(n, s)
+int n;
+char *s;
+{
+X	static char *errs[] = {
+X		"%s: Illegal Regular Expression in ``%s''\n",
+X		"Usage: %s [-P<prepend>] [-A<append>] [-v] pattern [file...]\n"
+X	};
+X
+X	fprintf(stderr, errs[n], progname, s);
+X	return (1);
+}
+SHAR_EOF
+chmod 0644 lgrep.c ||
+echo 'restore of lgrep.c failed'
+Wc_c="`wc -c < 'lgrep.c'`"
+test 3330 -eq "$Wc_c" ||
+	echo 'lgrep.c: original size 3330, current size' "$Wc_c"
+fi
+# ============= patchlevel.h ==============
+if test -f 'patchlevel.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping patchlevel.h (File already exists)'
+else
+echo 'x - extracting patchlevel.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'patchlevel.h' &&
+#define PATCHLEVEL	0
+SHAR_EOF
+chmod 0644 patchlevel.h ||
+echo 'restore of patchlevel.h failed'
+Wc_c="`wc -c < 'patchlevel.h'`"
+test 21 -eq "$Wc_c" ||
+	echo 'patchlevel.h: original size 21, current size' "$Wc_c"
+fi
+# ============= copyright.h ==============
+if test -f 'copyright.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping copyright.h (File already exists)'
+else
+echo 'x - extracting copyright.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'copyright.h' &&
+/*
+X * LGREP, Copyright 1992,   Jan-Piet Mens [Logix GmbH, Wiesbaden, Germany]
+X * License to freely use and distribute this software is hereby granted 
+X * by the author, subject to the condition that this copyright notice 
+X * remains intact.  The author retains the exclusive right to publish 
+X * derivative works based on this work, including, but not limited
+X * to, revised versions of this work.
+X */
+SHAR_EOF
+chmod 0644 copyright.h ||
+echo 'restore of copyright.h failed'
+Wc_c="`wc -c < 'copyright.h'`"
+test 402 -eq "$Wc_c" ||
+	echo 'copyright.h: original size 402, current size' "$Wc_c"
+fi
+exit 0
+-- 
+    __  _____   __  __ 
+   |  ||  _  \ |  \/  |    Logix GmbH                             jpm@Logix.DE
+ __|  ||  ___/ |      |    Moritzstrasse 50, +49-611-309797   jpm@logixwi.UUCP
+|_____||__|    |__||__|    D-6200 Wiesbaden  ...!uunet!mcsun!unido!logixwi!jpm

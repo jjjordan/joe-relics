@@ -1,0 +1,171 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!cis.ohio-state.edu!zaphod.mps.ohio-state.edu!rpi!usenet.coe.montana.edu!news.u.washington.edu!milton.u.washington.edu!fhl
+From: fhl@milton.u.washington.edu (Dean Pentcheff)
+Subject: Re: NEED INFO ON WEATHER MAP SCRIPT/FPT ADDRESS (script enclosed)
+Message-ID: <1992Nov17.051212.25093@u.washington.edu>
+Followup-To: alt.sources
+Sender: Dean Pentcheff
+Reply-To: dean2@tbone.biol.scarolina.edu (Dean Pentcheff) 
+Organization: Department of Biology, University of South Carolina, Columbia
+References: <1992Nov16.183945.4294@clpd.kodak.com>
+Date: Tue, 17 Nov 1992 05:12:12 GMT
+Lines: 158
+
+kirkpatr@thyroid.serum.kodak.com (Dan Kirkpatrick (x37370)) writes:
+>Could someone help point me in the direction of the weathermap 
+>scripts or what FTP address I can connect to get the pics?
+
+The following script should do the job.  Note that its details assume
+that you're running under X Windows and have a specific package for
+displaying the GIF images - change as needed.
+
+-Dean
+--
+Dean Pentcheff  (Internet: dean2@tbone.biol.scarolina.edu) (803) 777-8998
+Department of Biology, University of South Carolina, Columbia SC 29205
+
+====== Cut here (note - this is the script itself, not a shar file) =====
+#!/bin/csh
+# N. Dean Pentcheff  (dean2@tbone.biol.scarolina.edu)
+# 8/92
+#
+# Retrieve and display the diagrammatic weather map and visible and IR
+# weather satellite photos from a server machine.
+#
+# Requires the xview/xloadimage/xsetbg program, available from X contrib
+# sites.
+#
+# A potential weakness is the check for whether X is running.  I have
+# no idea if this will work as a general solution.  Try something
+# better if you can come up with it.
+#
+# Probably behaves poorly if the server is dead.
+#
+
+unalias *
+
+set wxhost = vmd.cso.uiuc.edu
+set wxdir  = wx
+set visible = CV
+set infrared = CI
+set map = SA
+set mapkey = WXKEY.GIF
+set localmapkey = /usr/local/lib/$mapkey
+set localname = $user@$HOST
+set pid = $$
+set tmpfile = $pid.tmp
+set tmpdir = /tmp
+set debug = 0
+set refresh = 0
+set show = 1
+set prog = $0
+set prog = $prog:t
+
+# Parse arguments
+foreach arg ( $* )
+	switch ( $arg )
+		case "-d":	# debug mode
+			set debug = 1
+			breaksw
+		case "-s":	# don't display images
+			set show = 0
+			breaksw
+		case "-r":	# just refresh already-fetched images
+			set refresh = 1
+			breaksw
+		default:
+			echo Usage: $prog \[-d\] \[-s\] \[-r\]
+			echo "  -d  Debug mode"
+			echo "  -s  Don't show images"
+			echo "  -r  Refresh already-fetched images"
+			exit
+			breaksw
+	endsw
+end
+
+# Is X running at all?  If not, don't display
+if ( `ps -awww | grep ' X ' | wc -l` < 1 ) then
+	if ( $debug == 1 ) Echo $$ X not running, no display
+	set show = 0
+endif
+
+# If we're going to try fetching, do it
+if ( $refresh == 0 ) then
+	# Fetch and optionally display the images
+	if ( $debug == 1 ) echo -n $$ Beginning fetch: GMT time:
+	if ( $debug == 1 ) date -u
+	
+	# fetch the directory entries from the server
+	if ( $debug == 1 ) echo $$ Getting remote dir into $tmpdir/$tmpfile
+	ftp -n $wxhost >&! /dev/null <<END_OF_FTP_SCRIPT_1
+		user anonymous $localname
+		cd $wxdir
+		lcd $tmpdir
+		ls . $tmpfile
+		bye
+END_OF_FTP_SCRIPT_1
+	
+	# Figure out what to get
+	set getvisible  = "get `grep $visible  $tmpdir/$tmpfile | tail -1`"
+	set getinfrared = "get `grep $infrared $tmpdir/$tmpfile | tail -1`"
+	set getmap      = "get `grep $map      $tmpdir/$tmpfile | tail -1`"
+	if ( -e $localmapkey  ||  -e $tmpdir/$mapkey ) then
+		if ( $debug == 1 ) echo Local key, not refetched
+		set getmapkey = ""
+	else
+		if ( $debug == 1 ) echo No local key, will fetch that too
+		set getmapkey = "get $mapkey"
+	endif
+		
+	# Get files from server
+	if ( $debug == 1 ) echo $$ Fetching files:
+	if ( $debug == 1 ) echo $$ $getvisible
+	if ( $debug == 1 ) echo $$ $getinfrared
+	if ( $debug == 1 ) echo $$ $getmap
+	if ( $debug == 1 ) echo $$ $getmapkey
+	ftp -n $wxhost >&! /dev/null <<END_OF_FTP_SCRIPT_2
+		user anonymous $localname
+		binary
+		cd $wxdir
+		lcd $tmpdir
+		$getvisible
+		$getinfrared
+		$getmap
+		$getmapkey
+		bye
+END_OF_FTP_SCRIPT_2
+else
+	if ( $debug == 1 ) echo $$ No fetching, just refreshing
+endif
+
+# If appropriate, display files
+if ( $show == 1 ) then
+	if ( $debug == 1 ) echo $$ Files fetched, displaying...
+	cd $tmpdir
+	if ( -e $localmapkey ) then
+		if ( $debug == 1 ) echo $$ Local key: $localmapkey
+		xloadimage -fit -fork $localmapkey
+	else
+		if ( $debug == 1 ) echo $$ Fetched key: $mapkey
+		xloadimage -fit -fork $mapkey
+	endif
+	xloadimage -fit -fork `ls -t SA??????.GIF | head -1`
+	sleep 6
+	xloadimage -fit -fork `ls -t CV??????.GIF | head -1`
+	xloadimage -fit -fork `ls -t CI??????.GIF | head -1`
+else
+	if ( $debug == 1 ) echo $$ Files fetched, not displayed
+endif
+
+# Clean up tmp file
+if ( $debug == 1 ) then
+	echo $$ If not debug, would rm -f $tmpdir/$tmpfile
+else
+	rm -f $tmpdir/$tmpfile
+endif
+
+if ( $debug == 1 ) echo $$ Done
+
+exit
+
+# End Of Script

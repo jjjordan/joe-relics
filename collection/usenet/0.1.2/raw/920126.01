@@ -1,0 +1,407 @@
+Xref: funic news.software.readers:1107 alt.sources:3030
+Path: funic!fuug!mcsun!uunet!iWarp.intel.com|eff!ckd
+From: ckd@eff.org (Christopher Davis)
+Newsgroups: news.software.readers,alt.sources
+Subject: Re: Is there some kind of hierarchial newreader?
+Message-ID: <CKD.92Jan21195857@eff.org>
+Date: 22 Jan 92 00:59:02 GMT
+References: <1992Jan14.094301.9863@cs.joensuu.fi> <lb4Hg_d&4@cs.psu.edu>
+	<4010@crdos1.crd.ge.COM> <ogdH$p2#4@cs.psu.edu>
+Sender: ckd@eff.org (Christopher Davis)
+Followup-To: news.software.readers
+Organization: Electronic Frontier Foundation Tech Central
+Lines: 392
+In-Reply-To: flee@cs.psu.edu's message of Tue, 21 Jan 1992 22:24:53 GMT
+
+This serves a fair amount of the purpose, since it allows you to cluster
+groups based on the names:
+
+(/tcp-ip/) gets all tcp-ip groups, and so on.
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file". To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g.. If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  README fixnewsrc sample.news.biblio sample.news.favorite
+#   sample.news.new-list
+# Wrapped by ckd@eff on Thu Aug  8 17:00:22 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f README -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"README\"
+else
+echo shar: Extracting \"README\" \(1594 characters\)
+sed "s/^X//" >README <<'END_OF_README'
+XThis is fixnewsrc 1.4 - a perl program to manage the order of your
+X.newsrc file.  Now, admittedly, there are some newsreaders which will do
+Xthis, but how many of them support all of perl's power in expressions?
+X
+X(After all, rn.pl isn't here yet.)
+X
+XChanges in the program are currently documented within the source code;
+XI will probably move it to a ChangeLog with the next release.
+X
+XUsage notes are within the program; run 'fixnewsrc -help'.
+X
+XFuture plans for version 1.5 (which may be 2.0) include:
+X
+X - support for a .news.dislikes file, to put your most-hated groups at
+X   the bottom.  This would be useful for dropping groups like
+X   vmsnet.networks.tcp-ip.* to the bottom while selecting all other
+X   tcp-ip groups, for example.  Suggested by Ed Vielmetti.
+X
+X - new (and hopefully faster) syntax options in preference files:
+X     ^comp       # will equal comp.all
+X     .sources    # comp.sources.misc, alt.sources, etc
+X   These would match only *whole name segments*, but should be faster
+X   than the "old" (/pat/) matches.  The price will be vastly larger
+X   amounts of RAM used.
+X
+XMany thanks to Dan Wallach <dwallach@soda.berkeley.edu> for the original
+Xcode, Tom Christensen <tchrist@convex.com> and Liam Quin for their
+Xassistance with Dan's versions, Ed Vielmetti <emv@msen.com> for many
+Xfine suggestions, Randal L. Schwartz <merlyn@iwarp.intel.com> and Larry
+XWall <lwall@netlabs.com> for the Camel Book, Larry Wall and the
+Xcomp.lang.perl gang for perl, Masanobu Umeda for GNUS, and Helen Rose
+Xfor her moral support, assistance, and help.  If I have forgotten anyone
+Xabove, I apologize.
+X
+END_OF_README
+if test 1594 -ne `wc -c <README`; then
+    echo shar: \"README\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f fixnewsrc -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"fixnewsrc\"
+else
+echo shar: Extracting \"fixnewsrc\" \(5776 characters\)
+sed "s/^X//" >fixnewsrc <<'END_OF_fixnewsrc'
+X#!/usr/local/bin/perl -- # -*- Perl -*-
+X
+X# FixNewsrc
+X# v1.4 by Chris Davis <ckd@eff.org>
+X# based on V1.1 by Dan Wallach <dwallach@soda.berkeley.edu>
+X
+X# run "fixnewsrc -help" for documentation and usage notes,
+X# see the sample files, look at README, or Use the Source, Luke.
+X
+X# New feature in 1.4
+X#
+X# cleaned up the eval in sub insert, it's now evaling the loop instead
+X# of being within it.  This optimizes (/pat/) perl patterns; it now runs in
+X# much less time on my sample .news.favorite (with a 2500+ group .newsrc!)
+X#
+X#old: 44.0u 15.9s 1:10.66 84.9% 0+1080k 5+15io 0pf+0w
+X#new: 12.4u  9.7s 0:27.94 79.7% 0+1012k 3+15io 0pf+0w
+X# --ckd 91 Aug 09
+X
+X# New features in 1.3
+X#
+X# Cleaned up some messages to print the true filename.
+X# added -s sortfile option (from Ed Vielmetti <emv@msen.com>)
+X# Fixed an array-slice masquerading as a scalar...
+X#
+X# --ckd 91 Aug 08
+X
+X# New features in 1.2:
+X#
+X# Uses getopts.pl to allow the following new feature (so the help parsing
+X#  also changed)
+X#
+X# has -f file to allow using something other than $HOME/.newsrc.
+X#  (good for those GNUS users using .newsrc-nntpserver style files)
+X# --ckd 91 Jul 16
+X
+X# New features in 1.1:
+X#
+X# handles arbitrary Perl patterns via eval (idea from Liam Quin's awk script)
+X# handles stranger and more obscure error cases (happy, Tom? :-)
+X
+X# return true if it actually printed anything
+Xsub counter {
+X    return 0 unless ((++$counter % 100) == 0);
+X    $prev_blurt = 0;
+X    print STDERR "$counter...";
+X    1;
+X}
+X
+Xsub tally_counter {
+X    print STDERR "$counter",(defined $verbosity)?" total\n\n":"\n";
+X}
+X
+Xsub blurt {
+X    return unless $verbosity;
+X    print STDERR "\n" unless $prev_blurt;
+X    print STDERR @_;
+X    $prev_blurt = 1;
+X}
+X
+Xsub insert {
+X	local($group) = split(/[:!]/, $_[0], 2);
+X	if(!defined $newsrc{$group}) {
+X	    &blurt("Warning: $group not in $newsrc_file!\n")
+X		if !defined($inserted{$group});
+X	    next;
+X	}
+X
+X	&blurt(">> $_\n");
+X	&counter;
+X	push (@output, $newsrc{$group});
+X	$inserted{$group} = 1;
+X	delete $newsrc{$group};
+X}
+X
+Xsub print_favorites {
+X    print STDERR "Parsing favorites: ";
+X    favorite: foreach(<FAVORITE>) {
+X	chop;
+X	s/\s*\#.*$//;
+X	next if /^$/;
+X
+X	if(/\(/) {
+X	    &blurt("Matching: $_\n");
+X	    $pattern = $_;
+X	    eval <<END_OF_EVAL;
+X	    foreach (\@newsrc) {
+X		    if ($pattern) {
+X			&insert(\$_);
+X		    }
+X	    }
+XEND_OF_EVAL
+X	    &blurt("Match complete\n");
+X	    next favorite;
+X	}
+X	&insert($_);
+X    }
+X    &tally_counter;
+X}
+X
+X#if(@ARGV == 1 && $ARGV[0] eq "-v") {
+X#    # verbose mode on
+X#    $verbosity = 1;
+X#    shift;
+X#}
+Xrequire 'getopts.pl';		# and unfortunately require 3.0.44 or later
+X&Getopts("h:s:f:v");		# help, sortlist (favorites), file, verbose
+X
+Xif (@ARGV || $opt_h) {
+X    print STDERR <<NO_MORE_HELP;
+Xfixnewsrc 1.4 by Chris Davis <ckd@eff.org>
+X    based on fixnewsrc 1.1 by Dan Wallach <dwallach@soda.berkeley.edu>
+X             and patches by Ed Vielmetti<emv@msen.com>
+XUsage: $0       [-v] [-f file] [-s favoritefile] [any other argument]
+X    -v == more verbose
+X    -f == use file instead of .newsrc
+X    -s == sort by this file instead of .news.favorite
+X    anything else == this help message
+X
+XThis program sorts your .newsrc, putting groups you read on top.  In addition,
+Xif you have a file in your home directory called .news.favorite, then the
+Xlist of newsgroups in this file appear at the top of your .newsrc, so you
+Xcan still read groups in your favorite order.
+X
+XPut any Perl expression you want to describe your group in parenthesis, and
+Xthat's good, too.  If it's not in parenthesis, it's considered to be exact.
+XRemember: you're matching on :'s and !'s, too.
+X
+X# Example:
+Xrec.humor.funny                        # comments, and blank lines are cool
+Xalt.fan.warlord
+Xucb.computing.announce
+Xcomp.lang.perl
+X(/comp\\.text\\..*/ && (!/comp\\.text\\.tex/))  # comp.text everything but tex
+X# Here's a more complicated one which matches "nas" and "nas.msgs"
+X# but not "nasa.nudge" or "arc.nasamail.arc"
+X(/^nas\\..*/ || /^nas[:!]/)
+XNO_MORE_HELP
+X    exit 0;
+X}
+X
+X$verbosity = $opt_v;
+X$newsrc_file = $opt_f || "$ENV{HOME}/.newsrc";
+X$favorite_file = $opt_s || "$ENV{HOME}/.news.favorite";
+Xdie "No .newsrc file!  Crapped out at" unless -e "$newsrc_file";
+Xopen(NEWSRC, "<$newsrc_file") ||
+X    die "Can't open $newsrc_file: $!, crapped out at";
+X
+X# we want to keep this associative array around for printing favorites
+X# so if we've already printed something, we just delete it from the
+X# associative array, and go on.
+X
+Xprint STDERR "Reading groups: ";
+X$counter = 0;
+Xforeach(<NEWSRC>) {
+X    chop;
+X    next if /^$/;
+X    &counter;
+X    $fullentry = $_;
+X    s/[:!].*$//;
+X    &blurt("Warning: $_ appears more than once!\n") if defined($newsrc{$_});
+X    $newsrc{$_} = $fullentry;
+X}
+X&tally_counter;
+X
+Xprint STDERR "Sorting..." if $verbosity;
+X@newsrc = sort values %newsrc;
+Xprint STDERR "Done\n" if $verbosity;
+X# output time... clear the counter and let's deal with the favorites file
+X$counter = 0;
+X
+Xif (open(FAVORITE, $favorite_file)) {
+X    &print_favorites;
+X} else {
+X    print STDERR "Couldn't find $favorite_file.  Just sorting $newsrc_file.\n";
+X}
+X
+X# yeah, we have to do it twice... It's good enough...
+Xundef @newsrc;
+Xprint STDERR "Sorting again..." if $verbosity;
+X@newsrc = sort values %newsrc;
+Xprint STDERR "Done\n" if $verbosity;
+Xprint STDERR "Generating output: ";
+X
+X#
+X# I could just grep through the array for :'s then !'s, but that requies
+X# making two passes.  This works in one pass.
+X#
+Xforeach(@newsrc) {
+X    &counter;
+X    if(/:/) {
+X	push (@output, $_);
+X    } elsif (/!/) {
+X	push (@output2, $_);
+X    }
+X}
+X&tally_counter;
+X
+Xclose(NEWSRC);
+Xrename($newsrc_file,"${newsrc_file}.bak") ||
+X    die "Can't rename ${newsrc_file}: $!, crapped out at";
+X
+Xopen(NEWSRC, ">$newsrc_file") || die "Can't open $newsrc_file for writing: $!, crapped out at";
+X
+X$\ = $, = "\n";
+Xprint NEWSRC @output, @output2;
+X
+X
+X
+END_OF_fixnewsrc
+if test 5776 -ne `wc -c <fixnewsrc`; then
+    echo shar: \"fixnewsrc\" unpacked with wrong size!
+fi
+chmod +x fixnewsrc
+# end of overwriting check
+fi
+if test -f sample.news.biblio -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"sample.news.biblio\"
+else
+echo shar: Extracting \"sample.news.biblio\" \(196 characters\)
+sed "s/^X//" >sample.news.biblio <<'END_OF_sample.news.biblio'
+X# emv's .news.new-list favorite file
+X# works with fixnewsrc (a perl script which is cool)
+X# try to find bibliographic stuff for pbs inc
+X(/librar/)
+X(/pacs-l/)
+X(/book/)
+X(/biblio/)
+X(/text/)
+X(/tex/)
+X
+END_OF_sample.news.biblio
+if test 196 -ne `wc -c <sample.news.biblio`; then
+    echo shar: \"sample.news.biblio\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f sample.news.favorite -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"sample.news.favorite\"
+else
+echo shar: Extracting \"sample.news.favorite\" \(867 characters\)
+sed "s/^X//" >sample.news.favorite <<'END_OF_sample.news.favorite'
+X# ckd's .news.favorite file ; -*- Fundamental -*-
+X#
+X# (perl expr) to wildcard, or groupname to not do so
+Xcontrol                            # do the icky newsadmin stuff first
+Xjunk
+X(/eff\./ && (!/^eff\.mail\./))     # then local and comp.org.eff
+X(/^eff\.mail\./)                   # then the mailing lists
+X
+X# now the system admin stuff
+X(/security/)
+X(/admin/)
+X(/archives/)
+X(/^ddn\./)
+X(/announce/)
+X
+X# regional hierarchies
+X(/^ne\./)
+X(/^mit\./)
+X(/^athena\./)
+X
+X# stuff I want to see
+X(/irc/)
+X(/acad-freedom/)
+X(/privacy/)
+X
+X# more newsadmin stuff, but more heat than light
+X(/^news\./)
+X(/config/)
+X
+X# gotta get my fix
+Xcomp.lang.perl
+X
+X# look for useful source code
+X(/sources/)
+X
+X# support the mac & sun
+X(/sun/)
+X(/mac[.!:]/)
+X
+X# have fun
+Xclari.feature.dave_barry
+X
+X# wind it up with the technodweeb groups
+X(/^gnu\./)
+X(/^comp\./)
+X(/^sci\./)
+X
+X# everything else falls down to the end.
+END_OF_sample.news.favorite
+if test 867 -ne `wc -c <sample.news.favorite`; then
+    echo shar: \"sample.news.favorite\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f sample.news.new-list -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"sample.news.new-list\"
+else
+echo shar: Extracting \"sample.news.new-list\" \(280 characters\)
+sed "s/^X//" >sample.news.new-list <<'END_OF_sample.news.new-list'
+X# emv's .news.new-list favorite file
+X# works with fixnewsrc (a perl script which is cool)
+X# try to find new mailing lists
+Xcontrol                            # do the icky newsadmin stuff first
+Xjunk
+Xbit.listserv.new-list
+Xnews.announce.newgroups
+X(/group/)
+X(/config/)
+X(/announce/)
+X
+X
+END_OF_sample.news.new-list
+if test 280 -ne `wc -c <sample.news.new-list`; then
+    echo shar: \"sample.news.new-list\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of shell archive.
+exit 0
+-- 
+Christopher Davis <ckd@eff.org>   |  OBLIGATORY SEMI-POLITICAL COMMENT:
+System Manager & Postmaster       | "[The CIX] might be a conspiracy of 
+Electronic Frontier Foundation    |  lizard-like aliens here to steal our
++1 617 864 0665    NIC: [CKD1]    |  water, but I doubt it."

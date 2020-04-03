@@ -1,0 +1,733 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!spool.mu.edu!umn.edu!lynx!SantaFe!news.santafe.edu!terry
+From: terry@nambe.santafe.edu (Terry Jones)
+Subject: ebuttons - X interface to emacs.
+Message-ID: <TERRY.92Nov19010524@nambe.santafe.edu>
+Date: Thu, 19 Nov 92 08:05:24 GMT
+Organization: Santa Fe Institute
+Distribution: alt
+Lines: 723
+
+
+[From the README]
+
+This program provides an X interface to issue commands to an emacs
+session.  It allows you to specify (in an X resource file) labels for
+a set of buttons and a command for each that will be executed when the
+corresponding button is clicked on with the mouse. For instance you
+can define buttons to compile, to find the next error, to save
+buffers, to move to the top/bottom of the buffer, to exit emacs etc.
+etc.
+
+The idea is that this should be a thin vertical window that sits just
+to the side of an emacs session and allows for fast execution of some
+things. It is not intended to replace the keyboard! It just gives
+another option - if your hand is already on the mouse, use ebuttons.
+If not, use the keyboard. Or as you like it. The window can also be
+made horizontal (see below) but then not as many buttons will fit on
+the screen.
+
+This program is adapted from the taglist facility written by Brad
+Mears (bmears@deltahp.jsc.nasa.gov). In fact, he should get almost all
+the credit. I have basically never written a line of elisp, what you
+see in ebuttons.el is the result of deleting about 80% of his
+taglist.el.  The X code looks somewhat different, but, again, is a
+result of editing a copy of taglist.c (as is the README).
+
+Terry Jones.
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	Makefile
+#	README
+#	ebuttons.1
+#	ebuttons.c
+#	ebuttons.el
+#	Resources
+#	make_ebuttons
+# This archive created: Wed Nov 18 19:41:17 1992
+export PATH; PATH=/bin:/usr/bin:$PATH
+if test -f 'Makefile'
+then
+	echo shar: "will not over-write existing file 'Makefile'"
+else
+cat << \SHAR_EOF > 'Makefile'
+##
+## Makefile for ebuttons.
+##
+## There are at most 4 things you may want to do to this Makefile.
+##
+##     1) Change the MAX_BUTTONS value
+##     2) and 4) Make a change if you have the 3D Athena widget set.
+##     3) add a path to your X library.
+##
+## The locations where you can do this are marked with the above numbers
+## in what follows.
+##
+## I am imake illiterate, sorry.
+##
+## Terry Jones (terry@santafe.edu), November 18, 1992.
+## Santa Fe Institute
+##
+
+#
+# 1) The maximum number of buttons.
+#
+MAX_BUTTONS = 50
+
+
+#
+# 2) Change the LIBS line according to whether or not you
+#    have the 3d Athena widgets installed. If in doubt, just use
+#    the first line (with -lXaw).
+#
+# 3) Add a -L/path/to/your/X/libs if your X libraries are installed
+#    somewhere non-standard.
+#
+LIBS= -lXaw -lXmu -lXt -lX11
+# LIBS= -lXaw3d -lXmu -lXt -lX11
+
+
+#
+# 4) Add -DHAVE_XAW3D if you have the 3d Athena widgets.
+#
+CFLAGS = -O -DMAX_BUTTONS=$(MAX_BUTTONS)
+
+
+## Nothing below here should change.
+
+all: ebuttons ebuttons.cat
+
+ebuttons: buttons ebuttons.o 
+	$(CC) $(CFLAGS) -o $@ ebuttons.o $(LIBS)
+
+buttons:
+	./make_ebuttons $(MAX_BUTTONS)
+
+ebuttons.cat: ebuttons.1
+	nroff -man ebuttons.1 > ebuttons.cat
+clean:
+	-rm -f *.o
+
+clobber: clean
+	-rm -f ebuttons ebuttons.h
+
+
+SHAR_EOF
+fi
+if test -f 'README'
+then
+	echo shar: "will not over-write existing file 'README'"
+else
+cat << \SHAR_EOF > 'README'
+              Ebuttons - an X interface to emacs.
+
+         Terry Jones (terry@santafe.edu), November 18, 1992.
+                      Santa Fe Institute
+
+
+
+INTRODUCTION
+------------ 
+
+This program provides an X interface to issue commands to an emacs
+session.  It allows you to specify (in an X resource file) labels for
+a set of buttons and a command for each that will be executed when the
+corresponding button is clicked on with the mouse. For instance you
+can define buttons to compile, to find the next error, to save
+buffers, to move to the top/bottom of the buffer, to exit emacs etc.
+etc.
+
+The idea is that this should be a thin vertical window that sits just
+to the side of an emacs session and allows for fast execution of some
+things. It is not intended to replace the keyboard! It just gives
+another option - if your hand is already on the mouse, use ebuttons.
+If not, use the keyboard. Or as you like it. The window can also be
+made horizontal (see below) but then not as many buttons will fit on
+the screen.
+
+Ebuttons is intended to run as a subprocess to an emacs session.  It is
+controlled by the elisp code in ebuttons.el.  After loading ebuttons.el,
+executing the "ebuttons" function from within emacs will start the program.
+Since the program uses X, you have to be running X.  See the installation
+notes later in this document for more detail.  Note that this program does
+NOT require you to use the X version of emacs.  You must be running X, but
+you can use the non-X version of emacs.
+
+Ebuttons was implemented under GNU emacs version 18.58. It should run
+on earlier versions of GNU emacs.
+
+This program is adapted from the taglist facility written by Brad
+Mears (bmears@deltahp.jsc.nasa.gov). In fact, he should get almost all
+the credit. I have never written a line of elisp code, what you see in
+ebuttons.el is the result of deleting about 80% of his taglist.el.
+The X code looks somewhat different, but, again, is a result of
+editing a copy of taglist.c (as is this README).
+
+I decided that this would be a nice thing to have after using taglist
+for a time and realizing that I liked the command buttons better than
+the tags. Plus, the tags list kept (necessarily) resizing and
+obscuring my emacs window. A further step would be to rewrite taglist
+so that it didn't have a set of buttons - it could be controlled from
+a button in an ebuttons window.
+
+COMPONENTS
+----------
+README          - this file.
+Makefile        - that file.
+Resources       - a sample set of resources for this program.
+ebuttons.c      - source code.
+ebuttons.el     - run-time elisp program.
+ebuttons.1      - a man page.
+make_ebuttons   - a shell script that generates some code for ebuttons.c.
+
+INSTALLATION
+------------
+1 - Edit Makefile and run make. This will make you an executable 
+    and also format the manpage (putting the result in ebuttons.cat)
+
+2 - Copy the resulting executable (ebuttons) to some directory that is
+    in your path.
+
+3 - Copy the elisp program ebuttons.el to wherever you keep your
+    elisp code.
+
+4 - Customize the labels and commands used by the buttons. See the
+    file "Resources" for examples. Add the resources you want to
+    your .Xdefaults or .Xresources (or wherever) file.
+
+5 - (Optional)  Modify your .emacs file to load and run ebuttons at startup.
+    I do this via:
+  
+    (if (equal window-system 'x)
+        (progn
+	  (load "ebuttons")
+	  (ebuttons)))
+
+6 - (Optional) Modify your .emacs file so that ebuttons-toggle-screen
+    is bound to some key.
+
+    (define-key global-map "\^Xt" 'ebuttons)
+    
+    Note that this is the key that was suggested for taglist, so if
+    you want to use both and have taglist on C-x t, come up with your
+    own arrangement.
+
+
+RUNNING ebuttons
+----------------
+
+The simplest method is to, as described above, have ebuttons start
+automatically when your emacs starts. Otherwise you can invoke it
+manually with M-x ebuttons (or C-x t if you have it bound there).
+
+The (ebuttons) function has two purposes.  It either starts the ebuttons
+program or, if the program is already running, sends a signal to it that
+causes the program to hide/expose the ebuttons window.
+
+To use the program, simply click on the button that represents the
+command you want executed.
+
+ 
+RESOURCES
+---------
+
+Your resource file should have pairs of lines like
+
+    ebuttons.labelX:                 label
+    ebuttons.commandX:               (emacs-command)
+
+where X is any number from 0 to the number of possible buttons minus
+one. The upper limit is set in the Makefile and is 50 in the
+distribution. Label numbers may be omitted (i.e. you can define labels
+1, 2 and 5, omitting 3 and 4) - if you only define 3 buttons, only 3
+will appear. Actually this is not entirely true, an extra button (the
+last button in the window) is added. It causes the ebuttons program to
+exit and is (usually) labelled Quit.  You can change the name that
+appears on this button (if you wish) with:
+
+    ebuttons*Quit.label: your-label
+
+in your resource file. Other resources that will have useful effects
+are
+
+    ebuttons*Command.borderWidth
+    ebuttons*Box.orientation
+    ebuttons*Box.hSpace
+    ebuttons*Box.vSpace
+    ebuttons.geometry
+    ebuttons*background
+    ebuttons*font
+
+Look in the Resources file for an example of settings for these. My
+preference is to have the ebuttons window take up as little space as
+possible, so I use a small font and leave no vertical or horizontal
+space between the command buttons.
+SHAR_EOF
+fi
+if test -f 'ebuttons.1'
+then
+	echo shar: "will not over-write existing file 'ebuttons.1'"
+else
+cat << \SHAR_EOF > 'ebuttons.1'
+.TH EBUTTONS 1 "18 November 1992"
+.SH NAME
+ebuttons \- popup buttons for giving commands to an emacs session.
+.SH SYNOPSIS
+.B M-x ebuttons
+inside emacs, or
+.B (ebuttons) 
+in an emacs startup file.
+.SH DESCRIPTION
+.B Ebuttons
+provides an X interface to issue commands to an emacs
+session.  It allows you to specify (in an X resource file) labels for
+a set of buttons and a command for each that will be executed when the
+corresponding button is clicked on with the mouse. For instance you
+can define buttons to compile, to find the next error, to save
+buffers, to move to the top/bottom of the buffer, to exit emacs etc.
+
+The idea is that this should be a thin vertical window that sits just
+to the side of an emacs session and allows for fast execution of some
+things. It is not intended to replace the keyboard! It just gives
+another option - if your hand is already on the mouse, use 
+.BR ebuttons .
+If not, use the keyboard. Or as you like it. The window can also be
+made horizontal (see below) but then not as many buttons will fit on
+the screen.
+.SH STARTUP
+The simplest method is to automatically start 
+.B ebuttons
+when you enter emacs. This can be done by adding the following to your .emacs file.
+.sp
+    (if (equal window-system 'x)
+.br
+        (progn
+.br
+	      (load "ebuttons")
+.br
+	      (ebuttons)))
+.SH "KEY BINDINGS"
+It is useful to bind (ebuttons) to some key inside emacs. This function 
+starts the program if it is not already running 
+and toggles its visibility otherwise. The simplest way to do this is
+to put something like
+.sp
+    (define-key global-map "\^Xt" 'ebuttons)
+.sp
+in your .emacs file. This binds the command to the keystroke control-X t.
+.SH RESOURCES
+Your resource file should have pairs of lines like
+.sp
+    ebuttons.labelX:         label
+.br
+    ebuttons.commandX:       (emacs-command)
+.sp
+where X is any number from 0 to the number of possible buttons minus
+one. The upper limit is set in the Makefile and is 50 in the
+distribution. Label numbers may be omitted (i.e. you can define labels
+1, 2 and 5, omitting 3 and 4). If you only define 3 buttons, only 3
+will appear. Actually this is not entirely true, an extra button (the
+last button in the window) is added. It causes the 
+.B ebuttons 
+program to
+exit and is (usually) labelled Quit.  You can change the name that
+appears on this button (if you wish) with:
+.sp
+    ebuttons*Quit.label: your-label
+.sp
+in your resource file. Other resources that will have useful effects
+are
+.sp
+    ebuttons*Command.borderWidth
+    ebuttons*Box.orientation
+    ebuttons*Box.hSpace
+    ebuttons*Box.vSpace
+    ebuttons.geometry
+    ebuttons*background
+    ebuttons*font
+.sp
+The orientation resource can be set to "horizontal" or "vertical" (the default).
+Look in the Resources file in the distribution for an example of settings for these
+resources. My preference is to have the 
+.B ebuttons 
+window take up as little space as
+possible, so I use a small font and leave no vertical or horizontal
+space between the command buttons.
+.SH "SEE ALSO"
+The README in the distribution and
+.B Taglist 
+by Brad Mears (bmears@deltahp.jsc.nasa.gov) from which this program
+was distilled.
+.SH AUTHOR
+Terry Jones (terry@santafe.edu)
+.br
+Santa Fe Institute
+.br
+November 18, 1992.
+SHAR_EOF
+fi
+if test -f 'ebuttons.c'
+then
+	echo shar: "will not over-write existing file 'ebuttons.c'"
+else
+cat << \SHAR_EOF > 'ebuttons.c'
+/*
+ * X interface to Emacs.
+ * Copyright (C) 1992  Terry Jones
+ * (Based (heavily) on the taglist facility written by Brad Mears)
+ *
+ * This file is part of ebuttons
+ *
+ * Ebuttons is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 1, or (at your option)
+ * any later version.
+ *
+ * The GNU General Public License can be obtained via anonymous ftp from
+ * prep.ai.mit.edu as pub/gnu/COPYING or pub/gnu/COPYING-2.
+ *
+ * Ebuttons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/*
+ * This provides a point-and-click command interface to an 
+ * emacs session.  This won't be much use without ebuttons.el.
+ * See the README for details on use.
+ */
+
+#include <stdio.h>
+
+#include <X11/Intrinsic.h>
+#include <X11/StringDefs.h>
+#include <X11/Shell.h>
+
+#ifdef HAVE_XAW3D
+#include <X11/Xaw3d/Box.h>
+#include <X11/Xaw3d/Command.h>
+#else
+#include <X11/Xaw3d/Box.h>
+#include <X11/Xaw3d/Command.h>
+#endif
+
+static void create_buttons();
+static void button_press();
+void toggle_visibility();
+
+typedef struct {
+    String labels[MAX_BUTTONS];
+    String commands[MAX_BUTTONS];
+} AppResources;
+
+static AppResources appResources;
+static Widget toplevel;            
+
+#include "ebuttons.h"
+
+int 
+main(argc, argv)
+int argc;
+char **argv;
+{
+   XtAppContext appContext;
+
+   toplevel = XtAppInitialize(&appContext, "ebuttons", NULL, 0, &argc, argv, NULL, NULL, 0);
+   XtGetApplicationResources(toplevel, (XtPointer)&appResources, resources, XtNumber(resources), NULL, 0);
+   create_buttons(toplevel);
+   XtAppAddInput(appContext, fileno(stdin), XtInputReadMask, toggle_visibility, NULL);
+   XtRealizeWidget(toplevel);
+   XtAppMainLoop(appContext);
+   return 0;
+}
+
+
+/*
+ * Callback for the configurable command buttons.  The quit button
+ * has no associated command.
+ */
+static void 
+button_press(w, command, dummy)
+Widget  w;
+XtPointer command; 
+XtPointer dummy;
+{
+   if (!command){
+      exit(0);
+  }
+
+   printf("%s", (String)command);
+   fflush(stdout);
+   return;
+}
+
+
+static void 
+create_buttons(parent)
+Widget parent;
+{
+    Widget cmds[MAX_BUTTONS];
+    Widget cmdbox;              
+    Widget quit;
+    int i;
+    Dimension width;
+    Dimension max_width = 0;
+    
+    cmdbox = XtCreateManagedWidget("cmdbox", boxWidgetClass, parent, NULL, 0);
+    
+    for (i = 0; i < MAX_BUTTONS; i++) {
+	if (appResources.labels[i] && appResources.commands[i]){
+	    cmds[i] = XtCreateManagedWidget(appResources.labels[i], commandWidgetClass, cmdbox, NULL, 0);
+	    XtAddCallback(cmds[i], XtNcallback, button_press, (XtPointer)appResources.commands[i]);
+	
+	    XtVaGetValues(cmds[i], XtNwidth, &width, NULL);
+	    
+	    if (max_width < width){
+		max_width = width;
+	    }
+	}
+    }
+    
+    quit = XtCreateManagedWidget("Quit", commandWidgetClass, cmdbox, NULL, 0);
+    XtAddCallback(quit, XtNcallback, button_press, NULL);
+    
+    XtVaGetValues(quit, XtNwidth, &width, NULL);
+    
+    if (max_width < width){
+	max_width = width;
+    }
+    
+    /* Set all the buttons to the same width */
+    for (i = 0; i < MAX_BUTTONS; i++) {
+	if (appResources.labels[i] && appResources.commands[i]){
+	    XtVaSetValues(cmds[i], XtNwidth, max_width, NULL);
+	}
+    }
+    
+    XtVaSetValues(quit, XtNwidth, max_width, NULL);
+    
+    return;
+}
+
+
+void 
+toggle_visibility(client_data, dummy1, dummy2)
+XtPointer client_data;
+int *dummy1;
+XtInputId *dummy2;
+{
+   char buf[BUFSIZ];
+   static int visible = 1;
+
+    /* Read input from stdin.  We know it is ready since we have been called. */
+   
+   if (!fgets(buf, BUFSIZ, stdin)){
+       /* This goes to stdout, not stderr. */
+       printf("could not read from stdin!\n");
+       exit(0);
+   }
+
+   if (visible) {
+       XtUnmapWidget(toplevel);
+       visible = 0;
+   }
+   else {
+       XtMapWidget(toplevel);
+       visible = 1;
+   }
+   
+   return;
+}
+
+SHAR_EOF
+fi
+if test -f 'ebuttons.el'
+then
+	echo shar: "will not over-write existing file 'ebuttons.el'"
+else
+cat << \SHAR_EOF > 'ebuttons.el'
+;; Ebuttons - an X interface to Emacs.
+;; Copyright (C) 1992  Terry Jones (terry@santafe.edu)
+;; (Based (heavily) on the taglist facility written by Brad Mears)
+
+;; This file is part of ebuttons
+
+;; Ebuttons is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 1, or (at your option)
+;; any later version.
+
+;; The GNU General Public License can be obtained via anonymous ftp from
+;; prep.ai.mit.edu as pub/gnu/COPYING or pub/gnu/COPYING-2.
+
+;; Ebuttons is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; This program provides an X interface to issue commands to an emacs
+;; session.  It allows you to specify (in an X resource file) labels for
+;; a set of buttons and a command for each that will be executed when the
+;; corresponding button is clicked on with the mouse. For instance you
+;; can define buttons to compile, to find the next error, to save
+;; buffers, to move to the top/bottom of the buffer, to exit emacs etc.
+;; etc.
+
+(defvar ebuttons-program "ebuttons"
+  "*The ebuttons processor")
+
+(defvar ebuttons-running nil
+  "Is the program running?")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;  ebuttons
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun ebuttons ()
+  "Start the ebuttons processor.  This starts an X subprocess that can be
+used to issue commands to the current emacs session."
+  (interactive)
+  (if (not ebuttons-running)
+    (progn
+      (message "Starting ebuttons...")
+      (setq ebuttons-process
+        (start-process "ebuttons" nil ebuttons-program))
+      (setq ebuttons-running t)
+      (set-process-filter ebuttons-process 'eb-process-filter)
+      (set-process-sentinel ebuttons-process 'eb-process-sentinel)
+      (process-kill-without-query ebuttons-process))
+    (process-send-string ebuttons-process "\n")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;  eb-process-filter    - input process filter
+;;;  eb-process-sentinel  - exit process filter
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun eb-process-filter (proc str)
+  "Process filter for the ebuttons"
+  (let ((first-char (string-to-char str)))
+     (if (= first-char ?()     
+        (eval (read str))       ; evaluate the elisp code sent from ebuttons
+        (progn                  ; Dump the string to the ebuttons buffer 
+           (get-buffer-create "*ebuttons*")
+           (switch-to-buffer-other-window "*ebuttons*")
+           (insert-string str)
+           (end-of-buffer)
+           (other-window 1)))))
+
+
+(defun eb-process-sentinel (proc msg)
+  (setq ebuttons-running nil)		; it's not running any more
+  (cond ((eq (process-status proc) 'exit)
+	 (message "ebuttons-proc subprocess exited"))
+ 	((eq (process-status proc) 'signal)
+	 (message "ebuttons-proc subprocess killed")
+	 ))) 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;  End of ebuttons.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+SHAR_EOF
+fi
+if test -f 'Resources'
+then
+	echo shar: "will not over-write existing file 'Resources'"
+else
+cat << \SHAR_EOF > 'Resources'
+ebuttons*Command.borderWidth:    0
+ebuttons*Box.orientation:        vertical
+ebuttons*Box.hSpace:             0
+ebuttons*Box.vSpace:             0
+ebuttons*geometry:               +161+266
+ebuttons*background:		 SkyBlue
+ebuttons*font:			 6x10
+ebuttons.label1:                 VM
+ebuttons.command1:               (vm)
+ebuttons.label2:                 C-x 0
+ebuttons.command2:               (delete-window)
+ebuttons.label3:                 C-x 1
+ebuttons.command3:               (delete-other-windows)
+ebuttons.label4:                 C-x 2
+ebuttons.command4:               (split-window-vertically)
+ebuttons.label5:                 Next Error
+ebuttons.command5:               (next-error)
+ebuttons.label6:                 Save Buffer
+ebuttons.command6:               (save-buffer)
+ebuttons.label7:                 Exit Emacs
+ebuttons.command7:               (save-buffers-kill-emacs)
+ebuttons.label8:                 Send Mail
+ebuttons.command8:               (mail)
+ebuttons.label9:                 Kill Buffer
+ebuttons.command9:               (kill-buffer (buffer-name))
+ebuttons.label10:                Buffer List
+ebuttons.command10:              (electric-buffer-list t)
+ebuttons.label11:                First Line
+ebuttons.command11:              (beginning-of-buffer)
+ebuttons.label12:                Scroll Other
+ebuttons.command12:              (scroll-other-window)
+ebuttons.label13:                Next Win
+ebuttons.command13:              (other-window)
+ebuttons.label14:                Top
+ebuttons.command14:              (goto-char 0)
+ebuttons.label15:                Bottom
+ebuttons.command15:              (goto-char (dot-max))
+ebuttons.label18:                Compile
+ebuttons.command18:              (compile "make -k")
+ebuttons.label19:                Hide Me
+ebuttons.command19:              (ebuttons)
+SHAR_EOF
+fi
+if test -f 'make_ebuttons'
+then
+	echo shar: "will not over-write existing file 'make_ebuttons'"
+else
+cat << \SHAR_EOF > 'make_ebuttons'
+#!/bin/sh
+
+buttons=ebuttons.h
+
+case $# in
+	1) ;;
+	*) echo usage: `basename $0` num_buttons; exit 1;;
+esac
+
+if [ -f $buttons ]
+then
+	existing_buttons="`grep COMMAND $buttons | wc -l`"
+	
+	if [ $1 -eq `expr $existing_buttons - 2` ]
+	then
+		exit 0
+	fi
+fi
+
+cat >$buttons <<EOT
+#define LABEL(x)   "Label", XtRString, sizeof(String), XtOffsetOf(AppResources, labels[(x)]), XtRString, NULL
+#define COMMAND(x) "Command", XtRString, sizeof(String), XtOffsetOf(AppResources, commands[(x)]), XtRString, NULL
+
+static XtResource resources[] = {
+EOT
+
+awk <&- >> $buttons 'BEGIN { \
+     for (; i < '$1'; i++) \
+       printf "    {\"label%d\", LABEL(%d) },\n    { \"command%d\", COMMAND(%d) },\n", i, i, i, i}'
+
+cat >>$buttons <<EOT
+};
+
+#undef LABEL
+#undef COMMAND
+EOT
+
+exit 0
+SHAR_EOF
+chmod +x 'make_ebuttons'
+fi
+exit 0
+#	End of shell archive

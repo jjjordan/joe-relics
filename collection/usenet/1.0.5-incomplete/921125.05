@@ -1,0 +1,3182 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!uunet!elroy.jpl.nasa.gov!swrinde!sgiblab!pacbell.com!tlhouns
+From: tlhouns@srv.PacBell.COM (Lee Hounshell)
+Subject: C++ class library "var" (version 1.1) and "VarMap" (associateive arrays)
+Message-ID: <1992Nov24.030101.6844@PacBell.COM>
+Sender: news@PacBell.COM (Pacific Bell Netnews)
+Organization: Pacific * Bell
+Date: Tue, 24 Nov 1992 03:01:01 GMT
+Lines: 3172
+
+This is the latest release of "var", and "VarMap".
+This is a C++ object library that provides a "super-string" class with
+"associative array" capabilities.
+
+The var class does a pretty good job of offering a data object that assumes
+its "type" at run time, based on context of use.  Rarely will you need to
+declare int's, or longs, or doubles or char[] or even string objects!
+"Var" does it all (or at least tries to).
+
+	+ var will do base data types (eg: int, long, char *, float, string ...)
+	+ var will do arithmetic
+	+ var will do strings and operations on strings
+	+ var will do sub-strings and operations on sub-strings
+	+ var will intelligently "mix" operations between mixed types
+	+ var will do formatted output using the stream library
+	+ individual vars can be "staticly" typed, or they can assume
+	  type at runtime, based on context.
+	+ VarMap will do associative arrays of vars indexed by vars.
+
+To use this class, simply type make and a library file "libvar.a" will be
+created.  This class has been used extensively here at Pacific Bell as a
+base class in development of our own internal C++ class libraries. I've
+even used "var" as the YYSTYPE type inside yacc/lex programs!!
+
+To try out the enclosed demo programs, type "make demo".
+
+Both var and VarMap have been tested and used on the following architectures:
+
+	- Sun C++ versions 2.0 and 2.1
+	- AT&T C++ versions 2.0 and 2.1
+	- g++ (yes, I now support GNU C++!!)
+
+If you like (or dislike) var and/or VarMap, please drop me a line.
+Mail bug reports and comments to:
+tlhouns@srv.pacbell.com
+
+-Lee
+
+#----------------------------------cut here-------------------------------------
+
+# This is a shell archive.  Remove anything before this line,
+# then unpack it by saving it in a file and typing "sh file".
+#
+# Wrapped by pbpal!tlhouns on Mon Nov 23 18:48:43 PST 1992
+# Contents:  README LEGAL_NOTICE var.3++ VarMap.3++ Makefile var.H var.C
+#	VarMap.H VarMap.C demo.C demo2.C
+ 
+echo x - README
+sed 's/^@//' > "README" <<'@//E*O*F README//'
+
+This is the latest release of "var", and "VarMap".
+This is a C++ object library that provides a "super-string" class with
+"associative array" capabilities.
+
+The var class does a pretty good job of offering a data object that assumes
+its "type" at run time, based on context of use.  Rarely will you need to
+declare int's, or longs, or doubles or char[] or even string objects!
+"Var" does it all (or at least tries to).
+
+	+ var will do base data types (eg: int, long, char *, float, string ...)
+	+ var will do arithmetic
+	+ var will do strings and operations on strings
+	+ var will do sub-strings and operations on sub-strings
+	+ var will intelligently "mix" operations between mixed types
+	+ var will do formatted output using the stream library
+	+ individual vars can be "staticly" typed, or they can assume
+	  type at runtime, based on context.
+	+ VarMap will do associative arrays of vars indexed by vars.
+
+To use this class, simply type make and a library file "libvar.a" will be
+created.  This class has been used extensively here at Pacific Bell as a
+base class in development of our own internal C++ class libraries. I've
+even used "var" as the YYSTYPE type inside yacc/lex programs!!
+
+To try out the enclosed demo programs, type "make demo".
+
+Both var and VarMap have been tested and used on the following architectures:
+
+	- Sun C++ versions 2.0 and 2.1
+	- AT&T C++ versions 2.0 and 2.1
+	- g++ (yes, I now support GNU C++!!)
+
+If you like (or dislike) var and/or VarMap, please drop me a line.
+Mail bug reports and comments to:
+tlhouns@srv.pacbell.com
+
+-Lee
+@//E*O*F README//
+chmod u=rw,g=r,o=r README
+ 
+echo x - LEGAL_NOTICE
+sed 's/^@//' > "LEGAL_NOTICE" <<'@//E*O*F LEGAL_NOTICE//'
+
+        Any use of this source code must include, in the user documentation
+        and internal comments to the code, and notices to the end user as
+        follows:
+
+	Copyright (c) 1992 Lee Hounshell
+ 
+	LEE HOUNSHELL MAKES NO REPRESENTATIONS ABOUT THE SUITABILITY OF
+        THIS SOURCE CODE FOR ANY PURPOSE. IT IS PROVIDED "AS IS"
+        WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  LEE HOUNSHELL
+	SEVERALLY AND INDIVIDUALLY, DISCLAIM ALL WARRANTIES WITH REGARD
+	TO THIS SOURCE CODE, INCLUDING ALL IMPLIED WARRANTIES OF
+	MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO
+	EVENT SHALL LEE HOUNSHELL BE LIABLE FOR ANY SPECIAL, INDIRECT,
+	INCIDENTAL, OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER
+	RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+	OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+	OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOURCE CODE.
+
+	Permission to use, copy, modify, and distribute this software
+	and its documentation for any purpose and without fee is hereby
+	granted, provided that the above copyright notice appear in all
+	copies and that both that copyright notice and this permission
+	notice appear in supporting documentation, and that the name of
+	Lee Hounshell not be used in advertising in publicity pertaining
+	to distribution of the software without specific, written prior
+	permission.
+
+@//E*O*F LEGAL_NOTICE//
+chmod u=rw,g=r,o=r LEGAL_NOTICE
+ 
+echo x - var.3++
+sed 's/^@//' > "var.3++" <<'@//E*O*F var.3++//'
+@.po 6
+@.TH VAR 3++ "1/92" "Version 1.1" "Variable Base Type String Class Library"
+
+@.SH CLASS
+VAR	\- Variable Base Type String Class Library
+@.SH SYNOPSIS
+@.B #include 	<var.H>
+@.PP
+@.nf
+@.ta.5i 1.0i 4.0i
+\fB
+class var {
+
+  public:
+    // Constructors & Destructors
+    var(void);					// constructor
+    var(const varsize &);			// constructor
+    var(const char *);				// constructor
+    var(const char);				// constructor
+    var(const short);				// constructor
+    var(const unsigned short);			// constructor
+    var(const int);				// constructor
+    var(const unsigned int);			// constructor
+    var(const long);				// constructor
+    var(const unsigned long);			// constructor
+    var(const double);				// constructor
+    var(const var &);				// copy constructor
+    ~var(void);					// destructor
+
+    // Operators
+    var & operator = (const char *);		// assignment
+    var & operator = (const var &);		// assignment
+    char & operator [] (const int);		// indexing
+    subvar & operator () (int, int) const;	// substring
+    subvar & operator () (const int) const;	// substring
+    friend ostream & operator << (ostream &, const var &); // output
+    friend class subvar;			// substring
+
+    // More Operators (used for arithmetic type extension)
+    var & operator = (const char);		// assignment
+    var & operator = (const short);		// assignment
+    var & operator = (const unsigned short);	// assignment
+    var & operator = (const int);		// assignment
+    var & operator = (const unsigned int);	// assignment
+    var & operator = (const long);		// assignment
+    var & operator = (const unsigned long);	// assignment
+    var & operator = (const double);		// assignment
+
+    // Casting Operators
+    operator char * (void) const;		// type conversion
+    operator double (void) const;		// type conversion
+
+    // Assignment Operators
+    var & operator ++ (void);			// increment (pre-index only)
+    var & operator -- (void);			// decrement (pre-index only)
+    var operator ! (void) const;		// not
+
+    var operator + (const var &) const;		// addition OR concatenation
+    var operator - (const var &) const;		// subtraction
+    var operator * (const var &) const;		// multiplication
+    var operator / (const var &) const;		// division
+    var operator % (const var &) const;		// remainder
+
+    var & operator += (const var &);		// addition OR concatenation
+    var & operator -= (const var &);		// subtraction
+    var & operator *= (const var &);		// multiplication
+    var & operator /= (const var &);		// division
+    var & operator %= (const var &);		// remainder
+
+    var & operator += (const char &);		// addition OR concatenation
+    var & operator += (const char *);		// addition OR concatenation
+    var & operator -= (const char *);		// subtraction
+    var & operator *= (const char *);		// multiplication
+    var & operator /= (const char *);		// division
+    var & operator %= (const char *);		// remainder
+
+    var & operator += (const double);		// addition OR concatenation
+    var & operator -= (const double);		// subtraction
+    var & operator *= (const double);		// multiplication
+    var & operator /= (const double);		// division
+    var & operator %= (const double);		// remainder
+
+    friend var operator + (const char *, const var &); // addition OR concatenation
+    friend var operator - (const char *, const var &); // subtraction
+    friend var operator * (const char *, const var &); // multiplication
+    friend var operator / (const char *, const var &); // division
+    friend var operator % (const char *, const var &); // remainder
+    friend var operator + (const var &, const char *); // addition OR concatenation
+    friend var operator - (const var &, const char *); // subtraction
+    friend var operator * (const var &, const char *); // multiplication
+    friend var operator / (const var &, const char *); // division
+    friend var operator % (const var &, const char *); // remainder
+
+    friend var operator + (const var &, const double); // addition OR concatenation
+    friend var operator - (const var &, const double); // subtraction
+    friend var operator * (const var &, const double); // multiplication
+    friend var operator / (const var &, const double); // division
+    friend var operator % (const var &, const double); // remainder
+    friend var operator + (const double, const var &); // addition OR concatenation
+    friend var operator - (const double, const var &); // subtraction
+    friend var operator * (const double, const var &); // multiplication
+    friend var operator / (const double, const var &); // division
+    friend var operator % (const double, const var &); // remainder
+
+    // Equality Operators
+    int operator == (const var &) const;	// equality
+    int operator != (const var &) const;	// inequality
+    int operator < (const var &) const;		// less than
+    int operator > (const var &) const;		// greater than
+    int operator <= (const var &) const;	// less than or equal
+    int operator >= (const var &) const;	// greater than or equal
+
+    friend int operator == (const var &, const char *); // equality
+    friend int operator != (const var &, const char *); // inequality
+    friend int operator < (const var &, const char *);  // less than
+    friend int operator > (const var &, const char *);  // greater than
+    friend int operator <= (const var &, const char *); // less than or equal
+    friend int operator >= (const var &, const char *); // greater than or equal
+    friend int operator == (const char *, const var &); // equality
+    friend int operator != (const char *, const var &); // inequality
+    friend int operator < (const char *, const var &);  // less than
+    friend int operator > (const char *, const var &);  // greater than
+    friend int operator <= (const char *, const var &); // less than or equal
+    friend int operator >= (const char *, const var &); // greater than or equal
+
+    friend int operator == (const var &, const double); // equality
+    friend int operator != (const var &, const double); // inequality
+    friend int operator < (const var &, const double);  // less than
+    friend int operator > (const var &, const double);  // greater than
+    friend int operator <= (const var &, const double); // less than or equal
+    friend int operator >= (const var &, const double); // greater than or equal
+    friend int operator == (const double, const var &); // equality
+    friend int operator != (const double, const var &); // inequality
+    friend int operator < (const double, const var &);  // less than
+    friend int operator > (const double, const var &);  // greater than
+    friend int operator <= (const double, const var &); // less than or equal
+    friend int operator >= (const double, const var &); // greater than or equal
+
+    // Custom Interface
+    void null(int);				// "null" out string
+    void changesize(int);			// change allocated memory
+    int length(void) const;			// length of string
+    const char * vartype(void) const;		// name of this var type
+    void change_type(const char *);		// change var type
+    int is_string(void) const;			// test var type
+    int is_double(void) const;			// test var type
+    int is_long(void) const;			// test var type
+    int strchr(const char) const;		// strchr(char) index
+    int strrchr(const char) const;		// strrchr(char) index
+    var & concat(const var &);			// concatenation
+    var & format(const char *);			// set output format
+};
+@.fi
+\fP
+
+@.SH DESCRIPTION
+Class \fBvar\fP represents a \fBstring\fP object class that also provides all
+the traditional functionality of the C base types: char, int, long, float, double, and char*.
+\fBVar\fP, is in many ways a "super-string" class.
+The var class does a pretty good job of offering a base data "container" object that can either
+assume its "type" at run time, based on context or remain a "fixed" type, always.
+
+@.SS var will do
+@.TP 2
++
+all the base data types (eg: short, int, long, char *, float, double ...)
+@.TP 2
++
+string types
+@.TP 2
++
+arithmetic
+@.TP 2
++
+strings and operations on strings
+@.TP 2
++
+sub-strings and operations on sub-strings
+@.TP 2
++
+intelligent "mixing" of operations between mixed types
+@.TP 2
++
+formatted output using the stream library
+
+@.SH PUBLIC CONSTRUCTORS
+@.SS var(void);
+This constructor is used to declare an "untyped" var object.  Type is determined
+at run-time, based on context of use.
+
+@.SS var(const varsize &);
+This constructor is used to declare an "string" var object, with preallocated memory.
+The object's type can change at run-time, based on context.
+
+@.SS var(const char *);
+This constructor is used to declare a "string" object initialize from a "char *".
+The object's type can change at run-time, based on context.
+
+@.SS var(const char);
+This constructor is used to declare an "numeric" var object, initialized from a char.
+The object's type can change at run-time, based on context.
+
+@.SS var(const short);
+This constructor is used to declare an "numeric" var object, initialized from a short.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const unsigned short);
+This constructor is used to declare an "numeric" var object, initialized from an unsigned short.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const int);
+This constructor is used to declare an "numeric" var object, initialized from an int.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const unsigned int);
+This constructor is used to declare an "numeric" var object, initialized from an unsigned int.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const long);
+This constructor is used to declare an "numeric" var object, initialized from a long.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const unsigned long);
+This constructor is used to declare an "numeric" var object, initialized from an unsigned long.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const double);
+This constructor is used to declare an "numeric" var object, initialized from a double or float.
+The object's type is fixed and will not change at run-time.
+
+@.SS var(const var &);
+This constructor is used to declare a var object, which is a copy of another var.
+The object assumes the characteristics of the initializing object.
+
+@.SS ~var(void);
+The destructor returns all memory allocated by the object back to the OS.
+
+
+@.SH PUBLIC OPERATORS
+@.SS Arithmetic and Concatenation Operators
+Most operators (+, -, /, *, %, +=, etc..) will operate as expected.
+The "+" and "+=" operators will either do addition or concatenation, as appropriate.
+if concatenation is required, then the \fB"var.concat(var)"\fP member function should
+be used.
+
+@.SS Relational Operators
+These also operate as expected.  If "string" objects are compared, the comparison
+will be as performed by \fBstrcmp(3)\fP.
+
+@.SS The Indexing Operator []
+You can index a character from inside a \fBvar\fP by using
+the \fB"char & operator [] (const int);"\fP operator.
+If you attempt to index \fBbeyond\fP a \fBvar\fP object's current end, then
+the referenced object will be automatically extended (padded with spaces)
+to the desired length.
+A reference to the character is returned, which can be assigned to.
+Do not assign the NULL character using this operator.
+Instead call the member function \fB"null(index)"\fP.
+
+@.SS Sub-strings
+Two operators are provide for substring operation.  The
+first, \fB"subvar & operator () (int start, int length) const;"\fP
+will extract a string starting at "start" for "length" characters.
+The second, \fB"subvar & operator () (const int start) const;"\fP will
+extract a string starting at "start" to the end of the string.
+
+@.SS Type Casting
+Only two type casts are required by \fBvar\fP. The first converts
+the object into a "char *".  The second converts the object into a
+double.  Implicit conversion between "char *" and "double" types
+will be performed by your C++ compiler.
+
+@.SS Formatted Output
+You can use \fBvar\fP with the io stream library.  Objects can be
+output using the ">>" operator.
+For formatted output, be sure to set the object's "format template"
+prior to calling the ">>" operator.  (see \fB"var & format(const char *);"\fP)
+
+@.SH PUBLIC MEMBER FUNCTIONS
+
+@.SS Truncating a string 
+The \fB"void null(int index);"\fP function will truncate a \fBvar\fP
+object, starting from the specified index postion.
+
+@.SS Memory Allocation
+The \fB"void changesize(int newsize);"\fP can be used to increase
+allocated memory for a var.  Memory can NOT be decreased.  Allocated
+memory is returned to the heap when an object goes out of scope.
+
+@.SS Determining Var's Length
+The \fB"int length(void) const;"\fP function returns the "size" of a \fBvar\fP.
+
+@.SS Determining Var's Type
+The \fB"const char * vartype(void) const;"\fP function returns the "type" of a \fBvar\fP.
+Possible types are: "VAR_STRING", "VAR_LONG" and "VAR_DOUBLE".
+
+@.SS Explititly Changing a Var's Type
+The \fB"void change_type(const char *newtype);"\fP function can be used
+to set an exact type.  Valid values for "newtype" are "string", "short",
+"unsigned short", "int", "unsigned int", "long", "unsigned long",
+"float", and "double".
+
+@.SS Testing a Var's Type
+Three functions are provided that allow testing a \fBvar\fP type.
+They are as follows: \fB"int is_string(void) const;"\fP,
+\fB"int is_double(void) const;"\fP, and \fB"int is_long(void) const;"\fP
+
+@.SS Searching for a Character
+Two functions are provided that search a \fBvar\fP for a specified
+character.  Both return an offset.  The first \fB"int strchr(const char) const;"\fP
+searches forward.  The second, \fB"int strrchr(const char) const;"\fP
+searches backward.
+
+@.SS Concatenation
+Concatenation can be forced, regardless of type with the \fB"var & concat(const var &);"\fP
+function.
+
+@.SS Setting the Output Format
+The \fB"var & format(const char *fmt);"\fP function will allow you to specify an
+output format.  This format will remain in effect until changed.  Printf()
+style output formats can be introduced anywhere in the format statment.
+Multiple formateed output directives can appear in the same "fmt".  Each
+directive will receive a copy of the object.  Automatic type conversion will
+occur.
+
+
+@.SH AUTHOR
+Lee Hounshell - 1/92
+
+@.SH EXAMPLE
+@.nf
+#include	<var.H>
+
+main ()
+{
+    var value;				// declare an "untyped" var
+    value = "hello world";		// initialize it
+    cout << value << "\n";		// output "hello world"
+    value = value(3, value.length() - 6); // substring example
+    cout << value << "\n";		// output "lo wo"
+    value = 34;				// assignment of int
+    value++;				// increment
+    value += 42.375;			// add 42.375 to present value
+    cout << value << "\n";		// output "77.375"
+    cout << value.format("formatted output example %05d of value\n");
+    cout << value.format("multiple outputs #1=%d, #2=%9.2f of value\n");
+    value.null(2);			// truncate string
+    value += " sunset strip";		// concatenate a string
+    cout << value.format("%s\n");	// output "77 sunset strip"
+    cout << value[3] << value[4] << value[5] << "\n"; // output "sun"
+}
+@.fi
+
+@.SH SUPERCLASSES
+none.
+
+@.SH SUBCLASSES
+none
+
+@.SH BUGS
+Assignment of an array of vars to another array of vars
+must currently be done one element at a time.
+Var now works with g++. (version 1.1)
+String contatenation problem fixed. (version 1.1)
+Memory leak fixed. (version 1.1)
+
+@//E*O*F var.3++//
+chmod u=rw,g=r,o=r var.3++
+ 
+echo x - VarMap.3++
+sed 's/^@//' > "VarMap.3++" <<'@//E*O*F VarMap.3++//'
+@.po 6
+@.TH VARMAP 3++ "1/92" "Version 1.0" "VAR Associative Array Class Library"
+
+@.SH CLASS
+VARMAP	\- Variable Base Type Associative Array Class Library
+@.SH SYNOPSIS
+@.B #include 	<VarMap.H>
+@.PP
+@.nf
+@.ta.5i 1.0i 4.0i
+\fB
+class VarMap {
+
+  public:
+    // Standard Interface
+    const var & type(void) const;		// who am i
+
+    // Constructors & Destructor
+    VarMap(int type = VARMAP_FIFO);
+    ~VarMap(void) {remove();}
+
+    // Operators
+    VarMap & operator = (const VarMap &);	// assign VarMaps
+    int operator == (VarMap &) const;		// equality
+    int operator != (VarMap &) const;		// inequality
+    var & operator [] (const var index);	// index/create entry
+
+    friend ostream & operator << (ostream &, const VarMap &); // output
+    friend TraceStream & operator << (TraceStream &, const VarMap &);
+
+    // Standard Member Functions
+    void print(ostream &) const;		// output
+
+    // Custom Interface - see VarMap man pages for use
+    int	append(var newkey, var newvalue);	// append to map
+    int	push(var newkey, var newvalue);		// push a var
+    var	pop(void);				// pop a var
+    int	empty(void) const;			// is map empty
+    int	at_start(void) const;			// at head of map
+    int	at_end(void) const;			// at end of map
+    int	position(void);				// index within map
+    int	size(void) const;			// length of map
+    void remove(void);				// remove all items
+    void delete_here(void);			// remove this item
+    int	element(const var & index);		// test for element
+    var & key(void);				// current key
+    var & value(void);				// current value
+    void display(ostream & out = cerr);		// print the map
+    void first(void);				// point to first node
+    void next(void);				// point to next node
+    void last(void);				// point to last node
+};
+@.fi
+\fP
+
+@.SH DESCRIPTION
+Class \fBVarMap\fP represents an \fBassociative array\fP object class that allows dynamic
+arrays of \fBvar\fP objects to be indexed by another \fBvar\fP object.
+\fBVarMap\fP, is in many ways a "super-associative-array" class.
+The VarMap class does a pretty good job of offering an associative array object with an
+index of virtually \fBany base type\fP.  It also provides a base data "container" object
+that can assume its "type" at run time, based on context.  VarMap can also function as a "stack"
+object, with both FIFO (first-in-first-out) and LIFO (last-in-last-out) capabilities.
+
+@.SH PUBLIC CONSTRUCTORS
+@.SS VarMap(int type = VARMAP_FIFO);
+This constructor is used to declare a VarMap object.  The newly created object will
+initially contain NO data elements.  If the paramater \fBVARMAP_LIFO\fP is specified,
+then this object will use LIFO (last-in-first-out) stack operations.  If either no
+parameter or \fBVARMAP_FIFO\fP is specified, then FIFO (first-in-first-out) stack
+operations will occur on this object.  Type of the indexed object
+is determined at run-time, based on context of use.
+
+@.SS ~VarMap(void);
+The destructor returns all memory allocated by the object back to the OS.
+
+@.SH PUBLIC OPERATORS
+@.SS The Assignment Operator
+The assignment operator (=) will operate as expected.
+As no \fBcopy constructor\fP exists at present for \fBVarMap\fP, you will need
+to use this operator to initialize copies of other VarMaps.
+
+@.SS Relational Operators
+Only the \fBequality\fP (==) and \fBinequality\fP (!=) operators are currently implemented.
+These operate as expected.  The objects must be \fBexactly\fP the same to match.
+
+@.SS The Indexing Operator []
+You can index any \fBvar\fP object inside a \fBVarMap\fP object by using
+the \fB"var & operator [] (const var);"\fP operator.  WARNING!! If you attempt
+to index an object that does not yet exist, then it will be created automatically.
+To test whether or not an object exists without creating it, use the \fBelement(const var)\fP
+member function.  A reference to the indexed \fBvar\fP is returned, which can be assigned to.
+
+@.SS Type Casting
+There are no cast operators for \fBVarMap\fP objects; however, you may cast the
+indexed \fBvar\fP object to any base type.
+
+@.SS Output
+You can output the contents of an entire \fBVarMap\fP object using the io stream library.
+Objects can be output using the ">>" operator.
+For formatted output, be sure to index and set each \fBvar\fP element's "format template"
+prior to calling the ">>" operator.  (see \fB"var & format(const char *);"\fP)
+
+@.SH PUBLIC MEMBER FUNCTIONS
+
+@.SS Appending a New Element and Key to a VarMap
+The \fB"int append(var newkey, var newvalue);\fP function will append a new element
+to the VarMap with the index \fBnewkey\fP and the value \fBnewvalue\fP.  The size of
+the VarMap is increased by one.
+
+@.SS Pushing a New Element (and Key) onto a VarMap
+The \fB"int push(var newkey, var newvalue);\fP function will push a new element
+to the \fBVarMap\fP stack with the index \fBnewkey\fP and the value \fBnewvalue\fP.
+The size of the \fBVarMap\fP is increased by one. The order that this element will be
+later \fBpopped\fP is determined by the \fBVarmap\fP object's initial VARMAP_FIFO
+or VARMAP_LIFO constructor argument.
+
+@.SS Poping an Element from a VarMap
+The \fB"int pop(void);\fP function will pop the next appropriate element
+from the \fBVarMap\fP stack.  The size of the \fBVarMap\fP is decreased by one.
+The order that each element is popped is determined by the \fBVarmap\fP object's
+initial VARMAP_FIFO or VARMAP_LIFO constructor argument.
+
+@.SS Testing a VarMap Index
+The \fB"int element(const var & index) const;"\fP function returns 1 if a \fBVarMap\fP entry
+exists for the passed index value, 0 otherwise.
+
+@.SS Determining if a VarMap is Empty
+The \fB"int empty(void) const;"\fP function returns 1 if a \fBVarMap\fP is empty, 0 otherwise.
+
+@.SS Determining VarMap's Size
+The \fB"int size(void) const;"\fP function returns the "size" of a \fBVarMap\fP.
+
+@.SS Relative "Positions" Inside a VarMap Object
+Six member functions exist to allow user to "walk" through a \fBVarMap's\fP elements and/or test
+where (relatively speaking) you are currently positioned within the map.  The first two are used
+to test if you are at the \fBhead\fP or \fBtail\fP of the \fBVarMap\fP.
+The \fB"int at_start(void) const;"\fP function returns 1 if you are at the head of a \fBVarMap\fP, 0 otherwise.
+The \fB"int at_end(void) const;"\fP function returns 1 if you are at the tail of a \fBVarMap\fP, 0 otherwise.
+The \fB"int position(void) const;"\fP function returns relative \fBnumerical position\fP of the current
+node in a \fBVarMap\fP. Three memeber functions allow you to change the current position.
+The \fB"void first(void) const;"\fP function moves the current \fBVarMap\fP pointer to the head of the map.
+The \fB"void last(void) const;"\fP function moves the current \fBVarMap\fP pointer to the tail of the map.
+The \fB"void next(void) const;"\fP function moves the current \fBVarMap\fP pointer to the next entry of the map.
+
+@.SS Deleting the current VarMap Entry
+The \fB"void delete_here(void) const;"\fP function will destroy the currently \fBpointed to\fP entry.
+This is often used in conjunction with the \fBfirst()\fP and \fBnext()\fP function to traverse a
+\fBVarMap\fP and remove nodes at random.  After a \fBdelete_here()\fP call, the \fBVarMap\fP will be
+pointing to the \fBnext\fP node (just as if a \fBnext()\fP call had been made).
+
+@.SS Deleting all VarMap Entries
+The \fB"void remove(void) const;"\fP function will destroy every entry in the \fBVarMap\fP.  After this
+call, the \fBVarMap's\fP size will be zero.
+
+@.SS Extracting the Current Entry's Key Value
+The \fB"var & key(void);"\fP function will return a reference to the current \fBVarMap\fP element's key.
+
+@.SS Extracting the Current Entry's Data Value
+The \fB"var & value(void);"\fP function will return a reference to the current \fBVarMap\fP element.
+
+@.SS Displaying a VarMap
+The \fB"void display(ostream & out = cerr);"\fP function will output all elements and keys of a \fBVarMap\fP
+to the passed ostream.  By default, output is sent to \fBcerr\fP.
+
+@.SH AUTHOR
+Lee Hounshell - 1/92
+
+@.SH EXAMPLE
+@.nf
+#include	<VarMap.H>
+
+main ()
+{
+    VarMap aa;				// declare a VarMap
+    var lee = "foobar";
+    if (!aa.element(lee)) {
+	aa[lee] = "hello world";	// create/assign using index "foobar"
+    }
+    aa[42] = "testing 123";		// create/assign using index "42"
+    aa[5] = 123.45;			// create/assign using index "5"
+    aa.display();			// display this map to stderr
+}
+@.fi
+
+@.SH SUPERCLASSES
+none.
+
+@.SH SUBCLASSES
+var
+
+@.SH BUGS
+
+@//E*O*F VarMap.3++//
+chmod u=rw,g=r,o=r VarMap.3++
+ 
+echo x - Makefile
+sed 's/^@//' > "Makefile" <<'@//E*O*F Makefile//'
+############################################################################
+#       make - compiles the C++ library (libvar.a) 
+#       make clean - removes all .o files generated in these procedures
+#       make clobber - removes all libraries, cleans up .o's
+############################################################################
+
+
+# from the two below, pick the operating system closest to yours:
+
+# If you're using g++, define CC and INCDIRS as appropriate for you
+CC	= g++
+INCDIRS = -I. -I/usr/local/lib/g++-include
+
+# If you're using Sun or AT&T C++ version 2.0 or 2.1 use these..
+#CC	= CC
+#INCDIRS = -I.
+
+#SYS	= HP
+SYS	= SUN
+
+#-----don't change anything after this line-----
+
+CFLAGS	= -O $(INCDIRS)
+ARFLAGS	= rv
+
+
+is_bsd	= test $(SYS) = SUN
+
+all:	libvar.a
+
+C++FILES	= var.C VarMap.C
+INS_HFILES	= var.H VarMap.H
+HFILES		= $(INS_HFILES)
+
+OBJECTS = ${C++FILES:.C=.o}
+
+libvar.a:	$(OBJECTS)
+		ar $(ARFLAGS) $@ $?
+		if $(is_bsd) ; then ranlib $@; fi
+
+$(OBJECTS):	$(HFILES)
+
+demo:		libvar.a demo.C demo2.C
+		$(CC) $(INCDIRS) demo.C -L. -lvar -o demo
+		$(CC) $(INCDIRS) demo2.C -L. -lvar -o demo2
+
+clean:	
+		rm -f *.o a.out core $(OBJECTS)
+		cd demo; $(MAKE) clean
+
+clobber:	clean
+		rm -fr $(DOTAS)
+		cd demo; $(MAKE) clobber
+
+#####
+#####
+#.SUFFIXES: .o .C .C~ .c .c~
+@.SUFFIXES: .o .C .C~
+@.C~.C:
+	-cd $(<D); $(GET) $(GFLAGS) $(<F)
+@.C.c:
+	$(CC) $(CFLAGS) -Fc $*.C > $*.c
+@.C.o:
+	$(CC) $(CFLAGS) -c $*.C
+@.C~.o:
+	-cd $(<D); $(GET) $(GFLAGS) $(<F)
+	$(CC) $(CFLAGS) -c $*.C
+
+@//E*O*F Makefile//
+chmod u=rw,g=r,o=r Makefile
+ 
+echo x - var.H
+sed 's/^@//' > "var.H" <<'@//E*O*F var.H//'
+//
+// NAME:	var.H
+//
+// PURPOSE:	C++ Generic "Universal Variable" Class Library Header File
+// VERSION:	1.1
+// AUTHOR:	Lee Hounshell
+// LAST MOD:	Mon Nov 23 08:56:24 PST 1992
+//
+
+#ifndef VAR_H
+#define VAR_H
+
+#include	<stream.h>
+#include	"string.h"
+
+// -----------------------------------------------------------------------------
+//
+class varsize {
+    // dummy class needed for var constructor of specific size that
+    // doesn't conflict with the var integer type constructor
+    public:
+	// Constructors & Destructors
+	varsize(int sz);				// constructor
+	int size;					// size of var
+};
+
+class subvar;
+
+// -----------------------------------------------------------------------------
+//
+class var {
+
+    public:
+	// Standard Interface
+	const var & type(void) const;			// who am i
+
+	// Constructors & Destructors
+	var(void);					// constructor
+	var(const varsize &);				// constructor
+	var(const char *);				// constructor
+	var(const char);				// constructor
+	var(const short);				// constructor
+	var(const unsigned short);			// constructor
+	var(const int);					// constructor
+	var(const unsigned int);			// constructor
+	var(const long);				// constructor
+	var(const unsigned long);			// constructor
+	var(const double);				// constructor
+	var(const var &);				// copy constructor
+	~var(void);					// destructor
+
+	// Operators
+	var & operator = (const char *);		// assignment
+        var & operator = (const var &);			// assignment
+        char & operator [] (const int);			// indexing
+        subvar & operator () (int, int) const;		// substring
+        subvar & operator () (const int) const;		// substring
+        friend ostream & operator << (ostream &, const var &); // output
+	friend class subvar;				// substring
+
+	// More Operators (used for arithmetic type extension)
+	var & operator = (const char);			// assignment
+	var & operator = (const short);			// assignment
+	var & operator = (const unsigned short);	// assignment
+	var & operator = (const int);			// assignment
+	var & operator = (const unsigned int);		// assignment
+	var & operator = (const long);			// assignment
+	var & operator = (const unsigned long);		// assignment
+	var & operator = (const double);		// assignment
+
+	// Casting Operators
+	operator char * (void) const;			// type conversion
+	operator double (void) const;			// type conversion
+
+	// Assignment Operators
+        var & operator ++ (void);			// increment (pre-index only)
+        var & operator -- (void);			// decrement (pre-index only)
+        var operator ! (void) const;			// not
+
+        var operator + (const var &) const;		// addition OR concatenation
+        var operator - (const var &) const;		// subtraction
+        var operator * (const var &) const;		// multiplication
+        var operator / (const var &) const;		// division
+        var operator % (const var &) const;		// remainder
+
+        var & operator += (const var &);		// addition OR concatenation
+        var & operator -= (const var &);		// subtraction
+        var & operator *= (const var &);		// multiplication
+        var & operator /= (const var &);		// division
+        var & operator %= (const var &);		// remainder
+
+        var & operator += (const char &);		// addition OR concatenation
+        var & operator += (const char *);		// addition OR concatenation
+        var & operator -= (const char *);		// subtraction
+        var & operator *= (const char *);		// multiplication
+        var & operator /= (const char *);		// division
+        var & operator %= (const char *);		// remainder
+
+        var & operator += (const double);		// addition OR concatenation
+        var & operator -= (const double);		// subtraction
+        var & operator *= (const double);		// multiplication
+        var & operator /= (const double);		// division
+        var & operator %= (const double);		// remainder
+
+	friend var operator + (const char *, const var &); // addition OR concatenation
+	friend var operator - (const char *, const var &); // subtraction
+	friend var operator * (const char *, const var &); // multiplication
+	friend var operator / (const char *, const var &); // division
+	friend var operator % (const char *, const var &); // remainder
+	friend var operator + (const var &, const char *); // addition OR concatenation
+	friend var operator - (const var &, const char *); // subtraction
+	friend var operator * (const var &, const char *); // multiplication
+	friend var operator / (const var &, const char *); // division
+	friend var operator % (const var &, const char *); // remainder
+
+	friend var operator + (const var &, const double); // addition OR concatenation
+	friend var operator - (const var &, const double); // subtraction
+	friend var operator * (const var &, const double); // multiplication
+	friend var operator / (const var &, const double); // division
+	friend var operator % (const var &, const double); // remainder
+	friend var operator + (const double, const var &); // addition OR concatenation
+	friend var operator - (const double, const var &); // subtraction
+	friend var operator * (const double, const var &); // multiplication
+	friend var operator / (const double, const var &); // division
+	friend var operator % (const double, const var &); // remainder
+
+	// Equality Operators
+        int operator == (const var &) const;		// equality
+        int operator != (const var &) const;		// inequality
+        int operator < (const var &) const;		// less than
+        int operator > (const var &) const;		// greater than
+        int operator <= (const var &) const;		// less than or equal
+        int operator >= (const var &) const;		// greater than or equal
+
+	friend int operator == (const var &, const char *); // equality
+	friend int operator != (const var &, const char *); // inequality
+	friend int operator < (const var &, const char *);  // less than
+	friend int operator > (const var &, const char *);  // greater than
+	friend int operator <= (const var &, const char *); // less than or equal
+	friend int operator >= (const var &, const char *); // greater than or equal
+	friend int operator == (const char *, const var &); // equality
+	friend int operator != (const char *, const var &); // inequality
+	friend int operator < (const char *, const var &);  // less than
+	friend int operator > (const char *, const var &);  // greater than
+	friend int operator <= (const char *, const var &); // less than or equal
+	friend int operator >= (const char *, const var &); // greater than or equal
+
+	friend int operator == (const var &, const double); // equality
+	friend int operator != (const var &, const double); // inequality
+	friend int operator < (const var &, const double);  // less than
+	friend int operator > (const var &, const double);  // greater than
+	friend int operator <= (const var &, const double); // less than or equal
+	friend int operator >= (const var &, const double); // greater than or equal
+	friend int operator == (const double, const var &); // equality
+	friend int operator != (const double, const var &); // inequality
+	friend int operator < (const double, const var &);  // less than
+	friend int operator > (const double, const var &);  // greater than
+	friend int operator <= (const double, const var &); // less than or equal
+	friend int operator >= (const double, const var &); // greater than or equal
+
+	// Custom Interface
+	void null(int);					// "null" out string
+	void changesize(int);				// change allocated memory
+	int length(void) const;				// length of string
+	const char * vartype(void) const;		// name of this var type
+	void change_type(const char *);			// change var type
+	int is_string(void) const;			// test var type
+	int is_double(void) const;			// test var type
+	int is_long(void) const;			// test var type
+	int strchr(const char) const;			// strchr(char) index
+	int strrchr(const char) const;			// strrchr(char) index
+	var & concat(const var &);			// concatenation
+	var & format(const char *);			// set output format
+	void print(ostream &) const;			// output
+
+    protected:
+
+    private:
+	int	numcheck(const char *) const;		// determine is_numeric value
+
+	short	fixed;					// 1=fixed data type
+	short	is_numeric;				// 0=string, 1=short/int/long, 2=float/double
+	int	data_str_len;				// length of allocated "string"
+	int	data_str_end;				// index to current "end" of string
+	char	*data_str;				// for "string" data
+	char	*format_str;				// the output format string
+
+};
+
+
+class subvar : public var {
+    public:
+        var & operator = (const var &);			// substring replacement
+	var		*varptr;
+	unsigned	offset;
+	unsigned	length;
+};
+
+
+// global conversion functions
+char *itoa(const int foo);
+char *uitoa(const unsigned int foo);
+char *dtoa(const double foo);
+double atod(char * foo);
+
+#ifdef HP
+    char *ltoa(long foo);
+    char *ultoa(unsigned long foo);
+#else
+    char *ltoa(const long foo);
+    char *ultoa(const unsigned long foo);
+#endif
+
+
+#endif
+
+@//E*O*F var.H//
+chmod u=rw,g=r,o=r var.H
+ 
+echo x - var.C
+sed 's/^@//' > "var.C" <<'@//E*O*F var.C//'
+//
+// NAME:	var.C
+//
+// PURPOSE:	C++ Generic "Universal Variable" library class
+// VERSION:	1.1
+// AUTHOR:	Lee Hounshell
+// LAST MOD:	Mon Nov 23 08:56:24 PST 1992
+//
+
+#include	<stddef.h>
+#include	<stream.h>
+#include	<stdlib.h>
+#include	<ctype.h>
+#include	<string.h>
+#include	<memory.h>
+#include	"var.H"
+
+const int	VAR_PAD_SIZE		= 128;
+const int	VAR_DEF_SIZE		= 16;
+
+const short	VAR_STRING		= 0;
+const short	VAR_LONG		= 1;
+const short	VAR_DOUBLE		= 2;
+
+char *	DEFAULT_STRING_FORMAT		= "'%s'";
+char *	DEFAULT_INT_FORMAT		= "%d";
+char *	DEFAULT_UINT_FORMAT		= "%u";
+char *	DEFAULT_LONG_FORMAT		= "%ld";
+char *	DEFAULT_ULONG_FORMAT		= "%lu";
+char *	DEFAULT_DOUBLE_FORMAT		= "%9.2f";
+
+// -----------------------------------------------------------------------------
+
+
+const var & var::type(void) const
+{
+    static const var objtype = "var";
+    return objtype;
+}
+
+
+varsize::varsize(int sz)
+{
+    size = sz;
+}
+
+
+var::var(void)
+{
+    fixed = 0;
+    is_numeric = VAR_STRING;
+    data_str_len = VAR_DEF_SIZE;
+    data_str_end = 0;
+    data_str = new char[data_str_len];
+    data_str[0] = 0;
+    format_str = DEFAULT_STRING_FORMAT;
+}
+
+
+var::var(const char *str)
+{
+    fixed = 1;
+    is_numeric = VAR_STRING;
+    data_str_end = strlen(str);
+    data_str_len = data_str_end + VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, str);
+    format_str = DEFAULT_STRING_FORMAT;
+}
+
+
+var::var(const varsize &vsz)
+{
+    fixed = 0;
+    is_numeric = VAR_STRING;
+    data_str_len = vsz.size + VAR_DEF_SIZE;
+    data_str_end = 0;
+    data_str = new char[data_str_len];
+    data_str[0] = 0;
+    format_str = DEFAULT_STRING_FORMAT;
+}
+
+
+var::var(const char ch)
+{
+    fixed = 0;
+    is_numeric = VAR_STRING;
+    data_str_len = VAR_DEF_SIZE;
+    data_str_end = 1;
+    data_str = new char[data_str_len];
+    data_str[0] = ch;
+    data_str[1] = 0;
+    format_str = DEFAULT_STRING_FORMAT;
+}
+
+
+var::var(const short int_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, itoa((const int) int_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_INT_FORMAT;
+}
+
+
+var::var(const unsigned short int_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, itoa((const int) int_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_UINT_FORMAT;
+}
+
+
+var::var(const int int_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, itoa(int_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_INT_FORMAT;
+}
+
+
+var::var(const unsigned int int_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, itoa((const int) int_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_UINT_FORMAT;
+}
+
+
+var::var(const long long_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, ltoa(long_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_LONG_FORMAT;
+}
+
+
+var::var(const unsigned long long_num)
+{
+    fixed = 1;
+    is_numeric = VAR_LONG;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, ltoa(long_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_ULONG_FORMAT;
+}
+
+
+var::var(const double double_num)
+{
+    fixed = 1;
+    is_numeric = VAR_DOUBLE;
+    data_str_len = VAR_DEF_SIZE;
+    data_str = new char[data_str_len];
+    strcpy(data_str, dtoa(double_num));
+    data_str_end = strlen(data_str);
+    format_str = DEFAULT_DOUBLE_FORMAT;
+}
+
+
+var::var(const var &v)
+{
+    fixed = v.fixed;
+    is_numeric = v.is_numeric;
+    if (v.data_str && v.data_str_end) {
+	data_str_len = v.data_str_end + VAR_DEF_SIZE;
+	data_str_end = v.data_str_end;
+	data_str = new char[data_str_len];
+	strcpy(data_str, v.data_str);
+    }
+    else {
+	data_str_len = VAR_DEF_SIZE;
+	data_str_end = 0;
+	data_str = new char[data_str_len];
+	data_str[0] = 0;
+    }
+    format_str = DEFAULT_STRING_FORMAT;
+}
+
+
+var::~var(void)
+{
+    if (data_str) {
+	delete data_str;
+    }
+    if (format_str
+	&& format_str != DEFAULT_STRING_FORMAT
+	&& format_str != DEFAULT_INT_FORMAT
+	&& format_str != DEFAULT_UINT_FORMAT
+	&& format_str != DEFAULT_LONG_FORMAT
+	&& format_str != DEFAULT_ULONG_FORMAT
+	&& format_str != DEFAULT_DOUBLE_FORMAT) {
+	    delete format_str;
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator = (const char *str)
+{
+    //
+    if (fixed && is_numeric) {
+	if (is_numeric == VAR_DOUBLE) {
+	    double d = atod((char *) str);
+	    *this = d;
+	}
+	else {
+	    long l = atol(str);
+	    *this = l;
+	}
+    }
+    else {
+	int len = strlen(str) + 1;
+	if (data_str_len < len) {
+	    delete data_str;
+	    data_str_len = len;
+	    data_str = new char[data_str_len];
+	}
+	data_str_end = len - 1;
+	strcpy(data_str, str);
+	if (!fixed) {
+	    int str_is_numeric = numcheck(data_str);
+	    is_numeric = str_is_numeric;
+	}
+    }
+    return *this;
+}
+
+
+var & var::operator = (const var &l)
+{
+    //
+    if (this != &l) {
+	if (data_str_len <= l.data_str_end) {
+	    delete data_str;
+	    data_str_len = l.data_str_end + VAR_DEF_SIZE;
+	    data_str = new char[data_str_len];
+	}
+	data_str_end = l.data_str_end;
+	strncpy(data_str, l.data_str, l.data_str_end);
+	data_str[data_str_end] = 0;
+	if (!fixed) {
+	    is_numeric = numcheck(data_str);
+	}
+	//
+	// Note: the output "format" of a var variable is preserved
+	//
+    }
+    return *this;
+}
+
+
+char & var::operator [] (const int index)
+{
+    static char error_ch;
+    if (index < 0) {
+	cerr << "ERROR: " << " - var[" << index << "] negative index used.\n";
+	error_ch = 0;
+	return error_ch;
+    }
+    if (data_str_len <= index) {
+	// this is technically a program error, but I'll be nice and extend the string's length
+	data_str_len = index + VAR_PAD_SIZE;
+	data_str_end = index + 1;
+	char *buf = new char[data_str_len];
+	sprintf(buf, "%-*.*s", data_str_end, data_str_end, data_str);
+	delete data_str;
+	data_str = buf;
+	data_str[index] = 0;
+	// cerr << "WARNING: " << " - var index '" << index << "' beyond current string boundary.\n";
+    }
+    while (data_str_end < index) {
+	data_str[data_str_end++] = ' ';		// pad to index with spaces if necessary
+    }
+    if (data_str_end == index) {
+	data_str[data_str_end] = 0;		// the end of a string is ALWAYS 0
+	if ((data_str_end + 1) < data_str_len) {
+	    data_str[++data_str_end] = 0;	// the new end of string is also 0
+	}
+    }
+    return data_str[index];
+}
+
+
+// for substrings
+subvar & var::operator () (const int offset) const
+{
+    return operator () (offset, -1);
+}
+
+
+// for substrings
+subvar & var::operator () (int offset, int length) const
+{
+    static subvar _esi_subvar;
+    if (length < 0) {
+	length = data_str_end - offset;
+    }
+    char *substr = new char[length + 1];
+    strncpy(substr, data_str + offset, (int) length);
+    substr[length] = 0;
+    _esi_subvar.var::operator = (substr);
+    _esi_subvar.varptr = (var *) this;
+    _esi_subvar.offset = offset;
+    _esi_subvar.length = length;
+    delete substr;
+    return _esi_subvar;
+}
+
+
+// for syntax: var(offset, length) = var
+var & subvar::operator = (const var &substr)
+{
+    char *srcstr = varptr->data_str;
+    char *repstr = substr.data_str;
+    int replen = length;
+    if (substr.data_str_end < length) {
+	replen = substr.data_str_end;
+    }
+    int len = varptr->data_str_len;
+    char *newstr = new char[len];
+    strncpy(newstr, srcstr, offset);		// data from string being replaced up to "offset"
+    if (replen) {
+	strncpy(newstr + offset, repstr, replen);	// replacement string data
+    }
+    int newoffset = offset + replen;
+    if (newoffset < varptr->data_str_end) {
+	strcpy(newstr + newoffset, srcstr + offset + length);
+    }
+    else {
+	newstr[newoffset] = 0;
+    }
+    if (varptr->data_str) {
+	delete varptr->data_str;
+    }
+    varptr->data_str = newstr;
+    varptr->data_str_len = len;
+    varptr->data_str_end = strlen(newstr);
+    if (!varptr->fixed) {
+	varptr->is_numeric = numcheck(newstr);
+    }
+    return *varptr;
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator = (const char ch)
+{
+    char buf[2];
+    buf[0] = ch;
+    buf[1] = 0;
+    *this = buf;
+    return *this;
+}
+
+
+var & var::operator = (const short int_num)
+{
+    char *str = itoa((const int) int_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_LONG;
+    }
+    return *this;
+}
+
+
+var & var::operator = (const unsigned short int_num)
+{
+    char *str = itoa((const int) int_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    is_numeric = VAR_LONG;
+    return *this;
+}
+
+
+var & var::operator = (const int int_num)
+{
+    char *str = itoa(int_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_LONG;
+    }
+    return *this;
+}
+
+
+var & var::operator = (const unsigned int int_num)
+{
+    char *str = itoa((const int) int_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_LONG;
+    }
+    return *this;
+}
+
+
+var & var::operator = (const long long_num)
+{
+    char *str = ltoa(long_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_LONG;
+    }
+    return *this;
+}
+
+
+var & var::operator = (const unsigned long long_num)
+{
+    char *str = ltoa(long_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_LONG;
+    }
+    return *this;
+}
+
+
+var & var::operator = (const double dbl_num)
+{
+    char *str = dtoa(dbl_num);
+    int len = strlen(str);
+    if (data_str_len < len) {
+	delete data_str;
+	data_str_len = len + 1;
+	data_str = new char[data_str_len];
+    }
+    data_str_end = len;
+    strcpy(data_str, str);
+    if (!fixed) {
+	is_numeric = VAR_DOUBLE;
+    }
+    return *this;
+}
+
+// -----------------------------------------------------------------------------
+
+var::operator char * (void) const
+{
+    return data_str;
+}
+
+
+var::operator double (void) const
+{
+    return atod(data_str);
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator ++ (void)		// increment (pre-index only)
+{
+    *this -= (-1);			// because of bug in g++
+    return *this;
+}
+
+
+var & var::operator -- (void)		// decrement (pre-index only)
+{
+    *this -= 1;
+    return *this;
+}
+
+
+var var::operator ! (void) const	// not
+{
+    var not(1);
+    if ((int) *this) {
+	not = 0;
+    }
+    return not;
+}
+
+// -----------------------------------------------------------------------------
+
+var var::operator + (const var & v) const	// addition OR concatenation
+{
+    var add;
+    if (is_numeric && v.is_numeric) {
+	// do math in the highest precision specified
+	int n_type = (is_numeric > v.is_numeric) ? is_numeric : v.is_numeric;
+	switch (n_type) {
+	    case VAR_LONG:
+		add = (long) *this + (long) v;
+		break;
+	    default:
+		// should be VAR_DOUBLE
+		add = (double) *this + (double) v;
+		break;
+	}
+    }
+    else {
+	// concatenate strings
+	add = (*this);
+	add.concat(v);
+	add.is_numeric = VAR_STRING;
+    }
+    return add;
+}
+
+
+var var::operator - (const var & v) const	// subtraction
+{
+    var sub;
+    // do math in the highest precision specified
+    int n_type = (is_numeric > v.is_numeric) ? is_numeric : v.is_numeric;
+    switch (n_type) {
+	case VAR_LONG:
+	    sub = (long) *this - (long) v;
+	    sub.is_numeric = VAR_LONG;
+	    break;
+	default:
+	    // should be VAR_DOUBLE
+	    sub = (double) *this - (double) v;
+	    break;
+    }
+    return sub;
+}
+
+
+var var::operator * (const var & v) const	// multiplication
+{
+    var times;
+    // do math in the highest precision specified
+    int n_type = (is_numeric > v.is_numeric) ? is_numeric : v.is_numeric;
+    switch (n_type) {
+	case VAR_LONG:
+	    times = (long) *this * (long) v;
+	    break;
+	default:
+	    // should be VAR_DOUBLE
+	    times = (double) *this * (double) v;
+	    break;
+    }
+    return times;
+}
+
+
+var var::operator / (const var & v) const	// division
+{
+    var div;
+    // do math in the highest precision specified
+    int n_type = (is_numeric > v.is_numeric) ? is_numeric : v.is_numeric;
+    switch (n_type) {
+	case VAR_LONG:
+	    div = (long) *this / (long) v;
+	    break;
+	default:
+	    // should be VAR_DOUBLE
+	    div = (double) *this / (double) v;
+	    break;
+    }
+    return div;
+}
+
+
+var var::operator % (const var & v) const	// remainder
+{
+    var mod;
+    // do math in the highest precision specified
+    int n_type = (is_numeric > v.is_numeric) ? is_numeric : v.is_numeric;
+    switch (n_type) {
+	case VAR_LONG:
+	    mod = (long) *this % (long) v;
+	    break;
+	default:
+	    // should be VAR_DOUBLE
+	    // really, I shouldn't allow this..
+	    mod = (double) ((long) *this % (long) v);
+	    break;
+    }
+    return mod;
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator += (const var & v)
+{
+    if ((is_numeric == VAR_STRING) || (v.is_numeric == VAR_STRING)) {
+	concat(v);
+    }
+    else {
+	*this = (*this) + v;
+    }
+    return *this;
+}
+
+
+var & var::operator -= (const var & v)
+{
+    *this = (*this) - v;
+    return *this;
+}
+
+
+var & var::operator *= (const var & v)
+{
+    *this = (*this) * v;
+    return *this;
+}
+
+
+var & var::operator /= (const var & v)
+{
+    *this = (*this) / v;
+    return *this;
+}
+
+
+var & var::operator %= (const var & v)
+{
+    *this = (*this) % v;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator += (const char & ch)
+{
+    var foo = ch;
+    *this += foo;
+    return *this;
+}
+
+var & var::operator += (const char * v)
+{
+    var foo = v;
+    *this += foo;
+    return *this;
+}
+
+
+var & var::operator -= (const char * v)
+{
+    var foo = v;
+    *this -= foo;
+    return *this;
+}
+
+
+var & var::operator *= (const char * v)
+{
+    var foo = v;
+    *this *= foo;
+    return *this;
+}
+
+
+var & var::operator /= (const char * v)
+{
+    var foo = v;
+    *this /= foo;
+    return *this;
+}
+
+
+var & var::operator %= (const char * v)
+{
+    var foo = v;
+    *this %= foo;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------
+
+var & var::operator += (const double v)
+{
+    var foo = v;
+    *this += foo;
+    return *this;
+}
+
+
+var & var::operator -= (const double v)
+{
+    var foo = v;
+    *this -= foo;
+    return *this;
+}
+
+
+var & var::operator *= (const double v)
+{
+    var foo = v;
+    *this *= foo;
+    return *this;
+}
+
+
+var & var::operator /= (const double v)
+{
+    var foo = v;
+    *this /= foo;
+    return *this;
+}
+
+
+var & var::operator %= (const double v)
+{
+    var foo = v;
+    *this %= foo;
+    return *this;
+}
+
+// -----------------------------------------------------------------------------
+
+var operator + (const char * s, const var & v)
+{
+    var foo = s;
+    return foo + v;
+}
+
+
+var operator - (const char * s, const var & v)
+{
+    var foo = s;
+    return foo - v;
+}
+
+
+var operator * (const char * s, const var & v)
+{
+    var foo = s;
+    return foo * v;
+}
+
+
+var operator / (const char * s, const var & v)
+{
+    var foo = s;
+    return foo / v;
+}
+
+
+var operator % (const char * s, const var & v)
+{
+    var foo = s;
+    return foo % v;
+}
+
+
+var operator + (const var & v, const char * s)
+{
+    var foo = s;
+    return v + foo;
+}
+
+
+var operator - (const var & v, const char * s)
+{
+    var foo = s;
+    return v - foo;
+}
+
+
+var operator * (const var & v, const char * s)
+{
+    var foo = s;
+    return v * foo;
+}
+
+
+var operator / (const var & v, const char * s)
+{
+    var foo = s;
+    return v / foo;
+}
+
+
+var operator % (const var & v, const char * s)
+{
+    var foo = s;
+    return v % foo;
+}
+
+// -----------------------------------------------------------------------------
+
+var operator + (const var & v, const double d)
+{
+    var foo = d;
+    return v + foo;
+}
+
+
+var operator - (const var & v, const double d)
+{
+    var foo = d;
+    return v - foo;
+}
+
+
+var operator * (const var & v, const double d)
+{
+    var foo = d;
+    return v * foo;
+}
+
+
+var operator / (const var & v, const double d)
+{
+    var foo = d;
+    return v / foo;
+}
+
+
+var operator % (const var & v, const double d)
+{
+    var foo = d;
+    return v % foo;
+}
+
+
+var operator + (const double d, const var & v)
+{
+    var foo = d;
+    return foo + v;
+}
+
+
+var operator - (const double d, const var & v)
+{
+    var foo = d;
+    return foo - v;
+}
+
+
+var operator * (const double d, const var & v)
+{
+    var foo = d;
+    return foo * v;
+}
+
+
+var operator / (const double d, const var & v)
+{
+    var foo = d;
+    return foo / v;
+}
+
+
+var operator % (const double d, const var & v)
+{
+    var foo = d;
+    return foo % v;
+}
+
+// -----------------------------------------------------------------------------
+
+int var::operator == (const var & t) const		// equality
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) == (long) t;
+	}
+	return (double) (*this) == (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return !strcmp(data_str, t.data_str);
+	}
+	else {
+	    return data_str_end == t.data_str_end;
+	}
+    }
+}
+
+
+int var::operator != (const var & t) const		// inequality
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) != (long) t;
+	}
+	return (double) (*this) != (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return strcmp(data_str, t.data_str);
+	}
+	else {
+	    return data_str_end != t.data_str_end;
+	}
+    }
+}
+
+
+int var::operator < (const var & t) const		// less than
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) < (long) t;
+	}
+	return (double) (*this) < (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return (strcmp(data_str, t.data_str) < 0);
+	}
+	else {
+	    return data_str_end < t.data_str_end;
+	}
+    }
+}
+
+
+int var::operator > (const var & t) const		// greater than
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) > (long) t;
+	}
+	return (double) (*this) > (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return (strcmp(data_str, t.data_str) > 0);
+	}
+	else {
+	    return data_str_end > t.data_str_end;
+	}
+    }
+}
+
+
+int var::operator <= (const var & t) const		// less than or equal
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) <= (long) t;
+	}
+	return (double) (*this) <= (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return (strcmp(data_str, t.data_str) <= 0);
+	}
+	else {
+	    return data_str_end <= t.data_str_end;
+	}
+    }
+}
+
+
+int var::operator >= (const var & t) const		// greater than or equal
+{
+    if (is_numeric && t.is_numeric) {
+	if (is_numeric == VAR_LONG && t.is_numeric == VAR_LONG) {
+	    return (long) (*this) >= (long) t;
+	}
+	return (double) (*this) >= (double) t;
+    }
+    else {
+	if (data_str_end && t.data_str_end) {
+	    return (strcmp(data_str, t.data_str) >= 0);
+	}
+	else {
+	    return data_str_end >= t.data_str_end;
+	}
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+int operator == (const var & t, const char * s)
+{
+    var foo = s;
+    return t == foo;
+}
+
+
+int operator != (const var & t, const char * s)
+{
+    var foo = s;
+    return t != foo;
+}
+
+
+int operator < (const var & t, const char * s)
+{
+    var foo = s;
+    return t < foo;
+}
+
+
+int operator > (const var & t, const char * s)
+{
+    var foo = s;
+    return t > foo;
+}
+
+
+int operator <= (const var & t, const char * s)
+{
+    var foo = s;
+    return t <= foo;
+}
+
+
+int operator >= (const var & t, const char * s)
+{
+    var foo = s;
+    return t >= foo;
+}
+
+
+int operator == (const char * s, const var & t)
+{
+    var foo = s;
+    return foo == t;
+}
+
+
+int operator != (const char * s, const var & t)
+{
+    var foo = s;
+    return foo != t;
+}
+
+
+int operator < (const char * s, const var & t)
+{
+    var foo = s;
+    return foo < t;
+}
+
+
+int operator > (const char * s, const var & t)
+{
+    var foo = s;
+    return foo > t;
+}
+
+
+int operator <= (const char * s, const var & t)
+{
+    var foo = s;
+    return foo <= t;
+}
+
+
+int operator >= (const char * s, const var & t)
+{
+    var foo = s;
+    return foo >= t;
+}
+
+// -----------------------------------------------------------------------------
+
+int operator == (const var & t, const double d)
+{
+    return (double) t == d;
+}
+
+
+int operator != (const var & t, const double d)
+{
+    return (double) t != d;
+}
+
+
+int operator < (const var & t, const double d)
+{
+    return (double) t < d;
+}
+
+
+int operator > (const var & t, const double d)
+{
+    return (double) t > d;
+}
+
+
+int operator <= (const var & t, const double d)
+{
+    return (double) t <= d;
+}
+
+
+int operator >= (const var & t, const double d)
+{
+    return (double) t >= d;
+}
+
+
+int operator == (const double d, const var & t)
+{
+    return d == (double) t;
+}
+
+
+int operator != (const double d, const var & t)
+{
+    return d != (double) t;
+}
+
+
+int operator < (const double d, const var & t)
+{
+    return d < (double) t;
+}
+
+
+int operator > (const double d, const var & t)
+{
+    return d > (double) t;
+}
+
+
+int operator <= (const double d, const var & t)
+{
+    return d <= (double) t;
+}
+
+
+int operator >= (const double d, const var & t)
+{
+    return d >= (double) t;
+}
+
+// -----------------------------------------------------------------------------
+
+void var::null(int index)
+{
+    if (index >= data_str_len) {
+	cerr << "WARNING: " << " - var::null(" << index << ") - the index out of range.\n";
+	(*this)[index] = 0;
+	data_str_end = index;
+    }
+    else {
+	data_str[index] = 0;
+	data_str_end = index;
+    }
+}
+
+
+void var::changesize(int newsize)
+{
+    if (newsize > data_str_len) {
+	char *buf = new char[newsize];
+	if (data_str) {
+	    strncpy(buf, data_str, data_str_end);
+	    buf[data_str_end] = 0;
+	    delete data_str;
+	}
+	else {
+	    *buf = 0;
+	    data_str_end = 0;
+	}
+	data_str_len = newsize;
+	data_str = buf;
+    }
+}
+
+
+int var::length(void) const
+{
+    return data_str_end;
+}
+
+
+const char * var::vartype(void) const
+{
+    switch (is_numeric) {
+	case VAR_STRING:
+	    return "VAR_STRING";
+	case VAR_LONG:
+	    return "VAR_LONG";
+	case VAR_DOUBLE:
+	    return "VAR_DOUBLE";
+    }
+    return "var type unknown";
+}
+
+
+void var::change_type(const char *ntype)
+{
+    if (ntype == NULL) {
+	return;
+    }
+    int index = strlen(ntype);
+    if (!index) {
+	return;
+    }
+    char *new_type = new char[index + 1];
+    if (ntype[0] == '(' && ntype[index - 1] == ')') {
+	strcpy(new_type, &ntype[1]);
+	index = strlen(new_type) - 1;
+	if (index <= 0) {
+	    delete new_type;
+	    return;
+	}
+	new_type[index] = 0;			// drop parens
+    }
+    else {
+	strcpy(new_type, ntype);
+    }
+    if (new_type[index - 1] == ' ') {
+	new_type[index - 1] = 0;
+    }
+    fixed = 1;
+    if (!strcmp(new_type, "var")) {
+	is_numeric = numcheck((const char *) *this);
+    }
+    else if (!strcmp(new_type, "string")) {
+	is_numeric = VAR_STRING;
+    }
+    else if (!strcmp(new_type, "short")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "unsigned short")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "int")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "unsigned int")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "long")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "unsigned long")) {
+	is_numeric = VAR_LONG;
+    }
+    else if (!strcmp(new_type, "float")) {
+	is_numeric = VAR_DOUBLE;
+    }
+    else if (!strcmp(new_type, "double")) {
+	is_numeric = VAR_DOUBLE;
+    }
+    else {
+	cerr << "WARNING: " << " - change_type(" << new_type << ") - unrecognized type name.\n";
+    }
+    delete new_type;
+}
+
+
+int var::is_string(void) const
+{
+    return is_numeric == VAR_STRING;
+}
+
+
+int var::is_double(void) const
+{
+    return is_numeric == VAR_DOUBLE;
+}
+
+
+int var::is_long(void) const
+{
+    return is_numeric == VAR_LONG;
+}
+
+
+int var::strchr(const char ch) const
+{
+    for (int i = 0; i < data_str_end; ++i) {
+	if (data_str[i] == ch) {
+	    return i;
+	}
+    }
+    return -1;
+}
+
+
+int var::strrchr(const char ch) const
+{
+    for (int i = data_str_end - 1; i >= 0; --i) {
+	if (data_str[i] == ch) {
+	    return i;
+	}
+    }
+    return -1;
+}
+
+
+var & var::concat(const var & str)
+{
+    // concatenate strings
+    char *this_str = (char *) (*this);
+    char *strs_str = (char *) (str);
+    int this_len = strlen(this_str);
+    int strs_len = strlen(strs_str);
+    int new_data_str_end = data_str_end + str.data_str_end;
+    // will it fit in this var's memory?
+    if (new_data_str_end >= (this_len + strs_len)) {
+	var add;
+	add.data_str_len = this_len + strs_len + VAR_PAD_SIZE;
+	add.data_str_end = this_len + strs_len;
+	delete add.data_str;
+	add.data_str = new char[add.data_str_len];
+	strcpy(add.data_str, this_str);
+	strcpy((add.data_str) + this_len, strs_str);
+	*this = add;
+    }
+    else {
+	strcpy(data_str + this_len, strs_str);
+	data_str_end = this_len + strs_len;
+    }
+    return *this;
+}
+
+
+var & var::format(const char * fmt)
+{
+    if (format_str
+	&& format_str != DEFAULT_STRING_FORMAT
+	&& format_str != DEFAULT_INT_FORMAT
+	&& format_str != DEFAULT_UINT_FORMAT
+	&& format_str != DEFAULT_LONG_FORMAT
+	&& format_str != DEFAULT_ULONG_FORMAT
+	&& format_str != DEFAULT_DOUBLE_FORMAT) {
+	    delete format_str;
+    }
+    if (fmt) {
+	format_str = new char[strlen(fmt) + 1];
+	strcpy(format_str, fmt);
+    }
+    else {
+	format_str = NULL;
+    }
+    return *this;
+}
+
+
+int var::numcheck(const char * str) const
+{
+    if (!str || !*str) {
+	return VAR_STRING;		// assume a string
+    }
+    char *ptr = (char *) str;
+    int nc = VAR_LONG;			// assume a signed long
+    int decimal_yet = 0;
+    if (*ptr == '.' && *(ptr + 1)) {
+	nc = VAR_DOUBLE;		// floating point number
+	decimal_yet = 1;
+	++ptr;
+    }
+    else if (*ptr == '-' && *(ptr + 1)) {
+	// skip optional sign char
+	++ptr;
+    }
+    while (*ptr) {
+	if (*ptr == '.' && !decimal_yet) {
+	    decimal_yet = 1;
+	    nc = VAR_DOUBLE;		// assume a double
+	}
+	else if (!isdigit(*ptr)) {
+	    return VAR_STRING;		// nope.. got a string
+	}
+	++ptr;
+    }
+    return nc;
+}
+
+// -----------------------------------------------------------------------------
+
+ostream & operator << (ostream &out, const var &d)
+{
+    d.print(out);
+    return out;
+}
+
+
+void var::print(ostream &out) const
+{
+    // NOTE: the "read()" function requires a newline to appear after the last quote.
+    // I assume that this newline was appropriately output by the var class user.
+    if (!format_str || (format_str && *format_str == 0)) {
+	out << "var OBJECT: {"
+	    << "\n\tfixed        = " << fixed
+	    << "\n\tis_numeric   = " << is_numeric
+	    << "\n\tdata_str_len = " << data_str_len
+	    << "\n\tdata_str_end = " << data_str_end
+	    << "\n\tdata_str     = '" << data_str << "'"
+	    << "\n\tformat_str   = '" << format_str << "'"
+	    << "\n}\n";
+    }
+    else {
+	// we need to use the specified format string for output
+	int len = length() + 1;
+	char *outbuf = new char[2048];
+	char *fptr = format_str;
+	while (*fptr) {
+	    if (*fptr != '%' && *fptr != '\\') {
+		out << *fptr;
+		++fptr;
+	    }
+	    else if (*fptr == '\\') {
+		switch (*(fptr + 1)) {
+		    case 'n':
+			cout << '\n';
+			break;
+		    case 't':
+			cout << '\t';
+			break;
+		    case 'v':
+			cout << '\v';
+			break;
+		    case 'b':
+			cout << '\b';
+			break;
+		    case 'r':
+			cout << '\r';
+			break;
+		    case 'f':
+			cout << '\f';
+			break;
+		    case 'a':
+			cout << '\007';
+			break;
+		    case '\\':
+			cout << '\\';
+			break;
+		    case '?':
+			cout << '\?';
+			break;
+		    case '\'':
+			cout << '\'';
+			break;
+		    case '\"':
+			cout << '\"';
+			break;
+		    default:
+			cout << *(fptr + 1);
+		}
+		fptr += 2;
+	    }
+	    else {
+		// Hmmm.. we need to do some special formatting
+		// first extract this printf-style format string
+		char smallfmtstr[128];
+		char *smptr = smallfmtstr;
+		*smptr = 0;
+		if (*(fptr + 1) == '%') {
+		    strcpy(outbuf, "%");
+		    fptr += 2;
+		}
+		else {
+		    while (*fptr) {
+			*smptr = *fptr++;
+			*(smptr + 1) = 0;
+			// integer
+			if (*smptr == 'd') {
+			    sprintf(outbuf, smallfmtstr, (int) *this);
+			    break;
+			}
+			// unsigned integer
+			if (*smptr == 'o' || *smptr == 'u' || *smptr == 'x' || *smptr == 'X') {
+			    sprintf(outbuf, smallfmtstr, (unsigned int) *this);
+			    break;
+			}
+			// float or double
+			if (*smptr == 'f' || *smptr == 'e' || *smptr == 'E' || *smptr == 'g' || *smptr == 'G') {
+			    sprintf(outbuf, smallfmtstr, (double) *this);
+			    break;
+			}
+			// character
+			if (*smptr == 'c') {
+			    if (!strcmp(vartype(), "VAR_STRING")) {
+				const char *tmp = (const char *) (*this);
+				sprintf(outbuf, smallfmtstr, tmp[0]);
+			    }
+			    else {
+				sprintf(outbuf, smallfmtstr, (char) ((int) *this));
+			    }
+			    break;
+			}
+			// string
+			if (*smptr == 's') {
+			    sprintf(outbuf, smallfmtstr, (const char *) *this);
+			    break;
+			}
+			++smptr;
+		    }
+		}
+		out << outbuf;
+	    }
+	}
+	//out << flush;
+	delete outbuf;
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// convert an integer into an ascii string.  return a pointer to that string.
+//
+char *itoa(const int foo)
+{
+    static char int_buf[28];
+    sprintf(int_buf, "%d", foo);
+    return int_buf;
+}
+
+
+// convert an unsigned integer into an ascii string.  return a pointer to that string.
+//
+char *uitoa(const unsigned int foo)
+{
+    static char int_buf[28];
+    sprintf(int_buf, "%u", foo);
+    return int_buf;
+}
+
+
+// convert a long into an ascii string.  return a pointer to that string.
+//
+#ifdef HP
+char *ltoa(long foo)
+#else
+char *ltoa(const long foo)
+#endif
+{
+    static char long_buf[28];
+    sprintf(long_buf, "%ld", foo);
+    return long_buf;
+}
+
+
+// convert an unsigned long into an ascii string.  return a pointer to that string.
+//
+#ifdef HP
+char *ultoa(unsigned long foo)
+#else
+char *ultoa(const unsigned long foo)
+#endif
+{
+    static char long_buf[28];
+    sprintf(long_buf, "%lu", foo);
+    return long_buf;
+}
+
+
+// convert a double into an ascii string.  return a pointer to that string.
+// truncate any extra zeros after the decimal point.
+//
+char *dtoa(const double foo)
+{
+    static char double_buf[28];
+    sprintf(double_buf, "%lf", foo);
+    char *ptr;
+    for (ptr = double_buf; *ptr; ++ptr) {
+	if (*ptr == '.') {
+	    // we may need to truncate zeroes
+	    ptr = double_buf + (strlen(double_buf) - 1);
+	    while (*ptr == '0') {
+		*ptr-- = 0;
+	    }
+	    if (*ptr == '.') {
+		*ptr = 0;
+	    }
+	    break;
+	}
+    }
+    return double_buf;
+}
+
+
+// convert an ascii string to a double
+//
+double atod(char * foo)
+{
+    double d = 0;
+    if (!foo || !*foo) {
+	return d;
+    }
+    if (!isdigit(*foo)) {
+	if (*foo != '-' && *foo != '+') {
+	    return d;
+	}
+	if (!isdigit(*(foo + 1))) {
+	    return d;
+	}
+    }
+    sscanf(foo, "%lf", &d);
+    return d;
+}
+
+@//E*O*F var.C//
+chmod u=rw,g=r,o=r var.C
+ 
+echo x - VarMap.H
+sed 's/^@//' > "VarMap.H" <<'@//E*O*F VarMap.H//'
+//
+// NAME:        VarMap.H
+//
+// PURPOSE:     C++ "Map of Vars" Class Library Header File
+// VERSION:     1.0
+// AUTHOR:      Lee Hounshell
+// LAST MOD:	Mon Nov 23 13:50:56 PST 1992
+//
+
+#ifndef VARMAP_H
+#define VARMAP_H
+
+#include	<stream.h>
+#include	"var.H"
+
+enum {VARMAP_FIFO, VARMAP_LIFO};
+
+class VarMapNode
+{
+   public:
+        // Standard Interface
+        const var & type(void) const;                   // who am i
+
+        // Operators
+	friend ostream & operator << (ostream &, const VarMapNode &); // output
+
+	friend class VarMap;
+
+        // Standard Member Functions
+        void print(ostream &) const;			// output
+
+        int             errno;                          // primitive error control
+
+   protected:
+
+   private:
+	VarMapNode(var newkey, var newvalue);
+	var		key;
+	var		value;
+	VarMapNode	*prev;
+	VarMapNode	*next;
+};
+
+
+class VarMap
+{
+   public:
+        // Standard Interface
+        const var & type(void) const;                   // who am i
+
+        // Constructors & Destructor
+	VarMap(int type = VARMAP_FIFO);
+	~VarMap(void)	{remove();}
+
+        // Operators
+	VarMap &	operator = (const VarMap &);	// assign VarMaps
+	int operator == (VarMap &) const;		// equality
+	int operator != (VarMap &) const;		// inequality
+	var &		operator [] (const var index);	// index/create entry
+
+	friend ostream & operator << (ostream &, const VarMap &); // output
+
+        // Standard Member Functions
+        void print(ostream &) const;			// output
+
+        // Custom Interface - see VarMap man pages for use
+	int 		append(var newkey, var newvalue); // append to map
+	int		push(var newkey, var newvalue);	// push a var
+	var		pop(void);			// pop a var
+	int		empty(void) const;		// is map empty
+	int		at_start(void) const;		// at head of map
+	int		at_end(void) const;		// at end of map
+	int		position(void);			// index within map
+	int		size(void) const;		// length of map
+	void		remove(void);			// remove all items
+	void		delete_here(void);		// remove this item
+	int		element(const var & index);	// test for element
+	var &		key(void);			// current key
+	var &		value(void);			// current value
+	void		display(ostream & out = cerr);	// print the map
+	void		first(void);			// point to first node
+	void		next(void);			// point to next node
+	void		last(void);			// point to last node
+
+        int             errno;                          // primitive error control
+
+   protected:
+
+   private:
+	int		typeofmap;			// VARMAP_FIFO or VARMAP_LIFO
+	VarMapNode	*head;				// first node
+	VarMapNode	*tail;				// last node
+	VarMapNode	*here;				// current node
+	int		_size;				// size of Map
+};
+
+#endif
+
+@//E*O*F VarMap.H//
+chmod u=rw,g=r,o=r VarMap.H
+ 
+echo x - VarMap.C
+sed 's/^@//' > "VarMap.C" <<'@//E*O*F VarMap.C//'
+//
+// NAME:	VarMap.C
+//
+// PURPOSE:	C++ "Map of Vars" Class Library Source File
+// VERSION:     1.0
+// AUTHOR:      Lee Hounshell
+// LAST MOD:	Mon Nov 23 13:55:39 PST 1992
+//
+
+#include <stream.h>
+#include "VarMap.H"
+
+// -----------------------------------------------------------------------------
+
+const var & VarMapNode::type(void) const
+{
+    static const var objtype = "VarMapNode";
+    return objtype;
+}
+
+
+const var & VarMap::type(void) const
+{
+    static const var objtype = "VarMap";
+    return objtype;
+}
+
+
+VarMapNode::VarMapNode(var newkey, var newvalue)
+{
+    errno = 0;
+    key = newkey;
+    value = newvalue;
+    prev = next = NULL;
+}
+
+
+VarMap::VarMap(int type)
+{
+    errno = 0;
+    typeofmap = type;
+    here = head = tail = NULL;
+    _size = 0;
+}
+
+// -----------------------------------------------------------------------------
+
+VarMap & VarMap::operator = (const VarMap & map)
+{
+    if (this != &map) {
+	VarMapNode *vptr;
+	remove();
+	typeofmap = map.typeofmap;
+	for (vptr = map.head; vptr; vptr = vptr->next) {
+	    append(vptr->key, vptr->value);
+	}
+	here = map.here;
+    }
+    return *this;
+}
+
+
+int VarMap::operator == (VarMap & map) const
+{
+    if (size() != map.size()) {
+	return 0;
+    }
+    if (empty() && map.empty()) {
+	return 1;
+    }
+    int rc = 1;
+    VarMapNode *tmp1 = head;
+    VarMapNode *tmp2 = map.head;
+    int done = 0;
+    do {
+	if (tmp1 == tail) {
+	    done = 1;
+	}
+	if (tmp1->key != tmp2->key) {
+	    rc = 0;
+	    break;
+	}
+	if (tmp1->value != tmp2->value) {
+	    rc = 0;
+	    break;
+	}
+	if ((tmp2 == map.tail) && (tmp1 != tail)) {
+	    rc = 0;
+	    break;
+	}
+	tmp1 = tmp1->next;
+	tmp2 = tmp2->next;
+    } while (!done);
+    return rc;
+}
+
+
+int VarMap::operator != (VarMap & map) const
+{
+    return (!(*this == map));
+}
+
+
+var & VarMap::operator [] (const var index)
+{
+    for (VarMapNode *vptr = head; vptr; vptr = vptr->next) {
+	if (vptr->key == index) {
+	    here = vptr;
+	    return vptr->value;
+	}
+    }
+    append(index, "");
+    return here->value;
+}
+
+// -----------------------------------------------------------------------------
+
+int VarMap::append(var newkey, var newvalue)
+{
+    VarMapNode *newnode = new VarMapNode(newkey, newvalue);
+    if (newnode == NULL) {
+	cerr << "Out of memory.\n";
+	return 0;
+    }
+    if (head == NULL) {
+	// empty map
+	head = newnode;
+	tail = newnode;
+    }
+    else {
+	tail->next = newnode;
+	newnode->prev = tail;
+	tail = newnode;
+    }
+    here = newnode;
+    _size++;
+    return 1;
+}
+
+
+int VarMap::push(var newkey, var newvalue)
+{
+    if (typeofmap == VARMAP_FIFO) {
+	return append(newkey, newvalue);
+    }
+    else if (typeofmap == VARMAP_LIFO) {
+	VarMapNode *newnode = new VarMapNode(newkey, newvalue);
+	if (newnode == NULL) {
+	    cerr << "Out of memory.\n";
+	    return 0;
+	}
+	if (head == NULL) {
+	    // empty map
+	    head = newnode;
+	    tail = newnode;
+	}
+	else {
+	    head->prev = newnode;
+	    newnode->next = head;
+	    newnode->prev = NULL;
+	    head = newnode;
+	}
+	here = newnode;
+    }
+    return 1;
+}
+
+
+var VarMap::pop(void)
+{
+    var		data;
+    VarMapNode	*vptr;
+    if (head == NULL) {
+	// empty map
+	return 0;
+    }
+    data = head->value;
+    vptr = head;
+    here = head = head->next;
+    if (head) {
+	head->prev = NULL;
+    }
+    else {
+	tail = NULL;
+    }
+    delete vptr;
+    _size--;
+    return data;
+}
+
+
+int VarMap::empty(void) const
+{
+    return head == NULL;
+}
+
+
+int VarMap::at_start(void) const
+{
+    return here == head;
+}
+
+
+int VarMap::at_end(void) const
+{
+    return here == tail;
+}
+
+
+int VarMap::position(void)
+{
+    int index = 0;
+    VarMapNode *vptr = head;
+    while (vptr && vptr != here) {
+	vptr = vptr->next;
+	++index;
+    }
+    return index;
+}
+
+
+int VarMap::size(void) const
+{
+    return _size;
+}
+
+
+void VarMap::remove(void)
+{
+    VarMapNode *vptr = head;
+    while (vptr) {
+	VarMapNode *tmp = vptr;
+	vptr = vptr->next;
+	delete tmp;
+    }
+    here = head = tail = NULL;
+    _size = 0;
+}
+
+
+void VarMap::delete_here(void)
+{
+    if (here) {
+	VarMapNode *vptr = here;
+	if (here->next) {
+	    here->next->prev = here->prev;
+	}
+	if (here->prev) {
+	    here->prev->next = here->next;
+	}
+	if (here == head && head == tail) {
+	    here = head = tail = NULL;
+	}
+	else if (here == head) {
+	    head = here->next;
+	    here = head;
+	}
+	else if (here == tail) {
+	    tail = here->prev;
+	    here = tail;
+	}
+	else {
+	    here = here->next;
+	}
+	delete vptr;
+	--_size;
+    }
+}
+
+
+int VarMap::element(const var & index)
+{
+    for (VarMapNode *vptr = head; vptr; vptr = vptr->next) {
+	if (vptr->key == index) {
+	    return 1;				// found it
+	}
+    }
+    return 0;					// this index doesn't exist
+}
+
+
+var & VarMap::key(void)
+{
+    static var vkey = "";
+    if (!here) {
+	return vkey;
+    }
+    return here->key;
+}
+
+
+var & VarMap::value(void)
+{
+    static var vvalue = "";
+    if (!here) {
+	return vvalue;
+    }
+    return here->value;
+}
+
+
+void VarMap::display(ostream & out)
+{
+    out << "Display VarMap\n";
+    for (VarMapNode *vptr = head; vptr; vptr = vptr->next) {
+	out << "\tKey: " << vptr->key << " Value: " << vptr->value << "\n";
+    }
+}
+
+
+// return value of first node - NULL if invalid
+void VarMap::first(void)
+{
+    here = head;
+}
+
+
+// return value of next node
+void VarMap::next(void)
+{
+    if (here == tail) {
+	return;
+    }
+    here = here->next;
+}
+
+
+// return value of last node
+void VarMap::last(void)
+{
+    here = tail;
+}
+
+// -----------------------------------------------------------------------------
+
+ostream & operator << (ostream &out, const VarMapNode &d)
+{
+    d.print(out);
+    return out;
+}
+
+
+ostream & operator << (ostream &out, const VarMap &d)
+{
+    d.print(out);
+    return out;
+}
+
+
+void VarMapNode::print(ostream &out) const
+{
+    out << "VarMapNode OBJECT: {"
+	<< "\n\t<this>           = " << (void *) this
+	<< "\n\tvar key          = " << key
+	<< "\n\tvar value        = " << value
+	<< "\n\tVarMapNode *prev = " << prev
+	<< "\n\tVarMapNode *next = " << next
+	<< "\n}\n";
+}
+
+
+void VarMap::print(ostream &out) const
+{
+    out << "VarMap OBJECT: {"
+	<< "\n\tint typeofmap    = " << typeofmap
+	<< "\n\tVarMapNode *head = " << head
+	<< "\n\tVarMapNode *tail = " << tail
+	<< "\n\tVarMapNode *here = " << here
+	<< "\n\tint _size        = '" << _size << "'";
+    int i = 0;
+    for (VarMapNode *ptr = head; ptr; ptr = ptr->next) {
+	++i;
+	out << "\n\tVarMapNode #" << i << "    = " << *ptr;
+    }
+    out << "\n}\n";
+}
+
+@//E*O*F VarMap.C//
+chmod u=rw,g=r,o=r VarMap.C
+ 
+echo x - demo.C
+sed 's/^@//' > "demo.C" <<'@//E*O*F demo.C//'
+#include	<stdlib.h>
+#include	<stream.h>
+#include	<var.H>
+
+main ()
+{
+	var value;				// declare an "untyped" var
+	value = "hello world";			// initialize it
+	cout << value << "\n";			// output "hello world"
+	value = value(3, value.length() - 6);	// substring example
+	cout << value << "\n";			// output "lo wo"
+	value = 34;				// assignment of int
+	value++;				// increment
+	value += 42.375;			// add 42.375 to present value
+	cout << value << "\n";			// output "77.375"
+	cout << value.format("formatted output example %05d of value\n");
+	cout << value.format("multiple outputs #1=%d, #2=%9.2f of value\n");
+	value.null(2);				// truncate string
+	value += " sunset strip";		// concatenate a string
+	cout << value.format("%s\n");		// output "77 sunset strip"
+	cout << value[3] << value[4] << value[5] << "\n"; // output "sun"
+}
+
+@//E*O*F demo.C//
+chmod u=rw,g=r,o=r demo.C
+ 
+echo x - demo2.C
+sed 's/^@//' > "demo2.C" <<'@//E*O*F demo2.C//'
+#include	<VarMap.H>
+
+main ()
+{
+    VarMap aa;				// declare a VarMap
+    var lee = "foobar";
+    if (!aa.element(lee)) {
+	aa[lee] = "hello world";	// create/assign using index "foobar"
+    }
+    aa[42] = "testing 123";		// create/assign using index "42"
+    aa[5] = 123.45;			// create/assign using index "5"
+    aa.display();			// display this map to stderr
+}
+
+@//E*O*F demo2.C//
+chmod u=rw,g=r,o=r demo2.C
+ 
+exit 0
+-- 
+Lee Hounshell - (510) 823-2432
+tlhouns@srv.pacbell.com
+Alchemical Engineer and Virtual Realist

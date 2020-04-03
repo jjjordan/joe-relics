@@ -1,0 +1,3180 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - patch 01
+Message-ID: <jan.722564710@pandonia>
+Keywords: xmfm patch X11 Motif
+Sender: news@csc.canberra.edu.au
+Organization: Info Sci & Eng, University of Canberra, AUSTRALIA
+Date: 24 Nov 92 00:25:10 GMT
+Lines: 3169
+
+
+This posting contains the first patch to the X11/Motif file manager
+that I posted to this newsgroup last week. It takes xmfm from version
+1.6 to version 1.7. It does the following:
+
+Bugs Fixed:
+-	reading xmfmrc crashed on some machines.
+-	cancelling a filter dialog crashed.
+-	refreshing directory contents on some machines crashed.
+-	varargs interface for ANSI illegal.
+-	incorrect attribution of copyright for bitmaps.
+-	spelling/syntax errors in help messages.
+-	"vi" doesn't run in its own xterm.
+-	"pauseme" program omitted from distribution, so e.g. "more" doesn't
+	seem to work.
+-	in bitmaps Imakefile, /usr/lib/X11 changed to $(LIBDIR)
+-	more robust handling of errors in xmfmrc.
+-	crashed if failed to chdir on Change Directory after first pane closed.
+-	may crash on changing to home dir.
+
+Enhancements:
+-	command line argument added to allow specification of xmfmrc file.
+-	icon added.
+
+The bitmaps included in that distribution are in fact subject to a
+copyright notice. That notice is as follows:
+
+"Copyright (c) 1992 Edward Groenendaal, Ramon Santiago
+Copyright (c) 1991 Edward Groenendaal.
+
+Permission is granted to anyone to use this software for any
+purpose on any computer system, and to redistribute it freely,
+subject to the following restrictions:
+
+1. The author is not responsible for the consequences of use of
+   this software, no matter how awful, even if they arise
+   from defects in it.
+
+2. The origin of this software must not be misrepresented, either
+   by explicit claim or by omission.
+
+3. Altered versions must be plainly marked as such, and must not
+   be misrepresented as being the original software."
+
+Apologies to Eddy and Ramon over this.
+
+To apply this patch, change to the directory in which you have installed
+xmfm and type
+
+	patch < this-patch-file
+
+If you have a newsreader such as nn, you shuld be able to say
+
+	| patch -d directory-where-you-installed xmfm
+
+Please note that I cannot get the last patch to take no matter what I do :-(
+It is *not* important: it patches the last line of bitmaps/Imakefile to use
+$(LIBDIR) instead of /usr/lib/X11. This only affects you if you want to have
+the bitmaps installed elsewhere.
+
+------------ CUT HERE -------------------------
+diff -c -r ./CHANGES ../new/CHANGES
+*** ./CHANGES	Tue Nov 24 10:54:43 1992
+--- ../new/CHANGES	Tue Nov 24 10:27:22 1992
+***************
+*** 0 ****
+--- 1,34 ----
++ These are the major changes and fixes between versions:
++ 
++ **********************************************************************
++ * Version 1.6 to 1.7
++ **********************************************************************
++ 
++ Bugs Fixed:
++ -	reading xmfmrc crashed on some machines.
++ -	cancelling a filter dialog crashed.
++ -	refreshing directory contents on some machines crashed.
++ -	varargs interface for ANSI illegal.
++ -	incorrect attribution of copyright for bitmaps.
++ -	spelling/syntax errors in help messages.
++ -	"vi" doesn't run in its own xterm.
++ -	"pauseme" program omitted from distribution, so e.g. "more" doesn't
++ 	seem to work.
++ -	in bitmaps Imakefile, /usr/lib/X11 changed to $(LIBDIR)
++ -	more robust handling of errors in xmfmrc.
++ -	crashed if failed to chdir on Change Directory after first pane closed.
++ -	may crash on changing to home dir.
++ 
++ Enhancements:
++ -	command line argument added to allow specification of xmfmrc file.
++ -	icon added.
++ 
++ Thanks to:
++ Brian Eck eck@saul.cis.upenn.edu
++ Richard Weidner richard@elroy.jpl.nasa.gov
++ Chung Tin Kwok ctkwok@cs.washington.edu
++ Marty Leisner leisner@eso.mc.xerox.com 
++ DaviD W. Sanderson dws@ssec.wisc.edu
++ Tom Horsley tom@amber.ssd.csd.harris.com
++ Ramon Santiago santiago@fgssu1.fgs.slb.com
++ Volker Grupe grupe@informatik.uni-hamburg.de
+diff -c -r ./Imakefile ../new/Imakefile
+*** ./Imakefile	Tue Nov 17 16:40:54 1992
+--- ../new/Imakefile	Fri Nov 20 16:04:21 1992
+***************
+*** 5,11 ****
+  
+  MINCLUDESRC=.
+  
+! DEFINES =  -g -DALLOW_ROWCOL_RESIZE -DRDD -DALLOW_EDITRES -DUseFunctionPrototypes
+  INCLUDES = -I. -I$(INCLUDESRC) -I$(MINCLUDESRC) 
+  DEPLIBS = XmClientDepLibs
+  LOCAL_LIBRARIES = $(AUTOUTILLIB) XmClientLibs 
+--- 5,11 ----
+  
+  MINCLUDESRC=.
+  
+! DEFINES =  -g -DALLOW_ROWCOL_RESIZE -DRDD -DALLOW_EDITRES
+  INCLUDES = -I. -I$(INCLUDESRC) -I$(MINCLUDESRC) 
+  DEPLIBS = XmClientDepLibs
+  LOCAL_LIBRARIES = $(AUTOUTILLIB) XmClientLibs 
+***************
+*** 67,72 ****
+--- 67,73 ----
+  
+  MSimpleProgramTarget(xmfm,$(LOCAL_LIBRARIES),NullParameter)
+  
++ InstallProgram(pauseme)
+  InstallAppDefaults(XmFm)
+  InstallNonExecFile(xmfmrc,$(XAPPLOADDIR))
+  InstallManPage(xmfm,$(ManDir))
+diff -c -r ./Makefile ../new/Makefile
+*** ./Makefile	Tue Nov 17 16:41:07 1992
+--- ../new/Makefile	Mon Nov 23 11:23:02 1992
+***************
+*** 272,278 ****
+  
+  MINCLUDESRC=.
+  
+! DEFINES =  -g -DALLOW_ROWCOL_RESIZE -DRDD -DALLOW_EDITRES -DUseFunctionPrototypes
+  INCLUDES = -I. -I$(INCLUDESRC) -I$(MINCLUDESRC)
+  DEPLIBS = $(USRLIBDIR)/libXm.a
+  LOCAL_LIBRARIES = $(AUTOUTILLIB) -lXm -lXmu -lXext -lXt -lX11
+--- 272,278 ----
+  
+  MINCLUDESRC=.
+  
+! DEFINES =  -g -DALLOW_ROWCOL_RESIZE -DRDD -DALLOW_EDITRES
+  INCLUDES = -I. -I$(INCLUDESRC) -I$(MINCLUDESRC)
+  DEPLIBS = $(USRLIBDIR)/libXm.a
+  LOCAL_LIBRARIES = $(AUTOUTILLIB) -lXm -lXmu -lXext -lXt -lX11
+***************
+*** 363,368 ****
+--- 363,373 ----
+  
+  clean::
+  	$(RM) $(PROGRAMS)
++ 
++ install:: pauseme
++ 	@if [ -d $(DESTDIR) ]; then set +x; \
++ 	else (set -x; $(MKDIRHIER) $(DESTDIR)); fi
++ 	$(INSTALL) -c $(INSTPGMFLAGS)  pauseme $(DESTDIR)
+  
+  install:: XmFm.ad
+  	@if [ -d $(DESTDIR)$(XAPPLOADDIR) ]; then set +x; \
+diff -c -r ./README ../new/README
+*** ./README	Thu Nov 19 16:17:27 1992
+--- ../new/README	Sat Nov 21 13:09:10 1992
+***************
+*** 17,35 ****
+  	University of Canberra. email: jan@ise.canberra.edu.au
+  
+  Availability
+! 	Posted to alt.sources 19 Nov 92 as 17 shar files.
+! 	To retrieve it save all 17 parts and edit out any
+! 	news headers. Then for each part in turn run a shell e.g.:
+! 		sh part.01
+! 		sh part.02
+! 		...	
+! 	If you are using a newsreader such as nn, select all the files
+! 	and type
+! 		:unshar
+  
+- 	The latest version is available for anonymous ftp from
+- 	csc.canberra.edu.au (137.92.1.1) as /pub/motif/xmfm.tar.*.Z
+- 
+  Platforms
+  	This has only been tested on a Sun Sparcstation. It compiles
+  	under gcc and cc.  It requires Motif 1.1 or Motif 1.2.
+--- 17,26 ----
+  	University of Canberra. email: jan@ise.canberra.edu.au
+  
+  Availability
+! 	Posted to alt.sources 19 Nov 92. The latest version is available
+! 	for anonymous ftp from csc.canberra.edu.au (137.92.1.1) as
+! 	/pub/motif/xmfm.tar.*.Z
+  
+  Platforms
+  	This has only been tested on a Sun Sparcstation. It compiles
+  	under gcc and cc.  It requires Motif 1.1 or Motif 1.2.
+***************
+*** 58,62 ****
+  	The files are DirMgr.[ch], Directory.[ch], RegExp.[ch]. I
+  	cannot find a statement of conditions.
+  
+! 	The bitmaps are from Edward Groenendaal's xdtm. I cannot find
+! 	a statement of conditions.
+--- 49,70 ----
+  	The files are DirMgr.[ch], Directory.[ch], RegExp.[ch]. I
+  	cannot find a statement of conditions.
+  
+! 	The bitmaps are from xdtm.
+! 	The statement of conditions there is:
+! 	
+! 	"Copyright (c) 1992 Edward Groenendaal, Ramon Santiago
+! 	Copyright (c) 1991 Edward Groenendaal.
+! 	
+! 	Permission is granted to anyone to use this software for any
+! 	purpose on any computer system, and to redistribute it freely,
+! 	subject to the following restrictions:
+! 	
+! 	1. The author is not responsible for the consequences of use of
+! 	   this software, no matter how awful, even if they arise
+! 	   from defects in it.
+! 	
+! 	2. The origin of this software must not be misrepresented, either
+! 	   by explicit claim or by omission.
+! 	
+! 	3. Altered versions must be plainly marked as such, and must not
+! 	   be misrepresented as being the original software.  "
+diff -c -r ./applicat.c ../new/applicat.c
+*** ./applicat.c	Wed Nov 18 19:06:11 1992
+--- ../new/applicat.c	Tue Nov 24 10:44:45 1992
+***************
+*** 1153,1159 ****
+  	XmStringFree (xmstr);
+  
+  	/* reset the name in the button info */
+! 	XtVaGetValues (w, XmNuserData, &pbi);
+  	pbi -> name = label;
+  
+  	set_pixmap (w, label, file_type);
+--- 1153,1159 ----
+  	XmStringFree (xmstr);
+  
+  	/* reset the name in the button info */
+! 	XtVaGetValues (w, XmNuserData, &pbi, NULL);
+  	pbi -> name = label;
+  
+  	set_pixmap (w, label, file_type);
+Common subdirectories: ./bitmaps and ../new/bitmaps
+diff -c -r ./copyright.h ../new/copyright.h
+*** ./copyright.h	Tue Nov 24 10:54:43 1992
+--- ../new/copyright.h	Tue Nov 17 13:08:00 1992
+***************
+*** 0 ****
+--- 1,30 ----
++ #ifndef _XMFM_COPYRIGHT
++ #define _XMFM_COPYRIGHT
++ 
++ /*********************************************************************
++ Copyright (C) 1992 Jan Newmarch
++ 
++ Faculty of Information Sciences and Engineering
++ University of Canberra
++ PO Box 1, Belconnen 2614
++ ACT, Australia
++ 
++ email: jan@ise.canberra.edu.au
++ 
++     This program is free software; you can redistribute it and/or modify
++     it under the terms of the GNU General Public License as published by
++     the Free Software Foundation; either version 2 of the License, or
++     (at your option) any later version.
++ 
++     This program is distributed in the hope that it will be useful,
++     but WITHOUT ANY WARRANTY; without even the implied warranty of
++     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++     GNU General Public License for more details.
++ 
++     You should have received a copy of the GNU General Public License
++     along with this program; if not, write to the Free Software
++     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ 
++ *********************************************************************/
++ 
++ #endif /* _XMFM_COPYRIGHT */
+diff -c -r ./file_act.c ../new/file_act.c
+*** ./file_act.c	Wed Nov 18 19:06:08 1992
+--- ../new/file_act.c	Tue Nov 24 10:44:42 1992
+***************
+*** 12,17 ****
+--- 12,21 ----
+   *	11 Aug 92	added description field to xmfmrc
+   *	   Oct		input file format revised
+   *       3 Nov 92       lint-ed
++  *	15 Nov 92	used XtResolvePathname to find app-defaults
++  *	20 Nov 92	changed char ch to int ch
++  *	21 Nov 92	better handling of incomplete files
++  *	21 Nov 92	can get xmfmrc from resource file
+   ************************************************************************/ 
+  
+  #include "copyright.h"
+***************
+*** 47,52 ****
+--- 51,57 ----
+  /*************************************************************************
+   * Extern variables
+   ************************************************************************/ 
++ Widget app_shell;
+  
+  /*************************************************************************
+   * Extern functions
+***************
+*** 70,75 ****
+--- 75,83 ----
+  
+  static int line_number = 1;
+  
++ #define NOT_NULL(s)	((s) == NULL ? \
++ 				syntax_error ("unexpected end of file") : True)
++ 
+  #define IS_TYPE(s)	(strcmp ((s), "type") == 0)
+  #define IS_PATTERN(s)	(strcmp ((s), "pattern") == 0)
+  #define IS_PIXMAP(s)	(strcmp ((s), "pixmap") == 0)
+***************
+*** 93,120 ****
+  #define DEFAULT_DIR_FILTER         "*"
+  #define DEFAULT_EXECUTABLE_FILTER  "*"
+  
+  static Bool token_put_back = False;
+  
+  /*************************************************************************
+   * Function: syntax_error ()
+   * Purpose: complain about input errors
+!  * In parameters: 
+!  * Function returns: 
+   * Side effects: 
+   * Precondition: 
+   * Postcondition: false 
+   ************************************************************************/ 
+! static void
+  syntax_error 
+  #ifdef UseFunctionPrototypes
+! 	(void)
+  #else
+! 	()
+  
+  #endif
+  {
+! 	fprintf (stderr, "syntax error in xmfmrc near line %d\n",
+! 			 line_number);
+  }
+  
+  /*************************************************************************
+--- 101,149 ----
+  #define DEFAULT_DIR_FILTER         "*"
+  #define DEFAULT_EXECUTABLE_FILTER  "*"
+  
++ /* stuff needed to extract configFile from the resource database */
++ typedef struct
++ 	{String configFile;}
++ MyResourceType, *MyResourceTypePtr;
++ 
++ static	XtResource resources [] =
++ {	
++ 	{	"configFile",	/* instance name */
++ 		"ConfigFile",	/* class name */
++ 		XmRString,	/* type */
++ 		sizeof(String),	/* type size */
++ 		XtOffset (MyResourceTypePtr, configFile),  /* where it is */
++ 		XmRImmediate,	/* default follows */
++ 		NULL		/* default value */
++ 	}
++ };
++ 
+  static Bool token_put_back = False;
+  
+  /*************************************************************************
+   * Function: syntax_error ()
+   * Purpose: complain about input errors
+!  * In parameters: err_msg
+!  * Function returns: False
+   * Side effects: 
+   * Precondition: 
+   * Postcondition: false 
+   ************************************************************************/ 
+! static Bool
+  syntax_error 
+  #ifdef UseFunctionPrototypes
+! 	(char *err_msg)
+  #else
+! 	(err_msg)
+! 	char *err_msg;
+  
+  #endif
+  {
+! 	fprintf (stderr, "syntax error in xmfmrc near line %d\n\t%s\n",
+! 			 line_number, err_msg);
+! 	exit (1);
+! 	/* NOTREACHED */
+! 	return False;
+  }
+  
+  /*************************************************************************
+***************
+*** 126,132 ****
+   * Precondition: 
+   * Postcondition: 
+   ************************************************************************/ 
+! static char
+  GetC 
+  #ifdef UseFunctionPrototypes
+  	(FILE *fp)
+--- 155,161 ----
+   * Precondition: 
+   * Postcondition: 
+   ************************************************************************/ 
+! static int
+  GetC 
+  #ifdef UseFunctionPrototypes
+  	(FILE *fp)
+***************
+*** 135,141 ****
+  	FILE *fp;
+  
+  #endif
+! {	char ch;
+  
+  	ch = getc (fp);
+  	if (ch == '\n')
+--- 164,170 ----
+  	FILE *fp;
+  
+  #endif
+! {	int ch;
+  
+  	ch = getc (fp);
+  	if (ch == '\n')
+***************
+*** 183,189 ****
+  	FILE *fp;
+  
+  #endif
+! {	char ch;
+  	char *p = buf;
+  
+  	if (token_put_back)
+--- 212,218 ----
+  	FILE *fp;
+  
+  #endif
+! {	int ch;
+  	char *p = buf;
+  
+  	if (token_put_back)
+***************
+*** 246,260 ****
+  	pfa -> pixmap = "xlogo32";  /* reasonable default */
+  	pfa -> description = "";
+  
+! 	while ( ! IS_L_BRACE(token = next_token (fp)))
+  	{	
+  		if (IS_TYPE (token))
+  		{	token2 = next_token (fp);
+  			pfa -> file_type = *token2;
+  			continue;
+  		}
+  		if (IS_PATTERN (token))
+  		{	token2 = next_token (fp);
+  		 	pfa -> name_pattern =
+  				(char *) XtMalloc (strlen (token2) + 1);
+  			strcpy (pfa -> name_pattern, token2);
+--- 275,291 ----
+  	pfa -> pixmap = "xlogo32";  /* reasonable default */
+  	pfa -> description = "";
+  
+! 	while ( NOT_NULL (token = next_token (fp)) && ! IS_L_BRACE(token))
+  	{	
+  		if (IS_TYPE (token))
+  		{	token2 = next_token (fp);
++ 			NOT_NULL (token2);
+  			pfa -> file_type = *token2;
+  			continue;
+  		}
+  		if (IS_PATTERN (token))
+  		{	token2 = next_token (fp);
++ 			NOT_NULL (token2);
+  		 	pfa -> name_pattern =
+  				(char *) XtMalloc (strlen (token2) + 1);
+  			strcpy (pfa -> name_pattern, token2);
+***************
+*** 262,267 ****
+--- 293,299 ----
+  		}
+  		if (IS_PIXMAP (token))
+  		{	token2 = next_token (fp);
++ 			NOT_NULL (token2);
+  			pfa -> pixmap = (char *) XtMalloc (strlen (token2) + 1);
+  			strcpy (pfa -> pixmap, token2);
+  			continue;
+***************
+*** 268,278 ****
+  		}
+  		if (IS_DESCRIPTION (token))
+  		{	token2 = next_token (fp);
+  			pfa -> description = (char *) XtMalloc (strlen (token2) + 1);
+  			strcpy (pfa -> description, token2);
+  			continue;
+  		}
+! 		syntax_error ();
+  	}
+  	/* this will have swallowed up the left brace for the first file
+  	   action. put it back for later use */
+--- 300,311 ----
+  		}
+  		if (IS_DESCRIPTION (token))
+  		{	token2 = next_token (fp);
++ 			NOT_NULL (token2);
+  			pfa -> description = (char *) XtMalloc (strlen (token2) + 1);
+  			strcpy (pfa -> description, token2);
+  			continue;
+  		}
+! 		syntax_error ("illegal token in file description");
+  	}
+  	/* this will have swallowed up the left brace for the first file
+  	   action. put it back for later use */
+***************
+*** 279,286 ****
+  	unget_next_token ();
+  
+  	/* each action is { ... } delimited */
+! 	while (IS_L_BRACE (next_token (fp)))   /* stops on closing R_BRACE */
+  	{	
+  		if (pfa -> actions == NULL)
+  			pfa -> actions = 
+  			pap = (action_pair *) XtMalloc (sizeof (action_pair));
+--- 312,321 ----
+  	unget_next_token ();
+  
+  	/* each action is { ... } delimited */
+! 	while (NOT_NULL (token = next_token (fp)) && IS_L_BRACE (token))
+! 	/* stops on closing R_BRACE */
+  	{	
++ 		/* add action to linked list */
+  		if (pfa -> actions == NULL)
+  			pfa -> actions = 
+  			pap = (action_pair *) XtMalloc (sizeof (action_pair));
+***************
+*** 298,303 ****
+--- 333,339 ----
+  				!IS_R_BRACE (token))
+  		{	if (IS_LABEL (token))
+  			{	token2 = next_token (fp);
++ 				NOT_NULL (token2);
+  				pap -> action_label = 
+  					(char *) XtMalloc (strlen (token2) + 1);
+  				strcpy (pap -> action_label, token2);
+***************
+*** 313,318 ****
+--- 349,355 ----
+  			}
+  			if (IS_ACTION (token))
+  			{	token2 = next_token (fp);
++ 				NOT_NULL (token2);
+  			 	pap -> action =
+  					(char *) XtMalloc (strlen (token2) + 1);
+  				strcpy (pap -> action, token2);
+***************
+*** 320,325 ****
+--- 357,363 ----
+  			}
+  			if (IS_PROMPT (token))
+  			{	token2 = next_token (fp);
++ 				NOT_NULL (token2);
+  			 	pap -> prompt =
+  					(char *) XtMalloc (strlen (token2) + 1);
+  				strcpy (pap -> prompt, token2);
+***************
+*** 326,332 ****
+  				pap -> has_prompt = True;
+  				continue;
+  			}
+! 			syntax_error ();
+  		}
+  	}
+  	pap -> next = NULL;
+--- 364,370 ----
+  				pap -> has_prompt = True;
+  				continue;
+  			}
+! 			syntax_error ("illegal token in file action");
+  		}
+  	}
+  	pap -> next = NULL;
+***************
+*** 379,388 ****
+  
+  /*************************************************************************
+   * Function: OpenXmfmrc ()
+!  * Purpose: open the xmfmrc file from HOME or app-defaults
+   * In parameters:
+   * Function returns: file pointer to xmfmrc file
+!  * Precondition: $HOME/.xmfmrc or app-defaults/xmfmrc exist
+   * Postcondition: file is parsed and files + actions lists built
+   ************************************************************************/ 
+  FILE *
+--- 417,426 ----
+  
+  /*************************************************************************
+   * Function: OpenXmfmrc ()
+!  * Purpose: open the xmfmrc file from configFile HOME or app-defaults
+   * In parameters:
+   * Function returns: file pointer to xmfmrc file
+!  * Precondition: configFile or $HOME/.xmfmrc or app-defaults/xmfmrc exist
+   * Postcondition: file is parsed and files + actions lists built
+   ************************************************************************/ 
+  FILE *
+***************
+*** 396,405 ****
+--- 434,461 ----
+  #endif
+  {	FILE *fp;
+  	char *path;
++ 	MyResourceType myresources;
+  
+  	char *home_dir;
+  	char xmfmrc[MAXPATHLEN];
+  
++ 	/* look for the file first in the resource database */
++ 	XtGetApplicationResources (app_shell,
++ 			&myresources,
++ 			resources,
++ 			XtNumber (resources),
++ 			NULL,
++ 			0);
++ 	if (myresources.configFile != NULL)
++ 	{	if ((fp = fopen (myresources.configFile, "r")) != NULL)
++ 			return fp;
++ 		/* complain if not found */
++ 		else
++ 			fprintf (stderr, "can't open configuration file %s\n",
++ 				myresources.configFile);
++ 	}
++ 
++ 	/* try $HOME/.xmfmrc */
+  	if ((home_dir = getenv ("HOME")) != NULL)
+  	{	strcpy (xmfmrc, home_dir);
+  		strcat (xmfmrc, "/.xmfmrc");
+***************
+*** 459,465 ****
+  	dpi -> dir_filter = DEFAULT_DIR_FILTER;
+  	dpi -> executable_filter = DEFAULT_EXECUTABLE_FILTER;
+  
+! 	while ( ! IS_L_BRACE(token = next_token (fp)))
+  	{	if (IS_FILE_FILTER (token))
+  		{	token = next_token (fp);
+  			dpi -> file_filter = XtMalloc (strlen (token) + 1);
+--- 515,521 ----
+  	dpi -> dir_filter = DEFAULT_DIR_FILTER;
+  	dpi -> executable_filter = DEFAULT_EXECUTABLE_FILTER;
+  
+! 	while ( NOT_NULL (token = next_token (fp)) && ! IS_L_BRACE(token))
+  	{	if (IS_FILE_FILTER (token))
+  		{	token = next_token (fp);
+  			dpi -> file_filter = XtMalloc (strlen (token) + 1);
+***************
+*** 478,484 ****
+  			strcpy (dpi -> executable_filter, token);
+  			continue;
+  		}
+! 		syntax_error ();
+  	}
+  
+  	/* this will have swallowed up the left brace for the first file
+--- 534,540 ----
+  			strcpy (dpi -> executable_filter, token);
+  			continue;
+  		}
+! 		syntax_error ("illegal token in preamble");
+  	}
+  
+  	/* this will have swallowed up the left brace for the first file
+diff -c -r ./filtercb.c ../new/filtercb.c
+*** ./filtercb.c	Wed Nov 18 19:06:08 1992
+--- ../new/filtercb.c	Tue Nov 24 10:44:42 1992
+***************
+*** 9,14 ****
+--- 9,15 ----
+   * Revision history:
+   *	16 Oct 92	caddr_t changed to XtPointer
+   *       3 Nov 92       lint-ed
++  *	21 Nov 92	fixed crash on cancelling filter dialog
+   ************************************************************************/ 
+  
+  #include "copyright.h"
+***************
+*** 168,173 ****
+--- 169,175 ----
+  #endif
+  {	dir_pane_info *dpi;
+          char regexp[FSM_LENGTH]; 
++ 	char *filter;
+  
+  	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+  
+***************
+*** 176,182 ****
+  	XtFree (dpi -> file_filter_regexp);
+  */
+  
+! 	PromptDialog (w, "File filter", True, &(dpi -> file_filter));
+  
+  	RegExpPatternToRegExp (dpi -> file_filter, regexp);
+  	RegExpCompile (regexp, dpi -> file_filter_regexp, FSM_LENGTH);
+--- 178,187 ----
+  	XtFree (dpi -> file_filter_regexp);
+  */
+  
+! 	PromptDialog (w, "File filter", True, &filter);
+! 	if (filter == NULL)
+! 		return;		/* dialog cancelled */
+! 	dpi -> file_filter = filter;
+  
+  	RegExpPatternToRegExp (dpi -> file_filter, regexp);
+  	RegExpCompile (regexp, dpi -> file_filter_regexp, FSM_LENGTH);
+***************
+*** 214,221 ****
+  #endif
+  {	dir_pane_info *dpi;
+          char regexp[FSM_LENGTH]; 
+  
+- 
+  	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+  
+  /*
+--- 219,226 ----
+  #endif
+  {	dir_pane_info *dpi;
+          char regexp[FSM_LENGTH]; 
++ 	char *filter;
+  
+  	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+  
+  /*
+***************
+*** 223,229 ****
+  	XtFree (dpi -> dir_filter_regexp);
+  */
+  
+! 	PromptDialog (w, "Directory filter", True, &(dpi -> dir_filter));
+  
+  	RegExpPatternToRegExp (dpi -> dir_filter, regexp);
+  	RegExpCompile (regexp, dpi -> dir_filter_regexp, FSM_LENGTH);
+--- 228,237 ----
+  	XtFree (dpi -> dir_filter_regexp);
+  */
+  
+! 	PromptDialog (w, "Directory filter", True, &filter);
+! 	if (filter == NULL)
+! 		return;		/* dialog cancelled */
+! 	dpi -> dir_filter = filter;
+  
+  	RegExpPatternToRegExp (dpi -> dir_filter, regexp);
+  	RegExpCompile (regexp, dpi -> dir_filter_regexp, FSM_LENGTH);
+***************
+*** 263,268 ****
+--- 271,277 ----
+  #endif
+  {	dir_pane_info *dpi;
+          char regexp[FSM_LENGTH]; 
++ 	char *filter;
+  
+  	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+  
+***************
+*** 272,278 ****
+          */
+  
+  	PromptDialog (w, "Executable filter", True,
+! 			&(dpi -> executable_filter));
+  
+  	RegExpPatternToRegExp (dpi -> executable_filter, regexp);
+  	RegExpCompile (regexp, dpi -> executable_filter_regexp, FSM_LENGTH);
+--- 281,290 ----
+          */
+  
+  	PromptDialog (w, "Executable filter", True,
+! 			&filter);
+! 	if (filter == NULL)
+! 		return;		/* dialog cancelled */
+! 	dpi -> executable_filter = filter;
+  
+  	RegExpPatternToRegExp (dpi -> executable_filter, regexp);
+  	RegExpCompile (regexp, dpi -> executable_filter_regexp, FSM_LENGTH);
+diff -c -r ./gotocb.c ../new/gotocb.c
+*** ./gotocb.c	Wed Nov 18 19:06:06 1992
+--- ../new/gotocb.c	Tue Nov 24 10:44:40 1992
+***************
+*** 9,14 ****
+--- 9,15 ----
+   * Revision history:
+   *	16 Oct 92	caddr_t changed to XtPointer
+   *       3 Nov 92       lint-ed
++  *	24 Nov 92	removed core-dumping XtFree (home_dir)
+   ************************************************************************/ 
+  
+  #include "copyright.h"
+***************
+*** 121,127 ****
+  			XmNuserData, (XtArgVal) &dpi,
+  			NULL);
+  	builtin_chdir (home_dir, dpi);
+- 	XtFree (home_dir);
+  }
+   
+  /*************************************************************************
+--- 122,127 ----
+***************
+*** 191,197 ****
+  			XmNuserData, (XtArgVal) &dpi,
+  			NULL);
+  	builtin_opendir (home_dir, dpi);
+- 	XtFree (home_dir);
+  }
+   
+  /*************************************************************************
+--- 191,196 ----
+diff -c -r ./help_mes.c ../new/help_mes.c
+*** ./help_mes.c	Wed Nov 18 19:02:07 1992
+--- ../new/help_mes.c	Mon Nov 23 09:11:07 1992
+***************
+*** 51,57 ****
+  /*	This is the text for the application help button in the main menu
+  */
+  char help_applic_text[] = 
+! "xmfm is a file manager, that displays files in a directory.\n\
+  The screen is divided into buttons on the left signalling\n\
+  actions that you can perform on files, and three panes on\n\
+  the right containing executable files, ordinary files and\n\
+--- 51,57 ----
+  /*	This is the text for the application help button in the main menu
+  */
+  char help_applic_text[] = 
+! "xmfm is a file manager that displays files in a directory.\n\
+  The screen is divided into buttons on the left signalling\n\
+  actions that you can perform on files, and three panes on\n\
+  the right containing executable files, ordinary files and\n\
+***************
+*** 81,87 ****
+  /*	This is the text for the mouse help button in the main menu
+  */
+  char help_mouse_text[] =  
+! "Select a file by clickin on it.\n\
+  Select an action by clicking on it.\n\
+  Double click on a file to get the\n\
+  default action (the first one).\n\
+--- 81,87 ----
+  /*	This is the text for the mouse help button in the main menu
+  */
+  char help_mouse_text[] =  
+! "Select a file by clicking on it.\n\
+  Select an action by clicking on it.\n\
+  Double click on a file to get the\n\
+  default action (the first one).\n\
+***************
+*** 111,117 ****
+  "The Meta key is the `diamond' key either\n\
+  side of the space bar. Press this in conjunction\n\
+  with ordinary keys to get hot-key menu actions.\n\
+! For example, Meta+H move to you Home directory.\n\
+  \n\
+  Press F1 to get context sensitive help\n\
+  on any part of xmfm (not implemented)\n\
+--- 111,117 ----
+  "The Meta key is the `diamond' key either\n\
+  side of the space bar. Press this in conjunction\n\
+  with ordinary keys to get hot-key menu actions.\n\
+! For example, Meta+H moves to you Home directory.\n\
+  \n\
+  Press F1 to get context sensitive help\n\
+  on any part of xmfm (not implemented)\n\
+***************
+*** 119,125 ****
+  
+  char help_about_text[] = "\
+    xmfm (X/Motif file manager)\n\
+!          Version 1.6\n\
+   Copyright 1992 J.D. Newmarch\n\
+  email: jan@ise.canberra.edu.au";
+  
+--- 119,125 ----
+  
+  char help_about_text[] = "\
+    xmfm (X/Motif file manager)\n\
+!          Version 1.7\n\
+   Copyright 1992 J.D. Newmarch\n\
+  email: jan@ise.canberra.edu.au";
+  
+diff -c -r ./main.c ../new/main.c
+*** ./main.c	Wed Nov 18 19:06:14 1992
+--- ../new/main.c	Tue Nov 24 10:44:56 1992
+***************
+*** 9,14 ****
+--- 9,15 ----
+   * Revision history:
+   *	16 Oct 92	caddr_t changed to XtPointer
+   *       3 Nov 92       lint-ed
++  *	21 Nov 92	added icon pixmap
+   ************************************************************************/ 
+  
+  #include "copyright.h"
+***************
+*** 28,33 ****
+--- 29,35 ----
+   ************************************************************************/ 
+  #include "const.h"
+  #include "types.h"
++ #include "xmfm_icon.h"
+  
+  #ifdef RDD
+  #include "rdd.h"
+***************
+*** 124,131 ****
+   
+  #define Class_name "XmFm" 
+   
+! static Widget	app_shell;	/*  ApplicationShell	*/ 
+  
+  /*************************************************************************
+   * Function: fatal()
+   * Purpose: report a fatal error and giveup
+--- 126,138 ----
+   
+  #define Class_name "XmFm" 
+   
+! Widget	app_shell;	/*  ApplicationShell	*/ 
+  
++ static XrmOptionDescRec myoptions[] =
++ 	{
++ 		{"-configFile", "configFile", XrmoptionSepArg, NULL}
++ 	};
++ 
+  /*************************************************************************
+   * Function: fatal()
+   * Purpose: report a fatal error and giveup
+***************
+*** 329,334 ****
+--- 336,343 ----
+  { 	
+  	Widget		applic_widget;
+  	dir_pane_info *dpi;
++ 	Pixmap		icon_pixmap; 
++ 
+  #ifdef RDD
+  /*
+   * RDD
+***************
+*** 353,362 ****
+  	 app_shell = XtInitialize(
+  			 NULL, 		/* application name */	
+  	 	 	 Class_name, 	/* class name */	
+! 	 	 	 NULL, 		/* options */	
+! 	 	 	 0,		/* number of options */	
+  	 	 	 &argc, argv);
+  	app_context = XtWidgetToApplicationContext (app_shell);
+  	  
+  #	ifdef DEBUG_MAIN
+  		fprintf(stderr, "Initialised toolkit\n");
+--- 362,377 ----
+  	 app_shell = XtInitialize(
+  			 NULL, 		/* application name */	
+  	 	 	 Class_name, 	/* class name */	
+! 	 	 	 myoptions, 		/* options */	
+! 	 	 	 XtNumber (myoptions),	/* number of options */	
+  	 	 	 &argc, argv);
+  	app_context = XtWidgetToApplicationContext (app_shell);
++ 
++ 	/* set the icon pixmap */
++ 	icon_pixmap = XCreateBitmapFromData(XtDisplay(app_shell),
++ 			RootWindowOfScreen(XtScreen(app_shell)),
++ 			xmfm_bits, xmfm_width, xmfm_height);
++ 	XtVaSetValues(app_shell, XmNiconPixmap, icon_pixmap, NULL);
+  	  
+  #	ifdef DEBUG_MAIN
+  		fprintf(stderr, "Initialised toolkit\n");
+diff -c -r ./patchlevel.h ../new/patchlevel.h
+*** ./patchlevel.h	Tue Nov 24 10:54:44 1992
+--- ../new/patchlevel.h	Mon Nov 23 09:10:39 1992
+***************
+*** 0 ****
+--- 1 ----
++ 1.7
+diff -c -r ./pauseme ../new/pauseme
+*** ./pauseme	Tue Nov 24 10:54:43 1992
+--- ../new/pauseme	Sat Nov 21 13:23:24 1992
+***************
+*** 0 ****
+--- 1,5 ----
++ #!/bin/sh
++ # execute a command and pause afterwards
++ command="$*; echo 'Press <return> to continue'"
++ eval $command
++ read x
+Only in ../new: testdir.c
+diff -c -r ./utils.c ../new/utils.c
+*** ./utils.c	Wed Nov 18 19:06:04 1992
+--- ../new/utils.c	Tue Nov 24 10:44:39 1992
+***************
+*** 235,241 ****
+--- 235,244 ----
+  	{
+  		strcpy (warning, "cannot chdir to ");
+  		strcat (warning, dir);
++ /*
+  		ErrorDialog (warning);
++ */
++ 		fprintf (stderr, "%s\n", warning);
+  		return False;
+  	}
+  	return True;
+diff -c -r ./xmfm.man ../new/xmfm.man
+*** ./xmfm.man	Fri Oct 16 16:29:47 1992
+--- ../new/xmfm.man	Mon Nov 23 12:30:27 1992
+***************
+*** 11,16 ****
+--- 11,19 ----
+  .in +8n
+  .ti -8n
+  .I xmfm
++ [-configFile
++ .I configFile
++ ]
+  [X\ Toolkit\ options]
+  .in -8n
+  .ad
+***************
+*** 61,66 ****
+--- 64,78 ----
+  Set the foreground colour.
+  .IP "\fB-background\fP colour"
+  Set the background colour.
++ .PP
++ In addition the
++ .I configFile
++ option allows the user to choose a configuration file to replace the
++ .I .xmfmrc
++ file.
++ This can be used (for example) to test local changes to 
++ .I .xmfmrc
++ before installing it.
+  .SH "CUSTOMIZING XMFM"
+  .PP
+  .I Xmfm
+***************
+*** 86,93 ****
+  These icons must be in directories accessible from the
+  .I XmGetPixmap()
+  function call.
+! See the
+! .I "Motif Programmers Reference Manual
+  
+  .SH "Widget Hierarchy"
+  .PP
+--- 98,165 ----
+  These icons must be in directories accessible from the
+  .I XmGetPixmap()
+  function call.
+! See the next section on bitmaps.
+! 
+! .SH "Bitmaps
+! .PP
+! The location of the bitmaps used in 
+! .I xmfm
+! is controlled by the environment variables \fBXBMLANGPATH\fP and
+! \fBXAPPLRESDIR\fP. If the variable \fBXBMLANGPATH\fP is set to a
+! path-name followed by %B, bitmaps will be searched for in that path.
+! For example (using the C shell syntax)
+! 
+! .ta 8,12,16,20,24,28,32,36,40
+! .na
+! .nf
+! 	setenv XBMLANGPATH /usr/usrs/jan/bitmaps/%B
+! .fi
+! .ad
+! 
+! If this is not set but the environment variable \fBXAPPLRESDIR\fP is set,
+! the following paths are searched:
+! .ta 1i
+! .na
+! .nf
+!         $XAPPLRESDIR/%L/bitmaps/XmFm
+!         $XAPPLRESDIR/%l/bitmaps/XmFm
+!         $XAPPLRESDIR/bitmaps/XmFm
+!         $XAPPLRESDIR/%L/bitmaps
+!         $XAPPLRESDIR/%l/bitmaps
+!         $XAPPLRESDIR/bitmaps
+!         $HOME/bitmaps
+!         $HOME
+!         /usr/lib/X11/%L/bitmaps/XmFm
+!         /usr/lib/X11/%l/bitmaps/XmFm
+!         /usr/lib/X11/bitmaps/XmFm
+!         /usr/lib/X11/%L/bitmaps
+!         /usr/lib/X11/%l/bitmaps
+!         /usr/lib/X11/bitmaps
+! .fi
+! .ad
+! If neither is set, the following paths are searched
+! .ta 1i
+! .na
+! .nf
+!         $HOME/%L/bitmaps/XmFm
+!         $HOME/%l/bitmaps/XmFm
+!         $HOME/bitmaps/XmFm
+!         $HOME/%L/bitmaps
+!         $HOME/%l/bitmaps
+!         $HOME/bitmaps
+!         $HOME
+!         /usr/lib/X11/%L/bitmaps/XmFm
+!         /usr/lib/X11/%l/bitmaps/XmFm
+!         /usr/lib/X11/bitmaps/XmFm
+!         /usr/lib/X11/%L/bitmaps
+!         /usr/lib/X11/%l/bitmaps
+!         /usr/lib/X11/bitmaps
+!         /usr/include/X11/bitmaps
+! .fi
+! .ad
+! These paths are defaults that a vendor may have changed.
+! Here %L is the display's language string, and %l is the language
+! component of the display's language string.
+  
+  .SH "Widget Hierarchy"
+  .PP
+diff -c -r ./xmfm_icon.h ../new/xmfm_icon.h
+*** ./xmfm_icon.h	Tue Nov 24 10:54:43 1992
+--- ../new/xmfm_icon.h	Mon Nov 23 09:30:49 1992
+***************
+*** 0 ****
+--- 1,14 ----
++ #define xmfm_width 32
++ #define xmfm_height 32
++ static char xmfm_bits[] = {
++    0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0xff, 0x00, 0x00, 0x20, 0x00, 0x01,
++    0x00, 0x00, 0x00, 0x02, 0x00, 0xfc, 0x1f, 0x04, 0x00, 0x04, 0x20, 0x08,
++    0x00, 0x00, 0x40, 0x08, 0x80, 0xff, 0x83, 0x08, 0x80, 0x00, 0x04, 0x09,
++    0x00, 0x00, 0x08, 0x09, 0xf0, 0x7f, 0x10, 0x09, 0x10, 0x80, 0x20, 0x09,
++    0x10, 0x00, 0x21, 0x09, 0x10, 0x00, 0x22, 0x09, 0x10, 0x00, 0x24, 0x09,
++    0x10, 0x00, 0x24, 0x09, 0x10, 0x00, 0x24, 0x09, 0x10, 0x00, 0x24, 0x09,
++    0x10, 0x00, 0x24, 0x09, 0x10, 0x00, 0x24, 0x09, 0x10, 0x00, 0x24, 0x09,
++    0x10, 0x00, 0x24, 0x0d, 0x10, 0x00, 0x24, 0x01, 0x10, 0x00, 0x24, 0x01,
++    0x10, 0x00, 0x24, 0x01, 0x10, 0x00, 0xa4, 0x01, 0x10, 0x00, 0x24, 0x00,
++    0x10, 0x00, 0x24, 0x00, 0x10, 0x00, 0x34, 0x00, 0x10, 0x00, 0x04, 0x00,
++    0x10, 0x00, 0x04, 0x00, 0xf0, 0xff, 0x07, 0x00};
+diff -c -r ./xmfmrc ../new/xmfmrc
+*** ./xmfmrc	Tue Nov 17 17:22:38 1992
+--- ../new/xmfmrc	Mon Nov 23 09:55:01 1992
+***************
+*** 17,22 ****
+--- 17,23 ----
+  	}
+  	{
+  		label	edit
++ 		run_in_xterm
+  		action	"vi $0"
+  	}
+          {       label    print
+***************
+*** 30,35 ****
+--- 31,37 ----
+          description "C source code"
+  	{
+  		label	edit
++ 		run_in_xterm
+  		action	"vi $0"
+  	}
+  	{
+***************
+*** 162,167 ****
+--- 164,170 ----
+  	pixmap	file.xbm
+  	{
+  		label	edit
++ 		run_in_xterm
+  		action	"vi $0"
+  	}
+  	{
+diff -c -r ./xmvararg.c ../new/xmvararg.c
+*** ./xmvararg.c	Wed Nov 18 19:06:13 1992
+--- ../new/xmvararg.c	Tue Nov 24 10:44:55 1992
+***************
+*** 16,22 ****
+--- 16,26 ----
+   * System includes
+   ************************************************************************/ 
+  #include <stdio.h>
++ #ifdef UseFunctionPrototypes
++ #include <stdarg.h>
++ #else
+  #include <varargs.h>
++ #endif
+  #include <X11/StringDefs.h>
+  #include <X11/Intrinsic.h>
+  #include <Xm/Xm.h>
+***************
+*** 50,55 ****
+--- 54,61 ----
+   * Local includes
+   ************************************************************************/ 
+  
++ #include "xmvararg.h"
++ 
+  /*************************************************************************
+   * Functions exported
+   ************************************************************************/ 
+***************
+*** 169,175 ****
+--- 175,183 ----
+  #endif
+  {	register int n;
+  
++ #ifndef UseFunctionPrototypes
+  	parent = va_arg(args, Widget);
++ #endif
+  	name = va_arg(args, String);
+  
+  	for (n = 0; n < NXARGS; ++n)
+***************
+*** 212,218 ****
+  
+  	register int	n;
+  
+! 	va_start(args);
+  	name = va_arg(args, String);
+  	class = va_arg(args, String);
+  	parent = va_arg(args, Widget);
+--- 220,226 ----
+  
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  	name = va_arg(args, String);
+  	class = va_arg(args, String);
+  	parent = va_arg(args, Widget);
+***************
+*** 239,245 ****
+  	Widget		w;
+  	register int	n;
+  
+! 	va_start(args);
+  	w = va_arg(args, Widget);
+  
+  	n = SetArgs();
+--- 247,253 ----
+  	Widget		w;
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  	w = va_arg(args, Widget);
+  
+  	n = SetArgs();
+***************
+*** 264,270 ****
+  	register int 	n;
+  	Widget		w;
+  
+! 	va_start(args);
+  	w = va_arg(args, Widget);
+  
+  	n = SetArgs();
+--- 272,278 ----
+  	register int 	n;
+  	Widget		w;
+  
+! 	Va_start (args, parent);
+  	w = va_arg(args, Widget);
+  
+  	n = SetArgs();
+***************
+*** 294,300 ****
+  Widget
+  XmVaCreateArrowButton
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 302,308 ----
+  Widget
+  XmVaCreateArrowButton
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 303,309 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 311,317 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 327,333 ****
+  Widget
+  XmVaCreateBulletinBoard
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 335,341 ----
+  Widget
+  XmVaCreateBulletinBoard
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 336,342 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 344,350 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 360,366 ****
+  Widget
+  XmVaCreateCascadeButton
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 368,374 ----
+  Widget
+  XmVaCreateCascadeButton
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 369,375 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 377,383 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 393,399 ****
+  Widget
+  XmVaCreateCommand
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 401,407 ----
+  Widget
+  XmVaCreateCommand
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 402,408 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 410,416 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 426,432 ****
+  Widget
+  XmVaCreateDialogShell
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 434,440 ----
+  Widget
+  XmVaCreateDialogShell
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 435,441 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 443,449 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 459,465 ****
+  Widget
+  XmVaCreateDrawingArea
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 467,473 ----
+  Widget
+  XmVaCreateDrawingArea
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 468,474 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 476,482 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 492,498 ****
+  Widget
+  XmVaCreateDrawnButton
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 500,506 ----
+  Widget
+  XmVaCreateDrawnButton
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 501,507 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 509,515 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 517,523 ****
+  Widget
+  XmVaCreateFileSelectionBox
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 525,531 ----
+  Widget
+  XmVaCreateFileSelectionBox
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 526,532 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 534,540 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 550,556 ****
+  Widget
+  XmVaCreateForm
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 558,564 ----
+  Widget
+  XmVaCreateForm
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 559,565 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 567,573 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 575,581 ****
+  Widget
+  XmVaCreateFrame
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 583,589 ----
+  Widget
+  XmVaCreateFrame
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 584,590 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 592,598 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 608,614 ****
+  Widget
+  XmVaCreateLabel
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 616,622 ----
+  Widget
+  XmVaCreateLabel
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 617,623 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 625,631 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 641,647 ****
+  Widget
+  XmVaCreateList
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 649,655 ----
+  Widget
+  XmVaCreateList
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 650,656 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 658,664 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 674,680 ****
+  Widget
+  XmVaCreateMainWindow
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 682,688 ----
+  Widget
+  XmVaCreateMainWindow
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 683,689 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 691,697 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 707,713 ****
+  Widget
+  XmVaCreateMessageBox
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 715,721 ----
+  Widget
+  XmVaCreateMessageBox
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 716,722 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 724,730 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 740,746 ****
+  Widget
+  XmVaCreatePanedWindow
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 748,754 ----
+  Widget
+  XmVaCreatePanedWindow
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 749,755 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 757,763 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 773,779 ****
+  Widget
+  XmVaCreatePushButton
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 781,787 ----
+  Widget
+  XmVaCreatePushButton
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 782,788 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 790,796 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 806,812 ****
+  Widget
+  XmVaCreateRowColumn
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 814,820 ----
+  Widget
+  XmVaCreateRowColumn
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 815,821 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 823,829 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 839,845 ****
+  Widget
+  XmVaCreateScale
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 847,853 ----
+  Widget
+  XmVaCreateScale
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 848,854 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 856,862 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 872,878 ****
+  Widget
+  XmVaCreateScrollBar
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 880,886 ----
+  Widget
+  XmVaCreateScrollBar
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 881,887 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 889,895 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 905,911 ****
+  Widget
+  XmVaCreateSelectionBox
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 913,919 ----
+  Widget
+  XmVaCreateSelectionBox
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 914,920 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 922,928 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 938,944 ****
+  Widget
+  XmVaCreateSeparator
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 946,952 ----
+  Widget
+  XmVaCreateSeparator
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 947,953 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 955,961 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 971,977 ****
+  Widget
+  XmVaCreateText
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 979,985 ----
+  Widget
+  XmVaCreateText
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 980,986 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 988,994 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1004,1010 ****
+  Widget
+  XmVaCreateToggleButton
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1012,1018 ----
+  Widget
+  XmVaCreateToggleButton
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1013,1019 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1021,1027 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1042,1048 ****
+  Widget
+  XmVaCreateErrorDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1050,1056 ----
+  Widget
+  XmVaCreateErrorDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1051,1057 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1059,1065 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1074,1080 ****
+  Widget
+  XmVaCreateFileSelectionDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1082,1088 ----
+  Widget
+  XmVaCreateFileSelectionDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1083,1089 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1091,1097 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1106,1112 ****
+  Widget
+  XmVaCreateFormDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1114,1120 ----
+  Widget
+  XmVaCreateFormDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1115,1121 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1123,1129 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1138,1144 ****
+  Widget
+  XmVaCreateInformationDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1146,1152 ----
+  Widget
+  XmVaCreateInformationDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1147,1153 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1155,1161 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1170,1176 ****
+  Widget
+  XmVaCreateMessageDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1178,1184 ----
+  Widget
+  XmVaCreateMessageDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1179,1185 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1187,1193 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1202,1208 ****
+  Widget
+  XmVaCreatePromptDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1210,1216 ----
+  Widget
+  XmVaCreatePromptDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1211,1217 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1219,1225 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1234,1240 ****
+  Widget
+  XmVaCreateQuestionDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1242,1248 ----
+  Widget
+  XmVaCreateQuestionDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1243,1249 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1251,1257 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1266,1272 ****
+  Widget
+  XmVaCreateSelectionDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1274,1280 ----
+  Widget
+  XmVaCreateSelectionDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1275,1281 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1283,1289 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1298,1304 ****
+  Widget
+  XmVaCreateWarningDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1306,1312 ----
+  Widget
+  XmVaCreateWarningDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1307,1313 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1315,1321 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1330,1336 ****
+  Widget
+  XmVaCreateWorkingDialog
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1338,1344 ----
+  Widget
+  XmVaCreateWorkingDialog
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1339,1345 ****
+  {
+          register int    n;
+  
+!         va_start(args);
+  
+          n = SetNameArgs();
+  
+--- 1347,1353 ----
+  {
+          register int    n;
+  
+!         Va_start (args, parent);
+  
+          n = SetNameArgs();
+  
+***************
+*** 1367,1373 ****
+  Widget
+  XmVaCreateMenuBar
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1375,1381 ----
+  Widget
+  XmVaCreateMenuBar
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1376,1382 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1384,1390 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1399,1405 ****
+  Widget
+  XmVaCreateOptionMenu
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1407,1413 ----
+  Widget
+  XmVaCreateOptionMenu
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1408,1414 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1416,1422 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1431,1437 ****
+  Widget
+  XmVaCreatePopupMenu
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1439,1445 ----
+  Widget
+  XmVaCreatePopupMenu
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1440,1446 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1448,1454 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1463,1469 ****
+  Widget
+  XmVaCreatePulldownMenu
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1471,1477 ----
+  Widget
+  XmVaCreatePulldownMenu
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1472,1478 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1480,1486 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1495,1501 ****
+  Widget
+  XmVaCreateRadioBox
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1503,1509 ----
+  Widget
+  XmVaCreateRadioBox
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1504,1510 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1512,1518 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1533,1539 ****
+  Widget
+  XmVaCreateScrolledList
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1541,1547 ----
+  Widget
+  XmVaCreateScrolledList
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1542,1548 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1550,1556 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1565,1571 ****
+  Widget
+  XmVaCreateScrolledText
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1573,1579 ----
+  Widget
+  XmVaCreateScrolledText
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1574,1580 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1582,1588 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+***************
+*** 1597,1603 ****
+  Widget
+  XmVaCreateScrolledWindow
+  #ifdef UseFunctionPrototypes
+! 	(int __builtin_va_alist)
+  #else
+  	(va_alist)
+  va_dcl
+--- 1605,1611 ----
+  Widget
+  XmVaCreateScrolledWindow
+  #ifdef UseFunctionPrototypes
+! 	(Widget parent, ...)
+  #else
+  	(va_alist)
+  va_dcl
+***************
+*** 1606,1612 ****
+  {
+  	register int	n;
+  
+! 	va_start(args);
+  
+  	n = SetNameArgs();
+  
+--- 1614,1620 ----
+  {
+  	register int	n;
+  
+! 	Va_start (args, parent);
+  
+  	n = SetNameArgs();
+  
+diff -c -r ./xmvararg.h ../new/xmvararg.h
+*** ./xmvararg.h	Wed Nov 18 19:09:28 1992
+--- ../new/xmvararg.h	Tue Nov 24 10:44:55 1992
+***************
+*** 13,18 ****
+--- 13,25 ----
+  
+  #include <Xm/Xm.h>
+  
++ #ifdef UseFunctionPrototypes
++ #include <stdarg.h>
++ #define Va_start(a, b) va_start (a, b)
++ #else
++ #define Va_start(a, b) va_start (a)
++ #endif
++ 
+  /*
+  **	varargs interface for Xt not defined for Motif 1.0
+  **	because it is based on X11 R3. In this case, define
+***************
+*** 29,145 ****
+  */
+  extern Widget	XmVaCreateArrowButton(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateBulletinBoard(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateCascadeButton(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateCommand(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateDialogShell(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateDrawingArea(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateDrawnButton(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateFileSelectionBox(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateForm(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateFrame(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateLabel(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateList(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateMainWindow(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateMessageBox(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreatePanedWindow(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreatePushButton(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateRowColumn(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateScale(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateScrollBar(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateSelectionBox(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateSeparator(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateText(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateToggleButton(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  
+--- 36,152 ----
+  */
+  extern Widget	XmVaCreateArrowButton(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateBulletinBoard(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateCascadeButton(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateCommand(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateDialogShell(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateDrawingArea(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateDrawnButton(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateFileSelectionBox(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateForm(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateFrame(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateLabel(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateList(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateMainWindow(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateMessageBox(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreatePanedWindow(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreatePushButton(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateRowColumn(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateScale(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateScrollBar(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateSelectionBox(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateSeparator(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateText(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateToggleButton(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  
+***************
+*** 148,199 ****
+  */
+  extern Widget	XmVaCreateErrorDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateFileSelectionDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateFormDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateInformationDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateMessageDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreatePromptDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateQuestionDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateSelectionDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateWarningDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateWorkingDialog(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  
+--- 155,206 ----
+  */
+  extern Widget	XmVaCreateErrorDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateFileSelectionDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateFormDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateInformationDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateMessageDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreatePromptDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateQuestionDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateSelectionDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateWarningDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateWorkingDialog(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  
+***************
+*** 202,228 ****
+  */
+  extern Widget	XmVaCreateMenuBar(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateOptionMenu(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreatePopupMenu(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreatePulldownMenu(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateRadioBox(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  
+--- 209,235 ----
+  */
+  extern Widget	XmVaCreateMenuBar(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateOptionMenu(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreatePopupMenu(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreatePulldownMenu(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateRadioBox(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  
+***************
+*** 231,247 ****
+  */
+  extern Widget	XmVaCreateScrolledList(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateScrolledText(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  extern Widget	XmVaCreateScrolledWindow(
+  #ifdef UseFunctionPrototypes
+! 	...
+  #endif
+  );
+  
+--- 238,254 ----
+  */
+  extern Widget	XmVaCreateScrolledList(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateScrolledText(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  extern Widget	XmVaCreateScrolledWindow(
+  #ifdef UseFunctionPrototypes
+! 	int __builtin_va_alist
+  #endif
+  );
+  
+diff -c -r ./bitmaps/Copyright ../new/bitmaps/Copyright
+*** ./bitmaps/Copyright	Tue Nov 24 10:54:44 1992
+--- ../new/bitmaps/Copyright	Tue Nov 24 10:52:29 1992
+***************
+*** 0 ****
+--- 1,19 ----
++ All of the bitmaps in this directory (except herefolder.xbm) are covered
++ by the following notice:
++ 
++ Copyright (c) 1992 Edward Groenendaal, Ramon Santiago
++ Copyright (c) 1991 Edward Groenendaal.
++ 
++ Permission is granted to anyone to use this software for any
++ purpose on any computer system, and to redistribute it freely,
++ subject to the following restrictions:
++ 
++ 1. The author is not responsible for the consequences of use of
++    this software, no matter how awful, even if they arise
++    from defects in it.
++ 
++ 2. The origin of this software must not be misrepresented, either
++    by explicit claim or by omission.
++ 
++ 3. Altered versions must be plainly marked as such, and must not
++    be misrepresented as being the original software.  
+diff -c -r ./bitmaps/Imakefile ../new/bitmaps/Imakefile
+*** ./bitmaps/Imakefile	Thu Oct 15 16:02:03 1992
+--- ../new/bitmaps/Imakefile	Mon Nov 23 11:41:52 1992
+***************
+*** 87
+- InstallMultiple($(BITMAPS),/usr/lib/X11/bitmaps/XmFm)
+--- 87 -----
++ InstallMultiple($(BITMAPS),$(LIBDIR)/bitmaps/XmFm)
+Only in ../new/bitmaps: Makefile.bak
+Only in ../new/bitmaps: xlogo32
+
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

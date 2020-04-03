@@ -1,0 +1,308 @@
+Path: funic!fuug!mcsun!sun4nl!donau!alfred
+From: AKayser@dnpap.et.tudelft.nl (Alfred Kayser)
+Newsgroups: alt.sources
+Subject: New DeskJet Color driver for GhostScript (postscript interpreter).
+Message-ID: <alfred.696097725@dutepp4>
+Date: 22 Jan 92 16:28:45 GMT
+Sender: news@donau.et.tudelft.nl (UseNet News System)
+Organization: Delft University of Technology, Dept. of Electrical Engineering
+Lines: 297
+Nntp-Posting-Host: dutepp4.et.tudelft.nl
+
+Silly me!
+
+I had reversed somewhere in bit toggling code reversed the
+rgb bits. So most colors were printed with the wrong color. 
+Not all, which prevented me to detect this error.
+
+Enough talk, here is the new driver.
+
+This is a driver which can be linked in the 'public domain'
+PostScript interpreter called 'GhostScript'. For more info
+mail to 'ghost@aladdin.com'.
+
+For questions about this driver mail me at: AKayser@et.tudelft.nl.
+
+#!/bin/sh
+# This is a shell archive (produced by shar 3.50)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 01/22/1992 16:29 UTC by alfred@dutepp4
+# Source directory /users/d0/alfred/csrc/gs23
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   7165 -rw-r--r-- gdevdjtc.c
+#    460 -rw-r--r-- deskjetc.mak
+#
+# ============= gdevdjtc.c ==============
+if test -f 'gdevdjtc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping gdevdjtc.c (File already exists)'
+else
+echo 'x - extracting gdevdjtc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'gdevdjtc.c' &&
+/* Copyright (C) 1989, 1990, 1991 Aladdin Enterprises.  All rights reserved.
+X   Distributed by Free Software Foundation, Inc.
+X
+This file is part of Ghostscript.
+X
+Ghostscript is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY.  No author or distributor accepts responsibility
+to anyone for the consequences of using it or for whether it serves any
+particular purpose or works at all, unless he says so in writing.  Refer
+to the Ghostscript General Public License for full details.
+X
+Everyone is granted permission to copy, modify and redistribute
+Ghostscript, but only under the conditions described in the Ghostscript
+General Public License.  A copy of this license is supposed to have been
+given to you along with Ghostscript so you can know your rights and
+responsibilities.  It should be in a file named COPYING.  Among other
+things, the copyright notice and this notice must be preserved on all
+copies.  */
+X
+/* gdevdjtc.c */
+/* HP DeskJet 500C driver for Ghostscript */
+#include "gdevprn.h"
+X
+#define X_DPI 300
+#define Y_DPI 300
+/* bytes per line for DeskJet Color */
+#define LINE_SIZE ((X_DPI * 85 / 10 + 63) / 64 * 8)
+X
+/* The device descriptors */
+private dev_proc_print_page(deskjetc_print_page);
+private dev_proc_map_rgb_color(deskjetc_map_rgb_color);
+private dev_proc_map_color_rgb(deskjetc_map_color_rgb);
+X
+private gx_device_procs deskjetc_procs =
+X  prn_color_procs(gdev_prn_open, gdev_prn_output_page, gdev_prn_close,
+X    deskjetc_map_rgb_color, deskjetc_map_color_rgb);
+X
+gx_device_printer gs_deskjetc_device =
+X  prn_device(deskjetc_procs, "deskjetc",
+X	85,				/* width_10ths, 8.5" */
+X	120,				/* height_10ths, 12" */
+X	X_DPI, Y_DPI,
+X	0.25, 0.25, 0.25, 0.25,		/* margins */
+X	3, deskjetc_print_page);
+X
+X
+/* Forward references */
+private int mode2compress(P3(byte *, byte *, byte *));
+private int deskjetc_print_page(P2(gx_device_printer *, FILE *));
+X
+/* Map an RGB color to a printer color. */
+private gx_color_index
+deskjetc_map_rgb_color(gx_device *dev, ushort r, ushort g, ushort b)
+{	return (( (b<<2) + (g<<1) + r) ^ 7 );
+}
+X
+/* Map the printer color back to RGB. */
+private int
+deskjetc_map_color_rgb(gx_device *dev, gx_color_index color, ushort prgb[3])
+{	ushort cc = (ushort)(color ^ 7);
+X	prgb[0] = cc & 1;
+X	prgb[1] = (cc >> 1) & 1;
+X	prgb[2] = (cc >> 2) & 1;
+X	return 0;
+}
+X
+/* Send the page to the printer.  For speed, compress each scan line, */
+/* since computer-to-printer communication time is often a bottleneck. */
+/* The DeskJet Color can compress (mode 3) */
+X
+private int
+deskjetc_print_page(gx_device_printer *pdev, FILE *fprn)
+{
+#define DATA_SIZE (LINE_SIZE*8)
+X	byte data[DATA_SIZE];
+X	byte plane_data[DATA_SIZE];
+X
+X	/* select the most compressed mode available & clear tmp storage */
+X	/* put printer in known state */
+X	fputs("\033E",fprn);
+X	/* ends raster graphics to set raster graphics resolution */
+X	fputs("\033*rbC", fprn);	/*  was \033*rB  */
+X
+X	/* set raster graphics resolution -- 300 dpi */
+X	fputs("\033*t300R", fprn);
+X	/* move to top left of page & set current position */
+X	fputs("\033*p0x0Y", fprn); /* cursor pos: 0,0 */
+X	fputs("\033*r0A", fprn);  /* start graf. left */
+X	fputs("\033*b2M", fprn);	/*  mode 3 compression for now  */
+X	fputs("\033*r3U", fprn);    /* RGB Mode */
+X	fputs("\033&l26a0l1H", fprn); /* A4, skip perf, def. paper tray */ 
+X
+X	/* Send each scan line in turn */
+X   	{	int lnum;
+X		int line_size = gdev_mem_bytes_per_scan_line((gx_device *)pdev);
+X		int num_blank_lines = 0;
+X		for (lnum=0; lnum<pdev->height; lnum++)
+X		{	
+X			byte _ss *end_data = data + line_size;
+X			gdev_prn_copy_scan_lines(pdev, lnum, (byte *)data, line_size);
+X
+X			/* Remove trailing 0s. */
+X			while ( end_data > data && end_data[-1] == 0 )
+X				end_data--;
+X			if ( end_data == data )
+X				num_blank_lines++;
+X			else
+X			{	int i;
+X				byte _ss *odp;
+X				byte _ss *row;
+X
+X				/* Pad with 0s to fill out the last */
+X				/* block of 8 bytes. */
+X				memset(end_data, 0, 7);
+X
+X				/* Transpose the data to get pixel planes. */
+X				for (i=0, odp=plane_data; i<DATA_SIZE; i+=8, odp++)
+X				{ 
+X				   register ushort t, r, g, b;
+X				   for (r=g=b=t=0;t<8;t++)
+X				   {
+X						r = (r<<1) | (data[t+i]&4);
+X						g = (g<<1) | (data[t+i]&2);
+X						b = (b<<1) | (data[t+i]&1);
+X				   }
+X				   odp[0] = (byte)(r>>2) ^ 0xff;
+X				   odp[LINE_SIZE] = (byte)(g>>1) ^ 0xff; 
+X				   odp[LINE_SIZE*2] = (byte)b ^ 0xff;
+X				}
+X
+X				/* Skip blank lines if any */
+X				if ( num_blank_lines > 0 )
+X				{	/* move down from current position */
+X					fprintf(fprn, "\033*b%dY", num_blank_lines);
+X					num_blank_lines = 0;
+X				}
+X
+X				/* Transfer raster graphics */
+X				/* in the order R, G, B. */
+X				row=plane_data+LINE_SIZE*2;
+X				for (i=0; i<3; row-=LINE_SIZE,i++)
+X				{	
+X					byte temp[LINE_SIZE * 2];
+X					int count = mode2compress(row, row + LINE_SIZE, temp);
+X					fprintf(fprn, "\033*b%d%c", count, "VVW"[i]);
+X					fwrite(temp, sizeof(byte), count, fprn); 
+X				}
+X			}
+X		}
+X	}
+X	/* end raster graphics */
+X	fputs("\033*rbC", fprn);	/*  was \033*rB  */
+X	fputs("\033*r1U", fprn);	/*  back to 1 plane  */
+X
+X   	/* put printer in known state */
+X	fputs("\033E",fprn);
+X	
+X	/* eject page */
+X	fputs("\033&l0H", fprn);
+X
+X	return 0;
+}
+X
+X
+/* Mode 2 Row compression routine for the HP DeskJet Color. */
+/* Compresses data from row up to end_row, storing the result */
+/* starting at compressed.  Returns the number of bytes stored. */
+/* Runs of K<=127 literal bytes are encoded as K-1 followed by */
+/* the bytes; runs of 2<=K<=127 identical bytes are encoded as */
+/* 257-K followed by the byte. */
+/* In the worst case, the result is N+(N/127)+1 bytes long, */
+/* where N is the original byte count (end_row - row). */
+private int
+mode2compress(byte *row, byte *end_row, byte *compressed)
+{	register byte *i_exam = row; /*byte being examined in the row to compress */
+X	byte *stop_exam = end_row - 4; /* stop scanning for similar bytes here */
+X	register byte *cptr = compressed; /* output pointer into compressed bytes */
+X
+X	while ( i_exam < end_row )
+X	   {	/* Search ahead in the input looking for a run */
+X		/* of at least 4 identical bytes. */
+X		byte *i_compr = i_exam;
+X		byte *i_next;		/* end of run */
+X		byte byte_value;
+X		while ( i_exam <= stop_exam &&
+X			((byte_value = *i_exam) != i_exam[1] ||
+X			 byte_value != i_exam[2] ||
+X			 byte_value != i_exam[3]) )
+X		  i_exam++;
+X
+X		/* Find out how long the run is */
+X		if ( i_exam > stop_exam )	/* no run */
+X			i_next = i_exam = end_row;
+X		else
+X		   {	i_next = i_exam + 4;
+X			while ( i_next < end_row && *i_next == byte_value )
+X				i_next++;
+X		   }
+X
+X		/* Now [i_compr..i_exam) should be encoded as dissimilar, */
+X		/* and [i_exam..i_next) should be encoded as similar. */
+X		/* Note that either of these ranges may be empty. */
+X
+X		while ( i_compr < i_exam )
+X		   {	/* Encode up to 127 dissimilar bytes */
+X			int count = i_exam - i_compr;
+X			if ( count > 127 ) count = 127;
+X			*cptr++ = count - 1;
+X			while ( count > 0 )
+X			   {	*cptr++ = *i_compr++;
+X				count--;
+X			   }
+X		   }
+X
+X		while ( i_exam < i_next )
+X		   {	/* Encode up to 127 similar bytes */
+X			int count = i_next - i_exam;
+X			if ( count > 127 ) count = 127;
+X			*cptr++ = 1 - count;
+X			*cptr++ = byte_value;
+X			i_exam += count;
+X		   }
+X	   }
+X	return (cptr - compressed);
+}
+SHAR_EOF
+chmod 0644 gdevdjtc.c ||
+echo 'restore of gdevdjtc.c failed'
+Wc_c="`wc -c < 'gdevdjtc.c'`"
+test 7165 -eq "$Wc_c" ||
+	echo 'gdevdjtc.c: original size 7165, current size' "$Wc_c"
+fi
+# ============= deskjetc.mak ==============
+if test -f 'deskjetc.mak' -a X"$1" != X"-c"; then
+	echo 'x - skipping deskjetc.mak (File already exists)'
+else
+echo 'x - extracting deskjetc.mak (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'deskjetc.mak' &&
+### -------------- The H-P DeskJet color printer device ----------------- ###
+### Note: this driver was contributed by many users:                      ###
+###       please contact AKayser@et.tudelft.nl if you have questions.     ###
+X
+deskjetc_=gdevdjtc.$(OBJ) gdevprn.$(OBJ)
+deskjetc.dev: $(deskjetc)
+X	.$(DS)gssetdev deskjetc.dev $(deskjetc_)
+X
+gdevdjtc.$(OBJ): gdevdjtc.c $(PDEVH)
+X
+### ------------ The H-P PaintJet color printer device ----------------- ###
+SHAR_EOF
+chmod 0644 deskjetc.mak ||
+echo 'restore of deskjetc.mak failed'
+Wc_c="`wc -c < 'deskjetc.mak'`"
+test 460 -eq "$Wc_c" ||
+	echo 'deskjetc.mak: original size 460, current size' "$Wc_c"
+fi
+exit 0
+--
+-- Ir. Alfred Kayser. PACS, OS/2, TCP/IP. --- Email: AKayser@et.tudelft.nl --
+-- CARDIT, Delft University of Technology ------------ Tel: (31)-15-786179 --
+-- P.O.Box 5031, 2600 GA Delft, The Netherlands ------ Fax: (31)-15-784898 --

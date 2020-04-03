@@ -1,0 +1,2948 @@
+Path: funic!fuug!mcsun!uunet!zaphod.mps.ohio-state.edu!qt.cs.utexas.edu!yale.edu!cmcl2!sbcs.sunysb.edu!libserv1.ic.sunysb.edu!jallen
+From: jallen@libserv1.ic.sunysb.edu (Joseph Allen)
+Newsgroups: alt.sources
+Subject: JOE Version 0.1.0: Part 3 of 3
+Message-ID: <1991Sep3.205037.10654@sbcs.sunysb.edu>
+Date: 3 Sep 91 20:50:37 GMT
+Sender: rcarter@wpi.wpi.edu
+Organization: State University of New York at Stony Brook
+Lines: 2936
+Originator: jallen@libserv1.ic.sunysb.edu
+Nntp-Posting-Host: libserv1.ic.sunysb.edu
+
+
+      {
+      if(fmeof()) break;
+      if(fmrc()==NL) break;
+      if(fmrc()==TAB)
+       {
+       fmdel(1);
+       break;
+       }
+      else fmdel(1);
+      ++foo;
+      }
+      while(foo&7);
+     }
+    else if(ch!=TAB && fmrc()==TAB)
+     {
+     TXTSIZ tt;
+     tabmark();
+     if(tt=tabcol)
+      {
+      fminsc(ch);
+      tabmark();
+      fmdel(1);
+      if(tabcol!=tt) fmdel(1);
+      }
+     }
+    else
+     {
+     fmdel(1);
+     if(ch!=TAB && ox<(width-2)) uuu=1;
+     }
+   else if(ox<(width-2) && ch!=TAB) uuu=1;
+  }
+ if(wrap)
+  {
+  unsigned char xx;
+  if(getrcol()<rmargin) goto skip;
+  if(ch==' ')
+   type(NL);
+  else
+   {
+   temp=fmnote();
+   while(1)
+    {
+    if(fmnote())
+     {
+     fmpoint(fmnote()-1);
+     xx=fmrc();
+     if(xx==NL) break;
+     if(xx==' ' || x==TAB)
+      {
+      fmdel(1);
+      added=0;
+      type(NL);
+      temp+=added;
+      break;
+      }
+     }
+    else break;
+    }
+   fmpoint(temp);
+   fminsc(ch);
+   rtarw();
+   uuu=0;
+   }
+  }
+ else
+  {
+skip:
+  if(overwrite || ch==TAB) fminsc(ch);
+  else
+   {
+   tabmark();
+   fminsc(ch);
+   tabfix();
+   }
+  if(ch!=TAB && ch!=NL)
+   {
+   int cc=showas(ch);
+   if(fmnote()>=markb && fmnote()<marke) cc^=INVERSE;
+   fmgetc();
+   tputcc(cc);
+   scrn[ypos*width+oxpos]=cc;
+   oxpos++;
+   if(fmeof()) { if(!eflag && ox<width-2) uuu=1; }
+   else if(fmrc()==NL && !eflag && ox<width-2) uuu=1;
+   }
+  else fmgetc();
+  }
+ }
+}
+
+itype(ch)
+unsigned char ch;
+{
+int x,y;
+TXTSIZ temp,temp1;
+if(extend)
+ {
+ if(ch!= NL) fillup();
+ else extend=0;
+ }
+if(ch==NL)
+ {
+ fminsc(ch);
+ fmgetc();
+ newy=1;
+ if(autoind)
+  {
+  temp=fmnote();
+  uparw();
+  for(x=0;1;x++)
+   {
+   ch=fmgetc();
+   if(!(ch==' ' || ch==TAB)) break;
+   temp1=fmnote();
+   fmpoint(temp);
+   fminsc(ch);
+   added++;
+   fmpoint(temp1);
+   temp++;
+   }
+  fmpoint(fmnote()-(x+1));
+  dnarw();
+  y=overwrite, overwrite=0;
+  for(;x;x--) rtarw();
+  overwrite=y;
+  }
+ }
+else
+ {
+ if(overwrite)
+  if(!fmeof()) fmdel(1);
+ if(wrap)
+  {
+  if(getrcol()<rmargin) goto skip;
+  if(ch==' ')
+   itype(NL);
+  else
+   {
+   temp=fmnote();
+   while(1)
+    {
+    if(fmnote())
+     {
+     fmpoint(fmnote()-1);
+     x=fmrc();
+     if(x==NL) break;
+     if(x==' ' || x==TAB)
+      {
+      fmdel(1);
+      added=0;
+      itype(NL);
+      temp+=added;
+      break;
+      }
+     }
+    else break;
+    }
+   fmpoint(temp);
+   fminsc(ch);
+   rtarw();
+   }
+  }
+ else
+  {
+skip:
+  fminsc(ch);
+  rtarw();
+  }
+ }
+}
+
+/* Insert space */
+
+inss()
+{
+int t=overwrite;
+if(extend)
+ {
+ extend=0;
+ return;
+ }
+overwrite=0;
+type(' ');
+ltarw();
+overwrite=t;
+}
+
+/* Deleting backspace */
+
+backs()
+{
+int flag=0,c;
+if(extend)
+ {
+ extend=0;
+ return;
+ }
+if(fmeof()) c=1;
+else if(fmrc()==NL) c=1;
+if(fmnote())
+ {
+ ultarw();
+ if(fmrc()==TAB) flag=1;
+ if(overwrite && !tabmagic)
+  {
+  itype(' ');
+  ultarw();
+  }
+ else if(overwrite && tabmagic)
+  {
+  if(c) delch();
+  else if(!flag)
+   {
+   itype(' ');
+   ltarw();
+   }
+  }
+ else delch();
+ if(oxpos && !flag)
+  {
+  eputc(8), tputcc(32), eputc(8), oxpos--,scrn[oypos*width+oxpos]=32;
+  if(fmeof()) uuu=1;
+  else if(fmrc()==NL || overwrite) uuu=1;
+  }
+ }
+}
+
+/* quit: exit without saving */
+
+eexit()
+{
+int c;
+if(curwin->next==curwin)
+ {
+ if(changed)
+  {
+  c=askyn("Do you really want to throw away this file?"); 
+  if(c=='N') return;
+  if(c== -1) return;
+  dclose("File not saved.");
+  }
+ else
+  {
+  dclose("File not changed so no update needed");
+  }
+ leave=1;
+ }
+else
+ {
+ struct window *t=curwin;
+ if(changed && curbuf->count==1)
+  {
+  c=askyn("Do you really want to throw away this file?");
+  if(c=='N') return;
+  if(c== -1) return;
+  }
+ if(curbuf->count==1)
+  {
+  struct undorec *u;
+  for(u=undorecs;u;u=u->next) if(u->buf==curbuf) u->buf=0;
+  free(curbuf->buf), free(curbuf);
+  if(curbuf==markbuf) markbuf=0;
+  }                           
+ else curbuf->count--;
+ curwin->next->prev=curwin->prev;
+ curwin->prev->next=curwin->next;
+ curwin=curwin->prev;
+ free(t);
+ ldwin(curwin);
+ if(topwin==t) topwin=curwin;
+ wfit();
+ }
+}
+
+pgup()
+{
+int nlins=curwin->height-1;
+int hlins=nlins/2;
+int x,y;
+TXTSIZ curpos,z;
+if(!hlins) hlins=1;
+z=getcol();
+curpos=fmnote();
+fmpoint(saddr);
+for(x=0;x<hlins;x++)
+ {
+ if(!fmnrnl())
+  {
+  if(!x)
+   {
+   gocol(z);
+   newy=1;
+   return;
+   }
+  else
+   break;
+  }
+ }
+if(fmnrnl()) fmgetc();
+saddr=fmnote();
+fmpoint(curpos);
+setregn(curwin->wind+1,(curwin->wind+curwin->height-1));
+cpos(curwin->wind+1,oxpos);
+attrib(0);
+for(y=0;y<x;y++)
+ {
+ if(scroll) eputs("\033M");
+ fmnrnl();
+ }
+if(fmnrnl()) fmgetc();
+cpos(oypos,oxpos);
+gocol(z);
+x*=width;
+if(scroll) for(y=(curwin->wind+1)*width;y<x+(curwin->wind+1)*width;y++)
+ {
+ scrn[y+x]=scrn[y];
+ scrn[y]= ' ';
+ }
+}
+
+pgdn()
+{
+int nlins=curwin->height-1;
+int hlins=nlins/2;
+TXTSIZ curpos,z;
+int x,y;
+z=getcol();
+curpos=fmnote();
+x=nlins;
+fmpoint(saddr);
+do
+ {
+ if(fmfnl()) fmgetc();
+ else
+  {
+  newy=1;
+  gocol(z);
+  return;
+  }
+ }
+ while(--x);
+for(x=1;x<hlins;x++)
+ {
+ if(fmfnl()) fmgetc();
+ else break;
+ }
+
+fmpoint(saddr);
+for(y=0;y<x;y++)
+ {
+ fmfnl();
+ fmgetc();
+ }
+saddr=fmnote();
+
+setregn(curwin->wind+1,(curwin->wind+curwin->height-1));
+cpos((curwin->wind+curwin->height-1),oxpos);
+fmpoint(curpos);
+attrib(0);
+for(y=0;y<x;y++)
+ {
+ fmfnl();
+ fmgetc();
+ if(scroll) eputc(10);
+ }
+
+gocol(z);
+cpos(ypos,xpos);
+if(scroll)
+ {
+ y=width*x;
+ for(curpos=(curwin->wind+1)*width+y;curpos<(curwin->wind+curwin->height)*
+     width;curpos++)
+  scrn[curpos-y]=scrn[curpos];
+ for(curpos=(curwin->wind+curwin->height)*width-width*x;
+     curpos<(curwin->wind+curwin->height)*width;curpos++)
+  scrn[curpos]= ' ';
+ }
+}
+
+deleol()
+{
+TXTSIZ temp=fmnote();
+TXTSIZ temp1;
+if(extend && pic) return;
+extend=0;
+fmfnl();
+temp1=fmnote()-temp;
+fmpoint(temp);
+if(temp1) fmdel(temp1);
+}
+
+killlin()
+{
+extend=0;
+if(!fmeof())
+ {
+ if(fmrc()==NL) delch();
+ else deleol();
+ }
+}
+
+dellin()
+{
+bol();
+deleol();
+delch();
+}
+
+fixpath(s)
+unsigned char *s;
+{
+unsigned char tmp[PATHSIZE], *p, c;
+struct passwd *passwd;
+if(*s=='~')
+ {
+ p=s+1;
+ while(*p!='/' && *p) ++p;
+ if(c= *p)
+  {
+  *p=0;
+  if(passwd=getpwnam(s+1))
+   {
+   *p=c;
+   strcpy(tmp,passwd->pw_dir);
+   strcat(tmp,p);
+   strcpy(s,tmp);
+   }
+  }
+ }
+}
+
+exsave()
+{
+unsigned char sting[PATHSIZE];
+if(!changed)
+ {
+ eexit();
+ return;
+ }
+if(gfnam[0]==0)
+ {
+ if(!getl("Save file",gfnam))
+  return;
+ fixpath(gfnam);
+ }
+else if(!backup)
+ {
+ sprintf(sting,"/bin/cp %s %s~",gfnam,gfnam);
+ cpos(height-2,0);
+ system(sting);
+ cpos(ypos,xpos);
+ }
+if(saveit1(gfnam))
+ {
+ sprintf(sting,"File %s saved.",gfnam);
+ if(curwin->next==curwin)
+  {
+  dclose(sting);
+  leave=1;
+  }
+ else
+  eexit();
+ }
+}
+
+saveit()
+{
+unsigned char gfnam1[PATHSIZE];
+unsigned char sting[PATHSIZE];
+strcpy(gfnam1,gfnam);
+if(!getl("Save file",gfnam1))
+ return;
+fixpath(gfnam1);
+if(!backup && !strcmp(gfnam1,gfnam))
+ {
+ sprintf(sting,"/bin/cp %s %s~",gfnam,gfnam);
+ cpos(height-2,0);
+ system(sting);
+ cpos(ypos,xpos);
+ }
+saveit1(gfnam1);
+}
+
+findline()
+{
+unsigned char sting[PATHSIZE];
+TXTSIZ x;
+sting[0]=0;
+if(!getl("Goto line",sting))
+ return;
+x=atol(sting);
+if(!x)
+ {
+ msg("\\iBad line number\\i");
+ return;
+ }
+x--;
+bof();
+for(;x;x--)
+ {
+ if(!fmfnl()) break;
+ fmgetc();
+ }
+newy=1;
+cntr=1;
+return;
+}
+
+int search()
+{
+if(options&s_backwards)
+ {
+ while(fmnote())
+  {
+  fmrgetc();
+  if(options&s_ignore) { if(!fmicmp(sstring,len)) return 1; }
+  else if(!fmcmp(sstring,len)) return 1;
+  }
+ return 0;
+ }
+else
+ {
+ while(fmnote()+len<=fmsize())
+  {
+  if(!(options&s_ignore)) { if(!fmcmp(sstring,len)) return 1; }
+  else if(!fmicmp(sstring,len)) return 1;
+  fmgetc();
+  }
+ return 0;
+ }
+}
+
+find(c)
+{
+int x;
+int opts=0;
+int n=0;
+int rest=0;
+int rlen;
+TXTSIZ p;
+unsigned char ss[80];
+extend=0;
+if(c=='L'-'@' && sstring[0]) goto srch;
+ss[0]=0;
+if(!(x=getl("Search string",ss))) return;
+if(x== -1)
+ {
+ if(ss[0])
+  strcpy(sstring,ss);
+ goto srch;
+ }
+if(!ss[0]) return;
+strcpy(sstring,ss);
+ss[0]=0;
+if(!getl("(I)gnore case (B)ackwards (R)eplace n",ss)) return;
+for(x=0;ss[x];x++)
+ {
+ if(ss[x]=='i' || ss[x]=='I') opts|=s_ignore;
+ if(ss[x]=='b' || ss[x]=='B') opts|=s_backwards;
+ if(ss[x]=='r' || ss[x]=='R') opts|=s_replace;
+ if(ss[x]=='x' || ss[x]=='X') opts|=s_regex;
+ if(ss[x]>='0' && ss[x]<='9') n*=10, n+=ss[x]-'0';
+ }
+options=opts;
+if(options&s_replace)
+ {
+ ss[0]=0;
+ if(!(x=getl("Replace with",ss))) return;
+ if(x!= -1)
+  strcpy(rstring,ss);
+ }
+srch:
+if(!sstring[0]) return;
+len=strlen(sstring);
+rlen=strlen(rstring);
+rpt:
+p=fmnote();
+if(search())
+ {
+ if(!(options&s_backwards)) fmpoint(fmnote()+len);
+ if(options&s_replace)
+  {
+  if(rest) goto dn;
+  newy=1;
+  upd=1;
+  cntr=1;
+  extend=0;
+  dupdate();
+again:
+  x=nquery(
+  "Replace? (Yes, No, ^C to abort or R to replace rest without asking)");
+  if(x=='n' || x=='N') goto rpt;
+  if(x== 3) return;
+  if(x=='y' || x=='Y') goto dn;
+  if(x=='r' || x=='R')
+   {
+   rest=1;
+   goto dn;
+   }
+  goto again;
+dn:
+  if(options&s_backwards)
+   {
+   fmdel(len);
+   fminss(rstring,rlen);
+   }
+  else
+   {
+   fmpoint(fmnote()-len);
+   fmdel(len);
+   fminss(rstring,rlen);
+   fmpoint(fmnote()+rlen);
+   }
+  if(n)
+   if(n==1) goto exi;
+   else n--;
+  goto rpt;
+  }
+ else if(n)
+  {
+  if(n==1) goto exi;
+  n--;
+  goto rpt;
+  }
+ }
+else
+ {
+ if(!(options&s_replace) || n>1)
+  msg("Not found");
+ fmpoint(p);
+ return;
+ }
+exi:
+cntr=1;
+newy=1;
+}
+
+findnext()
+{
+find('L'-'@');
+}
+
+findfirst()
+{
+find(0);
+}
+
+struct buffer *markbuf;
+
+setbeg()
+{
+markb=fmnote();
+if(markbuf!=curbuf)
+ {
+ markbuf=curbuf;
+ marke=0;
+ }
+}
+
+setend()
+{
+marke=fmnote();
+if(markbuf!=curbuf)
+ {
+ markbuf=curbuf;
+ markb=0;
+ }
+}
+
+writeblk()
+{
+unsigned char gfnam1[PATHSIZE];
+unsigned char sting[PATHSIZE];
+TXTSIZ sv=fmnote();
+struct buffer *bt=curbuf;
+if(markbuf)
+ {
+ stbuf(curbuf);
+ ldbuf(markbuf);
+ }
+if(markb>=marke || marke>fmsize() || !markbuf)
+ {
+ msg("\\iNo block\\i");
+ if(markbuf)
+  ldbuf(bt);
+ return;
+ }
+gfnam1[0]=0;
+if(!getl("File to write block to",gfnam1))
+ {
+ ldbuf(bt);
+ return;
+ }
+fixpath(gfnam1);
+handle=fopen(gfnam1,"w+");
+if(handle)
+ {
+ fmpoint(markb);
+ if(!fmsave(handle,marke-markb))
+  {
+  sprintf(sting,"\\iError writting to file %s\\i",gfnam1);
+  msg(sting);
+  }
+ stbuf(markbuf);
+ ldbuf(bt);
+ fmpoint(sv);
+ fclose(handle);
+ }
+else
+ {
+ ldbuf(bt);
+ sprintf(sting,"\\iError opening file %s\\i",gfnam1);
+ msg(sting);
+ }
+}
+
+delblk()
+{
+struct buffer *bt=curbuf;
+TXTSIZ x=fmnote();
+TXTSIZ sz;
+if(markbuf)
+ {
+ stbuf(curbuf);
+ ldbuf(markbuf);
+ }
+if(marke<=markb || marke>fmsize() || !markbuf)
+ {
+ msg("\\iNo block\\i");
+ if(markbuf)
+  ldbuf(bt);
+ return;
+ }
+if(bt==markbuf) if(x>=markb && x<marke) x=markb;
+sz=marke-markb;
+fmpoint(markb);
+fmdel(sz);
+if(bt==markbuf) if(x>markb) x-=sz;
+stbuf(markbuf);
+ldbuf(bt);
+fmpoint(x);
+updall=1;
+newy=1;
+}
+
+moveblk()
+{
+unsigned char *t;
+TXTSIZ sz, x=fmnote();
+struct buffer *bt=curbuf;
+if(markbuf)
+ {
+ stbuf(curbuf);
+ ldbuf(markbuf);
+ }
+if(marke<=markb || marke>fmsize() || !markbuf)
+ {
+ msg("\\iNo block\\i");
+ if(markbuf)
+  ldbuf(bt);
+ return;
+ }
+if(x>=markb && x<=marke && bt==markbuf)
+ {
+ x=markb;
+ ldbuf(bt);
+ return;
+ }
+sz=marke-markb;
+t=(unsigned char *)malloc(sz);
+fmpoint(markb);
+fmcpy(t,sz);
+fmdel(sz);
+if(bt==markbuf) if(x>markb) x-=sz, newy=1;
+stbuf(markbuf); 
+ldbuf(bt);
+fmpoint(x);
+fminss(t,sz);
+free(t);
+markb=x;
+marke=x+sz;
+markbuf=bt;
+updall=1;
+}
+
+cpyblk()
+{
+unsigned char *t;
+TXTSIZ x=fmnote();
+struct buffer *bt=curbuf;
+TXTSIZ sz;
+if(markbuf)
+ {
+ stbuf(curbuf);
+ ldbuf(markbuf);
+ }
+if(marke<=markb || marke>fmsize() || !markbuf)
+ {
+ msg("\\iNo block\\i");
+ if(markbuf)
+  ldbuf(bt);
+ return;
+ }
+sz=marke-markb;
+t=(unsigned char *)malloc(sz);
+fmpoint(markb);
+fmcpy(t,sz);
+stbuf(markbuf);
+ldbuf(bt); 
+fmpoint(x);
+fminss(t,sz);
+free(t);
+marke=x+sz;
+markb=x;
+markbuf=bt;
+updall=1;
+}
+
+insfil()
+{
+unsigned char gfnam1[PATHSIZE];
+unsigned char sting[PATHSIZE];
+gfnam1[0]=0;
+if(!getl("File to insert",gfnam1)) return;
+fixpath(gfnam1);
+handle=fopen(gfnam1,"r");
+if(handle)
+ {
+ if(!fminsfil(handle))
+  {
+  sprintf(sting,"\\iError inserting file %s\\i",gfnam1);
+  msg(sting);
+  }
+ newy=1;
+ fclose(handle);
+ }
+else
+ {
+ sprintf(sting,"\\iError opening file %s\\i",gfnam1);
+ msg(sting);
+ return;
+ }
+}
+
+push()
+{
+unsigned char *ssh=(unsigned char *)getenv("SHELL");
+if(!ssh)
+ {
+ msg("Couldn't find shell");
+ return;
+ }
+dclose("You are at the command shell.  Type 'exit' to continue editing");
+shell(ssh);
+rewrite();
+}
+
+mode()
+{
+unsigned char s[PATHSIZE];
+s[0]=0;
+strcat(s,"(R)ght Mrgn ");
+if(overwrite) strcat(s,"(I) Overtype ");
+else strcat(s,"(I)nsert ");
+if(tabmagic) strcat(s,"(T)ab Magic on ");
+else strcat(s,"(T)ab Magic off ");
+if(wrap) strcat(s,"(W)rap on ");
+else strcat(s,"(W)rap off ");
+if(autoind) strcat(s,"(A) Indent on ");
+else strcat(s,"(A) Indent off ");
+if(pic) strcat(s,"(P)ic on: ");
+else strcat(s,"(P)ic off: ");
+switch(query(s))
+ {
+ case 'i':
+ case 'I':
+ case 'o':
+ case 'O':
+  overwrite= !overwrite;
+  break;
+ case 'W':
+ case 'w':
+  wrap= !wrap;
+  break;
+ case 'a':
+ case 'A':
+  autoind= !autoind;
+  break;
+ case 't':
+ case 'T':
+  tabmagic= !tabmagic;
+  break;
+ case 'p':
+ case 'P':
+  pic= !pic;
+  break;
+ case 'r':
+ case 'R':
+  {
+  char sting[80];
+  sprintf(sting,"%d",rmargin);
+  if(!getl("Right margin",sting)) return;
+  rmargin=atol(sting);
+  if(rmargin<2) rmargin=2;
+  }
+ }
+}
+
+/* Center the current line */
+
+ctrlin()
+{
+TXTSIZ x;
+int tmp=pic;
+int y;
+unfill();
+bol();
+while(y=fmrc(), y==' ' || y=='\t') fmdel(1);
+eol();
+x=fmnote();
+bol();
+if(x-fmnote()>rmargin) return;
+y=(rmargin/2)-(x-fmnote())/2;
+while(y--) fminsc(' ');
+pic=1;
+udnarw();
+pic=tmp;
+}
+
+/* Reformat a paragraph */
+
+reformat()
+{
+TXTSIZ tmp,idt,idt1,b,e;
+unsigned char ch;
+
+/* First, determine indentation on current or first non-blank line */
+
+up:
+idt=calcs();
+if(fmeof()) return;     /* Not if at end of file */
+if(fmrc()==NL)  /* Ignore any blank lines */
+ {
+ dnarw();
+ goto up;
+ }
+bol();
+
+/* Now find beginning of paragraph */
+/* It will be indicated by a change of indentation or a blank line or bof */
+
+while(fmnote())         /* Beginning is at bof */
+ {
+ uparw();
+ idt1=calcs();
+ if(fmrc()==NL) /* Beginning is blank line */
+  {
+  bol();
+  dnarw();
+  break;
+  }
+ bol();
+ if(idt1>idt) break;
+ if(idt1<idt)
+  {
+  dnarw();
+  break;
+  }
+ }
+
+/* Point is now at beginning of paragraph (hopefully) */
+/* Set the mark */
+
+b=fmnote();
+
+idt=calcs(); bol();	/* Save indentation level of first line of paragraph */
+
+/* Now move to after end of paragraph */
+while(1)
+ {
+ tmp=fmnote();
+ dnarw();
+ if(fmnote()==tmp)      /* Paragraph ends on end of file */
+  {
+  eol();
+  fminsc(NL);		/* Stick in a NL */
+  fmgetc();
+  extend=0;		/* I don't think I have to do this but... */
+  break;
+  }
+ idt1=calcs();
+ if(fmrc()==NL)		/* Paragraph ends on blank line */
+  {
+  bol();
+  break;
+  }
+ bol();
+ if(idt1>idt) break;    /* Paragraph ends when indentation increases */
+ }
+
+/* Point now after end of paragraph, cut paragraph */
+e=fmnote();
+
+/* Now reinsert paragraph in a nice way */
+
+if(e>b)
+ {
+ unsigned oldwrap=wrap;
+ unsigned oldoverwrite=overwrite;
+ unsigned oldauto=autoind;
+ unsigned flag=0;
+ unsigned char ccc=0;
+ TXTSIZ ppp=b; 
+ overwrite=0;
+ wrap=1;
+ while(ppp!=e)
+  {
+  tmp=fmnote();
+  fmpoint(ppp);
+  ppp++;
+  ch=fmrc();
+  fmpoint(tmp);
+  if(ch==NL) ch=' ';
+  if(ch==' ' || ch==TAB)
+   {
+   if(flag==0) itype(ch);
+   else if(flag==1)
+     {
+     itype(' ');
+     if(!(ccc=='.' || ccc==':' || ccc=='?' || ccc=='!' || ccc=='\"' ||
+          ccc==';')) flag=2;
+     }
+   }
+  else
+   {
+   flag=1;
+   itype(ch);
+   }
+  ccc=ch;
+  }
+ autoind=0;
+ if(flag) itype(NL);
+ wrap=oldwrap;
+ overwrite=oldoverwrite;
+ autoind=oldauto;
+ tmp=fmnote();
+ fmpoint(b);
+ fmdel(e-b);
+ fmpoint(tmp-(e-b));
+ newy=1;
+ }
+}
+
+killword()
+{
+unsigned char ch;
+ch=fmrc();
+if(((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) && !fmeof())
+ do
+  {
+  delch();
+  ch=fmrc();
+  } while (((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) && !fmeof());
+else
+ if((ch==' ' || ch==TAB || ch==NL) && !fmeof())
+  do
+   {
+   delch();
+   ch=fmrc();
+   } while (!fmeof() && (ch==' ' || ch==NL || ch==TAB));
+else
+ if(ch>='0' && ch<='9' && !fmeof())
+  do
+   {
+   delch();
+   ch=fmrc();
+   } while (!fmeof() && ch>='0' && ch<='9');
+else delch();
+}
+
+backword()
+{
+unsigned char ch;
+if(fmnote())
+ {
+ fmpoint(fmnote()-1);
+ ch=fmgetc();
+ if((ch>='a' && ch<='z') || (ch>='A' && ch <='Z'))
+  {
+up:
+  backs();
+  if(fmnote())
+   {
+   fmpoint(fmnote()-1);
+   ch=fmrc();
+   fmgetc();
+   if((ch>='a' && ch<='z') || (ch>='A' && ch <='Z')) goto up;
+   }
+  }
+ else if(ch==' ' || ch==TAB || ch==NL)
+   {
+up1:
+   backs();
+   if(fmnote())
+    {
+    fmpoint(fmnote()-1);
+    ch=fmrc();
+    fmgetc();
+    if(ch==' ' || ch==TAB || ch==NL) goto up1;
+    }
+   }
+ else if(ch>='0' && ch<='9')
+   {
+up2:
+   backs();
+   if(fmnote())
+    {
+    fmpoint(fmnote()-1);
+    ch=fmrc();
+    fmgetc();
+    if(ch>='0' && ch<='9') goto up2;
+    }
+   }
+ else backs();
+ }
+}
+
+word()
+{
+int c;
+if(fmnote()==fmsize()) return 0;
+c=fmrc();
+if(c>='a' && c<='z') return 1;
+if(c>='A' && c<='Z') return 1;
+if(c>='0' && c<='9') return 1;
+return 0;
+}
+
+wrdl()
+{
+extend=0;
+newy=1;
+if(!fmnote()) return;
+fmrgetc();
+while(!word())
+ {
+ if(!fmnote()) return;
+ fmrgetc();
+ }
+while(word())
+ {
+ if(!fmnote()) return;
+ fmrgetc();
+ }
+fmgetc();
+}
+
+wrdr()
+{
+extend=0;
+newy=1;
+while(!word())
+ {
+ if(fmnote()==fmsize()) return;
+ fmgetc();
+ }
+while(word())
+ {
+ if(fmnote()==fmsize()) return;
+ fmgetc();
+ }
+}
+
+unsigned char lft[]="{[(<`";
+unsigned char rht[]="}])>'";
+
+gotomatching()
+{
+TXTSIZ cur=fmnote(),cnt;
+unsigned char c;
+int x;
+extend=0;
+if(fmeof()) return;
+c=fmrc();
+for(x=0;x!=strlen(lft);++x)
+ if(lft[x]==c)
+  {
+  cnt=0;
+  while(!fmeof())
+   {
+   c=fmgetc();
+   if(lft[x]==c) ++cnt;
+   if(rht[x]==c)
+    if(!--cnt)
+     {
+     newy=1;
+     fmrgetc();
+     return;
+     }
+   }
+  fmpoint(cur);
+  return;
+  }
+ else if(rht[x]==c)
+  {
+  cnt=1;
+  while(fmnote())
+   {
+   c=fmrgetc();
+   if(rht[x]==c) ++cnt;
+   if(lft[x]==c)
+    if(!--cnt)
+     {
+     newy=1;
+     return;
+     }
+   }
+  fmpoint(cur);
+  return;
+  }
+}
+
+int setindent()
+{
+TXTSIZ idt,idt1,cur=fmnote(),tmp;
+if(curbuf==markbuf && cur>=markb && cur<marke) return 1;
+markbuf=curbuf; markb=0; marke=0;
+/* Find beginning */
+idt=calcs();
+if(fmeof()) goto done;
+if(fmrc()==NL) goto done;
+while(fmnrnl())
+ {
+ idt1=calcs();
+/* if(fmrc()!=NL) if(idt1<idt) Use this line instead of one below for
+   setindent to ignore blank lines */
+ if(fmrc()==NL || idt1<idt)
+  {
+  if(fmfnl()) fmgetc();
+  break;
+  }
+ }
+/* Point is now at beginning of block (hopefully) */
+/* Set the mark */
+markb=fmnote();
+
+while(fmfnl())
+ {
+ fmgetc();
+ idt1=calcs();
+/* if(fmrc()!=NL) if(idt1<idt) Use this line instead of one below for
+   setindent to ignore blank lines */
+ if(fmrc()==NL || idt1<idt)
+  {
+  bol();
+  break;
+  }
+ }
+marke=fmnote();
+done: fmpoint(cur);
+return 0;
+} 
+ 
+indentr()
+{
+TXTSIZ cur=fmnote(),tmp;
+if(!setindent()) return;
+fmpoint(markb);
+while(fmnote()<marke)
+ {
+ calcs();
+ if(fmeof()) break;
+ if(fmrc()!=NL)
+  {
+  if(fmnote()<=cur) ++cur;
+  fminsc(' ');
+  }
+ if(fmfnl()) fmgetc();
+ else break;
+ }
+done: fmpoint(cur);
+return;
+}
+
+indentl()
+{
+TXTSIZ cur=fmnote(),idt,tmp;
+if(!setindent()) return;
+fmpoint(markb);
+while(fmnote()<marke)
+ {
+ idt=calcs();
+ if(fmeof()) break;
+ if(fmrc()!=NL) if(!idt) goto done;
+ if(fmfnl()) fmgetc();
+ else break;
+ }
+fmpoint(markb);
+while(fmnote()<marke)
+ {
+ calcs();
+ if(fmeof()) break;
+ if(fmrc()!=NL)
+  {
+  if(fmnote()<=cur) --cur;
+  fmrgetc();
+  fmdel(1);
+  }
+ if(fmfnl()) fmgetc();
+ else break;
+ }
+done: fmpoint(cur);
+return;
+}
+
+struct window *curwin;
+struct buffer *curbuf;
+struct window *topwin;
+
+ldbuf(zuffer)
+struct buffer *zuffer;
+{
+if(zuffer==curbuf) return;
+curbuf=zuffer;
+backup=zuffer->backup;
+strcpy(gfnam,zuffer->gfnam);
+bufsiz=zuffer->bufsiz;
+buffer=zuffer->buf;
+filend=zuffer->filend;
+hole=zuffer->hole;
+ehole=zuffer->ehole;
+changed=zuffer->changed;
+}
+
+ldbuf1(zuffer)
+struct buffer *zuffer;
+{
+curbuf=zuffer;
+backup=zuffer->backup;
+strcpy(gfnam,zuffer->gfnam);
+bufsiz=zuffer->bufsiz;
+buffer=zuffer->buf;
+filend=zuffer->filend;
+hole=zuffer->hole;
+ehole=zuffer->ehole;
+changed=zuffer->changed;
+}
+
+stbuf(zuffer)
+struct buffer *zuffer;
+{
+zuffer->backup=backup;
+strcpy(zuffer->gfnam,gfnam);
+zuffer->bufsiz=bufsiz;
+zuffer->buf=buffer;
+zuffer->filend=filend;
+zuffer->hole=hole;
+zuffer->ehole=ehole;
+zuffer->changed=changed;
+}
+
+ldwin(window)
+struct window *window;
+{
+saddr=window->saddr;
+xoffset=window->xoffset;
+pic=window->pic;
+autoind=window->autoind;
+overwrite=window->overwrite;
+wrap=window->wrap;
+tabmagic=window->tabmagic;
+rmargin=window->rmargin;
+extend=window->extend;
+ldbuf1(window->buffer);
+fmpoint(window->cursor);
+}
+                                   
+stwin(window)
+struct window *window;
+{ 
+window->saddr=saddr;
+window->xoffset=xoffset;
+window->pic=pic;
+window->autoind=autoind;
+window->overwrite=overwrite;
+window->wrap=wrap;
+window->tabmagic=tabmagic;
+window->rmargin=rmargin;
+window->extend=extend;
+window->cursor=fmnote();
+stbuf(window->buffer);
+}
+
+wfit()
+{
+struct window *x;
+int total;
+updall=1;
+newy=1;
+up:
+total=height-wind;
+for(x=topwin;1;x=x->next)
+ {
+ if(x->height<3) x->height=3;
+ if(curwin==x && total>=3) break;
+ if(total<3) goto in;
+ total-=x->height;
+ if(total<0)
+  {
+  in:
+  topwin=topwin->next;
+  goto up;
+  }
+ }
+for(x=topwin,total=wind;1;x=x->next)
+ {
+ x->wind=total;
+ if(x->height<3) x->height=3;
+ total+=x->height;
+ if(total>=height || x->next==topwin)
+  {
+  total-=x->height;
+  x->height=height-total;
+  return;
+  }
+ }
+}
+
+wnext()
+{
+stwin(curwin);
+curwin=curwin->next;
+ldwin(curwin);
+wfit();
+}
+
+wprev()
+{
+stwin(curwin);
+curwin=curwin->prev;
+ldwin(curwin);
+wfit();
+}
+
+wexplode()
+{
+struct window *x;
+int y;
+if(curwin->height!=height-wind)
+ { /* Make curwin only */
+ topwin=curwin;
+ x=topwin;
+ do
+  {
+  x->height=height-wind;
+  x->wind=wind;
+  x=x->next;
+  }
+  while(x!=topwin);
+ newy=1;
+ }
+else
+ { /* Show all windows */
+ x=topwin; y=0;
+ do y++, x=x->next; while(x!=topwin);
+ if((height-wind)/y<3) y=3;
+ else y=(height-wind)/y;
+ x=topwin;
+ do x->height=y, x=x->next; while(x!=topwin);
+ wfit();
+ }
+}
+
+wgrow()
+{
+if(curwin->wind+curwin->height==height)
+ {
+ if(curwin->wind!=wind) if(curwin->prev->height>3)
+  curwin->prev->height--, curwin->height++, curwin->wind--, updall=1;
+ }
+else
+ {
+ if(curwin->next->height>3)
+  curwin->height++, curwin->next->wind++, curwin->next->height--, updall=1;
+ }
+newy=1;
+}
+
+wshrink()
+{
+if(curwin->wind+curwin->height==height)
+ {
+ if(curwin->wind!=wind) if(curwin->height>3)
+ curwin->height--, curwin->prev->height++, curwin->wind++, updall=1;
+ }
+else
+ {
+ if(curwin->height>3)
+ curwin->height--, curwin->next->wind--, curwin->next->height++, updall=1;
+ }
+newy=1;
+}
+
+wsplit()
+{
+struct window *new;
+if(curwin->height<6) return;
+new=(struct window *)malloc(sizeof(struct window));
+new->buffer=curbuf;
+stwin(new);
+new->next=curwin->next;
+new->prev=curwin;
+curwin->next->prev=new;
+curwin->next=new;
+if(curwin->height&1)
+ {
+ curwin->height/=2;
+ new->height=curwin->height+1;
+ }
+else
+ {
+ curwin->height/=2;
+ new->height=curwin->height;
+ }
+if(curwin->hheight&1)
+ {
+ curwin->hheight/=2;
+ new->hheight=curwin->hheight+1;
+ }
+else
+ {
+ curwin->hheight/=2;
+ new->hheight=curwin->hheight;
+ }
+new->wind=curwin->wind+curwin->height;
+curwin=new;
+curbuf->count++;
+updall=1;
+newy=1;
+}
+
+wedit()
+{
+unsigned char gfnam1[PATHSIZE];
+unsigned char sting[PATHSIZE];
+int c;
+struct window *x;
+stwin(curwin);
+if(curbuf->count==1 && curbuf->changed)
+ {
+ c=askyn("Do you really want to throw away this file?"); 
+ if(c=='N') return;
+ if(c== -1) return;
+ }
+gfnam1[0]=0;
+if(!getl("File to edit",gfnam1)) return;
+fixpath(gfnam1);
+x=topwin;
+do
+ {
+ if(!strcmp(gfnam1,x->buffer->gfnam))
+  {
+  if(curbuf->count==1)
+   {
+   free(curbuf->buf), free(curbuf);
+   if(curbuf==markbuf) markbuf=0;
+   }                           
+  else 
+   curbuf->count--;
+  curwin->buffer=x->buffer;
+  curwin->buffer->count++;
+  ldbuf(x->buffer);
+  bof();
+  return;
+  }
+ x=x->next;
+ }
+ while(x!=topwin);
+strcpy(gfnam,gfnam1);
+stmode(gfnam);
+if(curbuf->count==1) free(curbuf->buf),
+                             free(curbuf);
+else curbuf->count--;
+curwin->buffer=(struct buffer *)malloc(sizeof(struct buffer));
+curbuf=curwin->buffer;
+curbuf->count=1;
+fmopen();
+bof();
+handle=fopen(gfnam1,"r");
+if(handle)
+ {
+ if(!fminsfil(handle))
+  {
+  sprintf(sting,"\\iError loading file %s\\i",gfnam1);
+  msg(sting);
+  }
+ changed=0;
+ newy=1;
+ fclose(handle);
+ }
+else
+ {
+ newy=1;
+ upd=1;
+ if(errno==ENOENT)
+  {
+  dupdate();
+  msgout(curwin->wind+1,"New File",0);
+  cpos(curwin->wind+1,0);
+  backup=1;
+  }
+ else
+  {
+  dupdate();
+  msgout(curwin->wind+1,"\\iError opening file\\i",0);
+  cpos(curwin->wind+1,0);
+  }
+ dokey(anext());
+ return;
+ }
+}
+
+rtn()
+{
+type(NL);
+}
+
+stquote()
+{
+quoteflg=1;
+}
+
+stquote8th()
+{
+quote8th=1;
+}
+
+CMD kkm[55]=
+{
+ {"uparw",0,uuparw},
+ {"rtarw",0,urtarw},
+ {"ltarw",0,ultarw},
+ {"dnarw",0,udnarw},
+ {"eol",0,eol},
+ {"pgdn",0,pgdn},
+ {"bol",0,bol},
+ {"pgup",0,pgup},
+ {"ctrlin",0,ctrlin},
+ {"setbeg",0,setbeg},
+ {"cpyblk",0,cpyblk},
+ {"saveit",0,saveit},
+ {"wedit",0,wedit},
+ {"findfirst",0,findfirst},
+ {"findnext",0,findnext},
+ {"wgrow",0,wgrow},
+ {"thelp",0,thelp},
+ {"wexplode",0,wexplode},
+ {"reformat",0,reformat},
+ {"setend",0,setend},
+ {"findline",0,findline},
+ {"moveblk",0,moveblk},
+ {"wnext",0,wnext},
+ {"wprev",0,wprev},
+ {"wsplit",0,wsplit},
+ {"insfil",0,insfil},
+ {"wshrink",0,wshrink},
+ {"bof",0,bof},
+ {"eof",0,eof},
+ {"writeblk",0,writeblk},
+ {"exsave",0,exsave},
+ {"delblk",0,delblk},
+ {"push",0,push},
+ {"eexit",0,eexit},
+ {"delch",0,delch},
+ {"inss",0,inss},
+ {"backs",0,backs},
+ {"type",0,type},
+ {"deleol",0,deleol},
+ {"rtn",0,rtn},
+ {"backword",0,backword},
+ {"rewrite",0,rewrite},
+ {"mode",0,mode},
+ {"killword",0,killword},
+ {"wrdr",0,wrdr},
+ {"dellin",0,dellin},
+ {"wrdl",0,wrdl},
+ {"stquote8th",0,stquote8th},
+ {"stquote",0,stquote},
+ {"gotomatching",0,gotomatching},
+ {"indentl",0,indentl},
+ {"indentr",0,indentr},
+ {"undo",0,undo},
+ {"redo",0,redo},
+ {"killlin",0,killlin}
+ };
+
+CONTEXT km={0, "main", 0, 55, kkm};
+
+/** Key sequence processing functions **/
+
+struct kmap *curmap;
+int quoteflg=0;
+int quote8th=0;
+
+int dokey(k)
+unsigned char k;
+{
+int above=curmap->len;
+int below=0;
+int new;
+struct kmap *r;
+if(quoteflg)
+ {
+ quoteflg=0;
+ if(k>='@' && k<='_') k-='@';
+ if(k>='a' && k<='z') k-='`';
+ if(k=='?') k=127;
+ type(k);
+ goto abcd;
+ }
+goto in;
+do
+ {
+ new=(above+below)/2;
+ if((curmap->keys[new].k&KEYMASK)==k)
+  if(curmap->keys[new].k&KEYSUB)
+   {
+   curmap=(KMAP *)(curmap->keys[new].n);
+   return Kaccept;
+   }
+  else
+   {
+   int h=height, w=width;
+   getsize();
+   if(h!=height || w!=width) resize();
+   r=curmap;
+   curmap=km.kmap;
+   if(km.cmd[r->keys[new].n].func!=redo &&
+      km.cmd[r->keys[new].n].func!=undo) undoptr=0;
+   km.cmd[r->keys[new].n].func(k);
+   abcd:
+   if(!leave)
+    {
+    if(!uuu) upd=1;
+    else uuu=0;
+    dupdate();
+    }
+   return 0;
+   }
+ else if((curmap->keys[new].k&KEYMASK)>k)
+  {
+  above=new;
+  in:
+  if(above==below) break;
+  }
+ else if(below==new) break;
+ else below=new;
+ } while(1);
+curmap=km.kmap;
+return Kbad;
+}
+
+edit()
+{
+newy=1;
+dupdate();
+imsg();
+dokey(anext());
+if(leave) return;
+upd=1;
+newy=1;
+do
+ dokey(anext());
+ while(!leave);
+}
+
+struct mpair
+ {
+ struct mpair *next;
+ unsigned char *s;
+ int wrap;
+ int autoind;
+ int pic;
+ int overwrite;
+ int tabmagic;
+ TXTSIZ rmargin;
+ };
+
+struct mpair *mpairs=0;
+
+stmode(name)
+unsigned char *name;
+{
+int x=strlen(name);
+struct mpair *mp=mpairs;
+while(mp)
+ if(!strcmp(mp->s,name+x-strlen(mp->s)))
+  {
+  autoind=mp->autoind;
+  wrap=mp->wrap;
+  overwrite=mp->overwrite;
+  pic=mp->pic;
+  tabmagic=mp->tabmagic;
+  break;
+  }
+ else mp=mp->next;
+}
+
+int process(name,cmds)
+unsigned char *name;
+CONTEXT *cmds;
+{
+CONTEXT *context=0;
+unsigned char buf[PATHSIZE];
+KMAP *kmap;
+FILE *fd=fopen(name,"r");
+int x,y,n,z;
+if(!fd) return -1;
+printf("Processing keymap file %s ...",name);
+fflush(stdout);
+while(fgets(buf,256,fd))
+ {
+ if(buf[0]=='{')
+  {
+  up:
+  if(!fgets(buf,256,fd)) break;
+  if(buf[0]=='}') continue;
+  if(helpsize+strlen(buf)>helpblksize)
+   {
+   if(help) help=(unsigned char *)realloc(help,helpblksize+strlen(buf)+320);
+   else help=(unsigned char *)malloc(strlen(buf)+320);
+   helpblksize+=strlen(buf)+320;
+   }
+  strcat(help,buf);
+  helpsize=strlen(help);
+  ++helplines;
+  goto up;
+  }
+ if(buf[0]=='*')
+  {
+  struct mpair *mp=(struct mpair *)calloc(sizeof(struct mpair),1);
+  int c=0;
+  mp->next=mpairs;
+  mpairs=mp;
+  for(x=0;buf[x];x++)
+   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n')
+    {
+    c=buf[x];
+    buf[x]=0;
+    break;
+    }
+  mp->s=strdupp(buf+1);
+  buf[x]=c;
+  while(buf[x])
+   if(buf[x]!=' ' && buf[x]!='\t' && buf[x]!='\n') break;
+   else x++;
+  while(buf[x] && buf[x]!=' ' && buf[x]!='\t' && buf[x]!='\n')
+   {
+   switch(buf[x])
+    {
+   case 'O':
+   case 'o': mp->overwrite=1;
+   break;
+   case 'W':
+   case 'w': mp->wrap=1;
+   break;
+   case 'a':
+   case 'A': mp->autoind=1;
+   break;
+   case 'p':
+   case 'P': mp->pic=1;
+   break;
+   case 't':
+   case 'T': mp->tabmagic=1;
+    }
+   x++;
+   }
+  continue;
+  }
+ if(buf[0]==':' && buf[1]!=' ' && buf[1]!='\t')
+  {
+  for(x=0;buf[x];x++)
+   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n')
+    {
+    buf[x]=0;
+    break;
+    }
+  context=cmds;
+  while(strcmp(buf+1,context->name))
+   {
+   context=context->next;
+   if(!context)
+    {
+    printf("Unknown context name in keyboard file\n");
+    return -1;
+    }
+   }
+  continue;
+  }
+ for(x=0;buf[x];x++) if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n') break;
+ if(buf[0]==' ' || buf[0]=='\t' || buf[0]=='\n' || !buf[x]) continue;
+ if(!context)
+  {
+  printf("No context selected for key\n");
+  return -1;
+  }
+ buf[x]=0;
+ for(y=0;y!=context->size;y++)
+   if(!strcmp(context->cmd[y].name,buf)) goto foundit;
+ printf("Key function not found %s\n",buf);
+ continue;
+ foundit:
+ kmap=0;
+ n= -1;
+ for(++x;buf[x];x++) if(buf[x]!=' ' && buf[x]!='\t') break;
+ while(1)
+  {
+  int c;
+  if(buf[x]==' ') x++;
+  if(!buf[x]) break;
+  if(buf[x]=='\n' || buf[x]==' ' || buf[x]=='\t') break;
+  /* Got Next key */
+  x++;
+  if(buf[x-1]=='^')
+   if(buf[x]==' ' || buf[x]=='\t' || buf[x]=='\n' || !buf[x]) c='^';
+   else if(buf[x]=='?') c=127, x++;
+   else c=(buf[x]&0x1f), x++;
+  else if((buf[x-1]&0x5f)=='S' && (buf[x]&0x5f)=='P') c=' ', x++;
+  else c=buf[x-1];
+  /* Add it as if it were a submap */
+  if(!kmap)
+   {
+   if(!(kmap=context->kmap))
+    {
+    kmap=(KMAP *)malloc(sizeof(KMAP));
+    kmap->keys=(KEY *)malloc(4*sizeof(KEY));
+    kmap->size=4;
+    kmap->len=0;
+    context->kmap=kmap;
+    }
+   }
+  else
+   if(kmap->keys[n].k&KEYSUB) kmap=(KMAP *)(kmap->keys[n].n);
+   else
+    {
+    kmap->keys[n].n=(unsigned)malloc(sizeof(KMAP));
+    kmap->keys[n].k|=KEYSUB;
+    kmap=(KMAP *)(kmap->keys[n].n);
+    kmap->keys=(KEY *)malloc(4*sizeof(KEY));
+    kmap->len=0;
+    kmap->size=4;
+    }
+  for(n=0;n!=kmap->len;n++)
+   if((kmap->keys[n].k&KEYMASK)==c) goto sub;
+   else if((kmap->keys[n].k&KEYMASK)>c) break;
+  if(kmap->len==kmap->size)
+   kmap->keys=(KEY *)realloc(kmap->keys,sizeof(KEY)*(kmap->size+=8));
+  for(z=kmap->len;z!=n;z--) kmap->keys[z]=kmap->keys[z-1];
+  kmap->len++;
+  kmap->keys[n].k=c;
+  kmap->keys[n].n=y;
+  sub:;
+  }
+ }
+fclose(fd);
+printf("done\n");
+return 0;
+}
+
+int main(argc,argv)
+unsigned char *argv[];
+{
+if(process(KEYMAP,&km))
+ {
+ unsigned char *hh=(unsigned char *)getenv("HOME");
+ if(!hh) goto in;
+ strcpy(gfnam,hh);
+ strcat(gfnam,"/");
+ strcat(gfnam,KEYMAP);
+ if(process(gfnam,&km))
+  {
+  in:
+  if(process(KEYDEF,&km))
+   {
+   printf("Couldn't open keymap\n");
+   return 1;
+   }
+  }
+ }
+curmap=km.kmap;
+if(argc>2)
+ {
+ fputs("\nIllegal number of command line arguments",stderr);
+ fputs("\nEditor Command Format:  joe [filename]\n",stderr);
+ return 0;
+ }
+termtype();
+curwin=(struct window *)malloc(sizeof(struct window));
+topwin=curwin;
+curwin->next=curwin;
+curwin->prev=curwin;
+markbuf=0;
+curwin->height=height;
+curwin->wind=0;
+curwin->buffer=(struct buffer *)malloc(sizeof(struct buffer));
+curbuf=curwin->buffer;
+curbuf->count=1;
+aopen();
+dopen();
+fmopen();
+bof();
+options=0;
+sstring[0]=0;
+rstring[0]=0;
+leave=0;
+
+rmargin=width-2;
+tabmagic=0;
+wrap=1;
+autoind=0;
+overwrite=0;
+pic=0;
+stmode("");
+
+gfnam[0]=0;
+
+if(argc==2)
+ {
+ strcpy(gfnam,argv[1]);
+ stmode(gfnam);
+ handle=fopen(argv[1],"r");
+ if(handle)
+  {
+  if(!fminsfil(handle))
+   omsg=(unsigned char *)"\\iError reading file\\i";
+  else
+   changed=0;
+  fclose(handle);
+  }
+ else
+  {
+  if(errno==ENOENT)
+   {
+   omsg=(unsigned char *)"New File";
+   backup=1;
+   }
+  else
+   omsg=(unsigned char *)"\\iError opening file\\i";
+  }
+ }
+else omsg=(unsigned char *)"New File";
+edit();
+aclose();
+return 0;
+}
+
+tsignal(sig)
+{
+handle=fopen(ABORT,"w+");
+fmpoint(0);
+fmsave(handle,fmsize());
+fclose(handle);
+/*
+aclose();
+printf("\rE aborted by signal %d\r\n",sig);
+printf("Last edit file stored in file called aborted.e\r\n");
+*/
+_exit(1);
+}
+SHAR_EOF
+if test 58207 -ne "`wc -c < 'joe.c'`"
+then
+	echo shar: error transmitting "'joe.c'" '(should have been 58207 characters)'
+fi
+fi # end of overwriting check
+if test -f 'joe.h'
+then
+	echo shar: will not over-write existing file "'joe.h'"
+else
+cat << \SHAR_EOF > 'joe.h'
+/* JOE header file
+   Copyright (C) 1991 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.  
+
+You should have received a copy of the GNU General Public License along with
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 675
+Mass Ave, Cambridge, MA 02139, USA.  */ 
+
+/* File characteristics */
+
+#define NL '\n'			/* End of line character */
+#define TAB '\t'		/* Tab character */
+#define TABWIDTH 8		/* Tab width */
+#define NOHIGHBIT		/* Comment this out to send characters with
+				   high bit set to terminal as is.  See
+				   the function 'showas'. */
+
+/* Types used in the file buffer */
+
+typedef unsigned char * TXTPTR;	/* Pointer to text in the buffer */
+typedef unsigned TXTSIZ;	/* Integer to hold size of file */
+#define TXTFREE(a) free(a)	/* Free a buffer */
+#define TXTMALLOC(a) malloc(a)	/* Allocate a buffer */
+#define TXTREALLOC(a,b) realloc((a),(b))	/* Reallocate a buffer */
+
+/* File names and characteristics */
+
+#define PATHSIZE 256		/* Maximum path length */
+#define KEYMAP ".joerc"		/* Keymap file */
+/* #define KEYDEF "/usr/bin/.joerc"	Default keymap file */
+#define ABORT "aborted"		/* Aborted file */
+
+/* The current file buffer */
+/* When you change windows, these variables get stored in the 'struct buffer'
+   associated with the old window and are load with the values in the
+   'struct buffer' for the new window */
+
+extern TXTSIZ bufsiz;		/* Size of malloc block buffer is in */
+extern TXTPTR point;		/* The point (cursor) */
+extern TXTPTR buffer;		/* The buffer */
+extern TXTPTR filend;		/* First char not in buffer */
+extern TXTPTR hole;		/* Address of hole */
+extern TXTPTR ehole;		/* First char not in hole */
+extern int changed;		/* Set if buffer changed */
+extern int backup;		/* Set if backup file has been made */
+extern unsigned char gfnam[PATHSIZE];
+				/* Current edit file name.  "" for unnamed */
+
+#define HOLESIZE 1024		/* Amount file buffer grows by */
+
+/*******************************************************/
+/* Basic file buffer manipulation functions and macros */
+/*******************************************************/
+
+int fminsu();		/* fminsu(size) Adjust pointers by amnt inserted */
+int fmdelu();		/* fmdelu(size) Adjust pointers by amount deleted */ 
+/* The pointers the above two functions currently update include:
+	The pointer to start of each window which references the current
+	buffer.
+
+	The pointer to cursor in each window which reference the current
+	buffer but not the one for the current window.
+
+	The begin & end pointers to the marked block if they are in the
+	current buffer.
+*/
+
+/* Return size of hole */
+
+#define fmholesize() (ehole-hole)
+
+/* Read character at the point */
+
+#define fmrc() (point==hole?*(point=ehole):*point)
+
+/* Overtype character at the point */
+
+#define fmwc(c) (((point==hole)?point=ehole:0),((point==filend)?(fmexpand(1),\
+filend++):0),*point=(c),changed=1)
+
+/* Read character at point and advance point */
+
+#define fmgetc() ((point==hole)?(point=ehole+1,*ehole):*(point++))
+
+/* Overtype character at point and advance point */
+
+#define fmputc(c) (((point==hole)?point=ehole:0),((point==filend)?(fmexpand(1),\
+filend++):0),*(point++)=(c),changed=1)
+
+/* Insert character at point */
+
+#define fminsc(c) ( fminsu(1), \
+(point!=hole?fmhole():0), (hole==ehole?fmbig(1):0),\
+*(hole++)=(c), changed=1)
+
+/* Return the byte offset from the beginning of the buffer to the point */
+
+#define fmnote() ((point>=ehole)?(point-buffer)-(ehole-hole):point-buffer)
+
+/* Return the size of the file in the buffer */
+
+#define fmsize() ((filend-buffer)-(ehole-hole))
+
+/* Return true if the point is at the end of the file */
+
+#define fmeof() ((point==hole)?(ehole==filend):(point==filend))
+
+/* Position the point to a byte offset from the beginning of the file */
+
+#define fmpoint(x) (point=buffer+(x), (point>hole)?(point+=ehole-hole):0)
+
+/* Retreat the point and then read the character that's there */
+
+#define fmrgetc() (point==ehole?*(point=hole-1):*(--point))
+
+/* Position the point to the next NL or the end of the file.  If the point
+   is already at a NL, it is set to the next NL. Return 0 if not found, 1
+   if found */
+
+#define fmnnl() (fmeof()?0:(fmgetc(),fmfnl()))
+
+/* Set the point to the beginning of the file or the previous NL.  If the
+   point is already at a NL, it is set to the one before it.  Return 0 if
+   not found, 0 if found */
+
+#define fmnrnl() (fmnote()?(fmrgetc(),fmrnl()):0)
+
+int fmopen();			/* fmopen() Initialize current edit buffer */
+int fmexpand();			/* fmexpand(amount) Make buffer bigger */
+int fmhole();			/* fmhole() Move hole to point */
+int fmbig();			/* fmbig(size) Make hole at least size */
+int fmfnl();			/* Find first NL.  Returns 0 if not found */
+				/* If at an NL already, point is not moved */
+int fmrnl();			/* Find NL in reverse.  Rtns 0 if not found */
+				/* If at an NL already, point is not moved */
+int fminss();			/* fminss(blk,size) Insert a block at point */
+int fmcmp();			/* fmcmp(blk,size) return 0 if matching */
+int tupp();			/* tupp(c) Convert char to uppercase */
+int fmicmp();			/* Same as fmcmp but ignore case */
+int fmsave();			/* fmsave(FILE,size) Save at point in file */
+int fminsfil();			/* fminsfil(FILE) Insert file at point */
+
+/******************/
+/* Terminal stuff */
+/******************/
+
+/* Terminal characteristics (terminal must be vt100ish) */
+
+extern int width;		/* Screen width */
+extern int height;		/* Screen height */
+extern int scroll;		/* Set if terminal has scrolling regions */
+
+/* Terminal state */
+
+extern int smode;		/* Current character attributes */
+extern int tops;		/* Scroll region top (-1 for unknown) */
+extern int bots;		/* Scroll region bottem */
+extern int oxpos;		/* Cursor position */
+extern int oypos;
+extern int *scrn;		/* Screen buffer
+					-1 means unknown character
+					0 - 255 means known character
+				*/
+
+extern unsigned char *omsg;	/* Opening message */
+int dopen();                        /* Open display (clear it, allocate scrn,
+				   etc.) */
+int dclose();                       /* dclose(s) Show final message and close
+				   display */
+
+int cposs();			/* cpos(row,col) Set cursor position */
+int cpos();				/* cpos(row,col) Set cursor position and
+				   update ox/oypos */
+int setregn();			/* setregn(top,bot) Set scroll region */
+
+int attrib();			/* attrib(mask) Set attributes */
+#define INVERSE 256
+#define BLINK 512
+#define UNDERLINE 1024
+#define BOLD 2048
+
+/*****************/
+/* Screen update */
+/*****************/
+
+/* Flags which high-level edit functions set to control the screen
+   update.  All three are initialized to 0 before an edit function
+   is executed */
+
+extern int uuu;			/* Set is no screen update needed */
+extern int cntr;		/* Set to center cursor to middle of
+				   screen if the screen will scroll
+				   (for search/replace) */
+extern int newy;		/* Set if row changed */
+extern int updall;		/* Set to update all windows, not just
+				   the ones with same buffer */
+
+/* Flags which indicate the current progress of a screen update (I.E., so
+   we can continue if user interrupts screen update) */
+
+extern int upd;			/* Set if a screen update should be done */
+extern int hupd;		/* Set if a help update should be done */
+
+extern int helpon;		/* Set if help screen is on */
+extern int wind;		/* Number of help lines */
+
+extern int xpos;		/* Requested x & y positions (as determined */
+extern int ypos;		/* by scroll calculator: dupdate1 */
+
+extern TXTSIZ saddr;		/* Byte offset to first char of first screen
+				   line (of current window) */
+extern TXTSIZ xoffset;		/* Cols current window is scrolled to right */
+extern TXTSIZ extend;		/* Column number if past end of line or in
+				   tab stop */
+
+/* Functions for doing screen update */
+
+int clreolchk();		/* clreolchk(lin,col) Clear to end of line if needed */
+int udline();		/* udline(lin) Update a single line.  Return true
+			   EOF reached */
+int udscrn();		/* Update screen (returns true if it finished) */
+int dupdate1();		/* dupdate1(flg) Recalculate cursor, scroll & update
+			   screen (sets cursor position if flg is set) */
+int dupdatehelp();		/* Update help */
+int dupdate();		/* Update help and screen */
+int invalidate();		/* invalidate(lin) Invalidate a line so it gets upd. */
+
+/****************/
+/* Window Stuff */
+/****************/
+
+/* Each file that's edited has a 'struct buffer' associated with it.
+   This stores the buffer variables when the buffer is not the current
+   buffer (I.E., when the cursor is in a window for another file).
+*/
+
+struct buffer
+ {
+ int count;		/* Reference count (No. windows into this buffer) */
+ TXTSIZ bufsiz;		/* Size of malloc block buffer is in */
+ TXTPTR buf;		/* The buffer */
+ TXTPTR filend;		/* First char not in buffer */
+ TXTPTR hole;		/* Address of hole */
+ TXTPTR ehole;		/* First char not in hole */
+ int changed;		/* Set if buffer changed */
+ int backup;		/* Set if backup file has been made */
+ unsigned char gfnam[PATHSIZE];	/* Current edit file name.  "" for unnamed */
+ };
+
+/* Each window has a 'struct window' associated with it */
+
+struct window
+ {
+ struct window *next;	/* Doubly linked list of windows */
+ struct window *prev;
+
+ struct buffer *buffer;	/* The buffer this window looks at */
+
+ /* Screen variables for each window */
+
+ TXTSIZ saddr;		/* Byte offset to first character of first line in
+ 			   window */
+ TXTSIZ xoffset;	/* No. columns the screen is scrolled to the right */
+
+ /* Window size */
+
+ int wind;         /* Starting screen line */
+			/* wind is not the same as 'wind' the number of
+			   help lines */
+ int height;       /* Height of window */
+ int hheight;      /* Height before help turned on */
+
+ /* Edit modes */
+
+ int pic;
+ int autoind;
+ int overwrite;
+ int wrap;
+ int tabmagic;
+ TXTSIZ rmargin;
+
+ /* Cursor position */
+
+ TXTSIZ extend;		/* Column number if cursor is past end of line or
+ 			   if it's in a tab stop */
+ TXTSIZ cursor;		/* Byte offset (in buffer) to the cursor */
+
+ };
+
+extern struct window *wfirst;	/* Doubly linked list of windows */
+extern struct window *wlast;
+
+extern struct window *curwin;	/* Current window */
+extern struct buffer *curbuf;	/* Current buffer */
+extern struct window *topwin;	/* First window on the screen */
+
+/* Keyboard and command table handler */
+
+typedef struct key KEY;
+struct key
+ {
+ int k;                 /* Key value */
+ int n;                 /* Command number or submap address */
+			/* sizeof(int) had better = sizeof(KMAP *) */
+ };
+
+typedef struct kmap KMAP;
+struct kmap
+ {
+ int len;          /* Number of KEY entries */
+ int size;         /* Size of malloc block */
+ KEY *keys;             /* KEYs.  Sorted. */
+ };
+
+/* Masks & bits for k */
+
+#define KEYMASK 0x7fff
+#define KEYSUB 0x8000	/* Set for submap */
+
+/* A command entry */
+
+typedef struct cmd CMD;
+struct cmd
+ {
+ char *name;
+ int flag;
+ int (*func)();
+ };
+
+/* A context (group of related commands) */
+
+typedef struct context CONTEXT;
+struct context
+ {
+ CONTEXT *next;		/* List of all contexts */
+ char *name;			/* Name of this context */
+ KMAP *kmap;		/* Top level keymap for this context */
+ int size;		/* Number of entries in this context */
+ CMD *cmd;		/* The entries themselves (sorted) */
+ };
+
+int dokey();		/* dokey(c) Execute next key */
+extern int quoteflg;	/* Set if next key is quoted */
+extern int quote8th;	/* Set if next key is quoted */
+
+/* dokey() Return values */
+
+#define Kaccept -1	/* Key accepted but not executed */
+#define Kbad -2		/* Bad key */
+/* dokey() used to return a function number; now it executes the function
+   itself so the return values are meaningless */
+
+/* Messages and queries */
+
+/* These are all hacks because they return/check for exact key values
+   and don't know about the key table.  Someday a key 'context' should
+   be added for these
+*/
+
+int getl();		/* getl(prompt,line) Get a line of input */
+			/* Returns: -1 if user hits ^L
+				     1 if user hits \n or \r
+				     0 if user hits ^C
+			    (yes this is a stupid hack)
+			*/
+
+int msg();			/* msg(s) Show a message until user hits a key */
+
+int askyn();		/* askyn(s) Yes/No question 
+			Returns: 'Y', 'N' or -1 for ^C */
+
+int query();		/* query(s) Show message, wait for user to hit a key,
+			   then return key. */
+
+int nquery();		/* nquery(s) Same as query but leave cursor on
+			   edit screen */
+int imsg();                 /* imsg() Show opening message */
+
+/*******************************************/
+/* High-level edit functions and variables */
+/*******************************************/
+
+/* Edit modes */
+
+extern int pic;			/* Set for picture mode */
+extern int autoind;		/* Set for autoindent */
+extern int overwrite;		/* Set for overwrite */
+extern int wrap;		/* Set for autowrap */
+extern int tabmagic;		/* Set for magical tabs */
+extern TXTSIZ rmargin;		/* Current right margin */
+
+/****************************/
+/* Search and replace stuff */
+/****************************/
+
+/* Search & replace options */
+
+#define s_ignore 1		/* Ignore case */
+#define s_backwards 2		/* Search backwards */
+#define s_replace 4		/* Replace */
+#define s_regex 8		/* Regular expression search */
+
+extern int options;		/* Search options */
+extern unsigned char sstring[PATHSIZE];	/* Search string */
+extern unsigned char rstring[PATHSIZE];	/* Replace string */
+extern int len;			/* Length of search string */
+
+/**********/
+/* Blocks */
+/**********/
+
+extern TXTSIZ markb;		/* Begining of block */
+extern TXTSIZ marke;		/* End of block */
+extern struct buffer *markbuf;	/* Buffer block is in or 0 for no block */
+
+/**************************************/
+/* High level edit function utilities */
+/**************************************/
+
+extern int leave;		/* Edit function sets this to leave the editor
+				   after the function returns */
+
+int dnarw();			/* Move cursor to next line */
+				/* Column number is preserved */
+TXTSIZ calcs();			/* Calculate number of whitespace columns
+				   at beginning of line.  Cursor is left
+				   at first non-whitespace character */
+int saveit1();			/* saveit1(s) Save buffer in file & clear
+				   changed */
+int itype();
+int ltarw();			/* Move cursor left (goes to end of previous
+				   line if at beginning of line) */
+int uparw();			/* Move cursor up (preserves column) */
+int rtarw();                        /* Move cursor right (goes to beginning of
+				   next line if at end of line) */
+
+/* Return current column number of cursor */
+
+#define getcol() (extend?extend:getrcol())
+
+TXTSIZ getrcol();		/* Get column number of point */
+int gocol();			/* gocol(col) Set cursor (point/extend) to
+				   column number */
+int unfill();			/* Remove trailing spaces from line */
+int fillup();                       /* Fill to extend position (use this only
+				   if extend if past end of line, not for
+				   if extend is in tab stop) */
+
+int search();			/* Execute a search.  Returns 1 if found,
+				   0 if not */
+
+/* Window functions */
+
+int ldwin();			/* ldwin(window) load window */
+int stwin();			/* stwin(window) save window */
+int ldbuf();			/* ldbuf(buf) load buf if it's not already */
+int ldbuf1();			/* ldbuf1(buf) load buf always */
+int stbuf();			/* stbuf(buf) store buffer */
+int wfit();			/* make sure the current window is on screen */
+
+/* High Level (user) edit functions */
+
+int wnext();			/* goto next window */
+int wprev();			/* goto previous window */
+int wexplode();			/* show 1 or all windows */
+int wgrow();			/* make window bigger */
+int wshrink();			/* make window smaller */
+int wedit();			/* edit a new file */
+int wsplit();			/* Split window into 2 */
+
+int rewrite();			/* Rewrite screen */
+int thelp();			/* Toggle help screen */
+int bof();			/* Goto beginning of file */
+int eof();			/* Goto end of file */
+int bol();			/* Goto beginning of line */
+int eol();				/* Goto end of line */
+int urtarw();			/* Move cursor right (scroll if need to) */
+int ultarw();
+int uuparw();
+int udnarw();
+int delch();			/* Delete character */
+int type();				/* type(c) type a character */
+int inss();				/* insert a space */
+int backs();			/* backspace */
+int eexit();			/* Exit & abort */
+int pgup();				/* 1/2 Page up */
+int pgdn();				/* 1/2 Page down */
+int deleol();			/* Erase end of line */
+int dellin();			/* Erase entire line */
+int exsave();			/* Save and exit */
+int saveit();			/* Save current file */
+int findline();			/* Goto line No. */
+int findfirst();			/* Find some text */
+int findnext();			/* Find next occurance */
+int setbeg();			/* Set beginning of block */
+int setend();			/* Set end of block */
+int writeblk();			/* Write block to file */
+int moveblk();			/* Move block to point */
+int cpyblk();			/* Copy block to point */
+int delblk();			/* Delete block */
+int insfil();			/* Insert a file */
+int push();				/* Execute a shell */
+int mode();				/* Change edit mode */
+int ctrlin();			/* Center current line */
+int reformat();			/* Reformat current paragraph */
+int killword();			/* Delete word */
+int backword();			/* Delete word to the left */
+int wrdl();				/* goto previous word */
+int wrdr();				/* goto next word */
+int edit();				/* Main edit loop */
+
+extern FILE *handle;		/* File handle used for many various things */
+extern TXTSIZ added;		/* Number of chars autoindent added
+				(obsolete?) */
+
+/* Portable strdup() */
+
+#define strdupp(x) ((unsigned char *)strcpy((unsigned char *)malloc(strlen(x)+1),(x)))
+SHAR_EOF
+if test 17677 -ne "`wc -c < 'joe.h'`"
+then
+	echo shar: error transmitting "'joe.h'" '(should have been 17677 characters)'
+fi
+fi # end of overwriting check
+if test -f '.joerc'
+then
+	echo shar: will not over-write existing file "'.joerc'"
+else
+cat << \SHAR_EOF > '.joerc'
+                          Initializtaion file for JOE
+
+ JOE looks for this file in:
+        1 - Current directory
+        2 - User's home directory
+        3 - /usr/bin  (or whatever KEYDEF was set to in the Makefile)
+ 
+ Comments:
+   Any line beginning with whitespace is a comment line.  At least 2
+   characters of whitespace past the end of a line also begin a comment.
+
+ FIRST SECTION:  File name dependant mode settings
+
+ Each line with '*' in the first column indicates the modes which should be
+ set for a particular extension (or ending actually).  If there are more than
+ one of these lines which match a particular file name, then the last line
+ which matches the name is the one which is chosen.
+
+ Here is a list of characters.  Each sets a particular mode.  If the character
+ is missing, then the mode shown in the parenthasis is set.
+
+		a	autoindent (no auto indent)
+		o	overwrite  (insert)
+		p	picture mode (no picture mode)
+		w	word wrap (no word wrap)
+		t	tab magic (no tab magic)
+
+ Here are the file name dependant mode setting lines:
+
+*		wt		Default for unknown extensions.  This line
+				must appear first.
+*.c		at		C programs
+*.h		at		C header files
+*.p		at		Pascal programs
+*.f		at		Fortran programs
+*.joerc		at		This file
+
+ SECOND SECTION:  Lines between the { and the } are the on-line help text.  Use
+ \u to turn underline on or off.  Use \i to turn inverse on or off.  Use \\
+ to display \
+
+{
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i\uGO\u \uTO\u              \uDELETE\u    \uMISC\u      \uBLOCK\u    \uFIND\u     \uQUOTE\u    \uWINDOW\u     \i \i
+\i \i^B left  ^F right ^D single ^T  mode   ^KB mark ^KF text `  Ctrl  ^KO split  \i \i
+\i \i^Z word  ^X word  ^W >word  ^R  retype ^KK end  ^L  next ^\\ bit-7 ^KI 1 / all\i \i
+\i \i^A edge  ^E edge  ^O word<  ^KA center ^KC copy ^KL line \uFILE\u     ^KP up     \i \i
+\i \i^P up    ^N down  ^J >line  ^KJ format ^KM move \uEXIT\u     ^KD save ^KN down   \i \i
+\i \i^U page  ^V page  ^Y line   ^KZ shell  ^KW save ^KX save ^KR read ^KG grow   \i \i
+\i \i^KU top ^KV end   ^K- undo  ^K, indnt< ^KY kill ^C abort/         ^KT shrink \i \i
+\i \i^G matching ([<{` ^K+ redo  ^K. indnt>             close window  ^KE get file\i \i
+}
+
+ THIRD SECTION:  Key sequence to command bindings.  Use ^@ to ^_ and ^? to
+ specify control characters.
+
+:main
+
+backs		^H			Backspace
+backs		^?
+backword	^O			Backspace word
+bof		^K U			Move cursor to beginning of file
+bof		^K ^U
+bof		^K u
+bol		^A			Move cursor to beginning of line
+bol		^[ [ H
+bol		^K ^[ [ H
+bol		^[ O P
+bol		^K ^[ O P
+cpyblk		^K C			Copy previously marked block
+cpyblk		^K ^C
+cpyblk		^K c
+ctrlin		^K A			Center line
+ctrlin		^K ^A
+ctrlin		^K a
+delblk		^K Y			Delete previously marked block
+delblk		^K ^Y
+delblk		^K y
+delch		^D			Delete character
+deleol		^J			Delete to end of line
+dellin		^Y			Delete entire line
+dnarw		^N			Move cursor down
+dnarw		^[ [ B
+dnarw		^[ O B
+dnarw		^K ^[ [ B
+dnarw		^K ^[ O B
+eexit		^C			Exit (window/file)
+eexit		^K Q
+eexit		^K q
+eof		^K V			Move cursor to end of file
+eof		^K ^V
+eof		^K v
+eol		^E			Move cursor to end of line
+eol		^[ [ F
+eol		^K ^[ [ F
+eol		^[ O S
+eol		^K ^[ O S
+exsave		^K X			Save & exit
+exsave		^K ^X
+exsave		^K x
+findfirst	^K F			Find text
+findfirst	^K ^F
+findfirst	^K f
+findnext	^L			Find next
+findline	^K L			Goto line number
+findline	^K ^L
+findline	^K l
+gotomatching	^G
+indentl		^K ,			Indent left
+indentr		^K .			Indent right
+insfil		^K R			Insert a file
+insfil		^K ^R
+insfil		^K r
+ inss		^G			Insert a space
+inss		^[ [ L
+inss		^K ^[ [ L
+killlin		^K |			Emacs-style kill line
+killword	^W			Delete word under cursor
+ltarw		^B			Move cursor left
+ltarw		^[ [ D
+ltarw		^K ^[ [ D
+ltarw		^[ O D
+ltarw		^K ^[ O D
+mode		^T			Change mode
+moveblk		^K M			Move previously marked block
+moveblk		^K ^M
+moveblk		^K m
+pgdn		^V			Move cursor 1/2 page down
+pgdn		^[ [ G
+pgdn		^K ^[ [ G
+pgdn		^[ [ 6 ~
+pgdn		^K ^[ [ 6 ~
+pgup		^U			Move cursor 1/2 page up
+pgup		^[ [ I
+pgup		^K ^[ [ I
+pgup		^[ [ 5 ~
+pgup		^K ^[ [ 5 ~
+push		^K Z			Push to a shell
+push		^K ^Z
+push		^K z
+redo		^K +			Redo
+reformat	^K J			Reformat paragraph
+reformat	^K ^J
+reformat	^K j
+rewrite		^R			Retype screen
+rtarw		^F			Move cursor right
+rtarw		^[ [ C
+rtarw		^K ^[ [ C
+rtarw		^[ O C
+rtarw		^K ^[ O C
+rtn		^M			The return key
+saveit		^K D			Save file
+saveit		^K ^D
+saveit		^K d
+saveit		^K S
+saveit		^K s
+setbeg		^K B			Set beginning of block
+setbeg		^K ^B
+setbeg		^K b
+setend		^K K			Set end of block
+setend		^K ^K
+setend		^K k
+stquote		`			Next character is a control character
+stquote8th	^\			Next character has 7th bit set
+thelp		^K H			Toggle help text on/off
+thelp		^K ^H
+thelp		^K h
+thelp		^[ [ 2 8 ~
+thelp		^K ^[ [ 2 8 ~
+undo		^K -			Undelete
+uparw		^P			Move cursor up
+uparw		^[ [ A
+uparw		^K ^[ [ A
+uparw		^[ O A
+uparw		^K ^[ O A
+wedit		^K E			Edit another file
+wedit		^K ^E
+wedit		^K e
+wexplode	^K I			Show 1 or all windows
+wexplode	^K ^I
+wexplode	^K i
+wgrow		^K G			Grow window
+wgrow		^K ^G
+wgrow		^K g
+wnext		^K N			Goto next window
+wnext		^K ^N
+wnext		^K n
+wprev		^K P			Goto previous window
+wprev		^K ^P
+wprev		^K p
+wrdl		^Z			Move to previous word
+wrdl		^[ O Q
+wrdl		^K ^[ O Q
+wrdr		^X			Move to next word
+wrdr		^[ O R
+wrdr		^K ^[ O R
+writeblk	^K W			Write previously marked block to a file
+writeblk	^K ^W
+writeblk	^K w
+wshrink		^K T			Shrink window
+wshrink		^K ^T
+wshrink		^K t
+wsplit		^K O			Split window
+wsplit		^K ^O
+wsplit		^K o
+
+type		^I			Tab
+
+type		sp			Typable characters
+type		!
+type		"
+type		#       
+type		$
+type		%
+type		&
+type		'
+type		(
+type		)
+type		*
+type		+
+type		,
+type		-
+type		.
+type		/
+type		0
+type		1
+type		2
+type		3
+type		4
+type		5
+type		6
+type		7
+type		8
+type		9
+type		:
+type		;
+type		<
+type		=
+type		>
+type		?
+type		@
+type		A
+type		B
+type		C
+type		D
+type		E
+type		F
+type		G
+type		H
+type		I
+type		J
+type		K
+type		L
+type		M
+type		N
+type		O
+type		P
+type		Q
+type		R
+type		S
+type		T
+type		U
+type		V
+type		W
+type		X
+type		Y
+type		Z
+type		[
+type		\
+type		]
+type		^
+type		_
+type		a
+type		b
+type		c
+type		d
+type		e
+type		f
+type		g
+type		h
+type		i
+type		j
+type		k
+type		l
+type		m
+type		n
+type		o
+type		p
+type		q
+type		r
+type		s
+type		t
+type		u
+type		v
+type		w
+type		x
+type		y
+type		z
+type		{
+type		|
+type		}
+type		~
+SHAR_EOF
+if test 6221 -ne "`wc -c < '.joerc'`"
+then
+	echo shar: error transmitting "'.joerc'" '(should have been 6221 characters)'
+fi
+fi # end of overwriting check
+#	End of shell archive
+exit 0
+-- 
+/*  rcarter@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}

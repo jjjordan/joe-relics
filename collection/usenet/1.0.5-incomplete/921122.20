@@ -1,0 +1,1537 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 06 of 17
+Message-ID: <1992Nov19.052301.25729@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:23:01 GMT
+Lines: 1527
+
+
+
+#!/bin/sh
+# this is part.06 (part 6 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/gotocb.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 6; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/gotocb.c'
+else
+echo 'x - continuing file xmfm/gotocb.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/gotocb.c' &&
+X
+/* ARGSUSED */
+void GotoOpenDirCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;
+X
+#endif
+{
+X	char *goto_dir;
+X	dir_pane_info *dpi;
+X
+X	GotoCurrentDir (w);
+X
+X	PromptDialog (w, "Open what directory?", True, &goto_dir);
+X	if (goto_dir == NULL)
+X		return;
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	builtin_opendir (goto_dir, dpi);
+X	XtFree (goto_dir);
+}
+SHAR_EOF
+echo 'File xmfm/gotocb.c is complete' &&
+chmod 0644 xmfm/gotocb.c ||
+echo 'restore of xmfm/gotocb.c failed'
+Wc_c="`wc -c < 'xmfm/gotocb.c'`"
+test 6666 -eq "$Wc_c" ||
+	echo 'xmfm/gotocb.c: original size 6666, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/help.c ==============
+if test -f 'xmfm/help.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/help.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/help.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/help.c' &&
+/*************************************************************************
+X * File: help.c
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:45 $
+X * Version: $Revision: 1.7 $
+X * Purpose: Handle the help buttons in the application menu
+X *
+X * Revision history:
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *      3 Nov 92        lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <string.h> 
+#include <X11/Intrinsic.h> 
+#include <Xm/Xm.h> 
+#include <Xm/MessageB.h> 
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void HelpCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+static Widget CreateHelp(
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *message
+#endif
+);  
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+X 
+X
+/*-------------------------------------------------------
+**	Help menu callbacks
+*/
+X
+X
+/*************************************************************************
+X * Function: HelpCB ()
+X * Purpose: bring up a help dialog
+X * In parameters: w, help_msg, call_data
+X * Out parameters:
+X * Precondition: button in a help menu has been pressed
+X * Postcondition: help dialog with close button showing
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void HelpCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer	client_data;	/*  data from applicaiton   */ 
+XXtPointer	call_data;	/*  data from widget class  */ 
+X
+#endif
+{
+X	Widget	message_box;		/*  MessageBox		*/ 
+X	char *	help_msg = (char *) client_data; /*  data from applicaiton   */ 
+X
+X 
+X	/*	Create help window. 
+X	*/ 
+X	message_box = CreateHelp (w, help_msg); 
+X 
+X	/*	Display help window. 
+X	*/ 
+X	XtManageChild (message_box); 
+}
+X 
+/*************************************************************************
+X * Function: CloseCB()
+X * Purpose: destroy a dialog
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Close button pressed in dialog
+X * Postcondition: dialog destroyed
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void
+CloseCB  
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  font pointer	*/ 
+X	XtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{ 
+X	Widget		shell	= XtParent (w); 
+X 
+X	/*	Unmanage and destroy widgets. 
+X	*/ 
+X	XtUnmanageChild (w); 
+X	XtDestroyWidget (shell); 
+} 
+X 
+X
+/*------------------------------------------------------------- 
+**		CreateHelp		- create help window 
+*/ 
+/*************************************************************************
+X * Function: CreateHelp ()
+X * Purpose: create an unmanaged help dialog
+X * In parameters: parent, message
+X * Out parameters:
+X * Precondition: parent is non-null widget, message is non-null help string
+X * Postcondition: popup dialog showing help string exists 
+X *                in unmanaged state
+X ************************************************************************/ 
+X
+static Widget
+CreateHelp 
+#ifdef UseFunctionPrototypes
+X	(Widget parent, char *message)
+#else
+X	(parent, message)  
+X	Widget	parent;		/*  parent widget	*/ 
+X	char *	message;	/* help message */
+X
+#endif
+{ 
+X	Widget		button; 
+X	Widget		message_box;	/*  Message Dialog 	*/ 
+X	Arg		args[MAX_ARGS];	/*  arg list		*/ 
+X	register int	n;		/*  arg count		*/ 
+X 
+X	XmString	title_string; 
+X	XmString	message_string; 
+X	XmString	button_string; 
+X 
+X	/*	Set up strings
+X	*/
+X	message_string = XmStringCreateLtoR (message, XmSTRING_DEFAULT_CHARSET); 
+X	button_string = XmStringCreateLtoR ("Close", XmSTRING_DEFAULT_CHARSET); 
+X	title_string = XmStringCreateLtoR ("xmfm help", XmSTRING_DEFAULT_CHARSET); 
+X 
+X
+X	/*	Create MessageBox dialog. 
+X	*/ 
+X	n = 0; 
+X	XtSetArg (args[n], XmNdialogTitle, title_string);  n++; 
+X	XtSetArg (args[n], XmNokLabelString, button_string);  n++; 
+X	XtSetArg (args[n], XmNmessageString, message_string);  n++; 
+X	message_box = XmCreateMessageDialog (parent, "helpbox", args, n); 
+X
+X	XtAddCallback(message_box, XmNokCallback, CloseCB, NULL);
+X
+X 	/* lose unwanted buttons 
+X	*/
+X	button = XmMessageBoxGetChild (message_box, 
+X			XmDIALOG_CANCEL_BUTTON); 
+X	XtUnmanageChild (button); 
+X	button = XmMessageBoxGetChild (message_box, 
+X			XmDIALOG_HELP_BUTTON); 
+X	XtUnmanageChild (button); 
+X 
+X	/*	Free strings and return MessageBox. 
+X	*/ 
+X	if (title_string) XtFree (title_string); 
+X	if (message_string) XtFree (message_string); 
+X	if (button_string) XtFree (button_string); 
+X	return (message_box); 
+}
+X
+SHAR_EOF
+chmod 0644 xmfm/help.c ||
+echo 'restore of xmfm/help.c failed'
+Wc_c="`wc -c < 'xmfm/help.c'`"
+test 6013 -eq "$Wc_c" ||
+	echo 'xmfm/help.c: original size 6013, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/help_mes.c ==============
+if test -f 'xmfm/help_mes.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/help_mes.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/help_mes.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/help_mes.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/help_mes.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:46 $
+X * Version: $Revision: 1.7 $
+X * Purpose: file of help messages
+X *
+X * Revision history:
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+extern char help_applic_text[]; 
+extern char help_menu_text[];
+extern char help_mouse_text[];  
+extern char help_keyboard_text[];
+extern char help_about_text[];
+extern char help_filter_text[];
+extern char help_bugs_text[];
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+/*	This is the text for the application help button in the main menu
+*/
+char help_applic_text[] = 
+"xmfm is a file manager, that displays files in a directory.\n\
+The screen is divided into buttons on the left signalling\n\
+actions that you can perform on files, and three panes on\n\
+the right containing executable files, ordinary files and\n\
+directories resepectively. By selecting a file, you can choose\n\
+an action on it from the buttons on the left. Double clicking\n\
+on a file performs the default (first) action.\n\
+";
+X
+/*	This is the text for the menu help button in the main menu
+*/
+char help_menu_text[] = 
+"The menu buttons are \n\
+File \n\
+X - New file: create a new file in the directory\n\
+X - New directory: create a new directory\n\
+X - Close: close the current directory pane\n\
+X - Exit: terminate xmfm\n\
+\n\
+Goto\n\
+X - Chdir Home: change to home directory\n\
+X - Chdir directory...: change to a new directry\n\
+X - Open Home: open a new pane in the home directory\n\
+X - Open directory...: open a new pane in a new directory\n\
+";
+X            
+X
+/*	This is the text for the mouse help button in the main menu
+*/
+char help_mouse_text[] =  
+"Select a file by clickin on it.\n\
+Select an action by clicking on it.\n\
+Double click on a file to get the\n\
+default action (the first one).\n\
+Resize the panes by dragging the sash\n\
+to the right at the top of each pane.\n\
+";
+X
+/*      This is the text for the filter help button in the main menu
+*/
+char help_filter_text[] =
+"Filters control which files and directories are displayed.\n\
+They use shell pattern matches. Common filters are\n\
+X   *      matches any string (including the empty string)\n\
+X   ?      matches any single character\n\
+X   [...]  matches any one of the characters ...\n\
+X   [^...] matches anything except one of the characters ...\n\
+Examples:\n\
+X   *      all files are matched\n\
+X   *.c    all files ending in .c are matched\n\
+X   *.[ch] all files ending in .c or in .h are matched\n\
+X   [^.]*  all files except those beginning with . are matched\n\
+";
+X  
+/*	This is the text for the keyboard help button in the main menu
+*/
+char help_keyboard_text[] =
+"The Meta key is the `diamond' key either\n\
+side of the space bar. Press this in conjunction\n\
+with ordinary keys to get hot-key menu actions.\n\
+For example, Meta+H move to you Home directory.\n\
+\n\
+Press F1 to get context sensitive help\n\
+on any part of xmfm (not implemented)\n\
+";
+X
+char help_about_text[] = "\
+X  xmfm (X/Motif file manager)\n\
+X         Version 1.6\n\
+X Copyright 1992 J.D. Newmarch\n\
+email: jan@ise.canberra.edu.au";
+X
+char help_bugs_text[] = "\
+If you find any new bugs in xmfm, please use email\n\
+to send them to\n\
+X        jan@pandonia\n\
+or\n\
+X        jan@ise.canberra.edu.au\n\
+\n\
+Currently known bugs/problems include:\n\
+X - drag and drop does not work.\n\
+X - when xmfm is resized horizontally, the number of\n\
+X   columns of files shown does not change to use\n\
+X   the new width.\n\
+X - when run across a network, a \"Run xterm\" does\n\
+X   not pick up the server you are using unless \n\
+X   the DISPLAY variable is set.\n\
+X - context sensitive help does not work.\n\
+X - $n patterns are not dealt with in Run commands\n\
+X - The shell used in Run is the Bourne shell only\n\
+";
+SHAR_EOF
+chmod 0644 xmfm/help_mes.c ||
+echo 'restore of xmfm/help_mes.c failed'
+Wc_c="`wc -c < 'xmfm/help_mes.c'`"
+test 5243 -eq "$Wc_c" ||
+	echo 'xmfm/help_mes.c: original size 5243, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/info.c ==============
+if test -f 'xmfm/info.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/info.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/info.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/info.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/info.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:47 $
+X * Version: $Revision: 1.2 $
+X * Purpose:
+X *
+X * Revision history:
+X *      22 Aug 92      made info dialog a per pane object, accessible via dpi
+X *	8  Sep 92      fixed bug that used run dialog instead of info dialog
+X *       3 Nov 92      lint-ed
+X *	11 Nov 92      follow symbolic links to actual info, ignore link file
+X *	12 Nov 92      file permissions can now be edited
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <pwd.h>
+#include <string.h>
+#include <Xm/SelectioB.h>
+#include <Xm/Label.h>
+#include <Xm/ToggleB.h>
+#include <Xm/RowColumn.h>
+#include <Xm/Form.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+#include "types.h"
+#include "xmvararg.h"
+#include "DirMgr.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+void builtin_info (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void WarningDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, int *answer
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+#define EXECUTABLE(m)	((m) & (S_IXUSR | S_IXGRP | S_IXOTH))
+static Widget	dialog = NULL;
+X
+/* its a bit gross having these all as static, but we have to keep them
+X   around somewhere if we are going to reuse the dialog instead of 
+X   recreating it each time
+*/
+static	Widget	form,
+X                filename_label,
+X		filename,
+X                separator,
+X		size_label,
+X		size,
+X		owner_label,
+X		owner,
+X		description_label,
+X		description,
+X		perms_label,
+X		perms_rowcol,
+X		empty_label,
+X		read_label,
+X		write_label,
+X                exec_label,
+X		user_label,
+X		group_label,
+X		other_label,
+X		ur_toggle,
+X		uw_toggle,
+X		ux_toggle,
+X		gr_toggle,
+X		gw_toggle,
+X		gx_toggle,
+X		or_toggle,
+X		ow_toggle,
+X		ox_toggle;
+X
+static Bool mode_changed;	/* has the user changed file mode? */
+X
+/*************************************************************************
+X * Function	   : OkCB ()
+X * Purpose         : change file mode if needed when ok button pressed
+X * In parameters   : w, client_data, call_data
+X * Out parameters  :
+X * Side effects    : 
+X * Function returns:
+X * Precondition    : 
+X * Postcondition   :
+X ************************************************************************/ 
+static void
+OkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{
+X	dir_pane_info *dpi;
+X	DirEntry *de;
+X	Boolean button_set;
+X	Arg args[1];
+X	char *file_selected;
+X	mode_t new_mode, old_mode;
+X
+#ifdef DEBUG
+X	fprintf ("mode_changed: %d\n", mode_changed);
+#endif
+X	if ( !mode_changed)
+X		return;
+X		
+X	new_mode = 0;
+X	/* build the new mode from the state of the mode buttons */
+X	XtSetArg (args[0], XmNset, &button_set);
+X	XtGetValues (ur_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IRUSR;
+X	XtGetValues (uw_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IWUSR;
+X	XtGetValues (ux_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IXUSR;
+X	XtGetValues (gr_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IRGRP;
+X	XtGetValues (gw_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IWGRP;
+X	XtGetValues (gx_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IXGRP;
+X	XtGetValues (or_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IROTH;
+X	XtGetValues (ow_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IWOTH;
+X	XtGetValues (ox_toggle, args, 1);
+X	if (button_set)
+X		new_mode |= S_IXOTH;
+X
+X	XtVaGetValues (w,
+X		XmNuserData, (XtArgVal) &dpi,
+X		NULL);
+X
+X	file_selected = dpi -> file_selected;
+X	DirectoryMgrGotoNamedItem (dpi -> directory_manager,
+X					file_selected);
+X	de = DirectoryMgrCurrentEntry (dpi -> directory_manager);
+X
+X	/* has the user really made it different? */
+X	if (new_mode == FileInfoProt (DirEntryActualInfo (de)))
+X		return;		/* no they didn't */
+X
+X	/* actually change the mode */
+X	if (chmod (file_selected, new_mode) == -1)
+X		return; 	/* oh well, couldn't change it */
+X
+X	/* reset our stored info */
+X	old_mode = FileInfoProt (DirEntryActualInfo (de));
+X	FileInfoProt (DirEntryActualInfo (de)) = new_mode;
+X
+X	/* if it is a dir, nothing left to do.
+X	   if it is now executable but wasn't before, or vice
+X	   versa, need to refresh panes
+X	*/
+X	if (DirEntryIsDir (de) ||
+X		DirEntryIsSymLink (de) &&
+X			S_ISDIR (FileInfoOrigMode (DirEntryActualInfo (de))))
+X		return;
+X	if ((EXECUTABLE (old_mode) && ! EXECUTABLE (new_mode)) ||
+X	    ( ! EXECUTABLE (old_mode) && EXECUTABLE (new_mode)))
+X		ResetPanesAndSelectFile (dpi, dpi -> file_selected);
+}
+X
+/*************************************************************************
+X * Function	   : toggleCB ()
+X * Purpose         : set mode_changed to true
+X * In parameters   : w, client_data, call_data
+X * Out parameters  :
+X * Side effects    : 
+X * Function returns:
+X * Precondition    : 
+X * Postcondition   :
+X ************************************************************************/ 
+void
+toggleCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{
+X	mode_changed = True;
+}
+X
+/*************************************************************************
+X * Function	   : builtin_info ()
+X * Purpose         : display info on a file, such as size, permissions, etc
+X * In parameters   : dpi
+X * Out parameters  :
+X * Side effects    : creates and shows a file display dialog
+X * Function returns:
+X * Precondition    : 
+X * Postcondition   :
+X ************************************************************************/ 
+void
+builtin_info 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi)
+#else
+X	(dpi)
+X	dir_pane_info *dpi;
+X
+#endif
+{	
+X	DirEntry	*de;
+X	long		long_size;
+X	char		str_size[1024];
+X	XmString	xm_size;
+X	int		uid;
+X	struct passwd	*pw_entry;
+X	XmString	xm_pw_name;
+X	XmString	xm_file_selected;
+X        XmString        xm_description;
+X        static XmString	xm_empty;
+X	static short		permissions;
+X	static Bool		state;
+X	int		dummy;
+X	
+X
+X	if (dpi -> file_selected == NULL)
+X	{	WarningDialog (dpi -> toplevel,
+X			"Can only show information on a selected file",
+X			True, &dummy);
+X		return;
+X	}
+X        dialog = dpi -> info_dialog;
+X
+X	if (dialog == NULL)
+X	{
+X		xm_empty = XmStringCreateSimple ("");
+X		/* create a "prompt" dialog with the prompt bits left out */
+X		dialog = XmVaCreatePromptDialog (dpi -> file_button_selected,
+X					"information",
+X					NULL);
+X                dpi -> info_dialog = dialog;
+X		XtUnmanageChild ( 
+X			XmSelectionBoxGetChild (dialog, XmDIALOG_TEXT));
+X		XtUnmanageChild ( 
+X			XmSelectionBoxGetChild (dialog, XmDIALOG_SELECTION_LABEL));
+X		XtUnmanageChild ( 
+X			XmSelectionBoxGetChild (dialog, XmDIALOG_HELP_BUTTON));
+X
+X		XtAddCallback (dialog, XmNokCallback, OkCB, NULL);
+X	
+X		/* add the widget we want as the work area */
+X		form = XmVaCreateForm (dialog, "form",
+X				NULL);
+X		
+X		/* put stuff in the form */
+X		filename_label = XmVaCreateLabel (form, "Filename",
+X				NULL);
+#ifdef  FILENAME_IS_EDITABLE
+X		/* uses text string - in case we want to change filename.
+X		   but it makes geometry harder */
+X		filename = XmVaCreateText (form, "filename",
+X                                XmNeditable, (XtArgVal) False,
+X				NULL);
+#else
+X		filename = XmVaCreateLabel (form, "filename",
+X				NULL);
+#endif /* FILENAME_IS_EDITABLE */
+X                separator = XmVaCreateSeparator (form, "separator",
+X                                XmNseparatorType, (XtArgVal) XmNO_LINE,
+X                                NULL);
+X		size_label = XmVaCreateLabel (form, "Size",
+X				NULL);
+X		size = XmVaCreateLabel (form, "size",
+X				NULL);
+X		owner_label = XmVaCreateLabel (form, "Owner",
+X				NULL);
+X		owner = XmVaCreateLabel (form, "owner",
+X				NULL);
+X		description_label = XmVaCreateLabel (form, "Description",
+X				NULL);
+X		description = XmVaCreateLabel (form, "description",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_BEGINNING,
+X				NULL);
+X		perms_label = XmVaCreateLabel (form, "Permissions",
+X				NULL);
+X		perms_rowcol = XmVaCreateForm (form, "perms_rowcol",
+/*				XmNpacking,     (XtArgVal) XmPACK_COLUMN,
+X				XmNnumColumns,  (XtArgVal) 4,
+X				XmNborderWidth, (XtArgVal) 1,
+X                                XmNisAligned,   (XtArgVal) False,
+*/
+X				NULL);
+X		
+X		/* put stuff in the row col */
+X		empty_label = XmVaCreateLabel (perms_rowcol, "empty",
+X				NULL);
+X		read_label = XmVaCreateLabel (perms_rowcol, "read",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 25,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 0,
+X                                XmNrightAttachment,(XtArgVal) XmATTACH_POSITION,
+X                                XmNrightPosition,  (XtArgVal) 25,
+X				NULL);
+X		write_label = XmVaCreateLabel (perms_rowcol, "write",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 50,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 0,
+X                                XmNrightAttachment,(XtArgVal) XmATTACH_POSITION,
+X                                XmNrightPosition,  (XtArgVal) 25,
+X				NULL);
+X		exec_label = XmVaCreateLabel (perms_rowcol, "execute",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                 XmNtopAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 75,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 0,
+X                                XmNrightAttachment,(XtArgVal) XmATTACH_POSITION,
+X                                XmNrightPosition,  (XtArgVal) 25,
+X				NULL);
+X	
+X		user_label = XmVaCreateLabel (perms_rowcol, "user",
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 0,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 25,
+X				NULL);
+X		ur_toggle = XmVaCreateToggleButton (perms_rowcol, "ur",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 25,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 28,
+X				NULL);
+X		uw_toggle = XmVaCreateToggleButton (perms_rowcol, "uw",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 50,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 28,
+X				NULL);
+X		ux_toggle = XmVaCreateToggleButton (perms_rowcol, "ux",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 75,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 28,
+X				NULL);
+X
+X		group_label = XmVaCreateLabel (perms_rowcol, "group",
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 0,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 50,
+X				NULL);
+X		gr_toggle = XmVaCreateToggleButton (perms_rowcol, "gr",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 25,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 53,
+X				NULL);
+X		gw_toggle = XmVaCreateToggleButton (perms_rowcol, "gw",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 50,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 53,
+X				NULL);
+X		gx_toggle = XmVaCreateToggleButton (perms_rowcol, "gx",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 75,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 53,
+X				NULL);
+X
+X		other_label = XmVaCreateLabel (perms_rowcol, "other",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_BEGINNING,
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 0,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 75,
+X				NULL);
+X		or_toggle = XmVaCreateToggleButton (perms_rowcol, "or",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 25,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 78,
+X				NULL);
+X		ow_toggle = XmVaCreateToggleButton (perms_rowcol, "ow",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 50,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 78,
+X				NULL);
+X		ox_toggle = XmVaCreateToggleButton (perms_rowcol, "ox",
+X                                XmNalignment, (XtArgVal) XmALIGNMENT_END,
+X                                XmNtopAttachment,  (XtArgVal) XmATTACH_POSITION,
+X                                XmNtopPosition,    (XtArgVal) 75,
+X                                XmNleftAttachment, (XtArgVal) XmATTACH_POSITION,
+X                                XmNleftPosition,   (XtArgVal) 78,
+X				NULL);
+X
+X                /* make all these buttons insensitive */
+/*
+X                XtSetSensitive (ur_toggle, False);
+X                XtSetSensitive (uw_toggle, False);
+X                XtSetSensitive (ux_toggle, False);
+X                XtSetSensitive (gr_toggle, False);
+X                XtSetSensitive (gw_toggle, False);
+X                XtSetSensitive (gx_toggle, False);
+X                XtSetSensitive (or_toggle, False);
+X                XtSetSensitive (ow_toggle, False);
+X                XtSetSensitive (ox_toggle, False);
+*/
+X		/* callbacks */
+X		XtAddCallback (ur_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (uw_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (ux_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (gr_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (gw_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (gx_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (or_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (ow_toggle, XmNarmCallback, toggleCB, NULL);
+X		XtAddCallback (ox_toggle, XmNarmCallback, toggleCB, NULL);
+X	
+X	
+X		/* manage the lot */
+X		XtManageChild (filename_label);
+X		XtManageChild (filename);
+X                XtManageChild (separator);
+X		XtManageChild (size_label);
+X		XtManageChild (size);
+X		XtManageChild (owner_label);
+X		XtManageChild (owner);
+X		XtManageChild (description_label);
+X		XtManageChild (description);
+X		XtManageChild (perms_label);
+X		XtManageChild (empty_label);
+X		XtManageChild (read_label);
+X		XtManageChild (write_label);
+X                XtManageChild (exec_label);
+X		XtManageChild (user_label);
+X		XtManageChild (group_label);
+X		XtManageChild (other_label);
+X		XtManageChild (ur_toggle);
+X		XtManageChild (uw_toggle);
+X		XtManageChild (ux_toggle);
+X		XtManageChild (gr_toggle);
+X		XtManageChild (gw_toggle);
+X		XtManageChild (gx_toggle);
+X		XtManageChild (or_toggle);
+X		XtManageChild (ow_toggle);
+X		XtManageChild (ox_toggle);
+X		XtManageChild (perms_rowcol);
+X		XtManageChild (form);
+X	
+X		/* the geometry for this mess */
+X		XtVaSetValues (filename_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNrightAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNrightPosition,	(XtArgVal) 40,
+X			NULL);
+X		XtVaSetValues (filename,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNleftPosition,        (XtArgVal) 41,
+X                        NULL);
+X		XtVaSetValues (separator,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,	        (XtArgVal) filename,
+X			NULL);
+X		XtVaSetValues (size_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) separator,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+X		XtVaSetValues (size,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) separator,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X                        XmNleftWidget,          (XtArgVal) size_label,
+X 			XmNrightAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNrightPosition,	(XtArgVal) 48,
+X			NULL);
+X		XtVaSetValues (owner_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) separator,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_POSITION,
+X			XmNleftPosition,		(XtArgVal) 50,
+X			NULL);
+X		XtVaSetValues (owner,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) separator,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNleftWidget,		(XtArgVal) owner_label,
+X			NULL);
+X		XtVaSetValues (description_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) size_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+X		XtVaSetValues (description,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) size_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNleftWidget,		(XtArgVal) description_label,
+X			XmNrightAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+X		XtVaSetValues (perms_label,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) description_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			NULL);
+X		XtVaSetValues (perms_rowcol,
+X			XmNtopAttachment,	(XtArgVal) XmATTACH_WIDGET,
+X			XmNtopWidget,		(XtArgVal) perms_label,
+X			XmNleftAttachment,	(XtArgVal) XmATTACH_FORM,
+X			XmNrightAttachment,	(XtArgVal) XmATTACH_FORM,
+X                        XmNbottomAttachment,    (XtArgVal) XmATTACH_FORM,
+X			NULL);
+X
+X               /* save all these component widgets in info_dialog_widgets */
+X               dpi -> idw = (info_dialog_widgets *) XtMalloc (sizeof (info_dialog_widgets));
+X               dpi -> idw -> filename = filename;
+X               dpi -> idw -> size = size;
+X               dpi -> idw -> owner = owner;
+X               dpi -> idw -> description = description;
+X               dpi -> idw -> empty_label = empty_label;
+X               dpi -> idw -> ur_toggle = ur_toggle;
+X               dpi -> idw -> uw_toggle = uw_toggle;
+X               dpi -> idw -> ux_toggle = ux_toggle;
+X               dpi -> idw -> gr_toggle = gr_toggle;
+X               dpi -> idw -> gw_toggle = gw_toggle;
+X               dpi -> idw -> gx_toggle = gx_toggle;
+X               dpi -> idw -> or_toggle = or_toggle;
+X               dpi -> idw -> ow_toggle = ow_toggle;
+X               dpi -> idw -> ox_toggle = ox_toggle;
+X	}
+X        else
+X        {   /* get all these widgets back out of dpi */
+X               filename = dpi -> idw -> filename;
+X               size = dpi -> idw -> size;
+X               owner = dpi -> idw -> owner;
+X               description = dpi -> idw -> description;
+X               empty_label = dpi -> idw -> empty_label;
+X               ur_toggle = dpi -> idw -> ur_toggle;
+X               uw_toggle = dpi -> idw -> uw_toggle;
+X               ux_toggle = dpi -> idw -> ux_toggle;
+X               gr_toggle = dpi -> idw -> gr_toggle;
+X               gw_toggle = dpi -> idw -> gw_toggle;
+X               gx_toggle = dpi -> idw -> gx_toggle;
+X               or_toggle = dpi -> idw -> or_toggle;
+X               ow_toggle = dpi -> idw -> ow_toggle;
+X               ox_toggle = dpi -> idw -> ox_toggle;
+X        }
+X
+X	/* whether just created or new, need to set all the following */
+X	mode_changed = False;
+X
+X	XtVaSetValues (dialog, XmNuserData, dpi, NULL);
+X
+X	/* set file name */
+#ifdef  FILENAME_IS_EDITABLE
+X	XmTextSetString (filename, dpi -> file_selected);
+#else
+X	xm_file_selected = XmStringCreateSimple (dpi -> file_selected);
+X	XtVaSetValues (filename, XmNlabelString, xm_file_selected, NULL);
+X	XmStringFree (xm_file_selected);
+#endif /* FILENAME_IS_EDITABLE */
+X
+X	/* find the file in the DirMgr */
+X	DirectoryMgrGotoNamedItem (dpi -> directory_manager, 
+X				    dpi -> file_selected);
+X	de = DirectoryMgrCurrentEntry (dpi -> directory_manager);
+X	
+X	/* set size */
+/*
+X	long_size = DirEntryFileSize (de);
+*/
+X	long_size = FIFileSize (DirEntryActualInfo (de));
+X	sprintf (str_size, "%ld", long_size);
+X	xm_size = XmStringCreateSimple (str_size);
+X	XtVaSetValues (size, XmNlabelString, xm_size, NULL);
+X	XmStringFree (xm_size);
+X
+X	/* set owner */
+/*
+X	uid = DirEntryUserID (de);
+*/
+X	uid = FIUserID (DirEntryActualInfo (de));
+X	pw_entry = getpwuid (uid);
+X	xm_pw_name = XmStringCreateSimple (pw_entry -> pw_name);
+X	XtVaSetValues (owner, XmNlabelString, xm_pw_name, NULL);
+X	XmStringFree (xm_pw_name);
+X
+X	/* set description */
+X	/* stub - will set description of file type from xmfmrc
+X	   e.g. "C source file"
+X	*/
+X        xm_description = XmStringCreateSimple (dpi -> description);
+X	XtVaSetValues (description, XmNlabelString, xm_description, NULL);
+X        XmStringFree (xm_description);
+X
+X	/* set permissions */
+/*
+X	permissions = DirEntryProt (de);
+*/
+X	permissions = FIProt (DirEntryActualInfo (de));
+X        XtVaSetValues (empty_label, XmNlabelString, xm_empty, NULL);
+X
+X	state = (permissions & S_IRUSR) ? True : False;
+X        XtVaSetValues (ur_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IWUSR) ? True : False;
+X        XtVaSetValues (uw_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IXUSR) ? True : False;
+X        XtVaSetValues (ux_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IRGRP) ? True : False;
+X        XtVaSetValues (gr_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IWGRP) ? True : False;
+X        XtVaSetValues (gw_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IXGRP) ? True : False;
+X        XtVaSetValues (gx_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IROTH) ? True : False;
+X        XtVaSetValues (or_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IWOTH) ? True : False;
+X        XtVaSetValues (ow_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X	state = (permissions & S_IXOTH) ? True : False;
+X        XtVaSetValues (ox_toggle,
+X                        XmNlabelString, xm_empty,
+X			XmNset, 	(XtArgVal) state,
+X                        NULL);
+X
+X        XtManageChild (dialog);
+}
+X
+SHAR_EOF
+chmod 0644 xmfm/info.c ||
+echo 'restore of xmfm/info.c failed'
+Wc_c="`wc -c < 'xmfm/info.c'`"
+test 26269 -eq "$Wc_c" ||
+	echo 'xmfm/info.c: original size 26269, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/main.c ==============
+if test -f 'xmfm/main.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/main.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/main.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/main.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/main.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:49 $
+X * Version: $Revision: 1.7 $
+X * Purpose: This file contains the main routine. It sets up the geometry
+X *          and calls the Xt main loop.
+X *
+X * Revision history:
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#include <Xm/MainW.h> 
+#include <Xm/MessageB.h> 
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+#include "types.h"
+X
+#ifdef RDD
+#include "rdd.h"
+#endif /* RDD */
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern int main (
+#ifdef UseFunctionPrototypes
+X	unsigned int argc, char **argv
+#endif
+);
+extern void ErrorDialog (
+#ifdef UseFunctionPrototypes
+X	char *str
+#endif
+);
+extern int fatal (
+#ifdef UseFunctionPrototypes
+X	char *s
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+GC gc, gc_reversed;
+file_action *actions;
+XXtAppContext app_context;
+#ifdef RDD
+XXtTranslations trans_table;
+#endif /* RDD */
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern XmString empty_string;
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern Widget	CreateMenu(
+#ifdef UseFunctionPrototypes
+X	Widget parent, XtPointer user_data
+#endif
+);
+extern Widget	CreateApplication (
+#ifdef UseFunctionPrototypes
+X	Widget parent
+#endif
+);
+extern file_action *LoadFileActions (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void SetFiltersInLabels (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void ResetFilesInPanes (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void child_died (
+#ifdef UseFunctionPrototypes
+X	void
+#endif
+);
+X
+#ifdef MOTIF_DD
+extern void InitMotifDD (
+#ifdef UseFunctionPrototypes
+X	Widget app_shell, XtAppContext app_context
+#endif
+);
+#endif
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+int main (
+#ifdef UseFunctionPrototypes
+X	unsigned int argc, char **argv
+#endif
+);			/*  main logic for application	*/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+X 
+#define Class_name "XmFm" 
+X 
+static Widget	app_shell;	/*  ApplicationShell	*/ 
+X
+/*************************************************************************
+X * Function: fatal()
+X * Purpose: report a fatal error and giveup
+X * In parameters: s
+X * Out parameters:
+X * Precondition; error of some kind occurred that cant be fixed
+X * Postcondition: application stopped after message printed to stderr
+X ************************************************************************/ 
+int fatal
+#ifdef UseFunctionPrototypes
+X	(char *s)
+#else
+X	(s)
+X	char *s;
+X
+#endif
+{
+X	fprintf (stderr, s);
+X	exit(1);
+}
+X
+/*************************************************************************
+X * Function: SetActionsInDirsToolbar ()
+X * Purpose: Place the actions in the dirs toolbar, from .xmfmrc
+X * In parameters: dpi
+X * Out parameters:
+X * Side effects: 
+X * Precondition;
+X * Postcondition: xmfm actions attached to each button in dirs toolbar
+X *************************************************************************/
+void
+SetActionsInDirsToolbar 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi)
+#else
+X	(dpi)
+X	dir_pane_info *dpi;
+X
+#endif
+{	file_action *pfa;
+X	action_pair *pap;
+X	int button;
+X	Widget tool_button;
+X	XmString xmstr;
+X	tool_button_info *tbi;
+X
+X	/* find file pattern matching this name */
+X	pfa = actions;
+X	while (pfa != NULL)
+X		if (pfa -> file_type == PANE_TYPE &&
+X			RegExpMatch ("*", pfa -> fsm_ptr))
+X			break;
+X		else	pfa = pfa -> next;
+X
+X	button = 0;
+X	/* set actions in toolbar */
+X	if (pfa != NULL)
+X	{
+X		pap = pfa -> actions;
+X		while (button < DIRS_TOOLBAR_SIZE && pap != NULL)
+X		{
+X			tool_button = (dpi -> dirs_toolbar) [button];
+X
+X			/* set the action label in the button */
+X			xmstr = XmStringCreateLtoR (pap -> action_label,
+X                                          XmSTRING_DEFAULT_CHARSET);
+X			XtVaSetValues (tool_button,
+X					XmNlabelString, (XtArgVal) xmstr,
+X					NULL);
+X			XmStringFree (xmstr);
+X
+X			/* set the action in the buttons user data */
+X			XtVaGetValues (tool_button,
+X					XmNuserData, (XtArgVal) &tbi,
+X					NULL);
+X			tbi -> action = pap -> action;
+X			tbi -> run_in_xterm = pap -> run_in_xterm;
+X			tbi -> pause_after_exec = pap -> pause_after_exec;
+X			tbi -> prompt = pap -> prompt;
+X			tbi -> has_prompt = pap -> has_prompt;
+X
+X			XtSetSensitive (tool_button, True);
+X			button++;
+X			pap = pap -> next;
+X		}
+X	}
+X	/* empty out the remaining buttons */
+X	for ( ; button < DIRS_TOOLBAR_SIZE; button++)
+X	{
+X		tool_button = (dpi -> dirs_toolbar) [button];
+X		/* break out as soon as we hit an already insensitive button */
+/*
+X		if (XtIsSensitive (tool_button) == False)
+X			break;
+*/
+X		XtVaSetValues (tool_button,
+X				XmNlabelString, (XtArgVal) empty_string,
+X				NULL);
+X		XtSetSensitive (tool_button, False);
+X	}
+}
+X
+/*************************************************************************
+X * Function: create_gcs ()
+X * Purpose: set up global gcs with opposite fg/bg
+X * In parameters: w
+X * Out parameters:
+X * Side effects: alters global gc and gc_reversed
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+static void
+create_gcs 
+#ifdef UseFunctionPrototypes
+X	(Widget w)
+#else
+X	(w)
+X	Widget w;
+X
+#endif
+{
+X	/* uses black and white.
+X	   should pick up fg and bg from button resources? */
+X	gc = XCreateGC (XtDisplay (w),
+X			XtWindow (w),
+X			(unsigned long) 0, NULL);
+X	XSetBackground (XtDisplay (w),
+X			gc,
+X			WhitePixelOfScreen (XtScreen (w)));
+X	XSetForeground (XtDisplay (w),
+X			gc,
+X			BlackPixelOfScreen (XtScreen (w)));
+X
+X	gc_reversed = XCreateGC (XtDisplay (w),
+X			XtWindow (w),
+X			(unsigned long) 0, NULL);
+X	XSetBackground (XtDisplay (w),
+X			gc_reversed,
+X			BlackPixelOfScreen (XtScreen (w)));
+X	XSetForeground (XtDisplay (w),
+X			gc_reversed,
+X			WhitePixelOfScreen (XtScreen (w)));
+}
+X
+#ifdef RDD
+/*************************************************************************
+X * Function: myDropAction ()
+X * Purpose: what to do when a drop takes place
+X * In parameters: w, event, args, nargs
+X * Out parameters:
+X * Precondition: 
+X * Postcondition: drop data (file name) placed in RDD cut buffer
+X ************************************************************************/ 
+/* ARGSUSED */
+void myDropAction 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XEvent *event, String *args, Cardinal *nargs)
+#else
+X	(w, event, args, nargs)
+X	Widget w;
+X	XEvent *event;
+X	String *args;
+X	Cardinal *nargs;
+X
+#endif
+{	pane_button_info *pbi;
+X	char full_file_name[MAXPATHLEN];
+X
+X	XtVaGetValues (w,
+X			XmNuserData, &pbi, NULL);
+X	strcpy (full_file_name,
+X		DirectoryPath (DirectoryMgrDir (pbi -> dpi -> directory_manager)));
+X	strcat (full_file_name, pbi -> name);
+X
+X	rddSetDropData (full_file_name,
+X			strlen(full_file_name) + 1);	/* copy data to rdd,
+X							  including null byte */
+X	rddDropAction (w, (XButtonEvent *) event, args, nargs);		/* then use default action */
+}
+#endif /* RDD */
+X
+X
+/*************************************************************************
+X * Function: main.c
+X * Purpose: run the application
+X * In parameters: argc, argv
+X * Out parameters:
+X * Precondition: true
+X * Postcondition: application has completed
+X ************************************************************************/ 
+int
+main 
+#ifdef UseFunctionPrototypes
+X	(unsigned int argc, char **argv)
+#else
+X	(argc,argv)  
+X	unsigned int	argc; 
+X	char 		**argv; 
+X
+#endif
+{ 	
+X	Widget		applic_widget;
+X	dir_pane_info *dpi;
+#ifdef RDD
+/*
+X * RDD
+X * The normal translations for a button, plus those needed to do a 
+SHAR_EOF
+true || echo 'restore of xmfm/main.c failed'
+fi
+echo 'End of  part 6'
+echo 'File xmfm/main.c is continued in part 7'
+echo 7 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

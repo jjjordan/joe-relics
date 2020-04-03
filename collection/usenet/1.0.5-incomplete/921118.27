@@ -1,0 +1,1861 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 07/10)
+Message-ID: <1992Nov15.155303.20341@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:53:03 GMT
+Lines: 1848
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part07
+
+#!/bin/sh
+# this is tin.shar.07 (part 7 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 7; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X  /* getline.c */
+X  extern char *getline(char *prompt, int number_only, char *str);
+X  /* group.c */
+X***************
+X*** 75,81 ****
+X  extern void decr_tagged(int tag);
+X  extern void group_page(char *group);
+X  extern void fix_new_highest(int groupnum);
+X! extern void show_group_page(char *group);
+X  extern void update_group_page(void);
+X  extern void draw_subject_arrow(void);
+X  extern void erase_subject_arrow(void);
+X--- 79,85 ----
+X  extern void decr_tagged(int tag);
+X  extern void group_page(char *group);
+X  extern void fix_new_highest(int groupnum);
+X! extern void show_group_page(void);
+X  extern void update_group_page(void);
+X  extern void draw_subject_arrow(void);
+X  extern void erase_subject_arrow(void);
+X***************
+X*** 111,116 ****
+X--- 115,126 ----
+X  extern int kill_any_articles(int index);
+X  extern int auto_select_articles(int index);
+X  /* lang.c */
+X+ /* mail.c */
+X+ extern void read_mail_active_file(void);
+X+ extern void write_mail_active_file(void);
+X+ extern void read_mailgroups_file(void);
+X+ extern void read_newsgroups_file(void);
+X+ extern void read_groups_descriptions(FILE *fp, FILE *fp_save);
+X  /* main.c */
+X  extern void main(int argc, char *argv[]);
+X  extern void read_cmd_line_options(int argc, char *argv[]);
+X***************
+X*** 119,124 ****
+X--- 129,135 ----
+X  extern void save_or_mail_new_news(void);
+X  extern void update_index_files(void);
+X  extern void show_intro_page(void);
+X+ extern int read_cmd_line_groups(void);
+X  /* memory.c */
+X  extern void init_alloc(void);
+X  extern void expand_art(void);
+X***************
+X*** 156,162 ****
+X  extern void basename(char *dirname, char *program);
+X  extern void mail_setup(void);
+X  extern int mail_check(void);
+X! extern void parse_from(char *str, char *addr, char *name);
+X  extern long my_atol(char *s, int n);
+X  extern int my_stricmp(char *p, char *q);
+X  extern char *eat_re(char *s);
+X--- 167,173 ----
+X  extern void basename(char *dirname, char *program);
+X  extern void mail_setup(void);
+X  extern int mail_check(void);
+X! extern void parse_from(char *from_line, char *eaddr, char *fname);
+X  extern long my_atol(char *s, int n);
+X  extern int my_stricmp(char *p, char *q);
+X  extern char *eat_re(char *s);
+X***************
+X*** 168,173 ****
+X--- 179,188 ----
+X  extern void toggle_inverse_video(void);
+X  extern int get_arrow_key(void);
+X  extern void create_index_lock_file(char *lock_file);
+X+ extern int strfquote(char *group, int respnum, char *s, int maxsize, char *format);
+X+ extern int strfpath(char *format, char *str, int maxsize, char *homedir, char *maildir, char *savedir, char *group);
+X+ extern void get_cwd(char *buf);
+X+ extern void make_group_path(char *name, char *path);
+X  /* newsrc.c */
+X  extern int auto_subscribe_groups(void);
+X  extern void backup_newsrc(void);
+X***************
+X*** 189,196 ****
+X  extern void mark_all_xref_read(char *xref_line);
+X  /* nntplib.c */
+X  extern char *getserverbyfile(char *file);
+X! extern int server_init(char *machine);
+X! extern int get_tcp_socket(char *machine);
+X  extern int handle_server_response(int response, char *nntpserver);
+X  extern void put_server(char *string);
+X  extern int get_server(char *string, int size);
+X--- 204,211 ----
+X  extern void mark_all_xref_read(char *xref_line);
+X  /* nntplib.c */
+X  extern char *getserverbyfile(char *file);
+X! extern int server_init(char *machine, char *service, int port);
+X! extern int get_tcp_socket(char *machine, char *service, int port);
+X  extern int handle_server_response(int response, char *nntpserver);
+X  extern void put_server(char *string);
+X  extern int get_server(char *string, int size);
+X***************
+X*** 198,210 ****
+X  /* open.c */
+X  extern void nntp_open(void);
+X  extern void nntp_close(void);
+X! extern FILE *open_active_fp(void);
+X  extern FILE *open_newgroups_fp(int index);
+X  extern FILE *open_subscription_fp(void);
+X  extern FILE *open_newsgroups_fp(void);
+X  extern FILE *open_index_fp(char *group_name);
+X  extern FILE *open_art_fp(char *group_path, long art);
+X! extern FILE *open_header_fp(char *group_path, long art);
+X  extern int base_comp(char *p1, char *p2);
+X  extern void setup_base(char *group, char *group_path);
+X  extern int get_respcode(void);
+X--- 213,229 ----
+X  /* open.c */
+X  extern void nntp_open(void);
+X  extern void nntp_close(void);
+X! extern FILE *open_mail_active_fp(char *mode);
+X! extern FILE *open_news_active_fp(void);
+X  extern FILE *open_newgroups_fp(int index);
+X+ extern FILE *open_motd_fp(char *motd_file_date);
+X  extern FILE *open_subscription_fp(void);
+X+ extern FILE *open_mailgroups_fp(void);
+X  extern FILE *open_newsgroups_fp(void);
+X  extern FILE *open_index_fp(char *group_name);
+X+ extern int stat_article(long art, char *group_path);
+X  extern FILE *open_art_fp(char *group_path, long art);
+X! extern FILE *open_header_fp(long art);
+X  extern int base_comp(char *p1, char *p2);
+X  extern void setup_base(char *group, char *group_path);
+X  extern int get_respcode(void);
+X***************
+X*** 212,217 ****
+X--- 231,237 ----
+X  extern FILE *nntp_to_fp(void);
+X  extern void log_user(void);
+X  extern char *nntp_respcode(int respcode);
+X+ extern void authorization(char *server, char *authuser);
+X  /* page.c */
+X  extern int show_page(int respnum, int *threadnum, char *group, char *group_path);
+X  extern void redraw_page(int respnum, char *group);
+X***************
+X*** 234,247 ****
+X  extern void quick_post_article(void);
+X  extern int post_article(char *group, int *posted);
+X  extern int post_response(char *group, int respnum, int copy_text);
+X! extern int mail_to_someone(char *address, int mail_to_poster, int confirm_to_mail, int *mailed_ok);
+X  extern int mail_bug_report(void);
+X  extern int mail_to_author(char *group, int respnum, int copy_text);
+X  extern void find_mail_header(int header, char *file, char *value);
+X! extern int cancel_article(char *group, int respnum);
+X  extern int crosspost_article(char *group, int respnum);
+X  extern int submit_file(char *name);
+X- extern void add_signature(FILE *fp, int flag);
+X  extern void insert_x_headers(char *infile);
+X  extern void find_reply_to_addr(int respnum, char *from_addr);
+X  /* prompt.c */
+X--- 254,266 ----
+X  extern void quick_post_article(void);
+X  extern int post_article(char *group, int *posted);
+X  extern int post_response(char *group, int respnum, int copy_text);
+X! extern int mail_to_someone(int respnum, char *address, int mail_to_poster, int confirm_to_mail, int *mailed_ok);
+X  extern int mail_bug_report(void);
+X  extern int mail_to_author(char *group, int respnum, int copy_text);
+X  extern void find_mail_header(int header, char *file, char *value);
+X! extern int delete_article(char *group, int respnum);
+X  extern int crosspost_article(char *group, int respnum);
+X  extern int submit_file(char *name);
+X  extern void insert_x_headers(char *infile);
+X  extern void find_reply_to_addr(int respnum, char *from_addr);
+X  /* prompt.c */
+X***************
+X*** 271,277 ****
+X  extern int append_to_existing_file(int i);
+X  extern int create_path(char *path);
+X  extern int create_sub_dir(int i);
+X! extern void add_to_save_list(int index, struct article_t *article, int is_mailbox, char *path);
+X  extern void sort_save_list(void);
+X  extern int save_comp(char *p1, char *p2);
+X  extern char *save_filename(int i);
+X--- 290,296 ----
+X  extern int append_to_existing_file(int i);
+X  extern int create_path(char *path);
+X  extern int create_sub_dir(int i);
+X! extern void add_to_save_list(int index, struct article_t *article, int is_mailbox, int archive_save, char *path);
+X  extern void sort_save_list(void);
+X  extern int save_comp(char *p1, char *p2);
+X  extern char *save_filename(int i);
+X***************
+X*** 314,319 ****
+X--- 333,343 ----
+X  extern void set_groupname_len(int all_groups);
+X  extern void toggle_my_groups(int only_unread_groups, char *group);
+X  extern void goto_next_group_on_screen(void);
+X+ extern void strip_line(char *line, int len);
+X+ /* sigfile.c */
+X+ extern void add_signature(FILE *fp, int flag);
+X+ extern FILE *open_random_sig(char *sigdir);
+X+ extern int thrashdir(char *sigdir);
+X  /* signal.c */
+X  extern sigtype_t (*sigdisp(int sig, sigtype_t (*func)()))();
+X  extern void set_signal_handlers(void);
+X***************
+X*** 355,360 ****
+X--- 379,386 ----
+X  extern int load_spooldirs(void);
+X  extern void get_spooldir(void);
+X  extern int set_spooldir(char *name);
+X+ /* strftime.c */
+X+ extern size_t my_strftime(char *s, size_t maxsize, char *format, struct tm *timeptr);
+X  /* thread.c */
+X  extern int show_thread(int respnum, char *group, char *group_path);
+X  extern void show_thread_page(void);
+X***************
+X*** 381,387 ****
+X  /* active.c */
+X  extern void resync_active_file(/*void*/);
+X  extern int find_group_index(/*char *group*/);
+X! extern void read_active_file(/*void*/);
+X  extern void backup_active(/*int create*/);
+X  extern void check_for_any_new_groups(/*void*/);
+X  extern int prompt_subscribe_group(/*char *group*/);
+X--- 407,414 ----
+X  /* active.c */
+X  extern void resync_active_file(/*void*/);
+X  extern int find_group_index(/*char *group*/);
+X! extern int parse_active_line(/*char *line, long *max, long *min, char *moderated*/);
+X! extern void read_news_active_file(/*void*/);
+X  extern void backup_active(/*int create*/);
+X  extern void check_for_any_new_groups(/*void*/);
+X  extern int prompt_subscribe_group(/*char *group*/);
+X***************
+X*** 388,411 ****
+X  extern void set_default_attributes(/*void*/);
+X  extern void read_attributes_file(/*void*/);
+X  extern void write_attributes_file(/*void*/);
+X- extern void read_newsgroups_file(/*void*/);
+X  extern void read_active_times_file(/*void*/);
+X  extern void write_active_times_file(/*void*/);
+X  extern void load_active_size_info(/*char *info*/);
+X  extern int find_active_size_index(/*char *cur_active_server*/);
+X  /* amiga.c */
+X  /* art.c */
+X  extern void find_base(/*int index*/);
+X  extern int num_of_arts(/*void*/);
+X  extern int valid_artnum(/*long art*/);
+X! extern int purge_needed(/*void*/);
+X! extern void index_group(/*char *group, char *group_path*/);
+X  extern int read_group(/*char *group, char *group_path*/);
+X  extern void make_threads(/*int rethread*/);
+X  extern int parse_headers(/*FILE *fp, struct article_t *h*/);
+X  extern void write_index_file(/*char *group*/);
+X! extern int read_index_file(/*char *group_name*/);
+X! extern void find_index_file(/*char *group*/);
+X  extern void do_update(/*void*/);
+X  extern int artnum_comp(/*char *p1, char *p2*/);
+X  extern int subj_comp(/*char *p1, char *p2*/);
+X--- 415,438 ----
+X  extern void set_default_attributes(/*void*/);
+X  extern void read_attributes_file(/*void*/);
+X  extern void write_attributes_file(/*void*/);
+X  extern void read_active_times_file(/*void*/);
+X  extern void write_active_times_file(/*void*/);
+X  extern void load_active_size_info(/*char *info*/);
+X  extern int find_active_size_index(/*char *cur_active_server*/);
+X+ extern void read_motd_file(/*void*/);
+X  /* amiga.c */
+X  /* art.c */
+X  extern void find_base(/*int index*/);
+X  extern int num_of_arts(/*void*/);
+X  extern int valid_artnum(/*long art*/);
+X! extern int purge_needed(/*char *group_path*/);
+X! extern int index_group(/*char *group, char *group_path*/);
+X  extern int read_group(/*char *group, char *group_path*/);
+X  extern void make_threads(/*int rethread*/);
+X  extern int parse_headers(/*FILE *fp, struct article_t *h*/);
+X  extern void write_index_file(/*char *group*/);
+X! extern void read_index_file(/*char *group_name*/);
+X! extern int find_index_file(/*char *group*/);
+X  extern void do_update(/*void*/);
+X  extern int artnum_comp(/*char *p1, char *p2*/);
+X  extern int subj_comp(/*char *p1, char *p2*/);
+X***************
+X*** 412,417 ****
+X--- 439,445 ----
+X  extern int from_comp(/*char *p1, char *p2*/);
+X  extern int date_comp(/*char *p1, char *p2*/);
+X  extern void set_article(/*struct article_t *art*/);
+X+ extern int input_pending(/*void*/);
+X  /* curses.c */
+X  extern void setup_screen(/*void*/);
+X  extern int InitScreen(/*void*/);
+X***************
+X*** 447,452 ****
+X--- 475,482 ----
+X  /* feed.c */
+X  extern void feed_articles(/*int function, int level, char *prompt, int respnum, char *group_path*/);
+X  extern int print_file(/*char *command, int respnum, int count*/);
+X+ extern int get_post_proc_type(/*int proc_type*/);
+X+ extern int does_article_exist(/*int function, long artnum, char *path*/);
+X  /* getline.c */
+X  extern char *getline(/*char *prompt, int number_only, char *str*/);
+X  /* group.c */
+X***************
+X*** 453,459 ****
+X  extern void decr_tagged(/*int tag*/);
+X  extern void group_page(/*char *group*/);
+X  extern void fix_new_highest(/*int groupnum*/);
+X! extern void show_group_page(/*char *group*/);
+X  extern void update_group_page(/*void*/);
+X  extern void draw_subject_arrow(/*void*/);
+X  extern void erase_subject_arrow(/*void*/);
+X--- 483,489 ----
+X  extern void decr_tagged(/*int tag*/);
+X  extern void group_page(/*char *group*/);
+X  extern void fix_new_highest(/*int groupnum*/);
+X! extern void show_group_page(/*void*/);
+X  extern void update_group_page(/*void*/);
+X  extern void draw_subject_arrow(/*void*/);
+X  extern void erase_subject_arrow(/*void*/);
+X***************
+X*** 489,494 ****
+X--- 519,530 ----
+X  extern int kill_any_articles(/*int index*/);
+X  extern int auto_select_articles(/*int index*/);
+X  /* lang.c */
+X+ /* mail.c */
+X+ extern void read_mail_active_file(/*void*/);
+X+ extern void write_mail_active_file(/*void*/);
+X+ extern void read_mailgroups_file(/*void*/);
+X+ extern void read_newsgroups_file(/*void*/);
+X+ extern void read_groups_descriptions(/*FILE *fp, FILE *fp_save*/);
+X  /* main.c */
+X  extern void main(/*int argc, char *argv[]*/);
+X  extern void read_cmd_line_options(/*int argc, char *argv[]*/);
+X***************
+X*** 497,502 ****
+X--- 533,539 ----
+X  extern void save_or_mail_new_news(/*void*/);
+X  extern void update_index_files(/*void*/);
+X  extern void show_intro_page(/*void*/);
+X+ extern int read_cmd_line_groups(/*void*/);
+X  /* memory.c */
+X  extern void init_alloc(/*void*/);
+X  extern void expand_art(/*void*/);
+X***************
+X*** 534,540 ****
+X  extern void basename(/*char *dirname, char *program*/);
+X  extern void mail_setup(/*void*/);
+X  extern int mail_check(/*void*/);
+X! extern void parse_from(/*char *str, char *addr, char *name*/);
+X  extern long my_atol(/*char *s, int n*/);
+X  extern int my_stricmp(/*char *p, char *q*/);
+X  extern char *eat_re(/*char *s*/);
+X--- 571,577 ----
+X  extern void basename(/*char *dirname, char *program*/);
+X  extern void mail_setup(/*void*/);
+X  extern int mail_check(/*void*/);
+X! extern void parse_from(/*char *from_line, char *eaddr, char *fname*/);
+X  extern long my_atol(/*char *s, int n*/);
+X  extern int my_stricmp(/*char *p, char *q*/);
+X  extern char *eat_re(/*char *s*/);
+X***************
+X*** 546,551 ****
+X--- 583,592 ----
+X  extern void toggle_inverse_video(/*void*/);
+X  extern int get_arrow_key(/*void*/);
+X  extern void create_index_lock_file(/*char *lock_file*/);
+X+ extern int strfquote(/*char *group, int respnum, char *s, int maxsize, char *format*/);
+X+ extern int strfpath(/*char *format, char *str, int maxsize, char *homedir, char *maildir, char *savedir, char *group*/);
+X+ extern void get_cwd(/*char *buf*/);
+X+ extern void make_group_path(/*char *name, char *path*/);
+X  /* newsrc.c */
+X  extern int auto_subscribe_groups(/*void*/);
+X  extern void backup_newsrc(/*void*/);
+X***************
+X*** 567,574 ****
+X  extern void mark_all_xref_read(/*char *xref_line*/);
+X  /* nntplib.c */
+X  extern char *getserverbyfile(/*char *file*/);
+X! extern int server_init(/*char *machine*/);
+X! extern int get_tcp_socket(/*char *machine*/);
+X  extern int handle_server_response(/*int response, char *nntpserver*/);
+X  extern void put_server(/*char *string*/);
+X  extern int get_server(/*char *string, int size*/);
+X--- 608,615 ----
+X  extern void mark_all_xref_read(/*char *xref_line*/);
+X  /* nntplib.c */
+X  extern char *getserverbyfile(/*char *file*/);
+X! extern int server_init(/*char *machine, char *service, int port*/);
+X! extern int get_tcp_socket(/*char *machine, char *service, int port*/);
+X  extern int handle_server_response(/*int response, char *nntpserver*/);
+X  extern void put_server(/*char *string*/);
+X  extern int get_server(/*char *string, int size*/);
+X***************
+X*** 576,588 ****
+X  /* open.c */
+X  extern void nntp_open(/*void*/);
+X  extern void nntp_close(/*void*/);
+X! extern FILE *open_active_fp(/*void*/);
+X  extern FILE *open_newgroups_fp(/*int index*/);
+X  extern FILE *open_subscription_fp(/*void*/);
+X  extern FILE *open_newsgroups_fp(/*void*/);
+X  extern FILE *open_index_fp(/*char *group_name*/);
+X  extern FILE *open_art_fp(/*char *group_path, long art*/);
+X! extern FILE *open_header_fp(/*char *group_path, long art*/);
+X  extern int base_comp(/*char *p1, char *p2*/);
+X  extern void setup_base(/*char *group, char *group_path*/);
+X  extern int get_respcode(/*void*/);
+X--- 617,633 ----
+X  /* open.c */
+X  extern void nntp_open(/*void*/);
+X  extern void nntp_close(/*void*/);
+X! extern FILE *open_mail_active_fp(/*char *mode*/);
+X! extern FILE *open_news_active_fp(/*void*/);
+X  extern FILE *open_newgroups_fp(/*int index*/);
+X+ extern FILE *open_motd_fp(/*char *motd_file_date*/);
+X  extern FILE *open_subscription_fp(/*void*/);
+X+ extern FILE *open_mailgroups_fp(/*void*/);
+X  extern FILE *open_newsgroups_fp(/*void*/);
+X  extern FILE *open_index_fp(/*char *group_name*/);
+X+ extern int stat_article(/*long art, char *group_path*/);
+X  extern FILE *open_art_fp(/*char *group_path, long art*/);
+X! extern FILE *open_header_fp(/*long art*/);
+X  extern int base_comp(/*char *p1, char *p2*/);
+X  extern void setup_base(/*char *group, char *group_path*/);
+X  extern int get_respcode(/*void*/);
+X***************
+X*** 589,594 ****
+X--- 634,640 ----
+X  extern int stuff_nntp(/*char *fnam*/);
+X  extern FILE *nntp_to_fp(/*void*/);
+X  extern void log_user(/*void*/);
+X+ extern void authorization(/*char *server, char *authuser*/);
+X  extern char *nntp_respcode(/*int respcode*/);
+X  /* page.c */
+X  extern int show_page(/*int respnum, int *threadnum, char *group, char *group_path*/);
+X***************
+X*** 612,625 ****
+X  extern void quick_post_article(/*void*/);
+X  extern int post_article(/*char *group, int *posted*/);
+X  extern int post_response(/*char *group, int respnum, int copy_text*/);
+X! extern int mail_to_someone(/*char *address, int mail_to_poster, int confirm_to_mail, int *mailed_ok*/);
+X  extern int mail_bug_report(/*void*/);
+X  extern int mail_to_author(/*char *group, int respnum, int copy_text*/);
+X  extern void find_mail_header(/*int header, char *file, char *value*/);
+X! extern int cancel_article(/*char *group, int respnum*/);
+X  extern int crosspost_article(/*char *group, int respnum*/);
+X  extern int submit_file(/*char *name*/);
+X- extern void add_signature(/*FILE *fp, int flag*/);
+X  extern void insert_x_headers(/*char *infile*/);
+X  extern void find_reply_to_addr(/*int respnum, char *from_addr*/);
+X  /* prompt.c */
+X--- 658,670 ----
+X  extern void quick_post_article(/*void*/);
+X  extern int post_article(/*char *group, int *posted*/);
+X  extern int post_response(/*char *group, int respnum, int copy_text*/);
+X! extern int mail_to_someone(/*int respnum, char *address, int mail_to_poster, int confirm_to_mail, int *mailed_ok*/);
+X  extern int mail_bug_report(/*void*/);
+X  extern int mail_to_author(/*char *group, int respnum, int copy_text*/);
+X  extern void find_mail_header(/*int header, char *file, char *value*/);
+X! extern int delete_article(/*char *group, int respnum*/);
+X  extern int crosspost_article(/*char *group, int respnum*/);
+X  extern int submit_file(/*char *name*/);
+X  extern void insert_x_headers(/*char *infile*/);
+X  extern void find_reply_to_addr(/*int respnum, char *from_addr*/);
+X  /* prompt.c */
+X***************
+X*** 649,655 ****
+X  extern int append_to_existing_file(/*int i*/);
+X  extern int create_path(/*char *path*/);
+X  extern int create_sub_dir(/*int i*/);
+X! extern void add_to_save_list(/*int index, struct article_t *article, int is_mailbox, char *path*/);
+X  extern void sort_save_list(/*void*/);
+X  extern int save_comp(/*char *p1, char *p2*/);
+X  extern char *save_filename(/*int i*/);
+X--- 694,700 ----
+X  extern int append_to_existing_file(/*int i*/);
+X  extern int create_path(/*char *path*/);
+X  extern int create_sub_dir(/*int i*/);
+X! extern void add_to_save_list(/*int index, struct article_t *article, int is_mailbox, int archive_save, char *path*/);
+X  extern void sort_save_list(/*void*/);
+X  extern int save_comp(/*char *p1, char *p2*/);
+X  extern char *save_filename(/*int i*/);
+X***************
+X*** 692,697 ****
+X--- 737,747 ----
+X  extern void set_groupname_len(/*int all_groups*/);
+X  extern void toggle_my_groups(/*int only_unread_groups, char *group*/);
+X  extern void goto_next_group_on_screen(/*void*/);
+X+ extern void strip_line(/*char *line, int len*/);
+X+ /* sigfile.c */
+X+ extern void add_signature(/*FILE *fp, int flag*/);
+X+ extern FILE *open_random_sig(/*char *sigdir*/);
+X+ extern int thrashdir(/*char *sigdir*/);
+X  /* signal.c */
+X  extern sigtype_t (*sigdisp(/*int sig, sigtype_t (*func)()*/))();
+X  extern void set_signal_handlers(/*void*/);
+X***************
+X*** 733,738 ****
+X--- 783,790 ----
+X  extern int load_spooldirs(/*void*/);
+X  extern void get_spooldir(/*void*/);
+X  extern int set_spooldir(/*char *name*/);
+X+ /* strftime.c */
+X+ extern size_t my_strftime(/*char *s, size_t maxsize, char *format, struct tm *timeptr*/);
+X  /* thread.c */
+X  extern int show_thread(/*int respnum, char *group, char *group_path*/);
+X  extern void show_thread_page(/*void*/);
+Xdiff -rcs ../1.16/rcfile.c ./rcfile.c
+X*** ../1.16/rcfile.c	Sun Nov 15 18:42:04 1992
+X--- ./rcfile.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : rcfile.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 06-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : rcfile.c
+X   *  Author    : I.Lea
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 54,64 ****
+X  			continue;
+X  		}	
+X  		if (match_boolean (buf, "draw_arrow=", &draw_arrow_mark)) {
+X- /*
+X- 			if (draw_arrow_mark == FALSE && inverse_okay == FALSE) {
+X- 				inverse_okay = TRUE;
+X- 			}
+X- */
+X  			continue;
+X  		}	
+X  		if (match_boolean (buf, "print_header=", &print_header)) {
+X--- 54,59 ----
+X***************
+X*** 98,143 ****
+X  			continue;
+X  		}	
+X  		if (match_number (buf, "post_process_type=", &default_post_proc_type)) {
+X! 			switch (default_post_proc_type) {
+X! 				case POST_PROC_SHAR:
+X! 					proc_ch_default = 's';
+X! 					break;
+X! 				case POST_PROC_UUDECODE:
+X! 					proc_ch_default = 'u';
+X! 					break;
+X! 				case POST_PROC_UUD_LST_ZOO:
+X! 					proc_ch_default = 'U';
+X! 					break;
+X! 				case POST_PROC_UUD_EXT_ZOO:
+X! 					proc_ch_default = 'U';
+X! 					break;
+X! 				case POST_PROC_NONE:
+X! 				default:
+X! 					proc_ch_default = 'n';
+X! 					break;
+X! 			}
+X  			continue;
+X  		}	
+X  		if (match_number (buf, "sort_article_type=", &default_sort_art_type)) {
+X  			continue;
+X  		}	
+X! 		if (match_string (buf, "savedir=", default_savedir, sizeof (default_savedir))) {
+X  			if (default_savedir[0] == '.' && strlen (default_savedir) == 1) {
+X! #ifdef DONT_HAVE_GETCWD
+X! 				getwd (buf);	
+X! #else
+X! 				getcwd (buf, LEN);
+X! #endif
+X  				my_strncpy (default_savedir, buf, sizeof (default_savedir));
+X  			}
+X  			continue;
+X  		}	
+X! 		if (match_string (buf, "maildir=", default_maildir, sizeof (default_maildir))) {
+X  			continue;
+X  		}
+X! 		if (match_string (buf, "printer=", printer, sizeof (printer))) {
+X  			continue;
+X  		}
+X  		if (match_string (buf, "quote_chars=", quote_chars, sizeof (quote_chars))) {
+X  			quote_dash_to_space (quote_chars);
+X  			continue;
+X--- 93,120 ----
+X  			continue;
+X  		}	
+X  		if (match_number (buf, "post_process_type=", &default_post_proc_type)) {
+X! 			proc_ch_default = get_post_proc_type (default_post_proc_type);
+X  			continue;
+X  		}	
+X  		if (match_number (buf, "sort_article_type=", &default_sort_art_type)) {
+X  			continue;
+X  		}	
+X! 		if (match_string (buf, "default_savedir=", default_savedir, sizeof (default_savedir))) {
+X  			if (default_savedir[0] == '.' && strlen (default_savedir) == 1) {
+X! 				get_cwd (buf);
+X  				my_strncpy (default_savedir, buf, sizeof (default_savedir));
+X  			}
+X  			continue;
+X  		}	
+X! 		if (match_string (buf, "default_maildir=", default_maildir, sizeof (default_maildir))) {
+X  			continue;
+X  		}
+X! 		if (match_string (buf, "default_printer=", default_printer, sizeof (default_printer))) {
+X  			continue;
+X  		}
+X+ 		if (match_string (buf, "default_sigfile=", default_sigfile, sizeof (default_sigfile))) {
+X+ 			continue;
+X+ 		}
+X  		if (match_string (buf, "quote_chars=", quote_chars, sizeof (quote_chars))) {
+X  			quote_dash_to_space (quote_chars);
+X  			continue;
+X***************
+X*** 172,180 ****
+X--- 149,177 ----
+X  		if (match_boolean (buf, "save_to_mmdf_mailbox=", &save_to_mmdf_mailbox)) {
+X  			continue;
+X  		}
+X+ 		if (match_boolean (buf, "use_builtin_inews=", &use_builtin_inews)) {
+X+ 			continue;
+X+ 		}
+X  		if (match_string (buf, "default_spooldir_alias=", spooldir_alias, sizeof (spooldir_alias))) {
+X  			continue;
+X  		}
+X+ 		if (match_string (buf, "news_quote_format=", news_quote_format, sizeof (news_quote_format))) {
+X+ 			continue;
+X+ 		}
+X+ 		if (match_string (buf, "mail_quote_format=", mail_quote_format, sizeof (mail_quote_format))) {
+X+ 			continue;
+X+ 		}
+X+ #ifdef HAVE_KEYPAD
+X+ 		if (match_boolean (buf, "use_keypad=", &use_keypad)) {
+X+ 			continue;
+X+ 		}
+X+ #endif
+X+ 		if (match_boolean (buf, "slow_speed_terminal=", &slow_speed_terminal)) {
+X+ 			continue;
+X+ 		}
+X+ 		if (match_number (buf, "groupname_max_length=", &groupname_max_length)) {
+X+ 			continue;
+X+ 		}
+X  		if (match_string (buf, "default_author_search=", default_author_search, sizeof (default_author_search))) {
+X  			continue;
+X  		}
+X***************
+X*** 220,229 ****
+X  		if (match_string (buf, "default_shell_command=", default_shell_command, sizeof (default_shell_command))) {
+X  			continue;
+X  		}
+X  		if (match_string (buf, "active_file_info=", active_size_info, sizeof (active_size_info))) {
+X  			load_active_size_info (active_size_info);
+X  			continue;
+X! 		}	
+X  	}
+X  	fclose (fp);
+X  	return TRUE;		
+X--- 217,229 ----
+X  		if (match_string (buf, "default_shell_command=", default_shell_command, sizeof (default_shell_command))) {
+X  			continue;
+X  		}
+X+ 		if (match_string (buf, "motd_file_info=", motd_file_info, sizeof (motd_file_info))) {
+X+ 			continue;
+X+ 		}
+X  		if (match_string (buf, "active_file_info=", active_size_info, sizeof (active_size_info))) {
+X  			load_active_size_info (active_size_info);
+X  			continue;
+X! 		}
+X  	}
+X  	fclose (fp);
+X  	return TRUE;		
+X***************
+X*** 294,304 ****
+X  	fprintf (fp, "# 3=(From descend) 4=(From ascend) 5=(Date descend) 6=(Date ascend).\n");
+X  	fprintf (fp, "sort_article_type=%d\n\n", default_sort_art_type);
+X  	fprintf (fp, "# directory where articles/threads are saved\n");
+X! 	fprintf (fp, "savedir=%s\n\n", default_savedir);
+X  	fprintf (fp, "# (-m) directory where articles/threads are saved in mailbox format\n");	
+X! 	fprintf (fp, "maildir=%s\n\n", default_maildir);	
+X  	fprintf (fp, "# print program with parameters used to print articles/threads\n");
+X! 	fprintf (fp, "printer=%s\n\n", printer);
+X  	fprintf (fp, "# time interval in seconds between rereading the active file\n");
+X  	fprintf (fp, "reread_active_file_secs=%d\n\n", reread_active_file_secs);
+X  	fprintf (fp, "# characters used in quoting to followups and replys. '_' replaced by ' '\n");
+X--- 294,306 ----
+X  	fprintf (fp, "# 3=(From descend) 4=(From ascend) 5=(Date descend) 6=(Date ascend).\n");
+X  	fprintf (fp, "sort_article_type=%d\n\n", default_sort_art_type);
+X  	fprintf (fp, "# directory where articles/threads are saved\n");
+X! 	fprintf (fp, "default_savedir=%s\n\n", default_savedir);
+X  	fprintf (fp, "# (-m) directory where articles/threads are saved in mailbox format\n");	
+X! 	fprintf (fp, "default_maildir=%s\n\n", default_maildir);	
+X  	fprintf (fp, "# print program with parameters used to print articles/threads\n");
+X! 	fprintf (fp, "default_printer=%s\n\n", default_printer);
+X! 	fprintf (fp, "# Signature path (random sigs)/file to be used when posting/replying to messages\n");
+X! 	fprintf (fp, "default_sigfile=%s\n\n", default_sigfile);
+X  	fprintf (fp, "# time interval in seconds between rereading the active file\n");
+X  	fprintf (fp, "reread_active_file_secs=%d\n\n", reread_active_file_secs);
+X  	fprintf (fp, "# characters used in quoting to followups and replys. '_' replaced by ' '\n");
+X***************
+X*** 319,324 ****
+X--- 321,341 ----
+X  	fprintf (fp, "display_reading_prompt=%s\n\n", (display_reading_prompt ? "ON" : "OFF"));
+X  	fprintf (fp, "# if ON save mail to a MMDF style mailbox (default is normal mbox format)\n");
+X  	fprintf (fp, "save_to_mmdf_mailbox=%s\n\n", (save_to_mmdf_mailbox ? "ON" : "OFF"));
+X+ 	fprintf (fp, "# if ON use the builtin mini inews otherwise use an external inews program\n");
+X+ 	fprintf (fp, "use_builtin_inews=%s\n\n", (use_builtin_inews ? "ON" : "OFF"));
+X+ 
+X+ 	fprintf (fp, "# Format of quote line when mailing/posting/followingup an article\n");
+X+ 	fprintf (fp, "# %%A Address  %%D Date  %%F Addr+Name  %%G Groupname  %%M MessageId  %%N Name\n");
+X+ 	fprintf (fp, "news_quote_format=%s\n", news_quote_format);
+X+ 	fprintf (fp, "mail_quote_format=%s\n\n", mail_quote_format);
+X+ #ifdef HAVE_KEYPAD
+X+ 	fprintf (fp, "# If ON enable scroll keys on terminals that support it\n");
+X+ 	fprintf (fp, "use_keypad=%s\n\n", (use_keypad ? "ON" : "OFF"));
+X+ #endif
+X+ 	fprintf (fp, "# If ON strip blanks from end of lines to speedup display on slow terminals\n");
+X+ 	fprintf (fp, "slow_speed_terminal=%s\n\n", (slow_speed_terminal ? "ON" : "OFF"));
+X+ 	fprintf (fp, "# Maximum length of the names of newsgroups displayed\n");
+X+ 	fprintf (fp, "groupname_max_length=%d\n\n", groupname_max_length);
+X  
+X  	fprintf (fp, "# default action/prompt strings\n");
+X  	fprintf (fp, "default_spooldir_alias=%s\n", spooldir_alias);
+X***************
+X*** 338,343 ****
+X--- 355,363 ----
+X  	fprintf (fp, "default_select_pattern=%s\n", default_select_pattern);
+X  	fprintf (fp, "default_shell_command=%s\n\n", default_shell_command);
+X  
+X+ 	fprintf (fp, "# news motd file dates from server used for detecting new motd info\n");
+X+ 	fprintf (fp, "motd_file_info=%s\n\n", motd_file_info);
+X+ 
+X  	fprintf (fp, "# active file sizes/dates from different servers used for detecting new groups\n");
+X  	if (! num_active_size) {
+X  		fprintf (fp, "active_file_info=%s[%s]\n", 
+X***************
+X*** 595,625 ****
+X  				do {
+X  					MoveCursor (INDEX_TOP+8, COL2 + (int) strlen (txt_opt_process_type));
+X  					if ((ch	= ReadCh()) == ' ') {
+X! 						if (default_post_proc_type + 1 > POST_PROC_UUD_EXT_ZOO) {
+X  							default_post_proc_type = POST_PROC_NONE;
+X  						} else {
+X  							default_post_proc_type++;
+X  						}
+X  						switch (default_post_proc_type) {
+X  							case POST_PROC_NONE:
+X  								str = txt_post_process_none;
+X- 								proc_ch_default = 'n';
+X  								break;
+X  							case POST_PROC_SHAR:
+X  								str = txt_post_process_sh;
+X- 								proc_ch_default = 's';
+X  								break;
+X  							case POST_PROC_UUDECODE:
+X  								str = txt_post_process_uudecode;
+X- 								proc_ch_default = 'u';
+X  								break;
+X  							case POST_PROC_UUD_LST_ZOO:
+X  								str = txt_post_process_uud_lst_zoo;
+X- 								proc_ch_default = 'U';
+X  								break;
+X  							case POST_PROC_UUD_EXT_ZOO:
+X  								str = txt_post_process_uud_ext_zoo;
+X! 								proc_ch_default = 'U';
+X  								break;
+X  						}
+X  						CleartoEOLN (); 
+X--- 615,647 ----
+X  				do {
+X  					MoveCursor (INDEX_TOP+8, COL2 + (int) strlen (txt_opt_process_type));
+X  					if ((ch	= ReadCh()) == ' ') {
+X! 						if (default_post_proc_type + 1 > POST_PROC_UUD_EXT_ZIP) {
+X  							default_post_proc_type = POST_PROC_NONE;
+X  						} else {
+X  							default_post_proc_type++;
+X  						}
+X+ 						proc_ch_default = get_post_proc_type (default_post_proc_type);
+X  						switch (default_post_proc_type) {
+X  							case POST_PROC_NONE:
+X  								str = txt_post_process_none;
+X  								break;
+X  							case POST_PROC_SHAR:
+X  								str = txt_post_process_sh;
+X  								break;
+X  							case POST_PROC_UUDECODE:
+X  								str = txt_post_process_uudecode;
+X  								break;
+X  							case POST_PROC_UUD_LST_ZOO:
+X  								str = txt_post_process_uud_lst_zoo;
+X  								break;
+X  							case POST_PROC_UUD_EXT_ZOO:
+X  								str = txt_post_process_uud_ext_zoo;
+X! 								break;
+X! 							case POST_PROC_UUD_LST_ZIP:
+X! 								str = txt_post_process_uud_lst_zip;
+X! 								break;
+X! 							case POST_PROC_UUD_EXT_ZIP:
+X! 								str = txt_post_process_uud_ext_zip;
+X  								break;
+X  						}
+X  						CleartoEOLN (); 
+X***************
+X*** 645,656 ****
+X  							break;
+X  						case POST_PROC_UUD_LST_ZOO:
+X  							str = txt_post_process_uud_lst_zoo;
+X! 							proc_ch_default = 'U';
+X  							break;
+X  						case POST_PROC_UUD_EXT_ZOO:
+X  							str = txt_post_process_uud_ext_zoo;
+X! 							proc_ch_default = 'U';
+X  							break;
+X  					}
+X  					CleartoEOLN (); 
+X  					fputs (str, stdout);
+X--- 667,686 ----
+X  							break;
+X  						case POST_PROC_UUD_LST_ZOO:
+X  							str = txt_post_process_uud_lst_zoo;
+X! 							proc_ch_default = '1';
+X  							break;
+X  						case POST_PROC_UUD_EXT_ZOO:
+X  							str = txt_post_process_uud_ext_zoo;
+X! 							proc_ch_default = '2';
+X  							break;
+X+ 						case POST_PROC_UUD_LST_ZIP:
+X+ 							str = txt_post_process_uud_lst_zip;
+X+ 							proc_ch_default = '3';
+X+ 							break;
+X+ 						case POST_PROC_UUD_EXT_ZIP:
+X+ 							str = txt_post_process_uud_ext_zip;
+X+ 							proc_ch_default = '4';
+X+ 							break;
+X  					}
+X  					CleartoEOLN (); 
+X  					fputs (str, stdout);
+X***************
+X*** 743,750 ****
+X  
+X  			case 18:
+X  				show_menu_help (txt_help_printer);
+X! 				prompt_menu_string (INDEX_TOP+16, COL1 + (int) strlen (txt_opt_printer), printer);
+X! 				expand_rel_abs_pathname (INDEX_TOP+16, COL1 + (int) strlen (txt_opt_printer), printer);
+X  				break;
+X  #endif	/* AMIGA_BBS */
+X  		}
+X--- 773,780 ----
+X  
+X  			case 18:
+X  				show_menu_help (txt_help_printer);
+X! 				prompt_menu_string (INDEX_TOP+16, COL1 + (int) strlen (txt_opt_printer), default_printer);
+X! 				expand_rel_abs_pathname (INDEX_TOP+16, COL1 + (int) strlen (txt_opt_printer), default_printer);
+X  				break;
+X  #endif	/* AMIGA_BBS */
+X  		}
+X***************
+X*** 818,823 ****
+X--- 848,859 ----
+X  		case POST_PROC_UUD_EXT_ZOO:
+X  			str = txt_post_process_uud_ext_zoo;
+X  			break;
+X+ 		case POST_PROC_UUD_LST_ZIP:
+X+ 			str = txt_post_process_uud_lst_zip;
+X+ 			break;
+X+ 		case POST_PROC_UUD_EXT_ZIP:
+X+ 			str = txt_post_process_uud_ext_zip;
+X+ 			break;
+X  	}
+X  
+X  	printf ("%s%s\r\n\r\n", txt_opt_process_type, str);
+X***************
+X*** 851,857 ****
+X  #ifndef AMIGA_BBS
+X  	printf ("%s%s\r\n\r\n", txt_opt_savedir, default_savedir);
+X  	printf ("%s%s\r\n\r\n", txt_opt_maildir, default_maildir);
+X! 	printf ("%s%s\r\n\r\n", txt_opt_printer, printer);
+X  #endif	/* AMIGA_BBS */
+X  	fflush(stdout);
+X  
+X--- 887,893 ----
+X  #ifndef AMIGA_BBS
+X  	printf ("%s%s\r\n\r\n", txt_opt_savedir, default_savedir);
+X  	printf ("%s%s\r\n\r\n", txt_opt_maildir, default_maildir);
+X! 	printf ("%s%s\r\n\r\n", txt_opt_printer, default_printer);
+X  #endif	/* AMIGA_BBS */
+X  	fflush(stdout);
+X  
+Xdiff -rcs ../1.16/save.c ./save.c
+X*** ../1.16/save.c	Sun Nov 15 18:42:05 1992
+X--- ./save.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : save.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : save.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 07-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 19,51 ****
+X  #define OFF		3
+X  #define END		4
+X  
+X  int create_subdir = TRUE;
+X  
+X  
+X  /*
+X   * types of archive programs
+X-  * 0=archiver, 1=extension, 2=extract option, 3=list option
+X   */
+X   
+X  struct archiver_t { 
+X  	char *name;
+X  	char *ext;
+X! 	char *extract;
+X  	char *list;
+X! };
+X! 
+X! struct archiver_t archiver[] = {
+X! 	{ "",			"",			"",			"" },
+X! 	{ "",			"",			"",			"" },
+X! 	{ "",			"",			"",			"" },
+X! 	{ "zoo",		"zoo",		"-extract",	"-list" },
+X! 	{ (char *) 0,	(char *) 0,	(char *) 0,	(char *) 0 }
+X  };
+X  
+X  extern char *glob_group;
+X! extern char note_h_path[LEN];	/* Path:	*/
+X! extern char note_h_date[LEN];	/* Date:	*/
+X! extern FILE	*note_fp;			/* the body of the current article */
+X  extern int index_point;
+X  extern int note_end;
+X  extern int note_page;
+X--- 19,56 ----
+X  #define OFF		3
+X  #define END		4
+X  
+X+ extern int errno;
+X+ 
+X  int create_subdir = TRUE;
+X  
+X  
+X  /*
+X   * types of archive programs
+X   */
+X   
+X  struct archiver_t { 
+X  	char *name;
+X  	char *ext;
+X! 	char *test;
+X  	char *list;
+X! 	char *extract;
+X! } archiver[] = {
+X! 	{ "",		"",		"",		"",		""	},
+X! 	{ "",		"",		"",		"",		""	},
+X! 	{ "",		"",		"",		"",		""	},
+X! #ifdef AMIGA
+X! 	{ "lha",	"lha",		"t",		"l",		"x" },
+X! #else
+X! 	{ "zoo",	"zoo",		"-test",	"-list",	"-extract" },
+X! #endif	
+X! 	{ "unzip",	"zip",		"-t",		"-l",		"-o"	},
+X! 	{ (char *) 0,	(char *) 0,	(char *) 0,	(char *) 0,	(char *) 0 }
+X  };
+X  
+X  extern char *glob_group;
+X! extern char note_h_path[LEN];		/* Path:	*/
+X! extern char note_h_date[PATH_LEN];	/* Date:	*/
+X! extern FILE	*note_fp;		/* the body of the current article */
+X  extern int index_point;
+X  extern int note_end;
+X  extern int note_page;
+X***************
+X*** 69,83 ****
+X  {
+X  #ifndef INDEX_DAEMON
+X  
+X! 	char buf[LEN], logfile[LEN], *p;
+X! 	char group_path[LEN];
+X! 	char savefile[LEN];
+X  	extern FILE *note_fp;
+X  	FILE *fp = (FILE *) 0; 
+X  	FILE *fp_log = (FILE *) 0;
+X! 	int i, j, print_group;
+X  	int check_arts = 0;
+X! 	int	log_opened = TRUE;
+X  	int print_first = TRUE;
+X  	int saved_arts = 0;
+X  	int saved_groups = 0;
+X--- 74,89 ----
+X  {
+X  #ifndef INDEX_DAEMON
+X  
+X! 	char buf[LEN], logfile[LEN];
+X! 	char group_path[PATH_LEN];
+X! 	char savefile[PATH_LEN];
+X! 	char path[PATH_LEN];
+X  	extern FILE *note_fp;
+X  	FILE *fp = (FILE *) 0; 
+X  	FILE *fp_log = (FILE *) 0;
+X! 	int i, j, k, print_group;
+X  	int check_arts = 0;
+X! 	int log_opened = TRUE;
+X  	int print_first = TRUE;
+X  	int saved_arts = 0;
+X  	int saved_groups = 0;
+X***************
+X*** 109,122 ****
+X  	}
+X  	
+X  	for (i = 0; i < group_top; i++) {
+X! 		strcpy (group_path, active[my_group[i]].name);
+X! 		for (p = group_path; *p; p++) {
+X! 			if (*p == '.') {
+X! 				*p = '/';
+X! 			}
+X  		}
+X- 		
+X- 		index_group (active[my_group[i]].name, group_path);
+X  		read_newsrc_line (active[my_group[i]].name);
+X  		print_group = TRUE;
+X  		check_arts = 0;
+X--- 115,124 ----
+X  	}
+X  	
+X  	for (i = 0; i < group_top; i++) {
+X! 		make_group_path (active[my_group[i]].name, group_path);
+X! 		if (! index_group (active[my_group[i]].name, group_path)) {
+X! 			continue;
+X  		}
+X  		read_newsrc_line (active[my_group[i]].name);
+X  		print_group = TRUE;
+X  		check_arts = 0;
+X***************
+X*** 153,160 ****
+X  						if (check_start_save == MAIL_ANY_NEWS) {
+X  							sprintf (savefile, "%stin.%d", TMPDIR, process_id);
+X  						} else {
+X! 							sprintf (savefile, "%s/%s/%ld", active[my_group[cur_groupnum]].attribute.savedir,
+X! 									 group_path, arts[j].artnum);
+X  						}
+X  
+X  						note_page = art_open (arts[j].artnum, group_path);	
+X--- 155,167 ----
+X  						if (check_start_save == MAIL_ANY_NEWS) {
+X  							sprintf (savefile, "%stin.%d", TMPDIR, process_id);
+X  						} else {
+X! 							k = my_group[cur_groupnum];
+X! 							if (! strfpath (active[k].attribute.savedir,
+X! 							    path, sizeof (path), homedir, (char *) 0,
+X! 							    (char *) 0, active[k].name)) {
+X! 								joinpath (path, homedir, DEFAULT_SAVEDIR);
+X! 							}
+X! 							sprintf (savefile, "%s/%s/%ld", path, group_path, arts[j].artnum);
+X  						}
+X  
+X  						note_page = art_open (arts[j].artnum, group_path);	
+X***************
+X*** 289,295 ****
+X  	long epoch;
+X  	
+X  	if (debug == 2) {
+X! 		sprintf (msg, "Save respnum=[%d] index=[%s] mbox=[%d] file=[%s]", 
+X  			respnum, index, mailbox, filename);
+X  		error_message (msg, "");
+X  	}
+X--- 296,302 ----
+X  	long epoch;
+X  	
+X  	if (debug == 2) {
+X! 		sprintf (msg, "Save respnum=[%d] index=[%d] mbox=[%d] file=[%s]", 
+X  			respnum, index, mailbox, filename);
+X  		error_message (msg, "");
+X  	}
+X***************
+X*** 498,508 ****
+X  
+X  	char tmp[PATH_LEN];
+X  	char buf[PATH_LEN];
+X- 	char group[PATH_LEN];
+X- 	char *env = (char *) 0;
+X  	int i, j, len = 0;
+X  	struct stat st;
+X  	
+X  	/*
+X  	 * save in mailbox format to ~/Mail/<group.name> or
+X  	 * attribute.maildir for current group
+X--- 505,515 ----
+X  
+X  	char tmp[PATH_LEN];
+X  	char buf[PATH_LEN];
+X  	int i, j, len = 0;
+X  	struct stat st;
+X  	
+X+ 	i = my_group[cur_groupnum];
+X+ 
+X  	/*
+X  	 * save in mailbox format to ~/Mail/<group.name> or
+X  	 * attribute.maildir for current group
+X***************
+X*** 510,569 ****
+X  	if (path[0] == '=') {
+X  		mbox_format = TRUE;
+X  		strcpy (tmp, path);
+X! 		sprintf (path, "%s/dummy", active[my_group[cur_groupnum]].attribute.maildir);
+X! 		goto create_dirs;
+X  	}
+X  
+X! 	/*
+X! 	 * if ~/file expand (ie. /usr/homedir/file)
+X! 	 */
+X! 	switch (path[0]) {
+X! 		case '~':
+X! 			my_strncpy (buf, path+2, sizeof (buf));
+X! 			joinpath (path, homedir, buf);
+X! 			break;
+X! 		case '+':
+X! 			my_strncpy (buf, path+1, sizeof (buf));
+X  #ifdef HAVE_LONG_FILENAMES 
+X! 			my_strncpy (group, glob_group, sizeof (group));
+X  #else
+X! 			my_strncpy (group, glob_group, 14);
+X  #endif
+X! 			/*
+X! 			 *  convert 1st letter to uppercase
+X! 			 */
+X! 			if (group[0] >= 'a' && group[0] <= 'z') {
+X! 				group[0] = group[0] - 32;
+X! 			}
+X! 			sprintf (path, "%s/%s/%s", 
+X! 				active[my_group[cur_groupnum]].attribute.savedir,
+X! 				group, buf);
+X! 			break;
+X! 		case '$':
+X! 			for (i = 0 ; isalnum (path[i+1]) ; i++) {
+X! 				buf[i] = path[i+1];
+X! 			}
+X! 			buf[i] = '\0';
+X! 			if (buf[0] == '\0' || (env = (char *) getenv (buf)) == NULL ||
+X! 				(len = strlen (env)) == 0) {
+X! 			}
+X! 			sprintf (buf, "%s%s%s", env, (path[i+1] != '/' &&
+X! 				env[len-1] != '/') ? "/" : "", &path[i+1]);
+X! 			my_strncpy (path, buf, PATH_LEN);
+X! 			break;
+X! 		case '/':
+X! 			break;
+X! 		case '.':
+X! 			return FALSE;
+X! 			/* NOTREACHED */
+X  		default:
+X! 			sprintf (buf, "%s/%s", 
+X! 				active[my_group[cur_groupnum]].attribute.savedir, path);
+X! 			my_strncpy (path, buf, PATH_LEN);
+X! 			break;
+X! 	}
+X! 
+X! create_dirs:
+X  
+X  	/*
+X  	 *  create any directories, otherwise check
+X--- 517,558 ----
+X  	if (path[0] == '=') {
+X  		mbox_format = TRUE;
+X  		strcpy (tmp, path);
+X! 		if (! strfpath (active[i].attribute.maildir, buf, sizeof (buf), 
+X! 		    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X! 			joinpath (buf, homedir, DEFAULT_MAILDIR);
+X! 		}
+X! 		sprintf (path, "%s/dummy", buf);
+X! 	} else {
+X! 		if (! strfpath (active[i].attribute.savedir, buf, sizeof (buf), 
+X! 		    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X! 			joinpath (buf, homedir, DEFAULT_SAVEDIR);
+X! 		}
+X! 		sprintf (tmp, "%s/%s", buf, path);
+X! 		my_strncpy (path, tmp, PATH_LEN);
+X  	}
+X  
+X! #if 0
+X! 	case '+':
+X! 		my_strncpy (buf, path+1, sizeof (buf));
+X  #ifdef HAVE_LONG_FILENAMES 
+X! 		my_strncpy (group, glob_group, sizeof (group));
+X  #else
+X! 		my_strncpy (group, glob_group, 14);
+X  #endif
+X! 		/*
+X! 		 *  convert 1st letter to uppercase
+X! 		 */
+X! 		if (group[0] >= 'a' && group[0] <= 'z') {
+X! 			group[0] = group[0] - 32;
+X! 		}
+X! 		i = my_group[cur_groupnum];
+X! 		if (! strfpath (active[i].attribute.savedir, tmp, sizeof (tmp), homedir)) {
+X! 			joinpath (tmp, homedir, "News");
+X! 		}
+X! 		sprintf (path, "%s/%s/%s", tmp, group, buf);
+X! 		break;
+X  		default:
+X! #endif /* 0 */
+X  
+X  	/*
+X  	 *  create any directories, otherwise check
+X***************
+X*** 577,584 ****
+X  			buf[j+1] = '\0';
+X  			if (stat (buf, &st) == -1) {
+X  				if (mkdir (buf, 0755) == -1) {
+X! 					perror_message ("Cannot create %s", buf);
+X! 					return FALSE;
+X  				}
+X  			}
+X  		}
+X--- 566,575 ----
+X  			buf[j+1] = '\0';
+X  			if (stat (buf, &st) == -1) {
+X  				if (mkdir (buf, 0755) == -1) {
+X! 					if (errno != EEXIST) {
+X! 						perror_message ("Cannot create %s", buf);
+X! 						return FALSE;
+X! 					}
+X  				}
+X  			}
+X  		}
+X***************
+X*** 628,641 ****
+X   *  add files to be saved to save array
+X   */
+X  
+X! void add_to_save_list (index, article, is_mailbox, path)
+X  	int index;
+X  	struct article_t *article;
+X  	int is_mailbox;
+X  	char *path;
+X  {
+X  #ifndef INDEX_DAEMON
+X! 
+X  	char dir[PATH_LEN];
+X  	char file[PATH_LEN];
+X  	int i;
+X--- 619,633 ----
+X   *  add files to be saved to save array
+X   */
+X  
+X! void add_to_save_list (index, article, is_mailbox, archive_save, path)
+X  	int index;
+X  	struct article_t *article;
+X  	int is_mailbox;
+X+ 	int archive_save;
+X  	char *path;
+X  {
+X  #ifndef INDEX_DAEMON
+X! 	char tmp[PATH_LEN];
+X  	char dir[PATH_LEN];
+X  	char file[PATH_LEN];
+X  	int i;
+X***************
+X*** 657,670 ****
+X  	save[num_save].patch   = (char *) 0;
+X  
+X  	save[num_save].subject = str_dup (article->subject);
+X! 	if (article->archive) {
+X  		save[num_save].archive = str_dup (article->archive);
+X! 	}
+X! 	if (article->part) {
+X! 		save[num_save].part = str_dup (article->part);
+X! 	}
+X! 	if (article->patch) {
+X! 		save[num_save].patch = str_dup (article->patch);
+X  	}
+X  
+X  	if (is_mailbox) {
+X--- 649,662 ----
+X  	save[num_save].patch   = (char *) 0;
+X  
+X  	save[num_save].subject = str_dup (article->subject);
+X! 	if (archive_save && article->archive) {
+X  		save[num_save].archive = str_dup (article->archive);
+X! 		if (article->part) {
+X! 			save[num_save].part = str_dup (article->part);
+X! 		}
+X! 		if (article->patch) {
+X! 			save[num_save].patch = str_dup (article->patch);
+X! 		}
+X  	}
+X  
+X  	if (is_mailbox) {
+X***************
+X*** 677,683 ****
+X  		} else {
+X  			my_strncpy (file, glob_group, sizeof (file));
+X  		}
+X! 		save[num_save].dir = str_dup (active[my_group[cur_groupnum]].attribute.maildir);
+X  		save[num_save].file = str_dup (file);
+X  	} else {
+X  		if (path[0]) {
+X--- 669,681 ----
+X  		} else {
+X  			my_strncpy (file, glob_group, sizeof (file));
+X  		}
+X! 
+X! 		i = my_group[cur_groupnum];
+X! 		if (! strfpath (active[i].attribute.maildir, tmp, sizeof (tmp), 
+X! 		    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X! 			joinpath (tmp, homedir, DEFAULT_MAILDIR);
+X! 		}
+X! 		save[num_save].dir = str_dup (tmp);
+X  		save[num_save].file = str_dup (file);
+X  	} else {
+X  		if (path[0]) {
+X***************
+X*** 694,700 ****
+X  		if (dir[0]) {
+X  			save[num_save].dir = str_dup (dir);
+X  		} else {
+X! 			save[num_save].dir = str_dup (active[my_group[cur_groupnum]].attribute.savedir);
+X  		}
+X  
+X  		if (file[0]) {
+X--- 692,703 ----
+X  		if (dir[0]) {
+X  			save[num_save].dir = str_dup (dir);
+X  		} else {
+X! 			i = my_group[cur_groupnum];
+X! 			if (! strfpath (active[i].attribute.savedir, tmp, sizeof (tmp), 
+X! 			    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X! 				joinpath (tmp, homedir, DEFAULT_SAVEDIR);
+X! 			}	
+X! 			save[num_save].dir = str_dup (tmp);
+X  		}
+X  
+X  		if (file[0]) {
+X***************
+X*** 916,922 ****
+X  
+X  
+X  int post_process_files (proc_type_ch)
+X! 	char proc_type_ch;
+X  {
+X  	if (num_save) {
+X  		wait_message (txt_post_processing);
+X--- 919,925 ----
+X  
+X  
+X  int post_process_files (proc_type_ch)
+X! 	int proc_type_ch;
+X  {
+X  	if (num_save) {
+X  		wait_message (txt_post_processing);
+X***************
+X*** 925,942 ****
+X  			case 's':
+X  				post_process_sh ();
+X  				break;
+X- 				
+X  			case 'u':
+X  				post_process_uud (POST_PROC_UUDECODE);
+X  				break;
+X! 
+X! 			case 'U':
+X! 				if (default_post_proc_type == POST_PROC_UUD_EXT_ZOO) {
+X! 					post_process_uud (POST_PROC_UUD_EXT_ZOO);
+X! 				} else {
+X! 					post_process_uud (POST_PROC_UUD_LST_ZOO);
+X! 				}
+X  				break;
+X  		}
+X  
+X  		info_message (txt_post_processing_finished);
+X--- 928,948 ----
+X  			case 's':
+X  				post_process_sh ();
+X  				break;
+X  			case 'u':
+X  				post_process_uud (POST_PROC_UUDECODE);
+X  				break;
+X! 			case 'l':
+X! 				post_process_uud (POST_PROC_UUD_LST_ZOO);
+X! 				break;
+X! 			case 'e':
+X! 				post_process_uud (POST_PROC_UUD_EXT_ZOO);
+X! 				break;
+X! 			case 'L':
+X! 				post_process_uud (POST_PROC_UUD_LST_ZIP);
+X  				break;
+X+ 			case 'E':
+X+ 				post_process_uud (POST_PROC_UUD_EXT_ZIP);
+X+ 				break;
+X  		}
+X  
+X  		info_message (txt_post_processing_finished);
+X***************
+X*** 1064,1072 ****
+X  	sprintf (buf, "cd %s; uudecode %s", file_out_dir, file_out); 
+X  	if (invoke_cmd (buf)) {
+X  		/*
+X! 		 *  sum file
+X  		 */
+X! 		if ((file = get_archive_file (file_out_dir, "*")) != NULL) { 
+X  			sprintf (buf, "%s %s", DEFAULT_SUM, file); 
+X  			printf (txt_checksum_of_file, file); 
+X  			fflush (stdout);
+X--- 1070,1078 ----
+X  	sprintf (buf, "cd %s; uudecode %s", file_out_dir, file_out); 
+X  	if (invoke_cmd (buf)) {
+X  		/*
+X! 		 *  Sum file
+X  		 */
+X! 		if ((file = get_archive_file (file_out_dir, "*")) != (char *) 0) { 
+X  			sprintf (buf, "%s %s", DEFAULT_SUM, file); 
+X  			printf (txt_checksum_of_file, file); 
+X  			fflush (stdout);
+X***************
+X*** 1084,1118 ****
+X  				printf ("%s  %8d bytes\r\n", buf, file_size); 
+X  				fflush (stdout);
+X  			}
+X- 			if (file != (char *) 0) {
+X- 				free (file);
+X- 				file = (char *) 0;
+X- 			}
+X- 		}
+X- 	}
+X  
+X! 	if (pp > POST_PROC_UUDECODE) {
+X! 		sprintf (buf, "*.%s", archiver[pp].ext); 
+X! 		if ((file = get_archive_file (file_out_dir, buf)) != NULL) {
+X! 			if (pp == POST_PROC_UUD_EXT_ZOO) {
+X! 				sprintf (buf, "cd %s; %s %s %s", file_out_dir,
+X! 					archiver[pp].name, archiver[pp].extract, file);
+X! 				printf (txt_listing_archive, file); 
+X! 			} else {
+X! 				sprintf (buf, "cd %s; %s %s %s", file_out_dir,
+X! 					archiver[pp].name, archiver[pp].list, file);
+X! 				printf (txt_extracting_archive, file);
+X! 			}
+X! 			fflush (stdout);
+X! 			if (file != (char *) 0) {
+X! 				free (file);
+X! 				file = (char *) 0;
+X! 			}
+X! 			if (! invoke_cmd (buf)) {
+X! 				error_message (txt_post_processing_failed, "");
+X  			}
+X  		}
+X  	}
+X  	delete_processed_files ();
+X  
+X  	unlink (file_out);
+X--- 1090,1147 ----
+X  				printf ("%s  %8d bytes\r\n", buf, file_size); 
+X  				fflush (stdout);
+X  			}
+X  
+X! 			if (pp > POST_PROC_UUDECODE) {
+X! 				/*
+X! 				 *  Test archive integrity
+X! 				 */
+X! 				if (pp > POST_PROC_UUDECODE && archiver[pp].test != (char *) 0) {
+X! 					i = (pp == POST_PROC_UUD_LST_ZOO || pp == POST_PROC_UUD_EXT_ZOO ? 3 : 4);
+X! 					sprintf (buf, "cd %s; %s %s %s", file_out_dir,
+X! 						archiver[i].name, archiver[i].test, file);
+X! 					printf (txt_testing_archive, file); 
+X! 					fflush (stdout);
+X! 					if (! invoke_cmd (buf)) {
+X! 						error_message (txt_post_processing_failed, "");
+X! 					}
+X! 				}
+X! 				/*
+X! 				 *  List archive
+X! 				 */
+X! 				if (pp == POST_PROC_UUD_LST_ZOO || pp == POST_PROC_UUD_LST_ZIP) {
+X! 					i = (pp == POST_PROC_UUD_LST_ZOO ? 3 : 4);
+X! 					sprintf (buf, "cd %s; %s %s %s", file_out_dir,
+X! 						archiver[i].name, archiver[i].list, file);
+X! 					printf (txt_listing_archive, file); 
+X! 					fflush (stdout);
+X! 					if (! invoke_cmd (buf)) {
+X! 						error_message (txt_post_processing_failed, "");
+X! 					}
+X! 					sleep (3);
+X! 				}
+X! 				/*
+X! 				 *  Extract archive
+X! 				 */
+X! 				if (pp == POST_PROC_UUD_EXT_ZOO || pp == POST_PROC_UUD_EXT_ZIP) {
+X! 					i = (pp == POST_PROC_UUD_EXT_ZOO ? 3 : 4);
+X! 					sprintf (buf, "cd %s; %s %s %s", file_out_dir,
+X! 						archiver[i].name, archiver[i].extract, file);
+X! 					printf (txt_extracting_archive, file);
+X! 					fflush (stdout);
+X! 					if (! invoke_cmd (buf)) {
+X! 						error_message (txt_post_processing_failed, "");
+X! 					}
+X! 					sleep (3);
+X! 				}
+X! 	
+X! 				if (file != (char *) 0) {
+X! 					free (file);
+X! 					file = (char *) 0;
+X! 				}
+X  			}
+X  		}
+X  	}
+X+ 
+X  	delete_processed_files ();
+X  
+X  	unlink (file_out);
+XFiles ../1.16/screen.c and ./screen.c are identical
+Xdiff -rcs ../1.16/search.c ./search.c
+X*** ../1.16/search.c	Sun Nov 15 18:42:06 1992
+X--- ./search.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : search.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : search.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 27-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 124,130 ****
+X  	char buf2[LEN];
+X  	int i, patlen;
+X  
+X! 	if (! group_top && show_only_unread_groups) {
+X  		info_message (txt_no_groups);
+X  		return;
+X  	}
+X--- 124,132 ----
+X  	char buf2[LEN];
+X  	int i, patlen;
+X  
+X! /*	if (! group_top && show_only_unread_groups) {
+X! */
+X! 	if (! group_top) {
+X  		info_message (txt_no_groups);
+X  		return;
+X  	}
+X***************
+X*** 174,179 ****
+X--- 176,184 ----
+X  		make_lower (active[my_group[i]].name, buf2);
+X  
+X  		if (str_str (buf2, buf, patlen) != 0) {
+X+ 			if (_hp_glitch) {
+X+ 				erase_group_arrow ();
+X+ 			}
+X  			if (i >= first_group_on_screen
+X  			&&  i < last_group_on_screen) {
+X  				clear_message ();
+X***************
+X*** 255,260 ****
+X--- 260,268 ----
+X  		make_lower (arts[j].subject, buf2);
+X  
+X  		if (str_str (buf2, buf, patlen) != 0) {
+X+ 			if (_hp_glitch) {
+X+ 				erase_subject_arrow ();
+X+ 			}
+X  			if (i >= first_subj_on_screen
+X  			    &&  i < last_subj_on_screen) {
+X  				clear_message ();
+X***************
+X*** 263,269 ****
+X  				draw_subject_arrow ();
+X  			} else {
+X  				index_point = i;
+X! 				show_group_page (group);
+X  			}
+X  			return;
+X  		}
+X--- 271,277 ----
+X  				draw_subject_arrow ();
+X  			} else {
+X  				index_point = i;
+X! 				show_group_page ();
+X  			}
+X  			return;
+X  		}
+Xdiff -rcs ../1.16/select.c ./select.c
+X*** ../1.16/select.c	Sun Nov 15 18:42:07 1992
+X--- ./select.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : select.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 13-09-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : select.c
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 08-11-92
+X   *  Notes     :
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 57,67 ****
+X  	set_alarm_signal ();		/* set alarm signal for resync_active_file () */
+X  	
+X  	while (TRUE) {
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  		resync_active_file ();	/* reread active file if alarm set */
+X  #endif
+X  		ch = ReadCh ();
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  		if (ch != 'q' && ch != 'Q')
+X  			resync_active_file ();
+X  #endif
+X--- 57,67 ----
+X  	set_alarm_signal ();		/* set alarm signal for resync_active_file () */
+X  	
+X  	while (TRUE) {
+X! #ifndef DONT_REREAD_ACTIVE_FILE
+X  		resync_active_file ();	/* reread active file if alarm set */
+X  #endif
+X  		ch = ReadCh ();
+X! #ifndef DONT_REREAD_ACTIVE_FILE
+X  		if (ch != 'q' && ch != 'Q')
+X  			resync_active_file ();
+X  #endif
+X***************
+X*** 154,161 ****
+X  					do {
+X  						n = my_group[cur_groupnum];
+X  						group_page (active[n].name);
+X! 					} while (index_point == -3);
+X! #ifndef NO_REREAD_ACTIVE_FILE					
+X  					if (! reread_active_file)
+X  #endif					
+X  						group_selection_page ();
+X--- 154,161 ----
+X  					do {
+X  						n = my_group[cur_groupnum];
+X  						group_page (active[n].name);
+X! 					} while (index_point == -3 || index_point == -4);
+X! #ifndef DONT_REREAD_ACTIVE_FILE					
+X  					if (! reread_active_file)
+X  #endif					
+X  						group_selection_page ();
+X***************
+X*** 177,185 ****
+X  					break;
+X  				}
+X  				if (cur_groupnum == group_top - 1) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_group_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_group_arrow();
+X--- 177,182 ----
+X***************
+X*** 192,198 ****
+X  						draw_group_arrow();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_group_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 189,194 ----
+X***************
+X*** 255,263 ****
+X  					break;
+X  				}
+X  				if (cur_groupnum + 1 >= group_top) {
+X- #ifdef NO_LOOP_AROUND
+X- 					break;
+X- #else
+X  					if (0 < first_group_on_screen) {
+X  #	ifndef USE_CLEARSCREEN
+X  						erase_group_arrow();
+X--- 251,256 ----
+X***************
+X*** 270,276 ****
+X  						draw_group_arrow();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				if (cur_groupnum + 1 >= last_group_on_screen) {
+X  #ifndef USE_CLEARSCREEN
+X--- 263,268 ----
+X***************
+X*** 292,300 ****
+X  					break;
+X  				}
+X  				if (cur_groupnum == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (group_top > last_group_on_screen) {
+X  						cur_groupnum = group_top - 1;
+X  						group_selection_page ();
+X--- 284,292 ----
+X  					break;
+X  				}
+X  				if (cur_groupnum == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_group_arrow ();
+X! 					}
+X  					if (group_top > last_group_on_screen) {
+X  						cur_groupnum = group_top - 1;
+X  						group_selection_page ();
+X***************
+X*** 304,311 ****
+X  						draw_group_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				if (cur_groupnum <= first_group_on_screen) {
+X  					cur_groupnum--;
+X  					group_selection_page ();
+X--- 296,305 ----
+X  						draw_group_arrow ();
+X  					}
+X  					break;
+X  				}
+X+ 				if (_hp_glitch) {
+X+ 					erase_group_arrow ();
+X+ 				}
+X  				if (cur_groupnum <= first_group_on_screen) {
+X  					cur_groupnum--;
+X  					group_selection_page ();
+X***************
+X*** 332,340 ****
+X  					break;
+X  				}
+X  				if (cur_groupnum == 0) {
+X! #ifdef NO_LOOP_AROUND
+X! 					break;
+X! #else
+X  					if (group_top > last_group_on_screen) {
+X  						cur_groupnum = group_top - 1;
+X  						group_selection_page ();
+X--- 326,334 ----
+X  					break;
+X  				}
+X  				if (cur_groupnum == 0) {
+X! 					if (_hp_glitch) {
+X! 						erase_group_arrow ();
+X! 					}
+X  					if (group_top > last_group_on_screen) {
+X  						cur_groupnum = group_top - 1;
+X  						group_selection_page ();
+X***************
+X*** 344,350 ****
+X  						draw_group_arrow ();
+X  					}
+X  					break;
+X- #endif					
+X  				}
+X  				erase_group_arrow ();
+X  				scroll_lines = (full_page_scroll ? NOTESLINES : NOTESLINES / 2);
+X--- 338,343 ----
+X***************
+X*** 371,378 ****
+X  				group_selection_page ();
+X  				break;
+X  				
+X! 			case 'c':	/* catchup--mark all articles as read */
+X! 			case 'C':	/* catchup & goto next unread group */
+X  				if (group_top == 0) {
+X  					break;
+X  				}
+X--- 364,371 ----
+X  				group_selection_page ();
+X  				break;
+X  				
+X! 			case 'c':	/* catchup - mark all articles as read */
+X! 			case 'C':	/* and goto next unread group */
+X  				if (group_top == 0) {
+X  					break;
+X  				}
+X***************
+X*** 381,395 ****
+X  
+X  			case 'g':	/* prompt for a new group name */
+X  				if ((n = choose_new_group ()) >= 0) {
+X  					if (active[my_group[n]].my_group != SUBSCRIBED) {
+X  						subscribe (active[my_group[n]].name, ':',
+X  							my_group[n], FALSE);
+X  					} else {
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 7'
+echo 'File tin-1.17.patch is continued in part 8'
+echo 8 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

@@ -1,0 +1,2017 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!sun-barr!cs.utexas.edu!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 08 of 17
+Message-ID: <1992Nov19.052335.25838@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:23:35 GMT
+Lines: 2007
+
+
+
+#!/bin/sh
+# this is part.08 (part 8 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/rdd.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 8; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/rdd.c'
+else
+echo 'x - continuing file xmfm/rdd.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/rdd.c' &&
+X
+X	rddStartAction (w, event, args, nargs);		/* then use default action */
+}
+X
+/* RDD myDropAction */
+void myDropAction (w, event, args, nargs)
+X	Widget w;
+X	XButtonEvent *event;
+X	String *args;
+X	int *nargs;
+{
+X	static char *data = "my drop data";
+X
+X	/* copy data to rdd, use filename as data type  */
+X	rddSetDropDataType (data, strlen(data), RDD_FILENAME_TYPE);
+X
+X	/* then use default action */
+X	rddDropAction (w, event, args, nargs);	
+}
+X
+/* RDD dropTraceProc */
+void
+dropTraceProc(w, call, cbs)
+X	Widget w;
+X	char *call;
+X	RddCallbackStruct *cbs;
+{
+X	fprintf (stderr,
+X			 "dropTraceProc entered w = %s call=%s len=%d data=<%s> type=%d keymask=%d\n",
+X			 XtName(w), call, cbs->len, cbs->data, cbs->type, cbs->keymask);
+}
+X
+X
+main(argc, argv)
+X	int argc;
+X	char *argv[];
+{
+X    Widget        toplevel, button;
+X    void i_was_pushed();
+X    XmString label;
+X
+X    toplevel = XtVaAppInitialize(&app, "Hello", (XrmOptionDescList)NULL, 0,
+X        (Cardinal*)&argc, argv, (String*)NULL, (String*)NULL);
+X
+X	/* RDD add action myAction */
+X	{
+X		static XtActionsRec actions[] = 
+X		{
+X			"myDropAction", myDropAction,
+X			"myStartAction", myStartAction,
+X			NULL, NULL,
+X		};
+X		XtAppAddActions (app, actions, XtNumber(actions));
+X	}
+X
+X	/* RDD  initialize the rdd package */
+X	rddInit (toplevel, app);
+X
+X    label = XmStringCreateSimple("Push here to say hello"); 
+X    button = XtVaCreateManagedWidget("pushme",
+X        xmPushButtonWidgetClass, toplevel,
+X        XmNlabelString, label,
+X        NULL);
+X    XmStringFree(label);
+X
+#if 1
+X	/* RDD  set new translations on button. 
+X	 * This causes click and drag on button to initiate drag action.
+X	 */
+X    XtAddCallback(button, XmNactivateCallback, i_was_pushed, NULL);
+X
+X	XtVaSetValues (button,
+X				   XmNtranslations, XtParseTranslationTable(myTranslations),
+X				   NULL);
+#else
+X	/* RDD Callback when button pushed to grap pointer and start drag action */
+X	XtAddCallback(button, XmNactivateCallback, rddDragCallback, NULL);
+#endif
+X
+X    XtRealizeWidget(toplevel);
+X
+X
+X	/* RDD  add drop callback to button */
+X	rddAddDropHandler (button, dropTraceProc, "no client data");
+X
+X	/* RDD  use rddAppMainLoop instead of XtAppMainLoop */
+X    rddAppMainLoop(app);
+}
+X
+void
+i_was_pushed(w, client_data, cbs)
+Widget w;
+XXtPointer client_data;
+XXmPushButtonCallbackStruct *cbs;
+{
+X	XEvent event;
+X    fprintf(stderr, "i_was_pushed: w = 0x%x\n", cbs->event->xany.window);
+}
+X
+X
+#endif /*MAIN*/
+SHAR_EOF
+echo 'File xmfm/rdd.c is complete' &&
+chmod 0644 xmfm/rdd.c ||
+echo 'restore of xmfm/rdd.c failed'
+Wc_c="`wc -c < 'xmfm/rdd.c'`"
+test 21454 -eq "$Wc_c" ||
+	echo 'xmfm/rdd.c: original size 21454, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/refresh.c ==============
+if test -f 'xmfm/refresh.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/refresh.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/refresh.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/refresh.c' &&
+/****************************************************************************
+X * File: refresh.c
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:55 $
+X * Version: $Revision: 1.2 $
+X * Purpose: this file contains routines that look out for a child dying.
+X *	This presumably is a function called by executing an action on
+X *	a file, and this may have modified the directory contents. The
+X *	stuff here catches SIGCHLD events.
+X * Revision history:
+X ***************************************************************************/
+X
+#include "copyright.h"
+X
+/***************************************************************************
+X * System includes
+X ***************************************************************************/
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <stdio.h>
+X
+/***************************************************************************
+X * Local includes
+X ***************************************************************************/
+#include "types.h"
+#include "DirMgr.h"
+X
+/***************************************************************************
+X * Extern variables
+X ***************************************************************************/
+X
+/***************************************************************************
+X * Extern functions 
+X ***************************************************************************/
+extern void ResetPanesAndSelectFile (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi, char *file_name
+#endif
+);
+X
+/***************************************************************************
+X * Functions exported 
+X ***************************************************************************/
+void child_died (
+#ifdef UseFunctionPrototypes
+X	void
+#endif
+);
+void add_pid (
+#ifdef UseFunctionPrototypes
+X	pid_t pid, dir_pane_info *dpi
+#endif
+);
+X
+/***************************************************************************
+X * Variables exported 
+X ***************************************************************************/
+X
+/***************************************************************************
+X * Forward functions
+X ***************************************************************************/
+static void refresh_dir (
+#ifdef UseFunctionPrototypes
+X	XtPointer client_data, XtIntervalId *id
+#endif
+);
+X
+/***************************************************************************
+X * Local variables 
+X ***************************************************************************/
+typedef struct pid_list_elmt
+{
+X	pid_t pid;
+X	dir_pane_info *dpi;
+X	struct pid_list_elmt *next;
+}
+X	pid_pair, *pid_list_t;
+X
+static pid_list_t pid_list = NULL;
+X
+/***************************************************************************
+X * Function: child_died
+X * Purpose: catch a SIGCHLD signal, and set a work-proc if needed
+X * In parameters:
+X * Out parameters:
+X * Precondition:
+X * Postcondition: work proc set if directory contents have changed
+X ***************************************************************************/
+void
+child_died 
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{	int status;
+X	pid_t pid;
+X	pid_list_t p = pid_list,
+X		   trail = pid_list;
+X	DirectoryMgr *dm;
+X	DirEntry *de;
+X	time_t prev_modified, last_modified;
+X	struct stat stat_buf;
+X
+#ifdef DEBUG_SIGNAL
+X	fprintf (stderr, "SIGCHLD caught\n");
+#endif
+X	if ((pid = wait (&status)) == -1)
+X		return;
+X	signal (SIGCHLD, SIG_IGN);
+X	while (p != NULL)
+X	{
+X		if (p -> pid == pid)
+X		{	/* does the dir need updating?
+X			   first find the info in dpi
+X			 */
+X			dm = p -> dpi -> directory_manager;
+X			DirectoryMgrGotoNamedItem (dm, ".");
+X			de = DirectoryMgrCurrentEntry (dm);
+X			prev_modified = DirEntryLastModify (de);
+X
+X			/* now find current info */
+X			if (stat (DirectoryPath (DirectoryMgrDir (dm)),
+X						&stat_buf) == -1)
+X				return;	/* error - e.g. dir has vanished */
+X			last_modified = stat_buf.st_mtime;
+#ifdef DEBUG_SIGNAL
+X			fprintf (stderr, "directory previously modified %ld\n\
+last modified %ld\n", 
+X					prev_modified, last_modified);
+#endif
+X
+X			/* add timeout to update if dir has changed */
+X			if (last_modified > prev_modified)
+X				XtAddTimeOut (0, refresh_dir, p -> dpi);
+X			else
+X				signal (SIGCHLD, child_died);
+X
+X			/* remove this element anyway */
+X			if (trail == p)		/* start of list */
+X				pid_list = p -> next;
+X			else			/* later in list */
+X				trail -> next = p -> next;
+X			XtFree ((char *) p);
+X
+X			return;
+X		}
+X		trail = p;
+X		p = p -> next;
+X
+X	}
+X	signal (SIGCHLD, child_died );
+}
+X
+X
+/***************************************************************************
+X * Function: add_pid
+X * Purpose: add a pid/dpi pair to the pid list
+X * In parameters: pid,dpi
+X * Out parameters:
+X * Precondition:
+X * Postcondition: pid added to list of undead children
+X ***************************************************************************/
+void
+add_pid 
+#ifdef UseFunctionPrototypes
+X	(pid_t pid, dir_pane_info *dpi)
+#else
+X	(pid, dpi)
+X	pid_t pid;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	pid_list_t p;
+X
+X	p = (pid_list_t) XtMalloc (sizeof (struct pid_list_elmt));
+X	p -> pid = pid;
+X	p -> dpi = dpi;
+X	p -> next = pid_list;
+X	pid_list = p;
+}
+X
+X
+/***************************************************************************
+X * Function: refresh_dir
+X * Purpose: refresh directory contents
+X * In parameters: dpi
+X * Out parameters:
+X * Precondition:
+X * Postcondition: new directory contents showing, focus on slected file
+X ***************************************************************************/
+/* ARGSUSED */
+static void
+refresh_dir 
+#ifdef UseFunctionPrototypes
+X	(XtPointer client_data, XtIntervalId *id)
+#else
+X	(client_data, id)
+X	XtPointer client_data;
+X	XtIntervalId *id;
+X
+#endif
+{
+X	dir_pane_info *dpi = (dir_pane_info *) client_data;
+X
+#ifdef DEBUG_SIGNAL
+X	fprintf ("Timeout called, refreshing dir\n");
+#endif
+X	ResetPanesAndSelectFile (dpi, dpi -> file_selected);
+X	signal (SIGCHLD, child_died);
+}
+SHAR_EOF
+chmod 0644 xmfm/refresh.c ||
+echo 'restore of xmfm/refresh.c failed'
+Wc_c="`wc -c < 'xmfm/refresh.c'`"
+test 5845 -eq "$Wc_c" ||
+	echo 'xmfm/refresh.c: original size 5845, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/runcb.c ==============
+if test -f 'xmfm/runcb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/runcb.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/runcb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/runcb.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/runcb.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:41 $
+X * Version: $Revision: 1.6 $
+X * Purpose: This file handles the run operations from the system menu
+X *
+X * Revision history:
+X *      22 Aug 92      Separate run dialogs per pane (needed in case a pane
+X *                     gets iconified or destroyed
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92      lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdlib.h>
+#include <stdio.h> 
+X
+#include <Xm/CascadeB.h>     
+#include <Xm/FileSB.h>      
+#include <Xm/Label.h>
+#include <Xm/PushB.h>    
+#include <Xm/RowColumn.h>    
+#include <Xm/SelectioB.h>    
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "Directory.h"
+#include "DirMgr.h"
+#include "filecb.h"
+#include "types.h"
+#include "xmvararg.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void RunCommandCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void RunXtermCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void GotoCurrentDir (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern void do_command (
+#ifdef UseFunctionPrototypes
+X	char *command, int run_in_xterm, int pause_after_exec, dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+static Bool run_in_xterm = False;
+static Bool pause_after_exec = False;
+X
+#define LIST_SIZE 10
+X
+#define min(x,y)	((x) < (y) ? (x) : (y))
+X
+/*************************************************************************
+X * Function: ButtonToggledCB ()
+X * Purpose: a check button has been changed
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; 
+X * Postcondition: appropriate Boolean for Check box is updated
+X ************************************************************************/
+X
+/* ARGSUSED */ 
+static void
+ButtonToggledCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{
+X	/* toggle value of correct Boolean */
+X	if ( (int) client_data == 0)
+X		run_in_xterm = (run_in_xterm ? False : True);
+X	else 	pause_after_exec = (pause_after_exec ? False : True);
+}
+X
+/*************************************************************************
+X * Function: OkCB ()
+X * Purpose: run the command entered
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: Ok button pressed in Command dialog
+X * Postcondition: user command executed, dialog killed
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void
+OkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{
+X	XmString xmstr_command;
+X	String command;
+X	int i, new_size, curr_size;
+X	XmString new_list[LIST_SIZE], *curr_list;
+X        dir_pane_info *dpi;
+X
+X	XtVaGetValues (w,
+X			XmNtextString, &xmstr_command,
+X                        XmNuserData, &dpi,
+X			NULL);
+X	XmStringGetLtoR (xmstr_command, XmSTRING_DEFAULT_CHARSET, &command);
+X
+X	do_command (command, run_in_xterm, pause_after_exec, dpi);
+X	
+X	XtFree (command);
+X
+X	XtUnmanageChild (w);
+X
+X	/* before we leave this: add the command into the list of
+X	  previous commands, as long as it isn't already there */
+X	XtVaGetValues (w,
+X			XmNlistItems, &curr_list,
+X			XmNlistItemCount, &curr_size,
+X			NULL);
+X	for (i = 0; i < curr_size; i++)
+X		if (XmStringCompare (xmstr_command, curr_list[i]))
+X			/* already in list */
+X			return;
+X	/* new elmt. put in front, and shuffle up the rest */
+X	new_list[0] = xmstr_command;
+X	new_size = min (curr_size + 1, LIST_SIZE);
+X	for (i = 1; i < new_size; i++)
+X		new_list[i] = XmStringCopy (curr_list[i - 1]);
+X	XtVaSetValues (w,
+X			XmNlistItems, new_list,
+X			XmNlistItemCount, (XtArgVal) new_size,
+X			NULL);
+X	/* and garbage collect */
+/*
+X	for (i = 0; i < new_size; i++)
+X		XmStringFree (new_list[i]);
+*/
+}
+X
+/*************************************************************************
+X * Function: RunCommandCB ()
+X * Purpose: run a user command in current dir
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Command button pressed in Run menu
+X * Postcondition: user command dialog showing
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+RunCommandCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{	 
+X	dir_pane_info *dpi;
+X	Widget	run_command;
+X	Widget	rowcol;
+X	XmString xmstr_buttons[2];
+X	XmString xmstr_prompt;
+X	Widget help_button, apply_button;
+X	static XmString null_str;
+X
+X	GotoCurrentDir (w);
+X
+X        XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X        run_command = dpi -> run_dialog;
+X	/* create new dialog if not already existing */
+X	if (run_command == NULL)
+X	{
+X		xmstr_prompt = XmStringCreateSimple ("Enter run command:");
+X		run_command = XmVaCreateSelectionDialog (w,
+X					"run command",
+X					XmNpromptString, xmstr_prompt,
+X					NULL);
+X                /* save this back into dpi */
+X                dpi -> run_dialog = run_command;
+X
+X		XmStringFree (xmstr_prompt);
+X
+X		XtAddCallback (run_command, XmNokCallback, OkCB, NULL);
+X		/* no cancel callback - default pops it down */
+X
+X		/* remove the help and cancel */
+X		help_button = XmSelectionBoxGetChild (run_command, 
+X				XmDIALOG_HELP_BUTTON);
+X		XtUnmanageChild (help_button);
+X		apply_button = XmSelectionBoxGetChild (run_command, 
+X				XmDIALOG_APPLY_BUTTON);
+X		XtUnmanageChild (apply_button);
+X	
+X		xmstr_buttons[0] = XmStringCreateSimple ("Run in xterm");
+X		xmstr_buttons[1] = XmStringCreateSimple ("Pause after exec");
+X	
+X		null_str = XmStringCreateSimple ("");
+X
+X		rowcol = XmVaCreateSimpleCheckBox (run_command, "rowcol",
+X				ButtonToggledCB,
+X				XmNbuttonCount, (XtArgVal) 2,
+X				XmNbuttons, xmstr_buttons,
+X				XmVaCHECKBUTTON, xmstr_buttons[0],
+X					NULL, NULL, NULL,
+X				XmVaCHECKBUTTON, xmstr_buttons[1],
+X					NULL, NULL, NULL,
+X				NULL);
+X		XtManageChild (rowcol);
+X
+X		XmStringFree (xmstr_buttons[0]);
+X		XmStringFree (xmstr_buttons[1]);
+X	}
+X
+X	/* ensure text field is empty for new command */
+/*	both these methods dump core
+X	XtVaSetValues (w,
+X			XmNtextString, null_str,
+X			NULL);
+X	XmCommandSetValue (w, null_str);
+*/
+X
+X        XtVaSetValues (run_command, XmNuserData, dpi, NULL);
+X      	XtManageChild (run_command);
+}
+X 
+/*************************************************************************
+X * Function: RunXtermCB()
+X * Purpose: run a new xterm
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Xterm selected from Run menu
+X * Postcondition: new xterm running
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+RunXtermCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{
+X        dir_pane_info *dpi;
+X
+X        XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X
+X	GotoCurrentDir (w);
+X
+#ifdef DEBUG
+X	fprintf (stderr, "xterm, display is %s\n",
+X		DisplayString (XtDisplay (w));
+#endif
+X	do_command ("xterm", False, False, dpi);
+}
+X
+SHAR_EOF
+chmod 0644 xmfm/runcb.c ||
+echo 'restore of xmfm/runcb.c failed'
+Wc_c="`wc -c < 'xmfm/runcb.c'`"
+test 8900 -eq "$Wc_c" ||
+	echo 'xmfm/runcb.c: original size 8900, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/utils.c ==============
+if test -f 'xmfm/utils.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/utils.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/utils.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/utils.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/utils.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:43 $
+X * Version: $Revision: 1.6 $
+X * Purpose: general purpose routines of use in various places
+X *
+X * Revision history:
+X *	6 Aug 92	BusyCursor covers whole of a pane, rather than 1 widget
+X *      22 Aug 92       NULL terminated string for tilde expansion
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <sys/param.h>
+#include <string.h>
+#include <Xm/Xm.h>
+#include <X11/cursorfont.h>
+#include <pwd.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "DirMgr.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern Bool XtChdir (
+#ifdef UseFunctionPrototypes
+X	char *dir
+#endif
+);
+extern void BusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void UnBusyCursor (
+#ifdef UseFunctionPrototypes
+X	Widget toplevel
+#endif
+);
+extern void GotoCurrentDir (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern char *getlogin ();   /* gcc (?) has no prototype for this */
+extern void ErrorDialog (
+#ifdef UseFunctionPrototypes
+X	char *str
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+static Window busy_window;
+#define IS_WHITE_SPACE(ch)	((ch) == ' ' || (ch) == '\t' || (ch) == '\n')
+X
+/*************************************************************************
+X * Function        : BusyCursor ()
+X * Purpose         : make the cursor turn busy for this window
+X * In parameters   : w
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : cursor over current window is busy
+X ************************************************************************/ 
+void
+BusyCursor 
+#ifdef UseFunctionPrototypes
+X	(Widget toplevel)
+#else
+X	(toplevel)
+X	Widget toplevel;
+X
+#endif
+{  
+X        static Cursor watch = NULL; 
+X        unsigned long valuemask;
+X        XSetWindowAttributes attributes;
+X 
+X       	if(!watch)
+X               	watch = XCreateFontCursor(XtDisplay(toplevel),XC_watch);
+X
+X        /* Ignore device events while the busy cursor is displayed. */
+X        valuemask = CWDontPropagate | CWCursor;
+X        attributes.do_not_propagate_mask =  (KeyPressMask | KeyReleaseMask |
+X           ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+X        attributes.cursor = watch;
+X
+X        /* The window will be as big as the display screen, and clipped by
+X           its own parent window, so we never have to worry about resizing */
+X        /* on multiple clicks, this function can get called multiple times.
+X           check that we haven't already got such a window mapped */
+X        if (busy_window != NULL)
+X                return;
+X        busy_window = XCreateWindow(XtDisplay(toplevel), XtWindow(toplevel), 0, 0,
+X                       65535, 65535, (unsigned int) 0, CopyFromParent, InputOnly,
+X                       CopyFromParent, valuemask, &attributes);
+X        XMapWindow (XtDisplay (toplevel), busy_window);
+X   
+X
+X        XmUpdateDisplay(toplevel);
+X
+}
+X
+/*************************************************************************
+X * Function        : UnBusyCursor ()
+X * Purpose         : set it back again
+X * In parameters   : w
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : cursor is back to previous cursor
+X ************************************************************************/ 
+void
+UnBusyCursor 
+#ifdef UseFunctionPrototypes
+X	(Widget toplevel)
+#else
+X	(toplevel)
+X	Widget toplevel;
+X
+#endif
+{
+X        /* check that we have a window to destroy */
+X        if (busy_window == NULL)
+X               return;       
+X        XDestroyWindow (XtDisplay (toplevel), busy_window);
+X        busy_window = NULL;
+}
+X
+/*************************************************************************
+X * Function        : XtChdir ()
+X * Purpose         : perform a chdir and report on any error. also does
+X *	tilde expansion
+X * In parameters   : dir
+X * Out parameters  :
+X * Side effects    :
+X * Function returns: success or fail
+X * Precondition    :
+X * Postcondition   : application now in new dir (success)
+X *		error dialog posted (failure)
+X ************************************************************************/ 
+Bool
+XXtChdir 
+#ifdef UseFunctionPrototypes
+X	(char *dir)
+#else
+X	(dir)
+X	char *dir;
+X
+#endif
+{	char warning[MAXPATHLEN + 20];
+X	char full_dir[MAXPATHLEN];
+X	char name_buf[MAXPATHLEN];
+X	char *name;
+X	char *orig_dir = dir;
+X        struct passwd *pw_ent;
+X
+X	while (IS_WHITE_SPACE (*dir))
+X		dir++;
+X	/* should it undergo ~ expansion?
+X	*/ 
+X	if (*dir == '~')
+X	{	/* Found a tilde. This isn't full globbing.
+X		   We only have these cases:
+X			~
+X			~/...
+X			~name
+X			~name/...
+X		*/
+X		/* move past ~ */
+X		dir++;
+X		if ( *dir == '\0' || *dir == '/')
+X		{	/* name is login name */
+X			name = getlogin ();
+X			/* dir now points to next char after user name */
+X		}
+X		else	/* name is someone else */
+X		{	char *p = dir;
+X
+X			while ( ! IS_WHITE_SPACE (*p) &&
+X				*p != '/' && *p != '\0')
+X				p++;
+X                        /* leave space for \0 */
+X			strncpy (name_buf, dir, (int) (p - dir));
+X                        name_buf[(int) (p - dir)] = '\0';
+X			name = name_buf;
+X
+X			dir = p;
+X			/* dir now points to next char after user name */
+X		}
+X		/* put in users home dir */
+X		pw_ent = getpwnam (name);
+X		if (pw_ent == NULL)
+X			/* no such user, restore original pattern */
+X			dir = orig_dir;
+X		else
+X		{
+X			strcpy (full_dir, pw_ent -> pw_dir);
+X			/* and what followed after */
+X			strcat (full_dir, dir);
+X			/* set dir to point to all of this */
+X			dir = full_dir;
+X		}
+X	}
+X	if (chdir (dir) == -1)
+X	{
+X		strcpy (warning, "cannot chdir to ");
+X		strcat (warning, dir);
+X		ErrorDialog (warning);
+X		return False;
+X	}
+X	return True;
+}
+X
+/*************************************************************************
+X * Function        : GotoCurrentDir ()
+X * Purpose         : make sure we are in current dir
+X * In parameters   : w
+X * Out parameters  :
+X * Side effects    :
+X * Function returns:
+X * Precondition    :
+X * Postcondition   : application now in new dir
+X ************************************************************************/ 
+void
+GotoCurrentDir 
+#ifdef UseFunctionPrototypes
+X	(Widget w)
+#else
+X	(w)
+X	Widget w;
+X
+#endif
+{	dir_pane_info *dpi;
+X
+X	XtVaGetValues (w,
+X			XmNuserData, &dpi,
+X			NULL);
+X	XtChdir (DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)));
+}
+SHAR_EOF
+chmod 0644 xmfm/utils.c ||
+echo 'restore of xmfm/utils.c failed'
+Wc_c="`wc -c < 'xmfm/utils.c'`"
+test 7705 -eq "$Wc_c" ||
+	echo 'xmfm/utils.c: original size 7705, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/warning.c ==============
+if test -f 'xmfm/warning.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/warning.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/warning.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/warning.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/warning.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/17 00:35:58 $
+X * Version: $Revision: 1.5 $
+X * Purpose: display a modal warning dialog
+X *
+X * Revision history:
+X *      3 Nov 92      lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#include <Xm/MainW.h> 
+#include <Xm/MessageB.h> 
+#include <Xm/SelectioB.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "const.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void WarningDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, int *answer
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+extern XtAppContext app_context;
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+static Bool dialog_over;
+X 
+X
+/*************************************************************************
+X * Function: modal_dialog_loop ()
+X * Purpose: force user to acknowledge dialog
+X * In parameters: w
+X * Out parameters:
+X * Side effects: modifies dialog_over
+X * Precondition: 
+X * Postcondition: dialog_over = True
+X ************************************************************************/ 
+static void
+modal_dialog_loop 
+#ifdef UseFunctionPrototypes
+X	(Widget w)
+#else
+X	(w)
+X	Widget w;
+X
+#endif
+{
+X	dialog_over = False;
+X	XtVaSetValues (w,
+X			XmNdialogStyle, XmDIALOG_FULL_APPLICATION_MODAL,
+X			NULL);
+X	XtManageChild (w);
+X	while (dialog_over == False)
+X		XtAppProcessEvent (app_context, XtIMAll);
+}
+X
+X
+/*-------------------------------------------------------------
+**	Destroy a Dialog
+*/
+X
+/*************************************************************************
+X * Function: OkDialogCB ()
+X * Purpose: handle the dialog OK button
+X * In parameters: w, call_data
+X * Out parameters: answer
+X * Precondition: w is a child of a popup shell
+X * Postcondition: parent on down all destroyed, text field first copied
+X ************************************************************************/ 
+static void
+OkDialogCB
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+X	Widget w;
+X	XtPointer client_data;
+X	XtPointer call_data;
+X
+#endif
+{
+X	int *answer = (int *) client_data;
+X	XmAnyCallbackStruct * c_data = (XmAnyCallbackStruct *) call_data;
+X
+X	dialog_over = True;
+X
+X	if (c_data -> reason == (int) XmCR_OK)
+X		*answer = OK_ANSWER;
+X	else	*answer = CANCEL_ANSWER;
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+}
+X
+/*************************************************************************
+X * Function: WarningDialog ()
+X * Purpose: show a warning dialog
+X * In parameters: parent, prompt, modal
+X * Out parameters: answer 
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+void
+WarningDialog
+#ifdef UseFunctionPrototypes
+X	(Widget parent, char *prompt, int modal, int *answer)
+#else
+X	(parent, prompt, modal, answer)
+X	Widget parent;
+X	char * prompt;
+X	Bool modal;
+X	int *answer;
+X
+#endif
+{	int n;
+X	Arg	args[MAX_ARGS];
+X	Widget  help, dialog;
+X	XmString xmstr;
+X
+X	n = 0;
+X	xmstr = XmStringCreateSimple (prompt);
+X	XtSetArg (args[n], XmNmessageString, xmstr); n++;
+X	dialog = XmCreateWarningDialog(parent, prompt, args, n);
+X	XmStringFree(xmstr);
+X	XtAddCallback(dialog, XmNokCallback, OkDialogCB, (XtPointer) answer);
+X	XtAddCallback(dialog, XmNcancelCallback, OkDialogCB, (XtPointer) answer);
+X
+X	help = XmMessageBoxGetChild(dialog, 
+X			XmDIALOG_HELP_BUTTON);
+X	XtUnmanageChild(help);
+X
+X	if (modal)
+X		modal_dialog_loop(dialog);
+}
+SHAR_EOF
+chmod 0644 xmfm/warning.c ||
+echo 'restore of xmfm/warning.c failed'
+Wc_c="`wc -c < 'xmfm/warning.c'`"
+test 4885 -eq "$Wc_c" ||
+	echo 'xmfm/warning.c: original size 4885, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/xmvararg.c ==============
+if test -f 'xmfm/xmvararg.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/xmvararg.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/xmvararg.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/xmvararg.c' &&
+/*************************************************************************
+X * File: xmvarargs.c
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:47 $
+X * Version: $Revision: 1.4 $
+X * Purpose: varargs interface to Motif, supplying varargs version
+X *          of all the XmCreate<widget> () functions
+X *
+X * Revision history:
+X *      3 Nov 92      lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h>
+#include <varargs.h>
+#include <X11/StringDefs.h>
+#include <X11/Intrinsic.h>
+#include <Xm/Xm.h>
+#include <Xm/ArrowB.h>
+#include <Xm/BulletinB.h>
+#include <Xm/CascadeB.h>
+#include <Xm/Command.h>
+#include <Xm/DialogS.h>
+#include <Xm/DrawingA.h>
+#include <Xm/DrawnB.h>
+#include <Xm/FileSB.h>
+#include <Xm/Form.h>
+#include <Xm/Frame.h>
+#include <Xm/Label.h>
+#include <Xm/List.h>
+#include <Xm/MainW.h>
+#include <Xm/MenuShell.h>
+#include <Xm/MessageB.h>
+#include <Xm/PanedW.h>
+#include <Xm/PushB.h>
+#include <Xm/RowColumn.h>
+#include <Xm/Scale.h>
+#include <Xm/ScrollBar.h>
+#include <Xm/ScrolledW.h>
+#include <Xm/SelectioB.h>
+#include <Xm/Separator.h>
+#include <Xm/Text.h>
+#include <Xm/ToggleB.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+/* exported if not defined by Xt (i.e. X11R3) */
+extern	Widget	XtVaCreateManagedWidget(
+#ifdef UseFunctionPrototypes
+X	const char *, WidgetClass, Widget, ...
+#endif
+);
+extern	void	XtVaGetValues(
+#ifdef UseFunctionPrototypes
+X	Widget, ...
+#endif
+);
+extern	void	XtVaSetValues(
+#ifdef UseFunctionPrototypes
+X	Widget, ...
+#endif
+);
+X
+/* exported anyway */
+extern  Widget XmVaCreateArrowButton (
+#ifdef UseFunctionPrototypes
+X	int __builtin_va_alist
+#endif
+);  /* etc */
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern	Widget	XtVaCreateManagedWidget(
+#ifdef UseFunctionPrototypes
+X	const char *, WidgetClass, Widget, ...
+#endif
+);
+extern	void	XtVaGetValues(
+#ifdef UseFunctionPrototypes
+X	Widget, ...
+#endif
+);
+extern	void	XtVaSetValues(
+#ifdef UseFunctionPrototypes
+X	Widget, ...
+#endif
+);
+extern 	Widget 	XmVaCreateLabel(
+#ifdef UseFunctionPrototypes
+X	int __builtin_va_alist
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+#define		NXARGS	100
+X
+static va_list		args;
+static Arg		xargs[NXARGS];
+static Widget		parent;
+static String		name;
+X
+/*************************************************************************
+X * Function: SetArgs
+X * Purpose: store args in array
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+static int
+SetArgs
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{	register int n;
+X
+X	for (n = 0; n < NXARGS; ++n)
+X	{
+X		xargs[n].name = va_arg(args, String);
+X		if (xargs[n].name == NULL) 
+X			break;
+X		xargs[n].value = va_arg(args, XtArgVal);
+X	}
+X	return (n);
+}
+X
+/*************************************************************************
+X * Function: SetNameArgs
+X * Purpose: peel off first 2 params (fixed), then loop through rest
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+static int
+SetNameArgs
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{	register int n;
+X
+X	parent = va_arg(args, Widget);
+X	name = va_arg(args, String);
+X
+X	for (n = 0; n < NXARGS; ++n)
+X	{
+X		xargs[n].name = va_arg(args, String);
+X		if (xargs[n].name == NULL) 
+X			break;
+X		xargs[n].value = va_arg(args, XtArgVal);
+X	}
+X	return (n);
+}
+X
+X
+/*
+**      varargs interface for Xt not defined for Motif 1.0
+**      because it is based on X11 R3. In this case, define
+**      equivalents to the Xt functions
+*/
+#if XmVersion == 1000
+X
+/*
+X *	Variable arg list version of XtCreateManagedWidget
+X */
+/* VARARGS */
+/*************************************************************************
+X * Function: XtVaCreatemanagedWidget
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+Widget
+XXtVaCreateManagedWidget(va_alist)
+va_dcl
+{
+X	String		name;
+X	String		class;
+X	Widget		parent;
+X
+X	register int	n;
+X
+X	va_start(args);
+X	name = va_arg(args, String);
+X	class = va_arg(args, String);
+X	parent = va_arg(args, Widget);
+X
+X	n = SetArgs();
+X
+X	va_end(args);
+X	return (XtCreateManagedWidget(name, class, parent, xargs, n));
+}
+X
+/*************************************************************************
+X * Function: XtVaSetvalues
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+void
+XXtVaSetValues(va_alist)
+va_dcl
+{
+X	Widget		w;
+X	register int	n;
+X
+X	va_start(args);
+X	w = va_arg(args, Widget);
+X
+X	n = SetArgs();
+X
+X	va_end(args);
+X	XtSetValues(w, xargs, n);
+}
+X
+/*************************************************************************
+X * Function: XtVaGetValues
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+void
+XXtVaGetValues(va_alist)
+va_dcl
+{
+X	register int 	n;
+X	Widget		w;
+X
+X	va_start(args);
+X	w = va_arg(args, Widget);
+X
+X	n = SetArgs();
+X
+X	va_end(args);
+X	XtGetValues(w, xargs, n);
+}
+#endif /* Xmversion == 1000 */
+X
+/**********************************************************************
+**	Variable arg list versions of widgets
+**
+*/
+X
+/*
+**	Variable arg list version of XmCreateArrowButton
+*/
+/*************************************************************************
+X * Function: XmVACreateArrowButton
+X * Purpose: varargs interface to XmCreateArrowButton
+X * In parameters: parent, name, args...
+X * Out parameters:
+X * Precondition;
+X * Postcondition: arrow button created with resources set as in args
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateArrowButton
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmArrowButtonWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateBulletinBoard
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateBulletinBoard
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmBulletinBoardWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateCascadeButton
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateCascadeButton
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmCascadeButtonWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateCommand
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateCommand
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmCommandWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateDialogShell
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateDialogShell
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmDialogShellWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateDrawingArea
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateDrawingArea
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmDrawingAreaWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateDrawnButton
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateDrawnButton
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmDrawnButtonWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateFileSelectionBox
+*/
+/* VARARGS */
+Widget
+XXmVaCreateFileSelectionBox
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmFileSelectionBoxWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateForm
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateForm
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmFormWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateFrame
+*/
+/* VARARGS */
+Widget
+XXmVaCreateFrame
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmFrameWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateLabel
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateLabel
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmLabelWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateList
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateList
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmListWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateMainWindow
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateMainWindow
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmMainWindowWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateMessageBox
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateMessageBox
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmMessageBoxWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreatePanedWindow
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreatePanedWindow
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmPanedWindowWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreatePushButton
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreatePushButton
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmPushButtonWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateRowColumn
+*/
+/*************************************************************************
+X * Function:
+X * Purpose:
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+/* VARARGS */
+Widget
+XXmVaCreateRowColumn
+#ifdef UseFunctionPrototypes
+X	(int __builtin_va_alist)
+#else
+X	(va_alist)
+va_dcl
+X
+#endif
+{
+X	register int	n;
+X
+X	va_start(args);
+X
+X	n = SetNameArgs();
+X
+X	va_end(args);
+X	return (XtCreateWidget(name, xmRowColumnWidgetClass, 
+X				parent, xargs, n));
+}
+X
+/*
+**	Variable arg list version of XmCreateScale
+*/
+/*************************************************************************
+SHAR_EOF
+true || echo 'restore of xmfm/xmvararg.c failed'
+fi
+echo 'End of  part 8'
+echo 'File xmfm/xmvararg.c is continued in part 9'
+echo 9 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

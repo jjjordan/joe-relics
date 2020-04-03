@@ -1,0 +1,198 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!uunet!think.com!mintaka.lcs.mit.edu!hal.gnu.ai.mit.edu!mycroft
+From: mycroft@hal.gnu.ai.mit.edu (Charles Hannum)
+Subject: PostScript font lister and merge sort
+Message-ID: <1992Nov16.182404.8381@mintaka.lcs.mit.edu>
+Sender: news@mintaka.lcs.mit.edu
+Organization: MIT Laboratory for Computer Science
+Date: Mon, 16 Nov 1992 18:24:04 GMT
+Lines: 188
+
+Archive-Name: psfontlist
+
+
+In a fit of insomnia last night, I wrote a new PostScript font lister,
+using a new merge sort routine to sort the list.  I present both below.
+
+Note that you need to run `fontlist.ps' through soelim before using it,
+to include the text from `mergesort.ps'.
+
+The merge sort routine could use a couple of improvements, but I'm too
+lazy to do them right now.
+
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  fontlist.ps mergesort.ps
+# Wrapped by mycroft@hal.gnu.ai.mit.edu on Mon Nov 16 13:17:49 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'fontlist.ps' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'fontlist.ps'\"
+else
+echo shar: Extracting \"'fontlist.ps'\" \(1194 characters\)
+sed "s/^X//" >'fontlist.ps' <<'END_OF_FILE'
+X%!
+X
+X% PostScript font lister
+X% by Charles Hannum, 16 November 1992
+X
+X% Prints a sample of each of the fonts in a printer's FontDirectory.
+X
+X/start usertime def
+X
+X.so mergesort.ps
+X
+X/height 12 def
+X/baselineskip height 1.5 mul def
+X
+X/header-height 12 def
+X/header-font /Times-Bold findfont header-height scalefont def
+X/topskip header-height def
+X
+X/top-margin 720 def
+X/bottom-margin 72 def
+X/left-margin 72 def
+X/right-margin 540 def
+X
+X/buffer 100 string def
+X
+X/startpage {
+X  /y top-margin header-height sub def
+X  left-margin y moveto
+X  header-font setfont
+X  (PostScript font samples at ) show
+X  height buffer cvs show
+X  ( pt.) show
+X  /y y topskip sub def
+X} def
+X
+X/fontsample {
+X  /y y baselineskip sub def
+X  y bottom-margin lt {
+X    showpage
+X    startpage
+X    fontsample
+X  } {
+X    left-margin y moveto
+X    height scalefont setfont
+X    buffer cvs show
+X    (ABCDWXYZ abcdwxyz 0123456789) dup
+X    stringwidth pop right-margin exch sub y moveto show
+X  }
+X  ifelse
+X} def
+X
+Xstartpage
+X
+X2 dict begin
+X  /a 40 string def
+X  /b 40 string def
+X  {0 get a cvs exch
+X   0 get b cvs exch
+X   lt} FontDirectory mergesort
+Xend
+X{aload pop fontsample} forall
+X
+Xshowpage
+X
+Xusertime start sub 1000 div
+Xbuffer cvs print
+X( seconds.\n) print
+END_OF_FILE
+if test 1194 -ne `wc -c <'fontlist.ps'`; then
+    echo shar: \"'fontlist.ps'\" unpacked with wrong size!
+fi
+# end of 'fontlist.ps'
+fi
+if test -f 'mergesort.ps' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mergesort.ps'\"
+else
+echo shar: Extracting \"'mergesort.ps'\" \(1467 characters\)
+sed "s/^X//" >'mergesort.ps' <<'END_OF_FILE'
+X%!
+X
+X% PostScript merge sort
+X% by Charles Hannum, 16 November 1992
+X
+X% Do the merge sort on a dictionary or array.  `proc' is a comparison
+X% procedure.  If the second argument is a `dict', it is converted to
+X% an array of 2-element arrays (containing the key and value) before
+X% sorting.  Returns the same array, sorted.
+X
+X% proc dict|array  mergesort  array
+X/mergesort {
+X  dup type /dicttype eq {
+X    dup length array 0 3 -1 roll
+X    {2 array astore
+X     2 index 2 index 3 -1 roll put
+X     1 add} forall
+X    pop
+X  } if
+X  dup type /arraytype ne {typecheck} if
+X  mergesort-recurse
+X  exch pop
+X} def
+X
+X% proc array  mergesort-recurse  proc array
+X/mergesort-recurse {
+X  dup length
+X  1 gt {
+X    dup length dup 2 idiv
+X    exch 1 index sub
+X    3 copy getinterval
+X    4 1 roll pop
+X    0 exch 2 index 3 1 roll
+X    getinterval
+X
+X    4 2 roll
+X    mergesort-recurse
+X    3 1 roll exch
+X    mergesort-recurse
+X    exch 4 1 roll
+X
+X%%  save 5 1 roll
+X      dup length array copy exch
+X      dup length array copy exch
+X    
+X      dup length 3 -1 roll
+X      dup length 5 -1 roll
+X      dup length 6 2 roll
+X
+X      {
+X        4 copy 1 sub get 3 1 roll 1 sub get
+X        8 index exec
+X        {4 2 roll} if
+X        1 sub 2 copy get
+X        6 -1 roll 1 sub dup 7 1 roll exch
+X        7 index 3 1 roll
+X        put
+X        dup 0 eq {exit} if
+X      } loop
+X      pop pop
+X      1 sub -1 0 {
+X        2 copy get
+X        4 index 3 1 roll
+X        put
+X      } for
+X      pop pop
+X%%  3 -1 roll restore
+X  } if
+X} def
+END_OF_FILE
+if test 1467 -ne `wc -c <'mergesort.ps'`; then
+    echo shar: \"'mergesort.ps'\" unpacked with wrong size!
+fi
+# end of 'mergesort.ps'
+fi
+echo shar: End of shell archive.
+exit 0
+
+-- 
+ \  /   Charles Hannum, mycroft@ai.mit.edu
+ /\ \   PGP public key available on request.  MIME, AMS, NextMail accepted.
+Scheme  White heterosexual atheist male (WHAM) pride!

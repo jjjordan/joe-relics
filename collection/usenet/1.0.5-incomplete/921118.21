@@ -1,0 +1,1619 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 01/10)
+Message-ID: <1992Nov15.154921.19999@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:49:21 GMT
+Lines: 1606
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part01
+
+This is a 10 part patch to the TIN v1.1 PL6 newsreader.
+
+To apply the patch do the following:
+
+1.  save all 10 parts to the tin PL6 source directory
+2.  unpack all 10 parts with /bin/sh or unshar
+3.  patch < tin-1.17.patch
+4.  make clean
+5.  make <system-type>
+
+It should be noted that if  you are using tin PL6 you  can 
+accomplis steps 1 & 2 in a single keystroke ('s' command).
+
+NOTE:  !!! DON'T DELETE YOUR TIN v1.1 PL6 SOURCE & BINARY !!!
+       There is a small buglet in the thread display screen
+       that bites on certain systems that causes an assertion
+       error and spits you out to the command line. This is a
+       high priority for PL8. Don't say I did'nt warn you !!!
+ 
+Major improvements over tin 1.1 PL6 are the following:
+
+o  Added support for Encore Umax 3.x machines.
+o  Added more support for AmigaDOS machines.
+o  Added more support for Apollo machines.
+o  Added more support for Sequent Dynix machines.
+o  Added more support for HPUX machines.
+o  Added more support for RISCiX machines.
+o  Added -P cmd line option to stringently purge expired arts from index files.
+o  Added MOTD message of the day facility for newsadmins (read man page).
+o  Added date formating to current article so that dates are more useful.
+o  Added tinrc variable 'groupname_max_length=' to max displayed len of group.
+o  Added tinrc variable 'keypad=' to enable/disable keypad scroll keys.
+o  Added tinrc variable 'use_builtin_inews=' to enable/disable tins inews.
+o  Added tinrc variable 'mail_quote_format=' to allow user defined mail quote.
+o  Added tinrc variable 'news_quote_format=' to allow user defined news quote.
+o  Added tinrc variable 'default_sigfile=' to allow user random/fixed sigs.
+o  Added tinrc variable 'slow_speed_terminal=' to allow fast display via modem.
+o  Added group attribute 'organization=STRING'
+o  Added group attribute 'printer=STRING'.
+o  Added username/password capability for NNTP servers running authorization.
+o  Added path formating (ie, ~user/file) to group attribute variables.
+o  Added 'C'atchup and goto next unread group from article viewer level.
+o  Added auto-unpacking of multi-part lharc archives (AmigaDOS only).
+o  Added auto-unpacking of multi-part zip archives.
+o  Added integrity testing of unpacked zoo & zip archives.
+o  Added user abort (Esc Q q) when locally indexing a group.
+o  Added Followup-To: header to followup arts when more than 1 newsgroup.
+o  Changed 'C'ancel article to 'D'elete article for better command structure.
+o  Changed 'f'ollowup to art & 'F'ollowup to art with quoted text around.
+o  Changed 'r'eply thru mail & 'R'eply thru mail with quoted text around.
+o  Changed 1st time startup to subscribe to all groups by default.
+o  Changed tinrc variable 'maildir=' to 'default_maildir='.
+o  Changed tinrc variable 'savedir=' to 'default_savedir='.
+o  Changed tinrc variable 'printer=' to 'default_printer='.
+o  Fixed SIGSEGV caused by '?' search backwards at group selection level.
+o  Fixed SIGSEGV caused by load group_hash[] if group had 'x' in active file.
+o  Fixed SIGSEGV caused if new newswgroup had 'x' in active file.
+o  Fixed NNTP server patch that was causing compile problems on SunOS.
+o  Fixed saving of articles via NNTP that was causing art to be opened twice.
+o  Fixed "Welcome to tin..." message so its displayed 1st time tin is started.
+o  Fixed LOCK_FILE & LOG_USER_FILE #defines that caused old compilers to barf.
+o  Fixed spooldir level arrow that was using group level routine.
+o  Fixed so that aliased groups with '=' in active file are not loaded.
+o  Fixed extra newline in From: field when reading gateway name from file.
+o  Fixed offset problems when editing a file in editor that supports +N.
+o  Fixed 1 off article count if new group has never been read.
+o  Fixed screen always been redrawn when article is unavailable.
+o  Fixed so that when article is unavailable it skips to the next unread.
+o  Fixed parsing of From: line to handle exotic uucp addresses.
+o  Fixed cancel article so that Distribution: header is taken into account.
+o  Fixed reading of groups from cmd line & rereading of the active file.
+
+Enjoy
+	Iain.
+
+#!/bin/sh
+# This is tin-1.17, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/15/1992 17:44 UTC by Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+# Source directory /var/home/lea/.src/tin/1.17
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This is part 1 of a multipart archive                                    
+# do not concatenate these parts, unpack them in order with /bin/sh        
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+# 508946 -rw-r--r-- tin-1.17.patch
+#    859 -rw-r--r-- amiga.h
+#   5571 -rw-r--r-- mail.c
+#   5107 -rw-r--r-- sigfile.c
+#   5590 -rw-r--r-- strftime.c
+#   4976 -rw-r--r-- strftime.3
+#   3149 -rw-r--r-- xmotd.c
+#
+if test -r _shar_seq_.tmp; then
+	echo 'Must unpack archives in sequence!'
+	echo Please unpack part `cat _shar_seq_.tmp` next
+	exit 1
+fi
+# ============= tin-1.17.patch ==============
+if test -f 'tin-1.17.patch' -a X"$1" != X"-c"; then
+	echo 'x - skipping tin-1.17.patch (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting tin-1.17.patch (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'tin-1.17.patch' &&
+Xdiff -rcs ../1.16/CHANGES ./CHANGES
+X*** ../1.16/CHANGES	Sun Nov 15 18:41:29 1992
+X--- ./CHANGES	Sun Nov 15 12:35:27 1992
+X***************
+X*** 1,199 ****
+X! CHANGES tin v1.1 PL5 -> tin 1.1 PL6
+X  -----------------------------------
+X  
+X! 1)  Hakan Lennestal (hakanl@lulea.telesoft.se)
+X!     BUG. set_tin_uid_gid() should be removed from kill routine.
+X!     FIX. kill.c - deleted set_tin_uid_gid() routine.
+X! 
+X! 2)  Roger Binns (crs89rdb@brunel.ac.uk)
+X!     BUG. SHELL should be defined in Makefile.
+X!     FIX. Makefile - applied suggestion.
+X! 
+X! 3)  Don Sheythe (dsheythe@cs.washigton.edu)
+X!     BUG. Tmp files should be auto deleted in some groups and the user
+X!          should not have to be prompted for an answer.
+X!     FIX. active.c save.c - added 'delete_tmp_files=' group attribute.
+X! 
+X! 4)  Tim Pierce (twpierce@amherst.edu)
+X!     BUG. Always assumes PRINTER is 'ps' if PRINTER env var. is not defined. 
+X!     FIX. feed.c - removed get_val() call to get PRINTER variable value. 
+X! 
+X! 5)  John Davis (davis@chem.canterbury.ac.nz)
+X!     BUG. #ifdef is wrong for AIX around invoke_cmd() in misc.c
+X!     FIX. misc.c - Changed AIX to RS6000 to match Makefile entry.
+X! 
+X! 6)  Callum Gibson (callum@bain3.bain.oz.au)
+X!     BUG. time.h is included twice.
+X!     FIX. tin.h - deleted second occurance.
+X! 
+X! 7)  Mat Davis (davisdm@widget.msfc.nasa.gov)
+X!     BUG. Group attribute sort_art_type does not work.
+X!     FIX. art.c newsrc.c - Changed default_sort_art_type to attribute sort type.
+X! 
+X! 8)  cjm@trillion.mincom.oz.au (Chris Moran)
+X!     BUG. On Xenix __STDC__ has to be used in #if !__STDC__ to work correctly.
+X!     FIX. extern.h xindex.c - applied supplied patch.
+X! 
+X! 9)  Michael Corrigan (corrigan@weber.ucsd.edu)
+X!     BUG. The compiler define __hpux should be used on HPUX machines.
+X!     FIX. tin.h curses.c inews.c - changed all HPUX defines to __hpux.
+X! 
+X! 10) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. File dependencies are wrong for open.c & post.c.
+X!     FIX. Makefile - added file dependencies.
+X! 
+X! 11) Steven Cogswell (m31z@jupiter.sun.csd.unb.ca)
+X!     BUG. post_proc_type= group attribute does not work.
+X!     FIX. group.c - applied supplied patch.
+X  
+X! 12) Olle Eriksson (olle@jagularen.cb.uu.se)
+X!     BUG. The routine toggle_my_groups() does not see the active[0] newsgroup.
+X      FIX. select.c - applied supplied patch.
+X  
+X! 13) Leila Burrell-Davis (lielabd@syma.sussex.ac.uk)
+X!     BUG. tin -u &  will not work because new group questions block job.
+X!     FIX. active.c - checks to see if just index files are being created.
+X! 
+X! 14) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Toggling 'r' at group selection level repositions at the wrong group. 
+X!     FIX. select.c - saves current group position before toggling so that old
+X!          position or next group can be found after toggling.
+X! 
+X! 15) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Subscribing to a new group causes SIGSEGV on Apollo machines.
+X!     FIX. newsrc.c - subscribe_group() parameter was defined as char but its
+X!          prototype was int. Very picky compiler & OS.
+X! 
+X! 16) Thomas Omerzu (omerzu@quarta.quantum.de)
+X!     BUG. Comments starting with # should be allowed in ~news/lib/subscriptions.
+X!     FIX. newsrc.c - added check for line beginning with '#' or LF.
+X! 
+X! 17) Eric Bowles (bowles@is.s.u-tokyo.ac.jp)
+X!     BUG. $TINDIR env. variable should be used to set homedir at startup.
+X!     FIX. init.c - set homedir by init with $TINDIR otherwise $HOME / pw_homedir 
+X! 
+X! 18) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. The new news number should be in same place for -> and hilite bar.
+X!     FIX. select.c - Modified code so that redraw runs faster on slow lines.
+X! 
+X! 19) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. 'u' unsubscribe group should automatcally advance to next group.
+X!     FIX. select.c -  added code to advance to next group.
+X! 
+X! 20) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Rereading newsgroups file via NNTP every time active file is reread
+X!          is wasting net bandwidth and is time consuming on slow lines.
+X!     FIX. active.c open.c - added code to write a copy of the newsgroups file
+X!          to ~/.tin/newsgroups the first time it is read from the NNTP server.
+X!          Subsequent rereads are from the local copy therefore saving time.
+X! 
+X! 21) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. tin -c & does not work because info. text blocks the job.
+X!     FIX. active.c - stopped reading the newsgroups file if catching up.
+X! 
+X! 22) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. 'l' change spooldir does not set group attributes.
+X!     FIX. spooldir.c - added read_attributes_file() after changing spooldir.
+X! 
+X! 23) Hugh Mahon (hugh@hpcndsst.cnd.hp.com)
+X!     BUG. Hilite bar is not erased when advancing at group level on HP terms.
+X!     FIX. curses.c group.c - applied supplied patch.
+X! 
+X! 24) Dave Pascoe (pascoe%rocky.dnet@gte.com)
+X!     BUG. 'tin -M user' causes SIGSEGV error.
+X!     FIX. save.c - File pointer fp was being written to before being opened.
+X! 
+X! 25) Tony Travis (ajt@doc.ic.ac.uk)
+X!     BUG. Inverse video toggle is not saved on exit.
+X!     FIX. rcfile.c - added inverse_video= tinrc entry.
+X! 
+X! 26) Martin Kraemer (mxed%D255S002@athen.uucp)
+X!     BUG. Raw mode is not set when compiling SINIX SVR4 if sinix is defined.
+X!     FIX. curses.c - applied supplied patch.
+X! 
+X! 27) rsalz@osf.org (Rich Salz)
+X!     ADD. Contributed newer version (March 92) of wildmat.c & wildmat.3 routines.
+X! 
+X! 28) Dave Schweisguth (dcs@neutron.chem.yale.edu)
+X!     BUG. Allow quick startup to post an article & then exit (elm like).
+X!     FIX. main.c post.c - added -w command line switch & quick_post_article() 
+X!          routine to post article and then exit.
+X! 
+X! 29) Mark Tomlinson (mark@garden.equinox.gen.nz)
+X!     ADD. Added support for tin to run on Commodore AmigaOS. 
+X!          Applied supplied patch.
+X! 
+X! 30) Leila Burrell-Davis (lielabd@syma.sussex.ac.uk)
+X!     BUG. 'make install' only allows you to install manpage in .../man1 
+X!     FIX. Makefile - applied supplied patch.
+X  
+X! 31) Walter Pelissero (wally@lpds.sublink.org)
+X!     BUG. Typo errors in manpage.
+X      FIX. tin.1 - applied supplied patch.
+X  
+X- 32) Tony Travis (ajt@doc.ic.ac.uk)
+X-     BUG. The 'u' status on the LHS of the group selection page after yanking 
+X-          in all groups does not get updated when I press 's' to subscribe.
+X-     FIX. select.c - update code was updating the incorrect column. 
+X- 
+X- 32) Walter Pelissero (wally@lpds.sublink.org)
+X-     BUG. 'T' tag article cannot tag all arts in a thread from group level.
+X-     FIX. group.c - applied supplied patch.
+X- 
+X- 33) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X-     BUG. Mail cannot be saved to MMDF style mailboxs.
+X-     FIX. init.c rcfile.c - added 'save_to_mmdf_mailbox=' to tinrc file.
+X- 
+X- 34) Steve Hunt (steve@acorn.co.uk)
+X-     BUG. Wrong directory reading #include files are used by compiling.
+X-     FIX. open.c - applied supplied patch.
+X- 
+X- 35) Bill Davidsen (davidsen@crdos1.crd.ge.com)
+X-     ADD. Contributed envarg.c routine to add contents of TINRC env variable 
+X-          to command line options.
+X- 
+X- 36) Jeff Garzik (death@acca.nmsu.ed)
+X-     BUG. Show the num of responses on Continued page headers at article level.
+X-     FIX. page.c - added num of responses to page header.
+X- 
+X- 38) rsalz@osf.org (Rich Salz)
+X-     ADD. Contributed parsedate.y routine.
+X- 
+X  39) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. OS specific #defines are scattered all through tin.h and C files.
+X!     FIX. Created config.h to make more abstract #defines for #include files.
+X! 
+X! 40) Jim Robinson (robinson@mdivax1.mdd.comm.mot.com)
+X!     BUG. find_group_index() can return -1 that is used to index into active[].
+X!     FIX. art.c - added check to see if -1 is returned from function.
+X! 
+X! 41) Neil Parker (nparker@cie.uoregon.edu)
+X!     BUG. 'n == -1' should be 'n = -1' in tab command at group index level.
+X!     FIX. group.c - applied supplied patch.
+X! 
+X! 42) Robbin Johnson (rjohnson@mprgate.mpr.ca)
+X!     BUG. Compile errors on Mach386 & gcc 1.37.
+X!     FIX. tin.h nntplib.c - applied supplied patch.
+X! 
+X! 43) Sergio Morales (sergio@ingres.com)
+X!     BUG. Groups marked with 'x' in active file are still read into active[].
+X!     FIX. active.c - applied supplied patch.
+X! 
+X! 44) Eric Litman (elitman@wam.umd.edu)
+X!     BUG. Bug reports cannot be spellchecked.
+X!     FIX. post.c - added i)spell option to quit, edit & send options.
+X! 
+X! 45) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. 'Y' command at group selection causes cursor to be repostioned on
+X!          the wrong group.
+X!     FIX. select.c - toggle_my_groups() checks if rereading active file.
+X! 
+X! 46) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. -f option does not have any effect when compiled as tind.
+X!     FIX. main.c - made -f copy into active_file for tind instead of
+X!          newsrc as for normal tin. 
+X! 
+X! 47) Dave Datta (datta@cs.uwp.edu)
+X!     BUG. Searching backwards when no unread groups in 'r' mode causes SIGSEGV.
+X!     FIX. search.c - added check to search_groups().
+X! 
+X--- 1,284 ----
+X! CHANGES tin v1.1 PL6 -> tin 1.1 PL7
+X  -----------------------------------
+X  
+X! 1)  John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Arrow routine in spooldir level is using routine from group level.
+X!     FIX. spooldir.c - added supplied patch.
+X! 
+X! 2)  John Schmitz (schmitz@scd.hp.com)
+X!     BUG. _hp_glitch declaration and extern type are different (char != int).
+X!     FIX. group.c - added supplied patch.
+X! 
+X! 3)  Dick Wexelblat (rlw@ida.org)
+X!     BUG. If .newsrc has no groups searching backwards causes SIGSEGV.
+X!     FIX. select.c - added check to search_group() to check if there are groups.
+X! 
+X! 4)  Fokke de Boer (mtvfb@rivm.nl)
+X!     BUG. The include file netdb.h is required to compile inews.c on HPUX.
+X!     FIX. config.h - applied supplied patch.
+X! 
+X! 5)  Andy Jackson (arj@cam-orl.co.uk)
+X!     BUG. The INSTALL doc is not accurate when describing NO_RESYNC_ACTIVE_FILE.
+X!     FIX. INSTALL - updated the NO_RESYNC_ACTIVE_FILE info.
+X! 
+X! 6)  John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Certain config defines are required in config.h for HPUX machines.
+X!     FIX. config.h - added supplied patch.
+X! 
+X! 7)  Andry Timonin (tim@kaija.spb.su)
+X!     BUG. Shell escapes cause command & tin to run in parallel after a while.
+X!     FIX. misc.c - applied supplied patch.
+X! 
+X! 8)  Mark Tomlinson (mark@garden.equinox.gen.nz)
+X!     ADD. Would not compile on AmigaDOS out of the box. 
+X!     FIX. art.c open.c parsedate.y - Applied supplied patch.
+X! 
+X! 9)  Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Organization name cannot be set on a per group basis.
+X!     FIX. active.c post.c - added group attribute 'organization=STRING'
+X! 
+X! 10) Steve Hunt (steve@acorn.co.uk)
+X!     BUG. parsedate.y will not compile on RISCiX machines.
+X!     FIX. config.h - added __arm to DONT_HAVE_TM_GMTOFF define.
+X! 
+X! 11) Blair Zajac (blair@SEISMO.GPS.caltech.edu)
+X!     BUG. Incorrect prototypes,ununsed variables & various other nits
+X!          were found when run through codecenter 3.1 C environment.
+X!     FIX. art.c group.c save.c init.c thread.c - changed prototypes and 
+X!          other suggested changes.
+X! 
+X! 12) rsalz@osf.org (Rich Salz)
+X!     BUG. parsedate.y routine was not handling timezones correctly.
+X!     FIX. parsedate.y - applied supplied patch
+X! 
+X! 13) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. assert macro causes compile error on Apollo machines.
+X!     FIX. tin.h - changed conditional #ifdef to compile assert ok.
+X! 
+X! 14) Rob Engle (engle@cdc.hp.com)
+X!     BUG. Group hash is corrupted if a group is 'x' marked to be junked.
+X!          Causes SIGSEGV when doing a strcmp of groups because one of 
+X!          the strings is NULL.
+X!     FIX. active.c - applied supplied patch.
+X! 
+X! 15) Arnold Robbins (arnold@cc.gatech.edu)
+X!     ADD. Contributed strftime() routine to format date to current timezone.
+X  
+X! 16) Thomas Ziegler (zie@LTE.E-TECHNIK.uni-erlangen.de)
+X!     BUG. Some sites only allow newsreaders to post via a site specified inews.
+X!     FIX. init.c post.c rcfile.c - added tinrc variable 'use_builtin_inews='
+X!          to allow the builtin inews to be switched on/off.
+X! 
+X! 17) Tim Pierce (twpierce@amherst.edu)
+X!     BUG. A non ansi compiler has problems catting the LOCK_FILE define.
+X!     FIX. tin.h init.c - used joinpath() to join TMPDIR and LOCK_FILE.
+X! 
+X! 18) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. An extra newline is added to From: field when gateway name is read
+X!          in from a file.
+X!     FIX. inews.c - added supplied patch.
+X! 
+X! 19) Leila Burrell-Davis (lielabd@syma.sussex.ac.uk)
+X!     BUG. Will not compile on Sequent Dynix machines.
+X!     FIX. config.h - applied supplied patch.
+X! 
+X! 20) Mark Tomlinson (mark@garden.equinox.gen.nz)
+X!     BUG. A non ansi compiler has problems catting the LOG_USER_FILE define.
+X!     FIX. tin.h open.c - used joinpath() to join TMPDIR and LOG_USER_FILE.
+X! 
+X! 21) Doug Sewell (doug@cc.ysu.edu)
+X!     BUG. Default mailer under IBM AIX does not use Mail headers in mailed file.
+X!     FIX. tin.h - applied supplied patch.
+X! 
+X! 22) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Arrow routines do not remove the previous position on hpterms.
+X!     FIX. group.c - added supplied patch.
+X! 
+X! 23) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Would be useful if newsadmin could have a news MOTD (message of the
+X!          day) file that would be shown to the user when tin is started. Also
+X!          only show the motd once depending on last time tin was started.
+X!     FIX. open.c - Added open_motd_fp() to read motd file locally or via NNTP.
+X! 
+X! 24) Paul Gilmartin (pg@stortek.com)
+X!     BUG. "Welcome to tin..." message not displayed when started the first time.
+X!     FIX. init.c - set created_tinrc to TRUE at top of set_tindir().
+X! 
+X! 25) Miguel Farah (mbfarah@isluga.cl)
+X!     BUG. 'cC' commands should not prompt for confirmation if no arts.
+X!     FIX. group.c - only prompt for confirm if there are unread arts in group.
+X! 
+X! 26) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Cancel article should be Delete article so that the command will map
+X!          better to the users mind when I add mail handling to tin.
+X!     FIX. page.c - remapped 'C'ancel article to 'D'elete article.
+X! 
+X! 27) Eric Peterson (epeterson@encore.com)
+X!     BUG. 'g' command at group selection level causes SIGSEGV when group to 
+X!          goto is not on current page.
+X      FIX. select.c - applied supplied patch.
+X  
+X! 28) Tom Parry (parry@yoyo.cc.monash.edu.au)
+X!     BUG. Catchup at article viewer level should be consistant with 'C' at
+X!          group index level.
+X!     FIX. page.c - applied supplied patch.
+X! 
+X! 29) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Unzipping of zip archives is not supported (ie. c.b.i.p).
+X!     FIX. save.c - added zip conventions to save archiver structure.
+X! 
+X! 30) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Unpacked archives should be tested for their integrity.
+X!     FIX. save.c - added archive testing with 'zoo -test' & 'zip -t'
+X! 
+X! 31) Tim Pierce (twpierce@amherst.edu)
+X!     BUG. Groups that are aliased '=' in the active file should not be loaded.
+X!     FIX. active.c - Don't load group into active[] if 4th field is a '='.
+X! 
+X! 32) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Offsets into a file for editing when posting etc. are slightly off. 
+X!     FIX. post.c - added supplied patch.
+X! 
+X! 33) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. Added tinrc variable to enable/disable use of keypad scrolling keys.
+X!     FIX. curses.c rcfile.c - added supplied patch.
+X! 
+X! 34) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. User has no way to abort indexing of large groups.
+X!     FIX. art.c - added abort prompt so user can interrupt group indexing.
+X! 
+X! 35) Eric Peterson (epeterson@encore.com)
+X!     BUG. Would not compile on Encore Umax 3.x machine.
+X!     FIX. config.h - applied supplied patch.
+X! 
+X! 36) Dave Schweisguth (dcs@neutron.chem.yale.edu)
+X!     BUG. Some of the alt.* groupname are so long that the newsgroups text
+X!          description is hardly displayed.
+X!     FIX. rcfile.c select.c - added tinrc variable 'groupname_max_length=' to
+X!          set the max length of groupnames to display on screen so that more
+X!          of the newsgroups text description can be displayed.
+X! 
+X! 37) Nickolay Saukh (unido!jvd.msk.su!nms)
+X!     BUG. From: line parsing does'nt parse certain UUCP addresses.
+X!     FIX. misc.c - applied supplied patch.
+X  
+X! 38) Ed Sznyter (ews@babel.babel.com)
+X!     BUG. Typo errors in man page.
+X      FIX. tin.1 - applied supplied patch.
+X  
+X  39) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. From: fields with no username are hashed causing blank strings
+X!          to be kept in the hash table.
+X!     FIX. art.c - check name part of From: address before hashing it.
+X! 
+X! 40) Werner Fleck (Fleck@tu-harburg.dbp.de)
+X!     BUG. group line in .newsrc without numbers after the colon cause tin 
+X!          to think that there is one article in the group.
+X!     FIX. newsrc.c - applied supplied patch.
+X! 
+X! 41) Tim Pierce (twpierce@amherst.edu)
+X!     BUG. Long lines for a group in .newsrc are truncated.
+X!     FIX. newsrc.c - increased buffers to 8K in .newsrc routines.
+X! 
+X! 42) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. 'Read response>' questions should not be asked if there are no 
+X!          responses in the current thread.
+X!     FIX. page.c thread.c - added check for num of responces in current thread.
+X! 
+X! 43) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. If art is not available the whole of screen will be redrawn.
+X!     FIX. page.c - return -5 value if art cannot be opened and check for it
+X!          in group.c & thread.c whenever show_page() is called and therefore
+X!          don't redraw screen.
+X! 
+X! 44) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. If art is not available the thread cannot be entered with CR.
+X!     FIX. group.c thread.c - skip to the next unread & *unexpired* article.
+X! 
+X! 45) Mike Gleason (mgleason@cse.unl.edu)
+X!     ADD. Contributed random signature generation routine.
+X!     
+X! 46) Eric Litman (elitman@wam.umd.edu)
+X!     BUG. User should be able to configure the news & mail quoting prompts to
+X!          have groupname, msg-id, date, address included in them.
+X!     FIX. rcfile.c tin.1 - added printf style parsing to allow the above 
+X!          mentioned info. to be used in mail & news quotes. Added tinrc
+X!          variables 'news_quote_format=' & 'mail_quote_format='
+X! 
+X! 47) Dean Schrimpf (ds11129@medtronic.com)
+X!     BUG. When NNTP patches are applied to SunOS and the TIMEOUT feature of
+X!          NNTP is enabled a compiler error is generated in server/timer.c
+X!          saying that 'timeoutp undefined'.
+X!     FIX. server.patch - generated a better patch against correct timer.c
+X!          and also cleaned up my patches to the NNTP package.
+X! 
+X! 48) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Empty bug reports are received often by one pissed OFF author!
+X!     FIX. post.c - changed default action to don't ('n') mail bug report.
+X! 
+X! 49) Jason Haar (cctr127@csc.canterbury.ac.nz)
+X!     BUG. When cancelling an article the original Distribution: header is not
+X!          taken into account.
+X!     FIX. post.c - added Distribution: header line from art to be cancelled.
+X! 
+X! 50) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. When saving arts each art is transfered twice via NNTP (Ouch!)
+X!     FIX. feed.c - Do a stat instead of an open to see if the art exists.
+X! 
+X! 51) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Apollo machines can have filenames greater than 14 characters.
+X!     FIX. config.h - Added HAVE_LONG_FILENAMES for apollo machines.
+X! 
+X! 52) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Unpacking of lharc archives is not supported (AmigaDOS only).
+X!     FIX. save.c - added lharc conventions to save archiver structure.
+X! 
+X! 53) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. When checking for new newgroups via NNTP and the group is 'x'ed in 
+X!          the active file a SIGSEGV is caused.
+X!     FIX. active.c - added supplied patch.
+X! 
+X! 54) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Many 1st time users end up with no groups the 2nd time they start tin
+X!          because they did not subscribe to any groups the first time tin was
+X!          started. Causes panic, confusion & loads of bogus bug reports.
+X!     FIX. newsrc.c - write_newsrc() now subscribes to all groups as default.
+X! 
+X! 55) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Quite a few articles have a Newsgroups: line that crossposts arts
+X!          to so many groups that its sometimes not appropiate.
+X!     FIX. post.c - added Followup-To: header with all groups from Newsgroups:
+X!          line so that user can easily change the groups that the followup
+X!          should be posted to.
+X! 
+X! 56) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. Pathnames parsing is not supported (ie. ~iain/$ENV/abc). 
+X!     FIX. active.c misc.c - strfpath() used to format pathnames too allow more
+X!          portablity when news is read from different machines where the file
+X!          system has a differnet structure (ie. /usr/iain instead of /home/iain) 
+X! 
+X! 57) Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X!     BUG. No easy way to change default signature file without recompiling tin.
+X!     FIX. rcfile.c tin.1 - Added tinrc variable 'default_sigfile=' to allow the
+X!          sigfile to be specified. If a directory then a random sig will be 
+X!          generated from files that are in the specified directory.
+X! 
+X! 58) Klaus Dimmler (klaus@cscns.com)
+X!     BUG. If reading groups from the cmd line (ie. tin clari.*) when the active
+X!          file is reread the groups will be reread from .newsrc and not from
+X!          the cmd line. 
+X!     FIX. main.c - created read_cmd_line_groups() to read cmd line groups if
+X!          any otherwise .newsrc will be read.
+X! 
+X! 59) Jack Applin (neutron@patchnos.fc.hp.com)
+X!     BUG. Display over slow modems is too slow to be useful. 
+X!     FIX. group.c page.c select.c thread.c - applied part of supplied patch. 
+X! 
+X! 60) John Schmitz (schmitz@scd.hp.com)
+X!     BUG. NNTP servers that run authorization cannot be accesed.
+X!     FIX. open.c - added supplied patch.
+X! 
+X! 61) Ted Richards (ted@isgtec.com)
+X!     BUG. Compiler on HPUX 8.0 cannot compile prototyped pointer to function
+X!          return in signal.c posix signal handling routine.
+X!     FIX. signal.c - added DONT_PROTOTYPE_PTR_TO_FUNC #define if __hpux.
+Xdiff -rcs ../1.16/FTP ./FTP
+X*** ../1.16/FTP	Sun Nov 15 18:41:30 1992
+X--- ./FTP	Tue Oct  6 07:45:33 1992
+X***************
+X*** 9,24 ****
+X  1) FTP sites that carry the latest version of tin are:
+X  
+X     Reference site:  
+X!      [192.76.144.129]  ftp.Germany.EU.net:pub/news/tin
+X  
+X     Mirror sites:
+X!      [146.169.2.1]     src.doc.ic.ac.uk:computing/usenet/software/readers/tin
+X!      [131.210.1.4]     ftp.uwp.edu:pub/tin
+X  
+X! NOTE1: The reference site is in Germany (europe). The mirror sites are in the
+X!        UK & USA respectively.
+X! NOTE2: There will be a small time lag before each of these sites makes
+X!        the newest version available as I post firstly to alt.sources
+X  
+X  --------------------------------------------------------------------------------
+X  
+X--- 9,23 ----
+X  1) FTP sites that carry the latest version of tin are:
+X  
+X     Reference site:  
+X!      Germany  [192.76.144.129]  ftp.Germany.EU.net:pub/news/tin
+X  
+X     Mirror sites:
+X!      UK  [146.169.2.1]  src.doc.ic.ac.uk:computing/usenet/software/readers/tin
+X!      USA [131.210.1.4]  ftp.uwp.edu:pub/tin
+X!      Oz  [130.194.9.1]  yoyo.cc.monash.edu.au:pub/tin
+X  
+X! NOTE: There will be a small time lag before each of these sites makes the 
+X!       newest version available as I usually post first to alt.sources
+X  
+X  --------------------------------------------------------------------------------
+X  
+X***************
+X*** 29,38 ****
+X  2.1) I can handle the following media formats. Specify:
+X      5.25 & 3.5 inch floppy disks.
+X      0.25 (1/4) inch cartridge tapes (you supply it).
+X-     5.25 inch ISO Read/Write optical disks (you supply it).
+X  
+X  2.2) I can handle the following software formats. Specify:
+X!     Unix   *.tar *.tar.Z *.tar.z *.tar.zoo
+X      Msdos  *.zoo *.zip formats 
+X  
+X  2.3) I make a small handling charge for this service as listed below:
+X--- 28,36 ----
+X  2.1) I can handle the following media formats. Specify:
+X      5.25 & 3.5 inch floppy disks.
+X      0.25 (1/4) inch cartridge tapes (you supply it).
+X  
+X  2.2) I can handle the following software formats. Specify:
+X!     Unix   *.tar *.tar.Z *.tar.z *.zoo *.zip
+X      Msdos  *.zoo *.zip formats 
+X  
+X  2.3) I make a small handling charge for this service as listed below:
+X***************
+X*** 49,55 ****
+X      Germany.
+X  
+X      Phone. +49-911-331963 (home) +49-911-3089-407 (work) +49-911-3089-290 (FAX)
+X!     Email. iain%anl433.uucp@Germany.EU.net
+X  
+X  --------------------------------------------------------------------------------
+X  
+X--- 47,53 ----
+X      Germany.
+X  
+X      Phone. +49-911-331963 (home) +49-911-3089-407 (work) +49-911-3089-290 (FAX)
+X!     Email. Iain.Lea%anl433.uucp@Germany.EU.net
+X  
+X  --------------------------------------------------------------------------------
+X  
+Xdiff -rcs ../1.16/INSTALL ./INSTALL
+X*** ../1.16/INSTALL	Sun Nov 15 18:41:29 1992
+X--- ./INSTALL	Tue Oct 27 16:29:55 1992
+X***************
+X*** 1,4 ****
+X! Compilation and installation notes for tin - 06-09-92 
+X  -----------------------------------------------------
+X  
+X  Tin has been compiled on a wide range of Un*x machines with cc and gcc.
+X--- 1,4 ----
+X! Compilation and installation notes for tin - 27-10-92 
+X  -----------------------------------------------------
+X  
+X  Tin has been compiled on a wide range of Un*x machines with cc and gcc.
+X***************
+X*** 55,60 ****
+X--- 55,62 ----
+X  
+X    1)  Build 'Normal version' of tin as specified by the above 4 points.
+X    2)  The tind index daemon needs to be installed on your NNTP server.
+X+       More info. concerning my NNTP patches & the tin daemon can be 
+X+       found in the INSTALL.NNTP file.  
+X    3)  Apply my NNTP XUSER & XINDEX patches to your nntpd server or this
+X        will not work!!!. (If you want tind locally read Note3).  
+X    4)  Edit the Makefile and add -DINDEX_DAEMON to your CFLAGS entry and
+X***************
+X*** 102,111 ****
+X  client machine. Also check that NNTP_INEWS_GATEWAY & NNTP_INEWS_DOMAIN 
+X  are correctly set to produce correct From: headers for your site.
+X  
+X! NO_NNTP_EXTS
+X! Define if you have a *virgin* NNTP server with no extensions. This is just
+X  a nicety that will stop tin asking the server if it supports my NNTP server
+X! extensions XUSER & XINDEX & SPOOLDIR (cdrom) extensions.
+X  
+X  NNTP_INEWS_GATEWAY
+X  Defines the name of your news gateway machine. Useful if you don't want 
+X--- 104,113 ----
+X  client machine. Also check that NNTP_INEWS_GATEWAY & NNTP_INEWS_DOMAIN 
+X  are correctly set to produce correct From: headers for your site.
+X  
+X! DONT_HAVE_NNTP_EXTS
+X! Define if you have a *virgin* NNTP server without my patches. This is just
+X  a nicety that will stop tin asking the server if it supports my NNTP server
+X! extensions XINDEX, XMOTD, XUSER & SPOOLDIR (cdrom) extensions.
+X  
+X  NNTP_INEWS_GATEWAY
+X  Defines the name of your news gateway machine. Useful if you don't want 
+X***************
+X*** 170,184 ****
+X  DONT_HAVE_GETCWD
+X  Define if you don't have the getcwd() system call. getwd() will be used.
+X  
+X! HAVE_SETREUID
+X! Define if problems occur when runnung tin as setuid news. Only define if
+X! your system supports the setreuid() system call.
+X! 
+X! LOG_USER
+X  Log username & info to /tmp/.tin_log for usage statistics. If reading via
+X  NNTP the NNTP XUSER extended command will log user info to NNTP server.
+X  If -DNNTP_XUSER is defined it will define LOG_USER automatically.
+X  
+X  NO_PIPING
+X  Do not allow piping of articles to shell commands.
+X  
+X--- 172,218 ----
+X  DONT_HAVE_GETCWD
+X  Define if you don't have the getcwd() system call. getwd() will be used.
+X  
+X! DONT_LOG_USER
+X  Log username & info to /tmp/.tin_log for usage statistics. If reading via
+X  NNTP the NNTP XUSER extended command will log user info to NNTP server.
+X  If -DNNTP_XUSER is defined it will define LOG_USER automatically.
+X  
+X+ DONT_REREAD_ACTIVE_FILE
+X+ Define if you do not want the active file to be reread periodically.
+X+ The reread period can be set in seconds by setting the tinrc variable
+X+ 'reread_active_file_secs='
+X+ 
+X+ HAVE_ISPELL
+X+ Define if you have ispell (interactive spellchecker) installed and want the
+X+ option of checking your articles, mails before posting/mailing them.
+X+ 
+X+ HAVE_LONG_FILENAMES
+X+ Define if your machines filesystem supports filenames longer than 14
+X+ chars (default for BSD type systems).
+X+ 
+X+ HAVE_MAIL_HANDLER
+X+ Define if you want to use the MH style mail handling & reading code in mail.c
+X+ It should be noted that mail handling is not well tested and not yet fully
+X+ implemented. You can expect errors if you use this define so let me know the
+X+ problems by sending me a bug report ('B' bug command from within tin).
+X+ 
+X+ HAVE_MMDF_MAILER
+X+ Define if your machine uses a MMDF type mailer instead of sendmail.
+X+ It is defined as default on SCO Unix machines. It can be dynamically 
+X+ changed by setting the tinrc variable save_to_mmdf_mailbox to ON. 
+X+ 
+X+ HAVE_POSIX_JC
+X+ Define if your machine uses Posix style sigaction() signal handling.
+X+ 
+X+ HAVE_SELECT
+X+ Define if want to be able to abort the indexing of a group. To do this the
+X+ select() call is required. On sysV type systems you will probably have to
+X+ link with the network (tcp) libaries to get the select() function.
+X+ 
+X+ HAVE_SETREUID
+X+ Define if problems occur when runnung tin as setuid news. Only define if
+X+ your system supports the setreuid() system call.
+X+ 
+X  NO_PIPING
+X  Do not allow piping of articles to shell commands.
+X  
+X***************
+X*** 188,202 ****
+X  NO_REGEX
+X  Define if you do not want to use regular expression pattern matching.
+X  
+X- NO_RESYNC_ACTIVE_FILE
+X- Do not reread active every RESYNC_ACTIVE_SECS.
+X- 
+X  NO_SHELL_ESCAPE
+X  Do not allow shell escapes.
+X  
+X- POSIX_JOB_CONTROL
+X- Define if your machine uses Posix style sigaction() signal handling.
+X- 
+X  SLOW_SCREEN_UPDATE
+X  Define if running over a low speed connection (ie. 2400baud). It stops
+X  the percentage info being shown at bottom of select and group menus and
+X--- 222,230 ----
+X***************
+X*** 217,235 ****
+X  Define if you want inverse video and highlighted bar disabled. Can be 
+X  toggled in tin by the 'I' command and highlight bar by 'M' command.
+X  
+X- USE_ISPELL
+X- Define if you have ispell (interactive spellchecker) installed and want the
+X- option of checking your articles, mails before posting/mailing them.
+X- 
+X- USE_LONG_FILENAMES
+X- Define if your machines filesystem supports filenames longer than 14
+X- chars (default for BSD type systems).
+X- 
+X- USE_MMDF_MAILER
+X- Define if your machine uses a MMDF type mailer instead of sendmail.
+X- It is defined as default on SCO Unix machines. It can be dynamically 
+X- changed by setting the tinrc variable save_to_mmdf_mailbox to ON. 
+X- 
+X  
+X  Compiled & installed on the following machines
+X  ----------------------------------------------
+X--- 245,250 ----
+X***************
+X*** 237,243 ****
+X  1) * i386 & Xenix 2.3.2/SCO SVR3.2/ISC SVR3.2/ATT SVR4.0
+X  2) * Sony News & NewsOS 4.1
+X  3) * SNI MX300/MX500 & Sinix 5.22/5.23/5.24/5.4
+X! 4) * Sun 3/4/IPC/SS1/SS2 & SunOS 4.0.3/4.1/4.1.1 
+X  5) * Dec 5000/Vax & Ultrix 4.1/4.2
+X  6) * Vax 11/785 & BSD 4.3
+X  7) * DG Aviion 300 & DG-UX 4.30
+X--- 252,258 ----
+X  1) * i386 & Xenix 2.3.2/SCO SVR3.2/ISC SVR3.2/ATT SVR4.0
+X  2) * Sony News & NewsOS 4.1
+X  3) * SNI MX300/MX500 & Sinix 5.22/5.23/5.24/5.4
+X! 4) * Sun 3/4/IPC/SS1/SS2/SS10 & SunOS 4.0.3/4.1.1/4.1.2/4.1.3 
+X  5) * Dec 5000/Vax & Ultrix 4.1/4.2
+X  6) * Vax 11/785 & BSD 4.3
+X  7) * DG Aviion 300 & DG-UX 4.30
+X***************
+X*** 259,265 ****
+X  23)  Pyramid 9810 & OSx96N
+X  24)  Alliant FX/2800 & Concentrix 2.2
+X  25)  Stratus i860 & FTX 2.0
+X! 26)  i386 & Linux 0.96c
+X  27)  Apple A/UX 3.0 & gcc 2.2 (?)
+X  28)  Motorola Delta 3200 & SysVR3V6
+X  29)  Gould Powernode 9050 & utx/32
+X--- 274,280 ----
+X  23)  Pyramid 9810 & OSx96N
+X  24)  Alliant FX/2800 & Concentrix 2.2
+X  25)  Stratus i860 & FTX 2.0
+X! 26)  i386 & Linux 0.97pl5
+X  27)  Apple A/UX 3.0 & gcc 2.2 (?)
+X  28)  Motorola Delta 3200 & SysVR3V6
+X  29)  Gould Powernode 9050 & utx/32
+Xdiff -rcs ../1.16/INSTALL.NNTP ./INSTALL.NNTP
+X*** ../1.16/INSTALL.NNTP	Sun Nov 15 18:41:35 1992
+X--- ./INSTALL.NNTP	Thu Nov  5 13:33:37 1992
+X***************
+X*** 1,3 ****
+X--- 1,6 ----
+X+ Compilation and installation notes for NNTP patches - 05-11-92
+X+ --------------------------------------------------------------
+X+ 
+X  This document explains the install procedure for the supplied patch to the
+X  NNTP server nntpd & to the TIN newsreader to retrieve index files from the
+X  NNTP server. 
+X***************
+X*** 6,11 ****
+X--- 9,15 ----
+X  -----------
+X  1) Copy the following files to <nntp-source-dir>/server
+X       cp xindex.c <nntp-source-dir>/server
+X+      cp xmotd.c <nntp-source-dir>/server
+X       cp xuser.c <nntp-source-dir>/server
+X  
+X  2) Copy the following files to <nntp-source-dir>
+X***************
+X*** 21,29 ****
+X       cd <nntp-source-dir>/common
+X       cp conf.h.dist conf.h
+X  
+X! 5) Edit <nntp-source-dir>/common/conf.h to suit your sites needs. The XINDEX
+X!    & XUSER are #defined by default. You may need to change the path for
+X!    the #define SUBSCRIBTIONS. The default is /usr/lib/news/subscriptions.
+X       cd <nntp-source-dir>/common
+X       [vi|emacs] conf.h
+X  
+X--- 25,42 ----
+X       cd <nntp-source-dir>/common
+X       cp conf.h.dist conf.h
+X  
+X! 5) Edit <nntp-source-dir>/common/conf.h to suit your sites needs. 
+X!    The XINDEX, XMOTD & XUSER extensions are #defined by default. 
+X!    The define XOVERVIEW is enabled by default so that .overview 
+X!    style index files (ala Cnews) are searched for first. If not
+X!    found then a tin style index file will be serched for and if
+X!    found returned. Tin style index files have the newsgroup name
+X!    as the first line of the index file. Too just look for tin
+X!    index files #undef XOVERVIEW.
+X!    You may need to change the path for the #define's for XINDEX_DIR, 
+X!    XMOTD_FILE & SUBSCRIBTIONS_FILE. 
+X!    The default for XINDEX_DIR is /usr/spool/news/.index and for the
+X!    others /usr/lib/news/[motd | subscriptions]
+X       cd <nntp-source-dir>/common
+X       [vi|emacs] conf.h
+X  
+X***************
+X*** 34,48 ****
+X  
+X  TIN client
+X  ----------
+X! 1) Edit tin Makefile to enable XINDEX & XUSER functionality.
+X!      cd <tin-dir>
+X!      [vi|emacs] Makefile
+X!      Add -DNNTP_XINDEX to CFLAGS if you want tin to retrieve index files 
+X!      from the server.
+X!      Add -DNNTP_XUSER to CFLAGS if you want tin to log the username to
+X!      the NNTP logfile.
+X!      Add -DNNTP_EXTS to CFLAGS if you want both NNTP_XINDEX & NNTP_XUSER
+X!      enabled.
+X  
+X  2) Recompile & install tin.
+X       cd <tin-dir>
+X--- 47,56 ----
+X  
+X  TIN client
+X  ----------
+X! 1) Nothing needs to changed in the tin client as long as you originally
+X!    compiled tin with -DNNTP_ABLE or -DNNTP_ONLY. You will have to remove
+X!    -DDONT_HAVE_NNTP_EXTS from the CFLAGS in the Makefile and recompile
+X!    if it was originally defined.
+X  
+X  2) Recompile & install tin.
+X       cd <tin-dir>
+X***************
+X*** 85,89 ****
+X               
+X  Enjoy & happy newsreading
+X  
+X!   Iain
+X!  
+X--- 93,96 ----
+X               
+X  Enjoy & happy newsreading
+X  
+X! Iain
+Xdiff -rcs ../1.16/MANIFEST ./MANIFEST
+X*** ../1.16/MANIFEST	Sun Nov 15 18:41:28 1992
+X--- ./MANIFEST	Sun Nov 15 18:43:52 1992
+X***************
+X*** 1,62 ****
+X! MANIFEST for tin-1.16 (Mon Sep 14 07:24:16 MET DST 1992)
+X  ----------------------------------------------------
+X!    17411 Makefile
+X!      110 MANIFEST
+X!     3681 README
+X      2761 README.AMIGA
+X!     8637 CHANGES
+X!     9822 INSTALL
+X!     7864 TODO
+X!     2748 FTP
+X!    44436 tin.1
+X      2196 wildmat.3
+X!    56484 tin.nrf
+X       489 kill
+X!     1682 actived.c
+X!      934 README.NNTP
+X!     3162 INSTALL.NNTP
+X!     2369 common.patch
+X!    34102 server.patch
+X!     3473 xindex.c
+X      1344 xuser.c
+X!     2774 config.h
+X!    15801 tin.h
+X!    20210 extern.h
+X!     4658 nntplib.h
+X!    31982 proto.h
+X       585 patchlev.h
+X!    22176 active.c
+X!     5165 amiga.c
+X!    23742 art.c
+X!    11856 curses.c
+X!     6629 debug.c
+X!     2999 envarg.c
+X!    14787 feed.c
+X     11434 getline.c
+X!    33749 group.c
+X      2510 hashstr.c
+X!     6215 help.c
+X!     6033 inews.c
+X!    16780 init.c
+X     13536 kill.c
+X!    25955 lang.c
+X!    13045 main.c
+X!    10294 memory.c
+X!    18438 misc.c
+X!    20662 newsrc.c
+X!    14757 nntplib.c
+X!    15823 open.c
+X!    23593 page.c
+X!    22246 parsedate.y
+X!    33921 post.c
+X!     3150 prompt.c
+X!    29849 rcfile.c
+X!    27811 save.c
+X      3048 screen.c
+X!     7265 search.c
+X!    27394 select.c
+X!    11294 signal.c
+X!    13554 spooldir.c
+X!    21035 thread.c
+X      4818 wildmat.c
+X!   805278 total
+X--- 1,68 ----
+X! MANIFEST for tin-1.17 (Sun Nov 15 18:43:47 MET 1992)
+X  ----------------------------------------------------
+X!    18343 Makefile
+X!      106 MANIFEST
+X!     5238 README
+X      2761 README.AMIGA
+X!    12994 CHANGES
+X!    10633 INSTALL
+X!     9582 TODO
+X!     2656 FTP
+X!     4976 strftime.3
+X!    52220 tin.1
+X      2196 wildmat.3
+X!    66415 tin.nrf
+X       489 kill
+X!     1681 actived.c
+X!     1098 README.NNTP
+X!     3679 INSTALL.NNTP
+X!     2970 common.patch
+X!    32582 server.patch
+X!     4236 xindex.c
+X!     3149 xmotd.c
+X      1344 xuser.c
+X!     3627 config.h
+X!    17650 tin.h
+X!    21192 extern.h
+X!     4983 nntplib.h
+X!    34794 proto.h
+X!      859 amiga.h
+X       585 patchlev.h
+X!    25452 active.c
+X!     5223 amiga.c
+X!    27730 art.c
+X!    11894 curses.c
+X!     6691 debug.c
+X!     2855 envarg.c
+X!    16372 feed.c
+X     11434 getline.c
+X!    33622 group.c
+X      2510 hashstr.c
+X!     6229 help.c
+X!     6117 inews.c
+X!    18702 init.c
+X     13536 kill.c
+X!    27030 lang.c
+X!     5571 mail.c
+X!    13941 main.c
+X!    10896 memory.c
+X!    26671 misc.c
+X!    20932 newsrc.c
+X!    15159 nntplib.c
+X!    19680 open.c
+X!    24600 page.c
+X!    23071 parsedate.y
+X!    35314 post.c
+X!     3163 prompt.c
+X!    32048 rcfile.c
+X!    29000 save.c
+X      3048 screen.c
+X!     7391 search.c
+X!    28102 select.c
+X!     5107 sigfile.c
+X!    11369 signal.c
+X!    13740 spooldir.c
+X!     5590 strftime.c
+X!    21489 thread.c
+X      4818 wildmat.c
+X!   899135 total
+Xdiff -rcs ../1.16/Makefile ./Makefile
+X*** ../1.16/Makefile	Sun Nov 15 18:41:27 1992
+X--- ./Makefile	Sun Nov 15 12:20:08 1992
+X***************
+X*** 2,7 ****
+X--- 2,9 ----
+X  #
+X  # Options that may need changing. For advanced options read the INSTALL file.
+X  CC	= cc
+X+ # LD has to be changed to ld for AmigaDOS
+X+ LD	= cc
+X  COPTS	= -c -O
+X  #CC	= gcc
+X  #COPTS	= -c -O2 -Wall
+X***************
+X*** 12,20 ****
+X  MANEXT	= 1
+X  LIBDIR	= /usr/lib/news
+X  SPOOLDIR= /usr/spool/news
+X! AMIGA_COPTS=-so -wc -m0s -DSYSV -DNO_REREAD_ACTIVE_FILE -DSMALL_MEMORY_MODEL \
+X! 		-DNO_SHELL_ESCAPE -DNO_PIPING -DSLOW_SCREEN_UPDATE \
+X! 		-DAMIGA_BBS -DLIBDIR="uulib:" -DSPOOLDIR="uunews:"
+X  ANL_INEWS_GATEWAY=%anl433.uucp@Germany.EU.net
+X  NNTP_INEWS_GATEWAY=
+X  NNTP_INEWS_DOMAIN=
+X--- 14,23 ----
+X  MANEXT	= 1
+X  LIBDIR	= /usr/lib/news
+X  SPOOLDIR= /usr/spool/news
+X! AMIGA_COPTS=-so -wc -m0s -DAMIGA -DSYSV -DDONT_REREAD_ACTIVE_FILE \
+X! 		-DSMALL_MEMORY_MODEL -DNO_SHELL_ESCAPE -DNO_PIPING \
+X! 		-DSLOW_SCREEN_UPDATE -DAMIGA_BBS -DLIBDIR="uulib:" \
+X! 		-DSPOOLDIR="uunews:"
+X  ANL_INEWS_GATEWAY=%anl433.uucp@Germany.EU.net
+X  NNTP_INEWS_GATEWAY=
+X  NNTP_INEWS_DOMAIN=
+X***************
+X*** 25,31 ****
+X  # sun01
+X  #CDLIB	= -L/home/lea/.src/cllib/clientlib -lcllib -ldbm
+X  # anl433
+X! CDLIB	= /optdisk/localsrc/cnews-911222/dbz/dbz.o -L/usr/home/admin/iain/.src/cllib/clientlib -lcllib -lcposix
+X  
+X  PROJECT	= tin
+X  EXE	= tin
+X--- 28,34 ----
+X  # sun01
+X  #CDLIB	= -L/home/lea/.src/cllib/clientlib -lcllib -ldbm
+X  # anl433
+X! CDLIB	= /optdisk/.ADMIN_SRC/localsrc/cnews-911222/dbz/dbz.o -L/optdisk/.ADMIN_SRC/iain/cllib/clientlib -lcllib -lcposix
+X  
+X  PROJECT	= tin
+X  EXE	= tin
+X***************
+X*** 33,63 ****
+X  MAKE	= make
+X  SHELL	= /bin/sh
+X  STRIP	= strip
+X! ROFF	= + drf -F Helvetica -man3 
+X! PRINT	= -Pps0
+X! BASE_VER= 1.15
+X! VER = 1.16
+X  MAIL_ADDR = "Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)"
+X  
+X! HFILES	= config.h tin.h extern.h nntplib.h proto.h
+X  
+X  CFILES	= active.c amiga.c art.c curses.c debug.c envarg.c feed.c getline.c \
+X! 		group.c hashstr.c help.c inews.c init.c kill.c lang.c main.c \
+X! 		memory.c misc.c newsrc.c nntplib.c open.c page.c parsedate.y \
+X! 		post.c prompt.c rcfile.c save.c screen.c search.c select.c \
+X! 		signal.c spooldir.c thread.c wildmat.c
+X  
+X  OFILES	= active.o amiga.o art.o curses.o debug.o envarg.o feed.o getline.o \
+X! 		group.o hashstr.o help.o inews.o init.o kill.o lang.o main.o \
+X! 		memory.o misc.o newsrc.o nntplib.o open.o page.o parsedate.o \
+X! 		post.o prompt.o rcfile.o save.o screen.o search.o select.o \
+X! 		signal.o spooldir.o thread.o wildmat.o 
+X  
+X  SUPPORT = Makefile MANIFEST README README.AMIGA CHANGES INSTALL TODO FTP *.[13] \
+X  		$(EXE).nrf kill actived.c
+X  
+X  NNTP_PATCH = README.NNTP INSTALL.NNTP common.patch server.patch xindex.c \
+X! 		xuser.c
+X  
+X  ALL_FILES = $(SUPPORT) $(NNTP_PATCH) $(HFILES) patchlev.h $(CFILES)
+X  
+X--- 36,67 ----
+X  MAKE	= make
+X  SHELL	= /bin/sh
+X  STRIP	= strip
+X! ROFF	= groff -man 
+X! BASE_VER= 1.16
+X! VER = 1.17
+X  MAIL_ADDR = "Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)"
+X  
+X! HFILES	= config.h tin.h extern.h nntplib.h proto.h amiga.h
+X  
+X  CFILES	= active.c amiga.c art.c curses.c debug.c envarg.c feed.c getline.c \
+X! 		group.c hashstr.c help.c inews.c init.c kill.c lang.c mail.c \
+X! 		main.c memory.c misc.c newsrc.c nntplib.c open.c page.c \
+X! 		parsedate.y post.c prompt.c rcfile.c save.c screen.c search.c \
+X! 		select.c sigfile.c signal.c spooldir.c strftime.c thread.c \
+X! 		wildmat.c
+X  
+X  OFILES	= active.o amiga.o art.o curses.o debug.o envarg.o feed.o getline.o \
+X! 		group.o hashstr.o help.o inews.o init.o kill.o lang.o mail.o \
+X! 		main.o memory.o misc.o newsrc.o nntplib.o open.o page.o \
+X! 		parsedate.o post.o prompt.o rcfile.o save.o screen.o search.o \
+X! 		select.o sigfile.o signal.o spooldir.o strftime.o thread.o \
+X! 		wildmat.o 
+X  
+X  SUPPORT = Makefile MANIFEST README README.AMIGA CHANGES INSTALL TODO FTP *.[13] \
+X  		$(EXE).nrf kill actived.c
+X  
+X  NNTP_PATCH = README.NNTP INSTALL.NNTP common.patch server.patch xindex.c \
+X! 		xmotd.c xuser.c
+X  
+X  ALL_FILES = $(SUPPORT) $(NNTP_PATCH) $(HFILES) patchlev.h $(CFILES)
+X  
+X***************
+X*** 74,90 ****
+X  	@echo "If the above options are OK make one of the following targets:"
+X  	@echo " "
+X  	@echo "    make aix       [ IBM AIX ]"
+X! 	@echo "    make amiga     [ AmigaOS ]"
+X  	@echo "    make apollo    [ Apollo DomainOS ]"
+X  	@echo "    make bsd       [ BSD/DG/NeXT/Pyramid/SunOS/Ultrix ]"
+X  	@echo "    make dynix     [ Sequent DYNIX ]"
+X  	@echo "    make minix     [ Minix 386 ]"
+X  	@echo "    make ptx       [ Sequent PTX ]"
+X  	@echo "    make sco       [ SCO Unix ]"
+X- 	@echo "    make sgi       [ SGI Irix ]"
+X  	@echo "    make sinix     [ SNI Sinix ]"
+X! 	@echo "    make sysv      [ SysV ]"
+X! 	@echo "    make sysvr4    [ SysV R4 ]"
+X  	@echo "    make tower     [ NCR Tower ]"
+X  	@echo "    make xenix     [ Xenix 386 ]"
+X  
+X--- 78,94 ----
+X  	@echo "If the above options are OK make one of the following targets:"
+X  	@echo " "
+X  	@echo "    make aix       [ IBM AIX ]"
+X! 	@echo "    make amiga     [ AmigaDOS ]"
+X  	@echo "    make apollo    [ Apollo DomainOS ]"
+X  	@echo "    make bsd       [ BSD/DG/NeXT/Pyramid/SunOS/Ultrix ]"
+X  	@echo "    make dynix     [ Sequent DYNIX ]"
+X+ 	@echo "    make irix      [ SGI Irix ]"
+X  	@echo "    make minix     [ Minix 386 ]"
+X  	@echo "    make ptx       [ Sequent PTX ]"
+X  	@echo "    make sco       [ SCO Unix ]"
+X  	@echo "    make sinix     [ SNI Sinix ]"
+X! 	@echo "    make sysv      [ SysV / HPUX 7.0]"
+X! 	@echo "    make sysvr4    [ SysV R4 / HPUX 8.0]"
+X  	@echo "    make tower     [ NCR Tower ]"
+X  	@echo "    make xenix     [ Xenix 386 ]"
+X  
+X***************
+X*** 100,107 ****
+X  
+X  # For Commodore AmigaOS
+X  amiga:
+X! 	@echo "Compiling for AmigaOS (Manx-C 5.2)..."
+X! 	@$(MAKE) CC=$(CC) CFLAGS='$(AMIGA_COPTS) LIBS="-lc" EXE=tin linkit
+X  
+X  # For Apollo 
+X  apollo:
+X--- 104,111 ----
+X  
+X  # For Commodore AmigaOS
+X  amiga:
+X! 	@echo "Compiling for AmigaDOS (Manx-C 5.2)..."
+X! 	$(MAKE) CC=$(CC) "CFLAGS=$(AMIGA_COPTS)" LIBS=-lc EXE=tin linkit
+X  
+X  # For Apollo 
+X  apollo:
+X***************
+X*** 151,157 ****
+X  			 EXE=tin linkit
+X  
+X  # For SGI Irix
+X! sgi:
+X  	@echo "Compiling for SGI Irix..."
+X  	@$(MAKE) CFLAGS='$(COPTS) -cckr -DSYSV -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DLIBDIR=\"$(LIBDIR)\" -DSPOOLDIR=\"$(SPOOLDIR)\"' \
+X  			 LIBS="-lsun -lcurses -ltermcap" \
+X--- 155,161 ----
+X  			 EXE=tin linkit
+X  
+X  # For SGI Irix
+X! irix:
+X  	@echo "Compiling for SGI Irix..."
+X  	@$(MAKE) CFLAGS='$(COPTS) -cckr -DSYSV -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DLIBDIR=\"$(LIBDIR)\" -DSPOOLDIR=\"$(SPOOLDIR)\"' \
+X  			 LIBS="-lsun -lcurses -ltermcap" \
+X***************
+X*** 160,166 ****
+X  # For SNI Sinix
+X  sinix:
+X  	@echo "Compiling for SNI Sinix..."
+X! 	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DUSE_MKDIR -DNNTP_INEWS_GATEWAY="\\"$(NNTP_INEWS_GATEWAY)\\" -DNNTP_INEWS_DOMAIN="\\"$(NNTP_INEWS_DOMAIN)\\" -DLIBDIR=\\"$(LIBDIR)\\" -DSPOOLDIR=\\"$(SPOOLDIR)\\"' \
+X  			 LIBS="-lcurses" \
+X  			 EXE=tin linkit
+X  
+X--- 164,170 ----
+X  # For SNI Sinix
+X  sinix:
+X  	@echo "Compiling for SNI Sinix..."
+X! 	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DNNTP_INEWS_GATEWAY="\\"$(NNTP_INEWS_GATEWAY)\\" -DNNTP_INEWS_DOMAIN="\\"$(NNTP_INEWS_DOMAIN)\\" -DLIBDIR=\\"$(LIBDIR)\\" -DSPOOLDIR=\\"$(SPOOLDIR)\\"' \
+X  			 LIBS="-lcurses" \
+X  			 EXE=tin linkit
+X  
+X***************
+X*** 179,185 ****
+X  sysvr4:
+X  	@echo "Compiling for System V Release 4..."
+X  	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DSVR4 -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DLIBDIR=\"$(LIBDIR)\" -DSPOOLDIR=\"$(SPOOLDIR)\"' \
+X! 			 LIBS="-lcurses -ltermlib" \
+X  			 EXE=tin linkit
+X  
+X  # For NCR Tower
+X--- 183,189 ----
+X  sysvr4:
+X  	@echo "Compiling for System V Release 4..."
+X  	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DSVR4 -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DLIBDIR=\"$(LIBDIR)\" -DSPOOLDIR=\"$(SPOOLDIR)\"' \
+X! 			 LIBS="-lcurses -ltermcap" \
+X  			 EXE=tin linkit
+X  
+X  # For NCR Tower
+X***************
+X*** 210,223 ****
+X  
+X  anl432:
+X  	@echo "Compiling for ANL432 with NNTP ONLY, NO POSTING, NO SHELL ESCAPE..."
+X! 	@$(MAKE) CC=gcc CFLAGS='-c -O2 -Wall -DSYSV -DNNTP_ONLY -DNNTP_EXTS -DNO_POSTING -DNO_SHELL_ESCAPE -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DDEBUG' \
+X  			 LIBS="-lcurses -ltermcap" \
+X  			 NETLIBS="-linet -lnsl_s" \
+X  			 EXE=tin linkit
+X  
+X  anl433:
+X  	@echo "Compiling for ANL433 with NNTP..."
+X! 	@$(MAKE) CC=gcc CFLAGS='-c -O2 -Wall -DSYSV -DUSE_ISPELL -DNNTP_ABLE -DNO_NNTP_EXTS -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X  			 LIBS="-lcurses -ltermcap" \
+X  			 NETLIBS="-linet -lnsl_s" \
+X  			 EXE=tin linkit
+X--- 214,229 ----
+X  
+X  anl432:
+X  	@echo "Compiling for ANL432 with NNTP ONLY, NO POSTING, NO SHELL ESCAPE..."
+X! 	@$(MAKE) CC=gcc CFLAGS='-c -O2 -Wall -DSYSV -DNNTP_ONLY -DNO_POSTING -DNO_SHELL_ESCAPE -DNNTP_INEWS_GATEWAY=\"$(NNTP_INEWS_GATEWAY)\" -DDEBUG' \
+X  			 LIBS="-lcurses -ltermcap" \
+X  			 NETLIBS="-linet -lnsl_s" \
+X  			 EXE=tin linkit
+X  
+X+ #	@$(MAKE) CC=gcc CFLAGS='-c -O2 -Wall -DSYSV -DHAVE_ISPELL -DNNTP_ABLE -DDONT_HAVE_NNTP_EXTS -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X+ #
+X  anl433:
+X  	@echo "Compiling for ANL433 with NNTP..."
+X! 	@$(MAKE) CC=gcc CFLAGS='-c -O2 -Wall -DSYSV -DHAVE_MAIL_HANDLING -DHAVE_ISPELL -DNNTP_ABLE -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X  			 LIBS="-lcurses -ltermcap" \
+X  			 NETLIBS="-linet -lnsl_s" \
+X  			 EXE=tin linkit
+X***************
+X*** 235,240 ****
+X--- 241,252 ----
+X  			 LIBS="-lcurses -ltermcap" \
+X  			 EXE=tin linkit
+X  
+X+ cox01:
+X+ 	@echo "Compiling for COX01 with NNTP ONLY..."
+X+ 	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DBSD -systype bsd43 -UHAVE_STDLIB_H -DNNTP_ONLY -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X+ 			 LIBS="-L/usr/bsd43/usr/lib -lcurses -ltermcap -lc" \
+X+ 			 EXE=tin linkit
+X+ 
+X  daemon:
+X  	@echo "Compiling for ANL433 with INDEX DAEMON..."
+X  	@$(MAKE) CC=gcc CFLAGS='-c -O2 -DSYSV -DINDEX_DAEMON -DDEBUG' \
+X***************
+X*** 274,280 ****
+X  
+X  mx351:
+X  	@echo "Compiling for MX351 with NNTP ONLY..."
+X! 	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DSVR4 -DUSE_INVERSE_HACK -DNNTP_ONLY -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\"-DEBUG' \
+X  			 NETLIBS="-lnsl -lsocket" \
+X  			 LIBS="-lcurses -ltermlib" \
+X  			 EXE=tin linkit
+X--- 286,292 ----
+X  
+X  mx351:
+X  	@echo "Compiling for MX351 with NNTP ONLY..."
+X! 	@$(MAKE) CC=$(CC) CFLAGS='-c -DSVR4 -DNNTP_ONLY -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DEBUG' \
+X  			 NETLIBS="-lnsl -lsocket" \
+X  			 LIBS="-lcurses -ltermlib" \
+X  			 EXE=tin linkit
+X***************
+X*** 281,287 ****
+X  
+X  sony01:
+X  	@echo "Compiling for SONY01 with NNTP ONLY..."
+X! 	@$(MAKE) CC=cc CFLAGS='-c -g -DBSD -DNNTP_ONLY -DUSE_ISPELL -DLIBDIR=\"/a/usr/lib/news\" -DSPOOLDIR=\"/a/usr/spool/news\" -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X  			LIBS="-lcurses -ltermcap" \
+X  			EXE=tin linkit
+X  
+X--- 293,299 ----
+X  
+X  sony01:
+X  	@echo "Compiling for SONY01 with NNTP ONLY..."
+X! 	@$(MAKE) CC=cc CFLAGS='-c -g -DBSD -DNNTP_ONLY -DHAVE_MAIL_HANDLING -DHAVE_ISPELL -DLIBDIR=\"/a/usr/lib/news\" -DSPOOLDIR=\"/a/usr/spool/news\" -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X  			LIBS="-lcurses -ltermcap" \
+X  			EXE=tin linkit
+X  
+X***************
+X*** 292,297 ****
+X--- 304,315 ----
+X  			 NETLIBS="-lsocket -lnsl" \
+X  			 EXE=tin linkit
+X  
+X+ sparc10_1:
+X+ 	@echo "Compiling for SPARC10 with NNTP ONLY..."
+X+ 	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DBSD -DNNTP_ONLY -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X+ 			 LIBS="-lcurses -ltermcap" \
+X+ 			 EXE=tin linkit
+X+ 
+X  sun01:
+X  	@echo "Compiling for SUN01 with NNTP ONLY..."
+X  	@$(MAKE) CC=$(CC) CFLAGS='$(COPTS) -DBSD -DNNTP_ONLY -DNNTP_INEWS_GATEWAY=\"$(ANL_INEWS_GATEWAY)\" -DNNTP_INEWS_DOMAIN=\"$(NNTP_INEWS_DOMAIN)\" -DDEBUG' \
+X***************
+X*** 307,313 ****
+X  
+X  linkit: $(OFILES)
+X  	@echo "Linking $(EXE)..."
+X! 	$(CC) $(LFLAGS) -o $(EXE) $(OFILES) $(NNTPLIB) $(NETLIBS) $(LIBS) 
+X  	@ls -l $(EXE)
+X  
+X  install:
+X--- 325,331 ----
+X  
+X  linkit: $(OFILES)
+X  	@echo "Linking $(EXE)..."
+X! 	$(LD) $(LFLAGS) -o $(EXE) $(OFILES) $(NNTPLIB) $(NETLIBS) $(LIBS) 
+X  	@ls -l $(EXE)
+X  
+X  install:
+X***************
+X*** 458,475 ****
+X  	@cscope $(ALL_FILES)
+X  
+X  man:
+X! 	@echo "Printing $(EXE) manual to $(PRINT)..."
+X! 	@$(ROFF) $(PRINT) $(EXE).1
+X  
+X  print:
+X! 	/bin/sh for FILE in $(HFILES) patchlev.h $(CFILES) $(SUPPORT); do \
+X! 	echo "Printing $$FILE to $(PRINT)..."; \
+X! 	a2ps -t4 $$FILE | lpr; \
+X  	done
+X  
+X  actived:
+X! 	@echo "Compiling actived for AmigaOS (Manx-C 5.2)..."
+X! 	$(CC) CFLAGS=$(AMIGA_COPTS) actived.c -o actived -lc 
+X  	
+X  active.o:	active.c $(HFILES)
+X  amiga.o:	amiga.c $(HFILES)
+X--- 476,494 ----
+X  	@cscope $(ALL_FILES)
+X  
+X  man:
+X! 	@echo "Printing $(EXE) manual..."
+X! 	@$(ROFF) $(EXE).1 | lpr
+X  
+X  print:
+X! 	for FILE in $(HFILES) patchlev.h $(CFILES) $(SUPPORT); do \
+X! 	echo "Printing $$FILE..."; \
+X! 	a2ps $$FILE | lpr; \
+X  	done
+X  
+X  actived:
+X! 	@echo "Compiling actived for AmigaDOS (Manx-C 5.2)..."
+X! 	$(CC) CFLAGS=$(AMIGA_COPTS) actived
+X! 	$(LD) actived -lc 
+X  	
+X  active.o:	active.c $(HFILES)
+X  amiga.o:	amiga.c $(HFILES)
+X***************
+X*** 486,491 ****
+X--- 505,511 ----
+X  init.o:		init.c $(HFILES)
+X  kill.o:		kill.c $(HFILES)
+X  lang.o:		lang.c $(HFILES)
+X+ mail.o:		mail.c $(HFILES) patchlev.h
+X  main.o:		main.c $(HFILES) patchlev.h
+X  memory.o:	memory.c $(HFILES)
+X  misc.o:		misc.c $(HFILES)
+X***************
+X*** 501,507 ****
+X--- 521,529 ----
+X  screen.o:	screen.c $(HFILES)
+X  search.o:	search.c $(HFILES)
+X  select.o:	select.c $(HFILES)
+X+ sigfile.o:	sigfile.c $(HFILES)
+X  signal.o:	signal.c $(HFILES)
+X  spooldir.o:	spooldir.c $(HFILES)
+X+ strftime.o:	strftime.c $(HFILES)
+X  thread.o:	thread.c $(HFILES)
+X  wildmat.o:	wildmat.c
+Xdiff -rcs ../1.16/README ./README
+X*** ../1.16/README	Sun Nov 15 18:41:28 1992
+X--- ./README	Sat Nov 14 18:32:33 1992
+X***************
+X*** 1,5 ****
+X! This is version 1.1 PL6 (patchlevel 6) of the tin newsreader.
+X  
+X  o  Based more on Notes and tass than rn type newreaders.
+X  o  Full screen, easy to use with on-line help at all levels.
+X  o  Reads news locally (ie. /usr/spool/news) and/or via NNTP/INN/CD-ROM.
+X--- 1,6 ----
+X! This is version 1.1 PL7 (patchlevel 7) of the tin newsreader.
+X  
+X+ o  Compiles & runs on Unix & AmigaDOS.
+X  o  Based more on Notes and tass than rn type newreaders.
+X  o  Full screen, easy to use with on-line help at all levels.
+X  o  Reads news locally (ie. /usr/spool/news) and/or via NNTP/INN/CD-ROM.
+X***************
+X*** 12,59 ****
+X     -  Article viewer
+X  o  Same interface to mail, pipe, print and save articles.
+X  o  Auto unpacking of multi-part shar & uuencoded articles.
+X! o  Auto-selection (hot) of interesting articles.
+X! o  Batch mode to mail/save new news when user is on holiday.
+X  o  Reposting of articles from one newsgroup to another.
+X  o  Builtin NNTP mini-inews & clientlib.c
+X! o  NNTP extensions XUSER & XINDEX to allow central index files. 
+X  
+X  -------------------------------------------------------------------------------
+X  
+X! Major improvements over tin 1.1 PL5 are the following:
+X  
+X! o  Added support for Commodore AmigaOS machines.
+X! o  Added support for Acorn RISCiX machines.
+X! o  Added support for Mach386 machines.
+X  o  Added more support for HPUX machines.
+X! o  Added config.h for OS specific defines of include files & features.
+X! o  Added i)spell option to bug report command.
+X! o  Added -w command line switch for quickly posting an article.
+X! o  Added 'delete_tmp_files=ON/OFF' to group attributes.
+X! o  Added support for comments starting with # in subscriptions file.
+X! o  Added tinrc variable to specify saving to MMDF style mailboxs.
+X! o  Added tinrc variable to specify if inverse video should be used.
+X! o  Added TINRC env variable so that options can be specified at login.
+X! o  Changed index file format to parse dates correctly and reduced size by 5%.
+X! o  Changed arts[] to use time_t instead of string and reduced size by 20%.
+X! o  Changed 'u' unsubscribe group command to auto advance to next group.
+X! o  Changed 'T' tag articles so that whole threads can be tagged/untagged.
+X! o  Fixed subscribe new group that caused SIGSEGV on Apollo machines.
+X! o  Fixed '?' command at group selection level that caused SIGSEGV.
+X! o  Fixed highlighted bar problem on HP terminals.
+X! o  Fixed one off error in 'r' command at group selection level.
+X! o  Fixed setuid problem caused by set_tin_uid_gid() routine in kill.c.
+X! o  Fixed $TINDIR homedir problem when reading from multiple NNTP servers.
+X! o  Fixed change spooldir problem that was stopping attributes being set.
+X! o  Fixed printer problem by removing get_val(PRINTER, "ps") routine.
+X! o  Fixed rereading newsgroups file so that a copy is cached locally.
+X! o  Fixed 's' subscribe command so that 'u' is deleted from screen.
+X! o  Fixed 'post_proc_type' group attribute.
+X! o  Fixed 'sort_art_type' group attribute.
+X! o  Fixed -M command line option that was causing SIGSEGV.
+X! o  Fixed -f command line option so it was used by tind index daemon.
+X! o  Fixed -c command line option so that catchup in background works (again).
+X! o  Fixed -u command line option so that indexing in background works (again).
+X  
+X  -------------------------------------------------------------------------------
+X  
+X--- 13,80 ----
+X     -  Article viewer
+X  o  Same interface to mail, pipe, print and save articles.
+X  o  Auto unpacking of multi-part shar & uuencoded articles.
+X! o  Killing and auto-selection (hot) of articles.
+X! o  History of user posted articles.
+X  o  Reposting of articles from one newsgroup to another.
+X+ o  Batch mode to mail/save new news when user is on holiday.
+X+ o  Random signature generator on a per newsgroup basis.
+X  o  Builtin NNTP mini-inews & clientlib.c
+X! o  NNTP extensions XINDEX, XMOTD & XUSER to allow newsadmins an easier life.
+X  
+X  -------------------------------------------------------------------------------
+X  
+X! Major improvements over tin 1.1 PL6 are the following:
+X  
+X! o  Added support for Encore Umax 3.x machines.
+X! o  Added more support for AmigaDOS machines.
+X! o  Added more support for Apollo machines.
+X! o  Added more support for Sequent Dynix machines.
+X  o  Added more support for HPUX machines.
+X! o  Added more support for RISCiX machines.
+X! o  Added -P cmd line option to stringently purge expired arts from index files.
+X! o  Added MOTD message of the day facility for newsadmins (read man page).
+X! o  Added date formating to current article so that dates are more useful.
+X! o  Added tinrc variable 'groupname_max_length=' to max displayed len of group.
+X! o  Added tinrc variable 'keypad=' to enable/disable keypad scroll keys.
+X! o  Added tinrc variable 'use_builtin_inews=' to enable/disable tins inews.
+X! o  Added tinrc variable 'mail_quote_format=' to allow user defined mail quote.
+X! o  Added tinrc variable 'news_quote_format=' to allow user defined news quote.
+SHAR_EOF
+true || echo 'restore of tin-1.17.patch failed'
+fi
+echo 'End of tin-1.17 part 1'
+echo 'File tin-1.17.patch is continued in part 2'
+echo 2 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

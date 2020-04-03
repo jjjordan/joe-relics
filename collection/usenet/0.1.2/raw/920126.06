@@ -1,0 +1,1796 @@
+Xref: funic comp.lang.postscript:5680 alt.sources:3035
+Path: funic!news.funet.fi!sunic!seunet!kullmar!compuram!pgd
+From: pgd@compuram.bbt.se
+Newsgroups: comp.lang.postscript,alt.sources
+Subject: Postscript type1 font accent maker, part 1/3
+Message-ID: <1992Jan22.154103.2869@compuram.bbt.se>
+Date: 22 Jan 92 15:41:03 GMT
+Lines: 1785
+Archive-name: ps-accent/part01
+Submitted-by: pgd@compuram.bbt.se
+
+#!/bin/sh
+# This is ps-accent, a shell archive (shar 3.32)
+# made 01/22/1992 15:37 UTC by pgd@compuram.bbt.se
+#
+# existing files WILL be overwritten
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#    665 -rw-rw---- Makefile
+#  18895 -rw-rw---- fixcomp.c
+#   5804 -rw-rw---- fixfont.c
+#   3591 -rw-rw---- decomp.c
+#   4005 -rw-rw---- comp.c
+#   4723 -rw-rw---- decrypt.c
+#  43285 -rw-rw---- parseAFM.c
+#  11485 -rw-rw---- parseAFM.h
+#
+if touch 2>&1 | fgrep 'amc' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+# ============= Makefile ==============
+echo "x - extracting Makefile (Text)"
+sed 's/^X//' << 'SHAR_EOF' > Makefile &&
+XLDFLAGS = -lm
+X
+XSRCS = fixcomp.c  fixfont.c decomp.c comp.c decrypt.c parseAFM.c parseAFM.h
+X
+Xall : fixcomp fixfont decomp decrypt comp
+X
+Xfixcomp : fixcomp.c parseAFM.o
+X	$(CC) $(CFLAGS) $(LDFLAGS) fixcomp.c parseAFM.o -o fixcomp
+X
+Xfixfont : fixfont.c parseAFM.o
+X	$(CC) $(CFLAGS) $(LDFLAGS) fixfont.c parseAFM.o -o fixfont
+X
+Xdecomp : decomp.c 
+X	$(CC) $(CFLAGS) $(LDFLAGS) decomp.c -o decomp
+X
+Xcomp : comp.c 
+X	$(CC) $(CFLAGS) $(LDFLAGS) comp.c -o comp
+X
+Xdecrypt : decrypt.c
+X	$(CC) $(CFLAGS) $(LDFLAGS) decrypt.c -o decrypt
+X
+X
+Xclean::
+X	rm -f *~ *.o fixcomp fixfont decomp comp decrypt
+X
+X
+Xshar:: README $(SRCS) Makefile
+X	shar -o ps-accent -n ps-accent -a -l50 Makefile $(SRCS)
+X
+SHAR_EOF
+$TOUCH -am 0122163792 Makefile &&
+chmod 0660 Makefile ||
+echo "restore of Makefile failed"
+set `wc -c Makefile`;Wc_c=$1
+if test "$Wc_c" != "665"; then
+	echo original size 665, current size $Wc_c
+fi
+# ============= fixcomp.c ==============
+echo "x - extracting fixcomp.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > fixcomp.c &&
+X/*
+X * Program to produce an .afm file for composit characters.
+X *
+X * Author:
+X * 	Per Lindqvist
+X *	pgd@compuram.bbt.se
+X */
+X#include <stdio.h>
+X#include <string.h>
+X#include <malloc.h>
+X#include <math.h>
+X#include <ctype.h>
+X#include <memory.h>
+X
+X#include "parseAFM.h"
+X
+X#define	max(A, B)	(A > B ? A : B)
+X#define	min(A, B)	(A < B ? A : B)
+X
+XFILE *ifp, *ofp;
+XFontInfo *gfi;
+X
+Xint i_width;				/* Width of an i */
+Xint i_llx;				/* left side bearing of i */
+Xint xheight;				/* x-height */
+Xint Xheight;				/* X-height */
+Xint italicangle;			/* italic angle */
+Xdouble sinfi, cosfi;
+X
+XCharMetricInfo *findmetric ( char *nm );
+Xvoid makesingleaccent ( char *basename , char *accentname );
+Xvoid addkernpair ( char *name1 , char *name2 , int xamt , int yamt );
+Xvoid outafm ( void );
+Xvoid addcomposite(char *name, int no, char *args, ...);
+Xvoid addmetrics(int code, int wx, int wy, char *name, int llx, int lly, int urx, int ury);
+XCompCharData *findcomp(char *nm);
+Xint pkcomp(), cicomp(), cccomp();
+X
+X/*
+X * Some font data
+X */
+Xmain(argc, argv)
+X	int argc;
+X	char **argv;
+X{
+X	CharMetricInfo *mp;
+X
+X	argc--; argv++;		/* Skip program name */
+X	while (argc >= 0 && **argv == '-') {
+X		switch ((*argv)[1]) {
+X		default:
+X			fprintf(stderr, "Illegal switch %s\n", *argv);
+X			exit(1);
+X		}
+X		argc--;
+X		argv++;
+X	}
+X	if (argc < 1) {
+X		fprintf(stderr, "Usage: fixcomp infile {outfile}\n");
+X		exit(1);
+X	}
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X
+X	switch (parseFile(ifp, &gfi, P_ALL)) {
+X        case parseError:
+X		fprintf(stderr, "*** ERROR: problem in parsing the AFM File.\n");
+X		exit(1);
+X		
+X	case earlyEOF:
+X		fprintf(stderr, "The AFM File ended prematurely.\n");
+X		exit(1);
+X		break;
+X        case storageProblem:
+X		fprintf(stderr, "*** ERROR: problem allocating storage.\n");
+X		exit(1);
+X		break;
+X	}
+X	fclose(ifp);
+X
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X
+X	if (argc > 1) {
+X		if ((ofp = fopen(argv[1], "w")) == NULL) {
+X			perror(argv[1]);
+X			exit(1);
+X		}
+X	} else
+X		ofp = stdout;
+X
+X	/*
+X	 * Find some data needed later
+X	 */
+X	mp = findmetric("i");
+X	if (mp == NULL) {
+X		fprintf(stderr, "Cannot find metrics for letter 'i'\n");
+X		exit(1);
+X	}
+X	i_width = mp->charBBox.urx - mp->charBBox.llx; /* Width of an 'i' */
+X	i_llx = mp->charBBox.llx;	/* left side bearing of 'i' */
+X	xheight = gfi->gfi->xHeight;	/* Height of lower case 'x' */
+X	Xheight = gfi->gfi->capHeight;	/* height of capital 'X' */
+X	italicangle = (int)gfi->gfi->italicAngle;
+X	if (italicangle) {
+X		double angle;
+X		angle = -gfi->gfi->italicAngle/360.0*2*3.141592;
+X		sinfi = sin(angle);
+X		cosfi = cos(angle);
+X	}
+X
+X	makeaccents();
+X
+X	/*
+X	 * Sort the metrics table
+X	 */
+X	qsort(gfi->cmi, gfi->numOfChars, sizeof(CharMetricInfo), cicomp);
+X
+X	/*
+X	 * Sort the kern pair table
+X	 */
+X	qsort(gfi->pkd, gfi->numOfPairs, sizeof(PairKernData), pkcomp);
+X
+X	/*
+X	 * Sort the composites table
+X	 */
+X	qsort(gfi->ccd, gfi->numOfComps, sizeof(CompCharData), cccomp);
+X
+X	/*
+X	 * Output the new afm file
+X	 */
+X	outafm();
+X	exit(0);
+X}
+X
+XCharMetricInfo *
+Xfindmetric(nm)
+X	char *nm;
+X{
+X	register int i;
+X
+X	for (i = 0; i < gfi->numOfChars; i++)
+X		if (strcmp(nm, gfi->cmi[i].name) == 0)
+X			return &gfi->cmi[i];
+X	return NULL;
+X}
+X
+Xvoid
+Xmakesingleaccent(basename, accentname)
+X	char *basename, *accentname;
+X{
+X	CharMetricInfo *bmp, *amp, *cmp;
+X	Pcc *pcc1, pcc2;
+X	int basew, basebb[4];
+X	int bw, bh, aw, ah;	/* base char, and accent width and height */
+X	int axo;		/* Accent x-offset */
+X	int ayo;		/* Accent y-offset */
+X	BBox bb;
+X	char name[40];
+X	int i, j;
+X	int new;
+X	char *bname, *aname;
+X	int below = 0;
+X
+X	/*
+X	 * Form name of new character
+X	 */
+X	new = 1;
+X	sprintf(name, "%s%s", basename, accentname);
+X	for (i = 0; i < gfi->numOfChars; i++) {
+X		if (strcmp(name, gfi->cmi[i].name) == 0) {
+X			fprintf(stderr, "Warning: Redefiniton of %s\n", name);
+X			new = 0;
+X			break;
+X		}
+X	}
+X	
+X	/*
+X	 * Find metric information for both base character and accent
+X	 */
+X	bmp = findmetric(basename);
+X	if (bmp == NULL) {
+X		fprintf(stderr, "Warning: Cannot find base character: %s\n", basename);
+X		return;
+X	}
+X
+X	/*
+X	 * Find the accent.
+X	 * Fake accent names are handled here
+X	 */
+X	amp = findmetric(accentname);
+X	if (amp == NULL) {
+X		if (strcmp(accentname, "overdot") == 0)
+X			amp = findmetric("dotaccent");
+X		else if (strcmp(accentname, "underdot") == 0)
+X			amp = findmetric("dotaccent");
+X		else if (strcmp(accentname, "undercomma") == 0)
+X			amp = findmetric("comma");
+X		else if (strcmp(accentname, "czechaccent") == 0)
+X			if (isupper(*basename))
+X				amp = findmetric("caron");
+X			else
+X				amp = findmetric("quoteright");
+X		else if (strcmp(accentname, "letaccent") == 0) {
+X			/*
+X			 * this is an upside-down comma,
+X			 */
+X			amp = findmetric("quoteleft");
+X		} else if (strcmp(accentname, "underdotmacron") == 0) {
+X			/*
+X			 * For the time beeing, we exclude the macron
+X			 */
+X			amp = findmetric("dotaccent");
+X			accentname = "underdot";
+X		} else if (strcmp(accentname, "breveoverdot") == 0) {
+X			/*
+X			 * For the time beeing, we exclude the breve
+X			 */
+X			amp = findmetric("dotaccent");
+X		} else if (strcmp(accentname, "dash") == 0) {
+X			amp = findmetric("macron");
+X		}
+X	}
+X	if (amp == NULL) {
+X		fprintf(stderr, "Warning: Cannot find accent: %s\n", accentname);
+X		return;
+X	}
+X	aname = amp->name;
+X
+X	/*
+X	 * The base character i is special, insofar as the dotless
+X	 * i has to be used when the accent is above the character.
+X	 */
+X	if (strcmp(basename, "i") == 0 && amp->charBBox.lly > xheight) {
+X		bmp = findmetric("dotlessi");
+X	}
+X	bname = bmp->name;
+X
+X	/*
+X	 * find width of the bounding boxes, and center
+X	 * the accent bounding box, on the base character bounding box
+X	 */
+X	bw = bmp->charBBox.urx - bmp->charBBox.llx;
+X	aw = amp->charBBox.urx - amp->charBBox.llx;
+X	bh = bmp->charBBox.ury - bmp->charBBox.lly;
+X	ah = amp->charBBox.ury - amp->charBBox.lly;
+X	
+X	below = strcmp(accentname, "ogonek") == 0
+X		|| strncmp(accentname, "underdot", 5) == 0;
+X
+X	/*
+X	 * Here is the centering of the accent above (below) the base
+X	 * character.
+X	 *
+X	 * cmp is the metrics for the character to use for centering.
+X	 */
+X	if (below && strcmp(basename, "r") == 0)
+X		cmp = findmetric("i");
+X	else
+X		cmp = bmp;
+X
+X	axo = (cmp->charBBox.urx - cmp->charBBox.llx)/2 - i_width/2
+X		+ bmp->charBBox.llx - i_llx;
+X					/* Accent x offset */
+X	ayo = 0;			/* Accent y offset */
+X	
+X	/*
+X	 * Handle some special cases
+X	 */
+X	if (strcmp(accentname, "ogonek") == 0) {
+X		/*
+X		 * The ogonek is right-justified, unless
+X		 * the base character is one of DFGIJOPSTUVYcefilorstvy
+X		 */
+X		if (strlen(basename) == 1 && strchr("DFGIJOPSTUVYcefilorstvy", *basename)) {
+X			/* The ogonek is centered */
+X		} else {
+X			/* The ogonek is right-justified */
+X			axo = bmp->charBBox.llx + bw - (amp->charBBox.llx + aw);
+X		}
+X	} else if (strcmp(accentname, "underdot") == 0) {
+X		/*
+X		 * Manufacture the underdot accent by
+X		 * moving dotaccent down to the same position below x
+X		 * as it normally is above x.
+X		 */
+X		ayo = -(2*(amp->charBBox.lly - xheight) + xheight +
+X			(amp->charBBox.ury - amp->charBBox.lly));
+X	} else if (strcmp(accentname, "undercomma") == 0) {
+X		/*
+X		 * Manufacture the undercomma accent by moving
+X		 * the comma down to the same position as the underdot
+X		 */
+X		CharMetricInfo *mp;
+X		mp = findmetric("dotaccent");
+X		ayo = -((mp->charBBox.lly - xheight) + amp->charBBox.ury);
+X		axo += mp->charBBox.llx - amp->charBBox.llx;
+X	} else if (strcmp(accentname, "czechaccent") == 0) {
+X		if (islower(*basename)) {
+X			/*
+X			 * this is actually an apostrophe, which should
+X			 * come directly after the letter.
+X			 */
+X			ayo = 0;
+X			axo = bmp->charBBox.llx + bw - amp->charBBox.llx;
+X		}
+X	} else if (strcmp(accentname, "dash") == 0) {
+X		/*
+X		 * Dash through the letter.
+X		 */
+X		ayo = -(Xheight-xheight)/2;
+X		axo += aw/2;
+X	} else if (strcmp(accentname, "letaccent") == 0) {
+X		/*
+X		 * The lettish accent has to be raised a little bit
+X		 */
+X		ayo += findmetric("dotaccent")->charBBox.llx - amp->charBBox.llx;
+X	}
+X	if (below && strcmp(basename, "r") == 0)
+X		axo = 0;
+X
+X	/*
+X	 * Accents above the character has to be adjusted
+X	 * up for capitals, and to the right for italic/slanted styles.
+X	 */
+X	if (!below && (isupper(*basename)
+X		|| strlen(basename) == 1 && strchr("fl", *basename))) {
+X		ayo += Xheight - xheight;
+X		if (italicangle) {
+X			int hyp = (int)((Xheight-xheight) / cosfi);
+X			axo += (int)(hyp * sinfi);
+X		}
+X	} else if (below && italicangle && strcmp(accentname, "ogonek") != 0) {
+X		int hyp = (int)(xheight / cosfi);
+X		axo -= (int)(hyp * sinfi);
+X	}
+X
+X	/*
+X	 * Note: due to the realloc() in addmetrics, bmp, and amp
+X	 * cannot be used any more, after this call
+X	 */
+X	addmetrics(-1, bmp->wx, bmp->wy, name, 
+X		   min(bmp->charBBox.llx, amp->charBBox.llx + axo),
+X		   min(bmp->charBBox.lly, amp->charBBox.lly + ayo),
+X		   max(bmp->charBBox.urx, amp->charBBox.urx + axo),
+X		   max(bmp->charBBox.ury, amp->charBBox.ury + ayo));
+X
+X	addcomposite(name, 2, bname, 0, 0, aname, axo, ayo);
+X
+X
+X	/*
+X	 * Add kern pairs to kern pair table
+X	 */
+X	if (new) {
+X		for (i = 0, j = gfi->numOfPairs; i < j; i++) {
+X			if (strcmp(gfi->pkd[i].name1, basename) == 0)
+X				addkernpair(name, gfi->pkd[i].name2,
+X					    gfi->pkd[i].xamt, gfi->pkd[i].yamt);
+X			if (strcmp(gfi->pkd[i].name2, basename) == 0)
+X				addkernpair(gfi->pkd[i].name1, name, 
+X					    gfi->pkd[i].xamt, gfi->pkd[i].yamt);
+X		}
+X	}
+X}
+X
+X
+X/*
+X * Add a kern pair
+X */
+Xvoid
+Xaddkernpair(char *name1, char *name2, int xamt, int yamt)
+X{
+X	PairKernData *pp;
+X
+X	gfi->pkd = (PairKernData *)realloc(gfi->pkd, (gfi->numOfPairs+1) * sizeof(PairKernData));
+X	pp = &gfi->pkd[gfi->numOfPairs];
+X	gfi->numOfPairs++;
+X	pp->name1 = strdup(name1);
+X	pp->name2 = strdup(name2);
+X	pp->xamt = xamt;
+X	pp->yamt = yamt;
+X}
+X
+X/*
+X * Output the new afm file
+X */
+Xvoid
+Xoutafm()
+X{
+X	int i, j;
+X	char *lkc;
+X
+X	fprintf(ofp, "StartFontMetrics %s\n", gfi->gfi->afmVersion);
+X	/* Comments are lost */
+X	fprintf(ofp, "FontName %s\n", gfi->gfi->fontName);
+X	fprintf(ofp, "EncodingScheme %s\n", gfi->gfi->encodingScheme);
+X	fprintf(ofp, "FullName %s\n", gfi->gfi->fullName);
+X	fprintf(ofp, "FamilyName %s\n", gfi->gfi->familyName);
+X	fprintf(ofp, "Weight %s\n", gfi->gfi->weight);
+X	fprintf(ofp, "ItalicAngle %g\n", (double)gfi->gfi->italicAngle);
+X	fprintf(ofp, "IsFixedPitch %s\n", gfi->gfi->isFixedPitch ? "true" : "false");
+X	fprintf(ofp, "UnderlinePosition %d\n", gfi->gfi->underlinePosition);
+X	fprintf(ofp, "UnderlineThickness %d\n", gfi->gfi->underlineThickness);
+X	fprintf(ofp, "Version %s\n", gfi->gfi->version);
+X	fprintf(ofp, "Notice %s\n", gfi->gfi->notice);
+X	fprintf(ofp, "FontBBox %d %d %d %d\n",
+X		gfi->gfi->fontBBox.llx, gfi->gfi->fontBBox.lly, gfi->gfi->fontBBox.urx, gfi->gfi->fontBBox.ury);
+X	fprintf(ofp, "CapHeight %d\n", gfi->gfi->capHeight);
+X	fprintf(ofp, "XHeight %d\n", gfi->gfi->xHeight);
+X	fprintf(ofp, "Descender %d\n", gfi->gfi->descender);
+X	fprintf(ofp, "Ascender %d\n", gfi->gfi->ascender);
+X	fprintf(ofp, "StartCharMetrics %d\n", gfi->numOfChars);
+X	for (i = 0; i < gfi->numOfChars; i++) {
+X		fprintf(ofp, "C %2d ; ", gfi->cmi[i].code);
+X		if (gfi->cmi[i].wy)
+X			fprintf(ofp, "W %d %d ; ",
+X				gfi->cmi[i].wx, gfi->cmi[i].wy);
+X		else
+X			fprintf(ofp, "WX %d ; ", gfi->cmi[i].wx);
+X		fprintf(ofp, "N %s ; ", gfi->cmi[i].name);
+X		fprintf(ofp, "B %d %d %d %d ;",
+X			gfi->cmi[i].charBBox.llx, gfi->cmi[i].charBBox.lly,
+X			gfi->cmi[i].charBBox.urx, gfi->cmi[i].charBBox.ury);
+X		if (gfi->cmi[i].ligs) {
+X			Ligature *lp;
+X			for (lp = gfi->cmi[i].ligs; lp != NULL; lp = lp->next) {
+X				fprintf(ofp, " L %s %s ;", lp->succ, lp->lig);
+X			}
+X		}
+X		putc('\n', ofp);
+X	}
+X	fprintf(ofp, "EndCharMetrics\n");
+X	if (gfi->numOfPairs || gfi->numOfTracks) {
+X		fprintf(ofp, "StartKernData\n");
+X		if (gfi->numOfPairs) {
+X			fprintf(ofp, "StartKernPairs %d\n", gfi->numOfPairs);
+X			lkc = NULL;
+X			for (i = 0; i < gfi->numOfPairs; i++) {
+X				if (strcmp(lkc, gfi->pkd[i].name1) != 0) {
+X					lkc = gfi->pkd[i].name1;
+X					putc('\n', ofp);
+X				}
+X				if (gfi->pkd[i].yamt)
+X					fprintf(ofp, "KP %s %s %d %d\n",
+X						gfi->pkd[i].name1, gfi->pkd[i].name2,
+X						gfi->pkd[i].xamt, gfi->pkd[i].yamt);
+X				else
+X					fprintf(ofp, "KPX %s %s %d\n",
+X						gfi->pkd[i].name1, gfi->pkd[i].name2,
+X						gfi->pkd[i].xamt);
+X			}
+X			fprintf(ofp, "EndKernPairs\n");
+X		}
+X		fprintf(ofp, "EndKernData\n");
+X	}
+X
+X	if (gfi->numOfComps) {
+X		fprintf(ofp, "StartComposites %d\n", gfi->numOfComps);
+X		for (i = 0; i < gfi->numOfComps; i++) {
+X			fprintf(ofp, "CC %s %d ;",
+X				gfi->ccd[i].ccName, gfi->ccd[i].numOfPieces);
+X			for (j = 0; j < gfi->ccd[i].numOfPieces; j++)
+X				fprintf(ofp, " PCC %s %d %d ;",
+X					gfi->ccd[i].pieces[j].pccName,
+X					gfi->ccd[i].pieces[j].deltax,
+X					gfi->ccd[i].pieces[j].deltay);
+X			putc('\n', ofp);
+X		}
+X		fprintf(ofp, "EndComposites\n");
+X	}
+X	fprintf(ofp, "EndFontMetrics\n");
+X}
+X
+X	
+X/*
+X * Add a composite character to the composite table
+X */
+Xvoid
+Xaddcomposite(char *name, int no, char *args, ...)
+X{
+X	int i;
+X	char **argp = &args;
+X	CompCharData *ccp;
+X	Pcc *pp;
+X	int new;
+X
+X	if ((ccp = findcomp(name)) == NULL) {
+X		gfi->ccd = (CompCharData *)realloc(gfi->ccd, (gfi->numOfComps+1)*sizeof(CompCharData));
+X		ccp = &gfi->ccd[gfi->numOfComps];
+X		gfi->numOfComps++;
+X	}
+X	ccp->ccName = strdup(name);
+X	ccp->numOfPieces = no;
+X	pp = (Pcc *)calloc(no, sizeof(Pcc));
+X	if (pp == NULL) {
+X		perror("Memory allocation error");
+X		exit(1);
+X	}
+X	for (i = 0; i < no; i++) {
+X		pp[i].pccName = strdup(*argp++);
+X		pp[i].deltax = (int)*argp++;
+X		pp[i].deltay = (int)*argp++;
+X	}
+X	ccp->pieces = pp;
+X}
+X
+Xvoid
+Xaddmetrics(int code, int wx, int wy, char *name, int llx, int lly, int urx, int ury)
+X{
+X	register CharMetricInfo *mp;
+X
+X	if ((mp = findmetric(name)) == NULL) {
+X		gfi->cmi = (CharMetricInfo *)realloc(gfi->cmi, (gfi->numOfChars+1) * sizeof(CharMetricInfo));
+X		mp = &gfi->cmi[gfi->numOfChars];
+X		gfi->numOfChars++;
+X	}
+X	mp->code = code;
+X	mp->wx = wx;
+X	mp->wy = wy;
+X	mp->name = strdup(name);
+X	mp->charBBox.llx = llx;
+X	mp->charBBox.lly = lly;
+X	mp->charBBox.urx = urx;
+X	mp->charBBox.ury = ury;
+X	mp->ligs = NULL;
+X}
+X
+X/*
+X * sort compare routines
+X */
+Xint
+Xpkcomp(p1, p2)
+X	PairKernData *p1, *p2;
+X{
+X	int k;
+X
+X	k = strcmp(p1->name1, p2->name1);
+X	if (k == 0)
+X		k = strcmp(p1->name2, p2->name2);
+X	return k;
+X}
+X
+Xint
+Xcicomp(p1, p2)
+X	CharMetricInfo *p1, *p2;
+X{
+X	int k;
+X
+X	k = p1->code - p2->code;
+X	if (k == 0)
+X		k = strucmp(p1->name, p2->name);
+X	else if (p1->code == -1)
+X		return 1;
+X	else if (p2->code == -1)
+X		return -1;
+X	return k;
+X}
+X
+X/*
+X *
+X */
+Xint
+Xcccomp(p1, p2)
+X	CompCharData *p1, *p2;
+X{
+X	return strucmp(p1->ccName, p2->ccName);
+X}
+X
+Xint
+Xstrucmp(s1, t1)
+X	char *s1, *t1;
+X{
+X	register char *s = s1, *t = t1;
+X
+X	while (tolower(*s) == tolower(*t)) {
+X		if (!*s)
+X			return strcmp(s1, t1);
+X		s++; t++;
+X	}
+X	
+X	return tolower(*s) - tolower(*t);
+X}
+X
+Xmakebothaccents(char *basechar, char *accent)
+X{
+X	char name[40];
+X
+X	makesingleaccent(basechar, accent);
+X	if (islower(*basechar)) {
+X		strcpy(name, basechar);
+X		*name = toupper(*name);
+X		makesingleaccent(name, accent);
+X	}
+X}
+X
+Xmakeaccents()
+X{
+X/* Key to country codes */
+X/* CS=Czechoslovakia */
+X/* ED=Estonia */
+X/* ES=Spain */
+X/* HU=Hungary */
+X/* IS=Iceland */
+X/* LE=Lativa */
+X/* LT=Lithuania */
+X/* NL=Netherland */
+X/* NO=Norway */
+X/* PL=Poland */
+X/* PT=Portugal  */
+X/* SE=Sweden */
+X/* SK=Sanskrit */
+X/*  makebothaccents("a", "acute");	/* std,CS,ES,HU,IS,NL,PT,RO */
+X  makebothaccents("a", "breve");	/* RO */
+X/*  makebothaccents("a", "circumflex");	/* std,FR,NL,RO */
+X/*  makebothaccents("a", "dieresis");	/* std,NL,DE,ED,FI */
+X/*  makebothaccents("a", "grave");	/* std,NL,FR,IT,RO */
+X  makebothaccents("a", "macron");	/* LE,SK */
+X  makebothaccents("a", "ogonek");	/* LT,PL */
+X/*  makebothaccents("a", "ring");	/* std,FI,NO,SE */
+X/*  makebothaccents("a", "tilde");	/* std,PT */
+X  makebothaccents("c", "acute");	/* PL,YU */
+X  makebothaccents("c", "caron");	/* CS,ED,LE,LT,YU */
+X/*  makebothaccents("c", "cedilla");	/* std,FR,PT */
+X  makesingleaccent("d", "dash");	/* YU */
+X  makebothaccents("d", "czechaccent");	/* CS */
+X  makebothaccents("d", "underdot");	/* SK */
+X/*  makebothaccents("e", "acute");	/* std,CS,DE,ES,FR,HU,IS,NL,PT,RO */
+X  makebothaccents("e", "caron");	/* CS */
+X/*  makebothaccents("e", "circumflex");	/* std,FR,NL,PT,RO */
+X/*  makebothaccents("e", "dieresis");	/* std,FR,NL,SE */
+X/*  makebothaccents("e", "grave");	/* std,FR,IT,NL,RO */
+X  makebothaccents("e", "macron");	/* LE */
+X  makebothaccents("e", "ogonek");	/* LT,PL */
+X  makebothaccents("e", "overdot");	/* LT */
+X  makebothaccents("g", "letaccent");	/* LE */
+X  makebothaccents("h", "underdot");	/* SK */
+X/*  makebothaccents("i", "acute");	/* std,CS,ES,HU,IS,NL,PT */
+X/*  makebothaccents("i", "circumflex");	/* std,FR,IT,NL,RO */
+X/*  makebothaccents("i", "dieresis");	/* std,FR,NL */
+X/*  makebothaccents("i", "grave");	/* std,IT,NL */
+X  makebothaccents("i", "macron");	/* LE,SK */
+X  makebothaccents("i", "ogonek");	/* LT */
+X  makebothaccents("k", "undercomma");	/* LE */
+X makesingleaccent("l", "breveoverdot");	/* SK */
+X/*  makebothaccents("l", "slash");	/* std,PL */
+X  makebothaccents("l", "undercomma");	/* LE */
+X  makebothaccents("l", "underdot");	/* SK */
+X  makebothaccents("m", "overdot");	/* SK */
+X  makebothaccents("n", "acute");	/* PL */
+X  makebothaccents("n", "caron");	/* CS */
+X  makebothaccents("n", "overdot");	/* SK */
+X/*  makebothaccents("n", "tilde");	/* std,ES */
+X  makebothaccents("n", "undercomma");	/* LE */
+X  makebothaccents("n", "underdot");	/* SK */
+X/*  makebothaccents("o", "acute");	/* std,CS,ES,HU,IS,NL,PL,PT */
+X/*  makebothaccents("o", "circumflex");	/* std,FR,NL,PT */
+X/*  makebothaccents("o", "dieresis");	/* std,ED,FI,HU,IS,NL,SE */
+X/*  makebothaccents("o", "grave");	/* std,IT,NL */
+X  makebothaccents("o", "hungarumlaut");/* HU */
+X  makebothaccents("o", "macron");	/* LE */
+X/*  makebothaccents("o", "slash");	/* std,NO */
+X/*  makebothaccents("o", "tilde");	/* std,ED,PT */
+X  makebothaccents("r", "caron");	/* CS */
+X  makebothaccents("r", "undercomma");	/* LE */
+X  makebothaccents("r", "underdot");	/* SK */
+X  makebothaccents("r", "underdotmacron");/* SK */
+X  makebothaccents("s", "acute");	/* PL,SK */
+X/*  makebothaccents("s", "caron");	/* std,CS,ED,LE,LT,YU */
+X  makebothaccents("s", "undercomma");	/* RO */
+X  makebothaccents("s", "underdot");	/* SK */
+X  makebothaccents("t", "czechaccent");	/* CS */
+X  makebothaccents("t", "undercomma");	/* RO */
+X  makebothaccents("t", "underdot");	/* SK */
+X/*  makebothaccents("u", "acute");	/* std,CS,ES,HU,IS,NL,PT */
+X/*  makebothaccents("u", "circumflex");	/* std,FR,NL */
+X/*  makebothaccents("u", "dieresis");	/* std,DE,ED,HU,NL */
+X/*  makebothaccents("u", "grave");	/* std,FR,IT,NL */
+X  makebothaccents("u", "hungarumlaut");/* HU */
+X  makebothaccents("u", "macron");	/* LE,LT,SK */
+X  makebothaccents("u", "ogonek");	/* LT */
+X  makebothaccents("u", "ring");	/* CS */
+X/*  makebothaccents("y", "acute");	/* std,CS,IS */
+X  makebothaccents("z", "acute");	/* PL */
+X/*  makebothaccents("z", "caron");	/* std,CS,ED,LE,LT,YU */
+X  makebothaccents("z", "overdot");	/* PL */
+X  
+X}
+X
+XCompCharData*
+Xfindcomp(char *nm)
+X{
+X	register int i;
+X
+X	for (i = 0; i < gfi->numOfComps; i++)
+X		if (strcmp(nm, gfi->ccd[i].ccName) == 0)
+X			return &gfi->ccd[i];
+X	return NULL;
+X}
+X
+X
+SHAR_EOF
+$TOUCH -am 0122162192 fixcomp.c &&
+chmod 0660 fixcomp.c ||
+echo "restore of fixcomp.c failed"
+set `wc -c fixcomp.c`;Wc_c=$1
+if test "$Wc_c" != "18895"; then
+	echo original size 18895, current size $Wc_c
+fi
+# ============= fixfont.c ==============
+echo "x - extracting fixfont.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > fixfont.c &&
+X/*
+X * 
+X * Author:
+X *	Per Lindqvist, pgd@compuram.bbt.se
+X */
+X
+X#include <stdio.h>
+X#include <string.h>
+X#include <malloc.h>
+X#include <math.h>
+X#include <ctype.h>
+X#include <memory.h>
+X
+X#include "parseAFM.h"
+X
+X#define	max(A, B)	(A > B ? A : B)
+X#define	min(A, B)	(A < B ? A : B)
+X
+XFILE *ifp, *ofp;
+XFontInfo *gfi;
+X
+Xint i_width;				/* Width of an i */
+Xint i_lsb;				/* left side bearing of i */
+Xint xheight;				/* x-height */
+Xint Xheight;				/* X-height */
+Xint italicangle;			/* italic angle */
+Xdouble sinfi, cosfi;
+X
+Xint cccomp();
+X
+XCharMetricInfo *findmetric ( char *nm );
+XCompCharData *findcomp(char *nm);
+X
+Xmain(argc, argv)
+X	int argc;
+X	char **argv;
+X{
+X	CharMetricInfo *mp;
+X	CompCharData *ccp;
+X	char line[200], ident[40], *cp;
+X	int i, j;
+X	int cci;
+X	int hashires;
+X
+X	argc--; argv++;		/* Skip program name */
+X	while (argc >= 0 && **argv == '-') {
+X		switch ((*argv)[1]) {
+X		default:
+X			fprintf(stderr, "Illegal switch %s\n", *argv);
+X			exit(1);
+X		}
+X		argc--;
+X		argv++;
+X	}
+X	if (argc < 1) {
+X		fprintf(stderr, "Usage: fixfont afmfile infile {outfile}\n");
+X		exit(1);
+X	}
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X
+X	switch (parseFile(ifp, &gfi, P_ALL)) {
+X        case parseError:
+X		fprintf(stderr, "*** ERROR: problem in parsing the AFM File.\n");
+X		exit(1);
+X		
+X	case earlyEOF:
+X		fprintf(stderr, "The AFM File ended prematurely.\n");
+X		exit(1);
+X		break;
+X        case storageProblem:
+X		fprintf(stderr, "*** ERROR: problem allocating storage.\n");
+X		exit(1);
+X		break;
+X	}
+X	fclose(ifp);
+X
+X	ifp = fopen(argv[1], "r");
+X	if (ifp == NULL) {
+X		perror(argv[1]);
+X		exit(1);
+X	}
+X
+X	if (argc > 2) {
+X		if ((ofp = fopen(argv[2], "w")) == NULL) {
+X			perror(argv[2]);
+X			exit(1);
+X		}
+X	} else
+X		ofp = stdout;
+X
+X	/*
+X	 * Order the composite characters in alphabetic order
+X	 */
+X	qsort(gfi->ccd, gfi->numOfComps, sizeof(CompCharData), cccomp);
+X
+X	/*
+X	 * First emit the disk load prefix
+X	 */
+X	fputs("%%!PS\n", ofp);
+X	fputs("(CopyToDisk) run\n", ofp);
+X	fprintf(ofp, "(fonts/%s) CopyToDisk\n", gfi->gfi->fontName);
+X
+X	/*
+X	 * Skip to the CharStrings dictionary definition
+X	 * we have to modifiy the count of characters in the
+X	 * dictionary
+X	 */
+X	while (fgets(line, sizeof line - 1, ifp)) {
+X		if (strncmp(line, "dup/CharStrings ", 16) == 0)
+X			break;
+X		fputs(line, ofp);
+X	}
+X
+X	if (strncmp(line, "dup/CharStrings hires", 21) == 0) {
+X		fputs(line, ofp);
+X		fgets(line, sizeof line - 1, ifp);
+X		if (strcmp(line+4, "dict dup begin\n") != 0) {
+X			fprintf(stderr, "I cannot handle this font\n");
+X			exit(1);
+X		}
+X		fprintf(ofp, "%d dict dup begin\n", gfi->numOfChars+1);
+X	} else
+X		fprintf(ofp, "dup/CharStrings %d dict dup begin\n", gfi->numOfChars+1);
+X	 
+X process:
+X	/*
+X	 * We modify the font the simple way.
+X	 * Just scan the font source. Each line starting with a "/"
+X	 * and is checked for a character name.
+X	 * If it is a composite character, we replace it,
+X	 * We insert the other composite characters in alphabetic
+X	 * order.
+X	 */
+X	cci = 0;
+X	while (fgets(line, sizeof line - 1, ifp)) {
+X		if (strcmp(line, "end\n") == 0)
+X			break;
+X		if (line[0] != '/' || !strchr(line, '<')) {
+X			fputs(line, ofp);
+X			continue;
+X		}
+X		ident[0] = line[0];
+X		for (i = 1; isalpha(line[i]); i++)
+X			ident[i] = line[i];
+X		ident[i] = '\0';
+X		mp = findmetric(ident+1);
+X		if (mp == NULL) {
+X			fputs(line, ofp);
+X			continue;
+X		}
+X		ccp = findcomp(ident+1);
+X		if (ccp) {
+X			/*
+X			 * Remove the old definition
+X			 */
+X			while (fgets(line, sizeof line - 1, ifp))
+X				if (strchr(line, '>'))
+X					break;
+X			continue;
+X		}
+X		/*
+X		 * Check if a definitions should be inserted
+X		 * in alphabetic order, before this one
+X		 */
+X		while (cci < gfi->numOfComps && strcmp(gfi->ccd[cci].ccName, ident+1) < 0) {
+X			makechar(&gfi->ccd[cci]);
+X			cci++;
+X		}
+X		fputs(line, ofp);
+X	}
+X	/*
+X	 * Check for hires font
+X	 */
+X	fgets(line, sizeof(line)-1, ifp);
+X	if (strncmp(line, "hires{", 6) == 0) {
+X		/*
+X		 * Emit the last characters
+X		 */
+X		while (cci < gfi->numOfComps) {
+X			makechar(&gfi->ccd[cci]);
+X			cci++;
+X		}
+X		fputs("end\n", ofp);
+X		fputs(line, ofp);
+X		fgets(line, sizeof(line)-1, ifp);
+X		if (strcmp(line+4, "dict dup begin\n") != 0) {
+X			fprintf(stderr, "I cannot handle this font\n");
+X			exit(1);
+X		}
+X		fprintf(ofp, "%d dict dup begin\n", gfi->numOfChars+1);
+X		goto process;
+X	} else {
+X		while (cci < gfi->numOfComps) {
+X			makechar(&gfi->ccd[cci]);
+X			cci++;
+X		}
+X	}
+X	fputs("end\n", ofp);
+X	do {
+X		fputs(line, ofp);
+X		if (fgets(line, sizeof(line) - 1, ifp) == NULL) {
+X			fprintf(stderr, "Premature end-of-file\n");
+X			break;
+X		}
+X	} while (strncmp(line, "mark", 4) != 0);
+X	fclose(ofp);
+X	exit(0);
+X}
+X
+XCharMetricInfo *
+Xfindmetric(nm)
+X	char *nm;
+X{
+X	register int i;
+X
+X	for (i = 0; i < gfi->numOfChars; i++)
+X		if (strcmp(nm, gfi->cmi[i].name) == 0)
+X			return &gfi->cmi[i];
+X	return NULL;
+X}
+X
+XCompCharData*
+Xfindcomp(nm)
+X	char *nm;
+X{
+X	register int i;
+X
+X	for (i = 0; i < gfi->numOfComps; i++)
+X		if (strcmp(nm, gfi->ccd[i].ccName) == 0)
+X			return &gfi->ccd[i];
+X	return NULL;
+X}
+X
+X
+Xint
+Xcccomp(p1, p2)
+X	CompCharData *p1, *p2;
+X{
+X	return strcmp(p1->ccName, p2->ccName);
+X}
+X
+X/*
+X * this routine makes a lot of assumptions.
+X * But all are the normal case for adobe fonts.
+X */
+Xmakechar(ccp)
+X	CompCharData *ccp;
+X{
+X	CharMetricInfo *cmp, *bmp, *amp;	
+X
+X	cmp = findmetric(ccp->ccName);
+X	/* Assume that the first piece is the base character */
+X	bmp = findmetric(ccp->pieces[0].pccName);
+X	/* Assume that the second piece is the accent character */
+X	amp = findmetric(ccp->pieces[1].pccName);
+X	fprintf(ofp, "/%s  <	%d %d Hsbw\n",
+X		ccp->ccName, cmp->charBBox.llx, cmp->wx);
+X	/* Assume that deltax,deltay for the base character are both zero */
+X	/* Assume the afm codes are the standard encoding */
+X	fprintf(ofp, "\t\t%d %d %d %d %d Seac\n",
+X		amp->charBBox.llx,
+X		ccp->pieces[1].deltax + amp->charBBox.llx - bmp->charBBox.llx,
+X		ccp->pieces[1].deltay,
+X		bmp->code, amp->code);
+X	fprintf(ofp, "\t\t> ND\n");
+X}
+SHAR_EOF
+$TOUCH -am 0122162292 fixfont.c &&
+chmod 0660 fixfont.c ||
+echo "restore of fixfont.c failed"
+set `wc -c fixfont.c`;Wc_c=$1
+if test "$Wc_c" != "5804"; then
+	echo original size 5804, current size $Wc_c
+fi
+# ============= decomp.c ==============
+echo "x - extracting decomp.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > decomp.c &&
+X/*
+X * Adobe type1 decompile
+X * 
+X * Author:
+X *	Per Lindqvist, pgd@compuram.bbt.se
+X */
+X#include <stdio.h>
+X#include <ctype.h>
+X
+XFILE *ifp, *ofp;
+Xint lenIV = 4;
+X
+Xmain(argc, argv)
+X	int argc; char **argv;
+X{
+X	register int c;
+X	char line[100];
+X	int i, j, k;
+X	char *cp;
+X
+X	argc--; argv++;		/* Skip program name */
+X	while (argc >= 0 && **argv == '-') {
+X		switch ((*argv)[1]) {
+X		default:
+X			fprintf(stderr, "Illegal switch %s\n", *argv);
+X			exit(1);
+X		}
+X		argc--;
+X		argv++;
+X	}
+X	if (argc < 1) {
+X		fprintf(stderr, "Usage: decomp infile {outfile}\n");
+X		exit(1);
+X	}
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X	if (argc > 1) {
+X		if ((ofp = fopen(argv[1], "w")) == NULL) {
+X			perror(argv[1]);
+X			exit(1);
+X		}
+X	} else
+X		ofp = stdout;
+X	
+X	/*
+X	 * Strategy is very simple.
+X	 * Copy everything, except for things in brackets
+X	 * which gets de-compiled
+X	 */
+X	while ((c = getc(ifp)) != -1) {
+X		putc(c, ofp);
+X		if (c == '<') {
+X			putc('\t', ofp);
+X			decompile();
+X			fprintf(ofp, ">");
+X		}
+X	}
+X	fclose(ofp);
+X	exit(0);
+X}
+X
+Xchar *cmdtab[32] = {
+X	"C00",
+X	"Hstem",
+X	"C02",
+X	"Vstem",			/* 3 */
+X	"Vmoveto",			/* 4 */
+X	"Rlineto",			/* 5 */
+X	"Hlineto",			/* 6 */
+X	"Vlineto",			/* 7 */
+X	"Rrcurveto",			/* 8 */
+X	"Closepath",			/* 9 */
+X	"Callsubr",			/* 10 */
+X	"Return",			/* 11 */
+X	"Escape",			/* 12 */
+X	"Hsbw",				/* 13 */
+X	"Endchar",			/* 14 */
+X	"C15",
+X	"C16",
+X	"C17",
+X	"C18",
+X	"C19",
+X	"C20",
+X	"Rmoveto",			/* 21 */
+X	"Hmoveto",			/* 22 */
+X	"C23",
+X	"C24",
+X	"C25",
+X	"C26",
+X	"C27",
+X	"C28",
+X	"C29",
+X	"Vhcurveto",			/* 30 */
+X	"Hvcurveto"			/* 31 */
+X	};
+X
+X/*
+X * Decompile a hex string
+X */
+Xdecompile()
+X{
+X	register int v;
+X	int l;
+X	int i, c;
+X
+X	icdecrypt();
+X	for (i = 0; i < lenIV; i++)
+X		(void)decrypt(gethex(0));
+X	while ((c = getc(ifp)) != '>') {
+X		if (c == -1) {
+X			fprintf(stderr, "Premature eof on input\n");
+X			exit(1);
+X		}
+X		v = decrypt(gethex(c));
+X		if (v < 32) {
+X			if (v == 12) {
+X				switch (v = decrypt(gethex(0))) {
+X				case 0: fprintf(ofp, "Dotsection"); break;
+X				case 1: fprintf(ofp, "Vstem3"); break;
+X				case 2: fprintf(ofp, "Hstem3"); break;
+X				case 6: fprintf(ofp, "Seac"); break;
+X				case 7: fprintf(ofp, "Sbw"); break;
+X				case 12: fprintf(ofp, "Div"); break;
+X				case 16: fprintf(ofp, "Callothersubr"); break;
+X				case 17: fprintf(ofp, "Pop"); break;
+X				case 33: fprintf(ofp, "Setcurrentpoint"); break;
+X				default:
+X					fprintf(ofp, "Escape %d", v);
+X				}
+X			} else
+X				fprintf(ofp, "%s", cmdtab[v]);
+X			fprintf(ofp, "\n\t\t");
+X		} else if (v <= 246)
+X			fprintf(ofp, "%d ", v-139);
+X		else if (v <= 250)
+X			fprintf(ofp, "%d ", ((v - 247)*256) + decrypt(gethex(0)) + 108);
+X		else if (v <= 254)
+X			fprintf(ofp, "%d ", -((v - 251)*256) - decrypt(gethex(0)) - 108);
+X		else if (v == 255) {
+X			l =  decrypt(gethex(0)) * 0x1000000;
+X			l += decrypt(gethex(0)) * 0x10000;
+X			l += decrypt(gethex(0)) * 0x100;
+X			l += decrypt(gethex(0));
+X			fprintf(ofp, "%ld ", l);
+X		}
+X	}
+X}
+X
+X
+X/*
+X * Read a hex byte
+X */
+Xgethex(peekc)
+X	int peekc;
+X{
+X	register int c1, c2;
+X
+X	c1 = peekc ? peekc : getc(ifp);
+X	c2 = getc(ifp);
+X	if (!isxdigit(c1) || !isxdigit(c2)) {
+X		fprintf(stderr, "Illegal hex digit in input\n");
+X		exit(1);
+X	}
+X	c1 = toupper(c1); c2 = toupper(c2);
+X	return ((c1 <= '9' ? c1 - '0' : c1 - 'A' + 10) << 4)
+X		| (c2 <= '9' ? c2 - '0' : c2 - 'A' + 10);
+X}
+X
+Xstatic unsigned short int cdecrypt_r =  4330;
+X
+Xicdecrypt()
+X{
+X	cdecrypt_r = 4330;
+X}
+X
+Xunsigned char
+Xdecrypt(cipher)
+X	unsigned char cipher;
+X{
+X	static unsigned short int c1 = 52845;
+X	static unsigned short int c2 = 22719;
+X	unsigned char plain;
+X
+X	plain = (cipher ^ (cdecrypt_r>>8));
+X	cdecrypt_r = (cipher + cdecrypt_r) * c1 + c2;
+X	return plain;
+X}
+X
+SHAR_EOF
+$TOUCH -am 0122162292 decomp.c &&
+chmod 0660 decomp.c ||
+echo "restore of decomp.c failed"
+set `wc -c decomp.c`;Wc_c=$1
+if test "$Wc_c" != "3591"; then
+	echo original size 3591, current size $Wc_c
+fi
+# ============= comp.c ==============
+echo "x - extracting comp.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > comp.c &&
+X/*
+X * Adobe type1 compiler
+X * 
+X * Author:
+X *	Per Lindqvist, pgd@compuram.bbt.se
+X */
+X#include <stdio.h>
+X#include <ctype.h>
+X
+XFILE *ifp, *ofp;
+Xint lenIV = 4;
+X
+Xmain(argc, argv)
+X	int argc; char **argv;
+X{
+X	register int c;
+X	char line[100];
+X	int i, j, k;
+X	char *cp;
+X
+X	argc--; argv++;		/* Skip program name */
+X	while (argc >= 0 && **argv == '-') {
+X		switch ((*argv)[1]) {
+X		default:
+X			fprintf(stderr, "Illegal switch %s\n", *argv);
+X			exit(1);
+X		}
+X		argc--;
+X		argv++;
+X	}
+X	if (argc < 1) {
+X		fprintf(stderr, "Usage: decomp infile {outfile}\n");
+X		exit(1);
+X	}
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X	if (argc > 1) {
+X		if ((ofp = fopen(argv[1], "w")) == NULL) {
+X			perror(argv[1]);
+X			exit(1);
+X		}
+X	} else
+X		ofp = stdout;
+X	
+X	/*
+X	 * Strategy is very simple.
+X	 * Copy everything, except for things in brackets
+X	 * which gets compiled
+X	 */
+X	while ((c = getc(ifp)) != -1) {
+X		putc(c, ofp);
+X		if (c == '<') {
+X			compile();
+X			putc('>', ofp);
+X		}
+X	}
+X	fclose(ofp);
+X	exit(0);
+X}
+X
+Xchar *cmdtab[32] = {
+X	"C00",
+X	"Hstem",
+X	"C02",
+X	"Vstem",			/* 3 */
+X	"Vmoveto",			/* 4 */
+X	"Rlineto",			/* 5 */
+X	"Hlineto",			/* 6 */
+X	"Vlineto",			/* 7 */
+X	"Rrcurveto",			/* 8 */
+X	"Closepath",			/* 9 */
+X	"Callsubr",			/* 10 */
+X	"Return",			/* 11 */
+X	"Escape",			/* 12 */
+X	"Hsbw",				/* 13 */
+X	"Endchar",			/* 14 */
+X	"C15",
+X	"C16",
+X	"C17",
+X	"C18",
+X	"C19",
+X	"C20",
+X	"Rmoveto",			/* 21 */
+X	"Hmoveto",			/* 22 */
+X	"C23",
+X	"C24",
+X	"C25",
+X	"C26",
+X	"C27",
+X	"C28",
+X	"C29",
+X	"Vhcurveto",			/* 30 */
+X	"Hvcurveto"			/* 31 */
+X	};
+X
+X/*
+X * Compile to hex
+X */
+Xcompile()
+X{
+X	register int v;
+X	int l;
+X	int i, c;
+X	char ident[40];
+X	char *idp;
+X	long n;
+X
+X	icencrypt();
+X	for (i = 0; i < lenIV; i++)
+X		putenc(0);
+X	c = getc(ifp);
+X	while (c != '>') {
+X		if (isspace(c)) {
+X			do c = getc(ifp); while (isspace(c));
+X		} else if (isdigit(c) || c == '-') {
+X			idp = ident;
+X			do {
+X				*idp++ = c;
+X				c = getc(ifp);
+X			} while (isdigit(c));
+X			*idp = '\0';
+X			n = atoi(ident);
+X			if (n >= -107 && n <= 107)
+X				putenc(n + 139);
+X			else if (n >= 108 && n <= 1131) {
+X				n -= 108;
+X				putenc((n >> 8) + 247);
+X				putenc(n & 0xff);
+X			} else if (n >= -1131 && n <= -108) {
+X				n = -(n - -108);
+X				putenc((n >> 8) + 251);
+X				putenc(n & 0xff);
+X			} else {
+X				putenc(255);
+X				putenc((n & 0xff000000) >> 24);
+X				putenc((n & 0x00ff0000) >> 16);
+X				putenc((n & 0x0000ff00) >> 8);
+X				putenc((n & 0x000000ff)     );
+X			}
+X		} else if (isalpha(c)) {
+X			idp = ident;
+X			do {
+X				*idp++ = c;
+X				c = getc(ifp);
+X			} while (isalnum(c));
+X			*idp = '\0';
+X			for (i = 0; i < 32; i++)
+X				if (strcmp(ident, cmdtab[i]) == 0) {
+X					putenc(i);
+X					break;
+X				}
+X			if (i == 32) {
+X				if (strcmp(ident, "Dotsection") == 0) {
+X					putenc(12); putenc(0);
+X				} else if (strcmp(ident, "Vstem3") == 0) {
+X					putenc(12); putenc(1);
+X				} else if (strcmp(ident, "Hstem3") == 0) {
+X					putenc(12); putenc(2);
+X				} else if (strcmp(ident, "Seac") == 0) {
+X					putenc(12); putenc(6);
+X				} else if (strcmp(ident, "Sbw") == 0) {
+X					putenc(12); putenc(7);
+X				} else if (strcmp(ident, "Div") == 0) {
+X					putenc(12); putenc(12);
+X				} else if (strcmp(ident, "Callothersubr") == 0) {
+X					putenc(12); putenc(16);
+X				} else if (strcmp(ident, "Pop") == 0) {
+X					putenc(12); putenc(17);
+X				} else if (strcmp(ident, "Setcurrentpoint") == 0) {
+X					putenc(12); putenc(33);
+X				} else {
+X					fprintf(stderr, "Illegal symbol in font file: %s\n", ident);
+X					exit(1);
+X				}
+X			}
+X		}
+X	}
+X}
+X
+Xputenc(c)
+X{
+X	puthex(encrypt(c));
+X}
+X
+X
+Xputhex(c)
+X{
+X	register int c1, c2;
+X
+X	if (c < 0 || c > 255) {
+X		fprintf(stderr, "puthex error: c = %d\n", c);
+X		exit(1);
+X	}
+X	c1 = (c & 0xf0) >> 4;
+X	c2 = c & 0xf;
+X	putc(c1 <= 9 ? c1+'0' : c1-10+'A', ofp);
+X	putc(c2 <= 9 ? c2+'0' : c2-10+'A', ofp);
+X}
+X
+Xunsigned short cencrypt_r;
+X
+Xicencrypt()
+X{
+X	cencrypt_r = 4330;
+X}
+X
+Xint
+Xencrypt(plain)
+X	int plain;
+X{
+X	unsigned short int c1 = 52845;
+X	unsigned short int c2 = 22719;
+X	static unsigned char cipher;
+X
+X	cipher = (plain ^ (cencrypt_r>>8));
+X	cencrypt_r = (cipher + cencrypt_r)*c1 + c2;
+X	return cipher;
+X}
+X
+SHAR_EOF
+$TOUCH -am 0122162292 comp.c &&
+chmod 0660 comp.c ||
+echo "restore of comp.c failed"
+set `wc -c comp.c`;Wc_c=$1
+if test "$Wc_c" != "4005"; then
+	echo original size 4005, current size $Wc_c
+fi
+# ============= decrypt.c ==============
+echo "x - extracting decrypt.c (Text)"
+sed 's/^X//' << 'SHAR_EOF' > decrypt.c &&
+X#include <stdio.h>
+X#include <string.h>
+X#include <ctype.h>
+X
+X/*
+X * Decrypt an adobe PFB or PFA file, into a printer
+X * downloadable format.
+X *
+X * Author:
+X *	Per Lindqvist, pgd@compuram.bbt.se
+X */
+X
+Xint binary = 0;
+Xint decrypt = 1;		/* Decrypt eexec */
+Xint rdhex = 1;			/* convert RD strings to hex */
+X
+Xchar keyword[] = "\ncurrentfile eexec\n";
+Xchar buffer[40];
+Xchar *bufpt = buffer;
+X
+XFILE *ifp, *ofp;
+X
+Xmain(argc, argv)
+X	int argc;
+X	char **argv;
+X{
+X	char *cp;
+X	int len, ft;
+X	int c, i, cc;
+X	int j, k;
+X	int match;
+X
+X	argc--; argv++;		/* Skip program name */
+X	while (argc >= 0 && **argv == '-') {
+X		switch ((*argv)[1]) {
+X		default:
+X			fprintf(stderr, "Illegal switch %s\n", *argv);
+X			exit(1);
+X		}
+X		argc--;
+X		argv++;
+X	}
+X	if (argc < 1) {
+X		fprintf(stderr, "Usage: decrypt infile {outfile}\n");
+X		exit(1);
+X	}
+X	ifp = fopen(argv[0], "r");
+X	if (ifp == NULL) {
+X		perror(argv[0]);
+X		exit(1);
+X	}
+X	if (argc > 1) {
+X		if ((ofp = fopen(argv[1], "w")) == NULL) {
+X			perror(argv[1]);
+X			exit(1);
+X		}
+X	} else
+X		ofp = stdout;
+X	/*
+X	 * Check if binary or ascii format
+X	 */
+X	c = getc(ifp);
+X	binary = (c == 128);
+X	ungetc(c, ifp);
+X
+X	cc = 0;
+X	match = 0;
+X	while ((c = decrypt ? egetch() : getch()) != -1) {
+Xredo:
+X		if (!rdhex)
+X			putc(c, ofp);
+X		else if (cc) {
+X			fprintf(ofp, "%02X", c);
+X			cc--;
+X			if (cc == 0) {
+X				fprintf(ofp, ">");
+X				bufpt = buffer;
+X			}
+X		} else if (bufpt == buffer) {
+X			if (isdigit(c)) {
+X				*bufpt++ = c;
+X				match = 0;
+X			} else
+X				putc(c, ofp);
+X		} else if (bufpt == buffer+sizeof(buffer)) {
+X			for (cp = buffer; cp != bufpt; )
+X				putc(*cp++, ofp);
+X			bufpt = buffer;
+X			putc(c, ofp);
+X		} else if (!match && (isdigit(c) || c == ' ')) {
+X			*bufpt++ = c;
+X			if (c == ' ')
+X				match = 'R';
+X		} else if (match && c == match) {
+X			*bufpt++ = c;
+X			if (c == 'R') match = 'D';
+X			else if (c == 'D') match = ' ';
+X			else {
+X				/* c = ' ' */
+X				*bufpt = '\0';
+X				cc = atoi(buffer);
+X				match = 0;
+X				putc(' ', ofp); putc('<', ofp);
+X			}
+X		} else {
+X			for (cp = buffer; cp < bufpt; )
+X				putc(*cp++, ofp);
+X			bufpt = buffer;
+X			goto redo;
+X		}
+X	}
+X	exit(0);
+X}
+X
+X
+X/*
+X * Get next decrypted char from input file
+X */
+Xegetch()
+X{
+X	static int ineexec = 0;
+X	static int eecc, zcc, zc, zpb;
+X	static char *keypt = keyword;
+X	static int undokc = 0;
+X	register int c;
+X	int c2;
+X	static int peekc = 0;
+X
+X redo:
+X	if (undokc) {
+X		if (undokc == 1) {
+X			c = peekc;
+X			keypt = keyword;
+X			peekc = 0;
+X		} else
+X			c = *keypt++;
+X		undokc--;
+X	} else if (!ineexec) {
+X		c = getch();
+X		if (c == -1)
+X			return -1;
+X		if (c == *keypt) {
+X			keypt++;
+X			if (!*keypt) {
+X				ineexec = 1;
+X				eecc = zcc = zpb = 0;
+X				keypt = keyword;
+X				c = '\n';
+X			} else
+X				goto redo;
+X		} else if (keypt != keyword) {
+X			peekc = c;
+X			undokc = keypt - keyword + 1;
+X			keypt = keyword;
+X			goto redo;
+X		}
+X	} else {	/* eexec encrypted */
+X		if (zc) {
+X			if (zc == 1) {
+X				c = zpb; zpb = zc = 0;
+X			} else {
+X				zc--; c = 0;
+X			}
+X		} else {
+X			do c = getch(); while isspace(c);
+X			do c2 = getch(); while (isspace(c2));
+X			if (c >= '0' && c <= '9') c -= '0';
+X			else c = toupper(c) - 'A' + 10;
+X			if (c2 >= '0' && c2 <= '9') c2 -= '0';
+X			else c2 = toupper(c2) - 'A' + 10;
+X			c = (c<<4) | c2;
+X			if (c == 0) {
+X				zcc++;
+X				if (zcc >= 256) {
+X					ineexec = 0;
+X					return '\n';
+X				} else
+X					goto redo;
+X			} else if (zcc > 0) {
+X				zpb = c;
+X				zc = zcc;
+X				zcc = c = 0;
+X			}
+X		}
+X		c = xdecrypt(c);
+X		eecc++;
+X		if (eecc <= 4)
+X			goto redo;
+X	}
+X	return c;
+X}
+X
+X/*
+X * Get next character from input file
+X */
+Xgetch()
+X{
+X	static int ft, peekc, cc;
+X	int c, i;
+X
+X	if (peekc) {
+X		c = peekc;
+X		peekc = 0;
+X		return c;
+X	}
+X	if (!binary) 
+X		c = getc(ifp);
+X	else {
+X		if (ft == 3)
+X			return -1;
+X		if (cc == 0) {
+X			c = getc(ifp);
+X			if (c == -1) goto eof;
+X			if (c != 128) {
+X				fprintf(stderr, "Illegal format on input file\n");
+X				exit(1);
+X			}
+X			c = getc(ifp);
+X			if (c == -1) goto eof;
+X			if (c < 1 || c > 3) {
+X				fprintf(stderr, "Illegal font format on input file\n");
+X				exit(1);
+X			}
+X			ft = c;
+X			if (ft == 3)
+X				return '\n';
+X			cc = 0;
+X			for (i = 0; i < 4; i++) {
+X				c = getc(ifp);
+X				if (c == -1) goto eof;
+X				cc |= (c << (i*8));
+X			}
+X		}
+X		if (cc <= 0) {
+X			fprintf(stderr, "Illegal format on input file\n");
+X			exit(1);
+X		}
+X		c = getc(ifp); cc--;
+X		if (ft == 2) {
+X			peekc = c & 0xf;
+X			if (peekc <= 9)
+X				peekc += '0';
+X			else
+X				peekc += 'A'-10;
+X			c >>= 4;
+X			if (c <= 9)
+X				c += '0';
+X			else
+X				c += 'A'-10;
+X		} else if (c == '\r')
+X			c = '\n';
+X	}
+X	return c;
+X
+X eof:
+X	fprintf(stderr, "Premature end-of-file on input file\n");
+X	exit(1);
+X}
+X
+X
+Xint
+Xxdecrypt(int cipher)
+X{
+X	static unsigned short int r =  55665;
+X	static unsigned short int c1 = 52845;
+X	static unsigned short int c2 = 22719;
+X	int plain;
+X
+X	plain = (cipher ^ (r>>8));
+X	r = (cipher + r) * c1 + c2;
+X	return plain;
+X}
+X
+SHAR_EOF
+$TOUCH -am 0122162292 decrypt.c &&
+chmod 0660 decrypt.c ||
+echo "restore of decrypt.c failed"
+set `wc -c decrypt.c`;Wc_c=$1
+if test "$Wc_c" != "4723"; then
+	echo original size 4723, current size $Wc_c
+fi
+echo "End of part 1, continue with part 2"
+exit 0
+-- 
+Per Lindqvist
+
+Internet: pgd@compuram.bbt.se   Fidonet: Per Lindqvist @ 2:201/332

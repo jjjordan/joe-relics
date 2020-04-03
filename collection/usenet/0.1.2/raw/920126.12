@@ -1,0 +1,772 @@
+Path: funic!news.funet.fi!sunic!psinntp!psinntp!rpi!zaphod.mps.ohio-state.edu!samsung!mips!news.cs.indiana.edu!ux1.cso.uiuc.edu!usenet
+From: patrick@kai.com (Patrick Wolfe)
+Newsgroups: alt.sources
+Subject: SGI Indigo Audio CD Player program
+Message-ID: <1992Jan23.220252.181@ux1.cso.uiuc.edu>
+Date: 23 Jan 92 22:02:52 GMT
+Sender: usenet@ux1.cso.uiuc.edu (News)
+Organization: Kuck and Associates, Champaign IL
+Lines: 762
+
+Here are a couple of programs I wrote to learn about the new SGI CD audio
+library routines, as well as something about how audio CD data is stored.  This
+library came with the Irix 4.0 operating system on my SGI Indigo workstation.
+
+Cdinfo displays some basic information about an audio disk - total length,
+number of tracks, length of each track, etc.
+
+Cdreader plays an audio CD loaded in an SGI CDrom drive through the SGI
+Indigo's speaker.  This is NOT like SGI's "cdplayer", which simply commands the
+CD drive to play an audio CD, because in that case, the audio output is sent to
+the headphone jack on the front and the audio out jacks on the back of the
+drive.  This program uses libcdaudio routines to read the digital data directly
+from the CD via the SCSI bus, and play the samples through the Audio Processor.
+
+        Patrick Wolfe  (pwolfe@kai.com, sgi!kailand!pwolfe)
+        System Programmer/Operations Manager, Kuck & Associates
+	"If it's OS ends in *ix, we've probably got one"
+
+
+#!/bin/sh
+# This is a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 01/23/1992 21:54 UTC by pwolfe@blizzard
+# Source directory /usr/people/pwolfe/cd
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   3474 -rw-r--r-- Readme
+#  14634 -rw-r--r-- cdreader.c
+#   1584 -rw-r--r-- cdinfo.c
+#    491 -rw-r--r-- Makefile
+#
+# ============= Readme ==============
+if test -f 'Readme' -a X"$1" != X"-c"; then
+	echo 'x - skipping Readme (File already exists)'
+else
+echo 'x - extracting Readme (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Readme' &&
+Here are a couple of programs I wrote to learn about the SGI CD audio library
+routines, as well as something about how audio CD data is stored.
+X
+Cdinfo displays some basic information about an audio disk - total length,
+number of tracks, length of each track, etc.
+X
+Cdreader plays an audio CD loaded in an SGI CDrom drive through the SGI
+Indigo's speaker.  This is NOT like SGI's "cdplayer", which simply commands the
+CD drive to play an audio CD, because in that case, the audio output is sent to
+the headphone jack on the front and the audio out jacks on the back of the
+drive.  This program uses SGI's libcdaudio routines to read the digital data
+directly from the CD, and play the samples through the Audio Processor.
+X
+Cdinfo and Cdreader may also work on other SGI models with similar audio
+capabilities, but I can't tell since I don't have access to any of them.  It
+uses an relatively insignificant amount of CPU (6-7% according to "top"), but
+does raise the load average up over 1.0.  Any significant amount of I/O by
+other programs causes slight pauses in the music, so I suspect that "cdreader"
+is using a fairly high percentage of the SCSI bandwidth.  This is not something
+you'd want to run every day, all day long, but it was fun to write, and will
+let me listen to an audio CD in a pinch.
+X
+While working on these programs, I discovered several problems in the SGI CD
+audio library routines and documentation.  These have already been reported to
+SGI customer service, so hopefully they'll be fixed by the next operating
+system release.  I wrote them using an SGI Indigo running Irix 4.0.1, with the
+ANSI C compiler (unknown version number - "cc -V" complains about being
+obsolete, and "file" command prints the same version number for every command
+on my system - they can't ALL be version 2.10).
+X
+1.  The CDreadda(3) manpage says it returns the number of frames read.  In
+X    reality, it returns the number of bytes read.  You have divide by
+X    CDDA_BLOCKSIZE to get the number of frames.  I'd like to see SGI fix this
+X    to match the manpage.  The number of frames is much more useful.
+X
+2.  The CDgetstatus() routine resets the CDrom "current location" to the
+X    beginning of the disc.  In other words as soon as you call it to find out
+X    the current track/min/sec/frame, that information is no longer correct.
+X
+3.  The include file "/usr/include/cdaudio.h" has an extra trailing comma in
+X    the CDDATATYPES enumeration definition.  This is harmless, but produces the
+X    following Warning message every time you re-compile (It doesn't show up if
+X    you use the "-cckr" option):
+X
+X	accom: Warning 314: /usr/include/cdaudio.h, line 324: Trailing comma in
+X		enumeration is illegal: accepted as extension (ANSI C 3.5.2.2)
+X	       } CDDATATYPES;
+X	       ^
+X
+X    Sure, this is easy to workaround on my workstation, but I'd like to see SGI
+X    fix it so I don't have to do this every time an OS upgrade comes out.
+X
+4.  The CDresetparser(3) manpage shows the syntax for CDdeleteparser().
+X
+5.  The CDaudio(3) manpage mentions only "-lcdaudio".  I found that to link my
+X    programs required an extra library.  You must use "-lcdaudio -lds".
+X
+--------
+X
+Again, THANKS SGI for making such wonderful libraries of routines available.
+Libaudio, libcdaudio, and the snoop(7) routines make my Indigo an extremely fun
+machine to use.
+X
+X        Patrick Wolfe  (pwolfe@kai.com, uunet!uiucuxc!kailand!pwolfe)
+X        System Programmer/Operations Manager, Kuck & Associates
+X
+SHAR_EOF
+chmod 0644 Readme ||
+echo 'restore of Readme failed'
+Wc_c="`wc -c < 'Readme'`"
+test 3474 -eq "$Wc_c" ||
+	echo 'Readme: original size 3474, current size' "$Wc_c"
+fi
+# ============= cdreader.c ==============
+if test -f 'cdreader.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping cdreader.c (File already exists)'
+else
+echo 'x - extracting cdreader.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'cdreader.c' &&
+/*
+X *	cdreader - Plays an audio CD through the SGI Indigo speaker.
+X *	I wrote this to learn about the SGI CD audio library routines.
+X *
+X *	Original Author:  Patrick Wolfe (pwolfe@kai.com, uunet!kailand!pwolfe)
+X *	You are free to use this source code/program as you wish, at your own risk.
+X *	Don't blame me for any mistakes in the code (or anything else, for that matter).
+X */
+X
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <cdaudio.h>
+#include <signal.h>
+#include <audio.h>
+#include <getopt.h>
+X
+/* number of samples in each frame is datasize divided by 2, since there are two bytes per sample */
+#define SAMPS_PER_FRAME (CDDA_DATASIZE / 2)
+X
+/* warn if the current volume is below this, or the user may think this program doesn't work! */
+#define LOW_VOLUME	7
+X
+/* constants for identifying fields in the start_at and stop_at arrays */
+#define POS_TRACK	0
+#define POS_MINUTE	1
+#define POS_SECOND	2
+#define POS_FRAME	3
+X
+int read_size;			/* the number of frames to read at one time (CDbestreadsize fills this in) */
+int current_track = -1;		/* number of track currently playing */
+int stop_playing;		/* flag to indicate we're done */
+int last_mhi, last_mlo, last_shi, last_slo, last_fhi, last_flo;
+X
+ALport aport;
+CDPLAYER *cd;
+CDTRACKINFO info;
+CDPARSER *cdp;
+CDSTATUS status;
+CDFRAME *cdbuf;
+X
+X
+/* called for every frame - data is already byte swapped and de-emphasized */
+void
+cd_audio_callback (arg, type, data)
+int arg;
+CDDATATYPES type;
+void *data;
+{
+ALwritesamps (aport, data, SAMPS_PER_FRAME);
+}
+X
+X
+/*
+X * This callback is only enabled when the user specified a position to stop at
+X *	other than the default "end of a track".
+X *
+X * called for every frame only during the last track.
+X */
+void
+cd_ptime_callback (arg, type, data)
+int arg;
+CDDATATYPES type;
+struct cdtimecode *data;
+{
+if ((data->mhi == last_mhi) && (data->mlo == last_mlo) && (data->shi == last_shi)
+X && (data->slo == last_slo) && (data->fhi == last_fhi) && (data->flo == last_flo)) {
+X	stop_playing++;
+X	printf ("stopping at track %d time %d%d:%d%d frame %d%d\n", current_track,
+X		data->mhi, data->mlo, data->shi, data->slo, data->fhi, data->flo);
+X	}
+}
+X
+X
+/* called only when the program (track) number changes */
+void
+cd_pnum_callback (stop_at, type, data)
+int stop_at[4];
+CDDATATYPES type;
+struct cdprognum *data;
+{
+if (CDgettrackinfo(cd, data->value, &info) == 0) {
+X	perror ("CDgettrackinfo (pnum callback) failed");
+X	}
+else	{
+X	current_track = data->value;
+X
+X	/* stop if we've reached the end of the last whole track to play */
+X	if ((stop_at[POS_MINUTE] == -1) && (current_track > stop_at[POS_TRACK])) {
+X		stop_playing++;	/* stop playing now */
+X		return;
+X		}
+X
+X	/* set this callback only if we need to check last_min:sec:frame */
+X	if ((stop_at[POS_MINUTE] != -1) && (current_track == stop_at[POS_TRACK])) {
+X		last_mhi = stop_at[POS_MINUTE] / 10;
+X		last_mlo = stop_at[POS_MINUTE] % 10;
+X		last_shi = stop_at[POS_SECOND] / 10;
+X		last_slo = stop_at[POS_SECOND] % 10;
+X		last_fhi = stop_at[POS_FRAME] / 10;
+X		last_flo = stop_at[POS_FRAME] % 10;
+X		CDsetcallback (cdp, cd_ptime, cd_ptime_callback, 0);
+X		}
+X	printf ("Track %2d:  Length %02d:%02d\n", current_track, info.total_min, info.total_sec);
+X	}
+}
+X
+X
+/* called only when the index (sub-program division) number changes */
+void
+cd_index_callback (arg, type, data)
+int arg;
+CDDATATYPES type;
+struct cdprognum *data;
+{
+/* the index value is really only interesting if there is more than one */
+/* it might be nice to find out what timecode these happen at */
+/* I've tried using CDgetstatus(), and it resets the CD drive to the beginning of the disk */
+X
+printf ("Track %2d:  Index %2d\n", current_track, data->value);
+X
+/* FYI:  Index zero is normally a 2-3 second pause between tracks - CDseek and CDseektrack skip over it */
+/* Index one is normally the start of a song.  A few CDs are reported to have more indexes in them, most don't */
+}
+X
+X
+/*
+X * play selected audio data
+X */
+X
+void
+play_tracks (start_at, stop_at)
+int start_at[4];
+int stop_at[4];
+{
+int ctr, frames, first_secs, last_secs, total_secs, start_secs, start_min, start_sec;
+X
+/* check the stop_at values (if they were specified) */
+if (stop_at[POS_MINUTE] != -1) {
+X	if (CDgettrackinfo(cd, stop_at[POS_TRACK], &info) == 0) {
+X		perror ("CDgettrackinfo (play_track 2) failed");
+X		return;
+X		}
+X	total_secs = (info.total_min * 60) + info.total_sec;
+X	last_secs = (stop_at[POS_MINUTE] * 60) + stop_at[POS_SECOND];
+X	if (last_secs > total_secs) {
+X		printf ("track %d is only %02d:%02d:%02d long (cannot stop at %02d:%02d:%02d) !\n",
+X			stop_at[POS_TRACK], info.total_min, info.total_sec, info.total_frame,
+X			stop_at[POS_MINUTE], stop_at[POS_SECOND], stop_at[POS_FRAME]);
+X		return;
+X		}
+X
+X	/* setup some values to make comparisons in cd_ptime_callback() faster */
+X	last_mhi = stop_at[POS_MINUTE] / 10;
+X	last_mlo = stop_at[POS_MINUTE] % 10;
+X	last_shi = stop_at[POS_SECOND] / 10;
+X	last_slo = stop_at[POS_SECOND] % 10;
+X	last_fhi = stop_at[POS_FRAME] / 10;
+X	last_flo = stop_at[POS_FRAME] % 10;
+X	}
+X
+/*
+X * if the user wants to start at the beginning of a track,
+X * use the quick way to seek there
+X */
+if (start_at[POS_MINUTE] == -1) {
+X	if (CDseektrack(cd, start_at[POS_TRACK]) == -1) {
+X		perror ("CDseektrack");
+X		return;
+X		}
+X	}
+X
+else	{	/* user wants to start at a specific point */
+X	if (CDgettrackinfo(cd, start_at[POS_TRACK], &info) == 0) {
+X		perror ("CDgettrackinfo (play_track 1) failed");
+X		return;
+X		}
+X
+X	/* make sure the user didn't try to offset beyond the end of the song */
+X	first_secs = (start_at[POS_MINUTE] * 60) + start_at[POS_SECOND];
+X	total_secs = (info.total_min * 60) + info.total_sec;
+X	if (first_secs > total_secs) {
+X		printf ("track %d is only %02d:%02d:%02d long (cannot skip to %02d:%02d:%02d) !\n",
+X			start_at[POS_TRACK], info.total_min, info.total_sec, info.total_frame,
+X			start_at[POS_MINUTE], start_at[POS_SECOND], start_at[POS_FRAME]);
+X		return;
+X		}
+X
+X	/* compute absolute position to seek to (position at start of song plus offset that the user supplied */
+X	start_secs = (info.start_min * 60) + info.start_sec + first_secs;
+X	start_min = start_secs / 60;
+X	start_sec = start_secs % 60;
+X	printf ("Track %d starts at absolute time %02d:%02d:%02d, seeking to absolute time %02d:%02d:%02d\n",
+X		start_at[POS_TRACK], info.start_min, info.start_sec, info.start_frame,
+X		start_min, start_sec, start_at[POS_FRAME]);
+X
+X	if (CDseek(cd, start_min, start_sec, start_at[POS_FRAME]) == -1) {
+X		perror ("CDseek");
+X		exit (1);
+X		}
+X	}
+X
+current_track = start_at[POS_TRACK];
+X
+/* initialize parser structure */
+CDresetparser(cdp);
+X
+/* define callback routines for CDparseframe() */
+CDsetcallback (cdp, cd_audio,	cd_audio_callback, 0);		/* called for every frame */
+CDsetcallback (cdp, cd_pnum,	cd_pnum_callback, stop_at);	/* called only when the program (track) number changes */
+CDsetcallback (cdp, cd_index,	cd_index_callback, 0);		/* called only when the index (sub-program division) number changes */
+X
+stop_playing = 0;
+X
+/* play audio data until we have gone past the last track we want to play */
+while (stop_playing == 0) {
+X	frames = CDreadda (cd, &cdbuf[0], read_size);
+X	if (frames < 1) {
+X		break;	/* EOF (or read error) */
+X		}
+X
+X	/*
+X	 *	SGI BUG!  The manpage for CDreadda() says it returns the number
+X	 *	of frames read.  In reality, it returns the number of bytes read
+X	 *	into the buffer.  Divide by CDDA_BLOCKSIZE to get the number of frames.
+X	 *
+X	 *	I'd prefer it to work like the manpage says, return the number of frames.
+X	 *	When this bug is fixed, delete the next line (and this comment).
+X	 */
+X	frames = frames / CDDA_BLOCKSIZE;
+X
+X	for (ctr = 0; (ctr < frames) && (ctr < read_size) && (stop_playing == 0); ctr++) {
+X		CDparseframe (cdp, &cdbuf[ctr]);
+X		}
+X	}
+}
+X
+X
+/* signal handler - display where we are, so we can continue later */
+void
+cleanup ()
+{
+if (CDgetstatus(cd, &status) == 0) {
+X	perror ("CDgetstatus (cleanup) failed");
+X	}
+else	{
+X	printf ("interrupted!  Continue by entering:  cdreader -f %d:%d:%d:%d\n",
+X		status.track, status.min, status.sec, status.frame);
+X	}
+X
+/* free parser memory */
+CDdeleteparser(cdp);
+X
+/* close CD player port */
+CDclose(cd);
+X
+/* close audio port */
+ALcloseport(aport);
+X
+exit (0);
+}
+X
+X
+/* interpret track[:minute[:second[:frame]]] argument for starting/ending times */
+int
+parse_timecode (timecode, arg)
+int timecode[4];
+char *arg;
+{
+int errors = 0, position = 0, ctr = 0;
+char *ptr, field[4];
+X
+for (ptr = arg; ; ptr++) {
+X
+X	/* we'll take any of a colon, period or null to mark the end of the field
+X	   (null also marks end of the string - see below) */
+X	if ((*ptr == ':') || (*ptr == '.') || (*ptr == '\0')) {	/* we've reached the end of the field */
+X		field[ctr] = '\0';
+X		switch (position) {
+X
+X		case POS_TRACK:
+X			timecode[POS_TRACK] = atoi(field);
+X			/* we'll check this value later, after we find out which tracks exist */
+X			break;
+X
+X		case POS_MINUTE:
+X			timecode[POS_MINUTE] = atoi(field);
+X			if (timecode[POS_MINUTE] > 59) {
+X				errors++;
+X				fprintf (stderr, "invalid minute %d (valid range is 0 - 59)\n", timecode[POS_MINUTE]);
+X				}
+X			break;
+X
+X		case POS_SECOND:
+X			timecode[POS_SECOND] = atoi(field);
+X			if (timecode[POS_SECOND] > 59) {
+X				errors++;
+X				fprintf (stderr, "invalid second %d (valid range is 0 - 59)\n", timecode[POS_SECOND]);
+X				}
+X			break;
+X
+X		case POS_FRAME:
+X			timecode[POS_FRAME] = atoi(field);
+X			if (timecode[POS_FRAME] > 74) {
+X				errors++;
+X				fprintf (stderr, "invalid frame number %d (valid range is 0 - 74)\n", timecode[POS_FRAME]);
+X				}
+X			break;
+X
+X		default:
+X			errors++;
+X			fprintf (stderr, "error in format of timecode - too many colons\n");
+X			break;
+X			}
+X
+X		if (*ptr == '\0') {	/* eof of string - that was the last field */
+X			break;
+X			}
+X		else	{
+X			/* reset for the next field */
+X			position++;
+X			ctr = 0;
+X			}
+X		}
+X
+X	else if (ctr > 3) {
+X		errors++;
+X		fprintf (stderr, "error in format of timecode - too many digits in field %d\n", position);
+X		break;
+X		}
+X
+X	else	{
+X		field[ctr] = *ptr;
+X		ctr++;
+X		}
+X	}
+X
+return (errors);
+}
+X
+X
+main (argc, argv)
+int argc;
+char *argv[];
+{
+long pvbuf[6];
+int c, ctr, errors = 0;
+int start_at[4], stop_at[4];
+int volume = -1;
+X
+fputs ("CDreader V1.0\n", stdout);
+start_at[POS_TRACK] = start_at[POS_MINUTE] = -1;
+start_at[POS_SECOND] = start_at[POS_FRAME] = 0;
+stop_at[POS_TRACK] = stop_at[POS_MINUTE] = -1;
+stop_at[POS_SECOND] = stop_at[POS_FRAME] = 0;
+X
+while ((c = getopt(argc, argv, "f:l:v:")) != -1) {
+X	switch (c) {
+X
+X	case 'f':	/* specify track, minute, second, frame to start at (everything except track # is optional) */
+X		errors += parse_timecode (start_at, optarg);
+X		if (errors == 0) {
+X			printf ("will start at track %d", start_at[POS_TRACK]);
+X			if (start_at[POS_MINUTE] != -1) {
+X				printf (", time %02d:%02d, frame %d\n", start_at[POS_MINUTE],
+X					start_at[POS_SECOND], start_at[POS_FRAME]);
+X				}
+X			fputc ('\n', stdout);
+X			}
+X		break;
+X
+X	case 'l':	/* specify last track to play */
+X		errors += parse_timecode (stop_at, optarg);
+X		if (errors == 0) {
+X			if (stop_at[POS_MINUTE] != -1) {
+X				printf ("will stop at track %d, time %02d:%02d, frame %d\n",
+X					stop_at[POS_TRACK], stop_at[POS_MINUTE],
+X					stop_at[POS_SECOND], stop_at[POS_FRAME]);
+X				}
+X			else	{
+X				printf ("will stop after track %d\n", stop_at[POS_TRACK]);
+X				}
+X			fputc ('\n', stdout);
+X			}
+X		break;
+X
+X	case 'v':	/* specify volume */
+X		volume = atoi(optarg);
+X		if ((volume < 0) || (volume > 255)) {
+X			errors++;
+X			fprintf (stderr, "invalid volume %d - valid range is 0-255\n", volume);
+X			}
+X		break;
+X
+X	default:	/* anything else is an error */
+X		errors++;
+X		}
+X	}
+X
+if (errors > 0) {
+X	fprintf (stderr, "usage:  %s [-f track[:min[:sec[.frame]]]] [-l track[:min[:sec[.frame]]]] [-v volume]\n", argv[0]);
+X	exit (1);
+X	}
+X
+/* should really trap everything, right? */
+signal (SIGHUP, cleanup);
+signal (SIGINT, cleanup);
+signal (SIGQUIT, cleanup);
+signal (SIGTERM, cleanup);
+X
+cd = CDopen(0, "r");
+if (cd == NULL) {
+X	perror ("CDopen failed");
+X	exit (1);
+X	}
+X
+/* display disk info */
+if (CDgetstatus(cd, &status) == 0) {
+X	perror ("CDgetstatus failed");
+X	exit (1);
+X	}
+X
+if (status.state != CD_READY) {
+X	fprintf (stderr, "The CD player is not ready\n");
+X	CDclose(cd);
+X	exit (1);
+X	}
+X
+printf ("CD player is Ready, %d total tracks, total time on disk = %02d:%02d\n",
+X	status.last, status.total_min, status.total_sec);
+X
+/* by default start at first track */
+if (start_at[POS_TRACK] == -1) {
+X	start_at[POS_TRACK] = status.first;
+X	}
+else if (start_at[POS_TRACK] < status.first) {
+X	printf ("cannot start at track %d - first valid track is %d (we'll use that instead)\n", start_at[POS_TRACK], status.first);
+X	start_at[POS_TRACK] = status.first;
+X	}
+else if (start_at[POS_TRACK] > status.last) {
+X	printf ("cannot start at track %d - last valid track is %d\n", start_at[POS_TRACK], status.last);
+X	CDclose(cd);
+X	exit (1);
+X	}
+X
+/* by default play through last track */
+if (stop_at[POS_TRACK] == -1) {
+X	stop_at[POS_TRACK] = status.last;
+X	}
+else if (stop_at[POS_TRACK] < start_at[POS_TRACK]) {
+X	printf ("you want to stop before you start?\n", stop_at[POS_TRACK], start_at[POS_TRACK]);
+X	CDclose(cd);
+X	exit (1);
+X	}
+else if (stop_at[POS_TRACK] < status.first) {
+X	printf ("cannot stop after track %d - first valid track is %d\n", stop_at[POS_TRACK], status.first);
+X	CDclose(cd);
+X	exit (1);
+X	}
+else if (stop_at[POS_TRACK] > status.last) {
+X	printf ("cannot stop after track %d - last valid track is %d (we'll use that instead)\n", start_at[POS_TRACK], status.last);
+X	stop_at[POS_TRACK] = status.last;
+X	}
+X
+/* initialize audio port */
+aport = ALopenport ("cdreader", "w", (ALconfig) 0);
+if (aport == (ALport) 0) {
+X	fprintf (stderr, "Could not open audio port\n");
+X	CDclose(cd);
+X	exit (1);
+X	}
+X
+/* set audio port output sampling rate */
+pvbuf[0] = AL_OUTPUT_RATE;
+pvbuf[1] = AL_RATE_44100;
+ALsetparams (AL_DEFAULT_DEVICE, pvbuf, 2);
+X
+/* get the current volume */
+pvbuf[0] = AL_LEFT_SPEAKER_GAIN;
+pvbuf[2] = AL_RIGHT_SPEAKER_GAIN;
+ALgetparams (AL_DEFAULT_DEVICE, pvbuf, 4);
+X
+/* set volume, if the user specified a value */
+if (volume > -1) {
+X	pvbuf[1] = pvbuf[3] = volume;
+X	ALsetparams (AL_DEFAULT_DEVICE, pvbuf, 4);
+X	}
+X
+/* check for very low volume */
+if ((pvbuf[1] < LOW_VOLUME) || (pvbuf[3] < LOW_VOLUME)) {
+X	fputs ("warning!  Your volume is set awfully low\n", stdout);
+X	}
+X
+/* create parser structure */
+cdp = CDcreateparser();
+if (cdp == NULL) {
+X	perror ("CDcreateparser");
+X	CDclose(cd);
+X	ALcloseport(aport);
+X	exit (1);
+X	}
+X
+/* find the best size to read */
+read_size = CDbestreadsize(cd);
+X
+/* allocate a buffer to read into */
+cdbuf = (CDFRAME *) malloc (read_size * CDDA_BLOCKSIZE);
+X
+/* play all tracks selected */
+play_tracks (start_at, stop_at);
+X
+/* free parser memory */
+CDdeleteparser(cdp);
+X
+/* close CD player port */
+CDclose(cd);
+X
+/* close audio port */
+ALcloseport(aport);
+X
+exit (0);
+}
+SHAR_EOF
+chmod 0644 cdreader.c ||
+echo 'restore of cdreader.c failed'
+Wc_c="`wc -c < 'cdreader.c'`"
+test 14634 -eq "$Wc_c" ||
+	echo 'cdreader.c: original size 14634, current size' "$Wc_c"
+fi
+# ============= cdinfo.c ==============
+if test -f 'cdinfo.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping cdinfo.c (File already exists)'
+else
+echo 'x - extracting cdinfo.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'cdinfo.c' &&
+#include <stdio.h>
+#include <sys/types.h>
+#include <cdaudio.h>
+X
+X
+main (argc, argv)
+int argc;
+char *argv[];
+{
+CDPLAYER *cd;
+CDSTATUS status;
+CDTRACKINFO info;
+int track;
+X
+fputs ("CDinfo V1.0\n", stdout);
+cd = CDopen(0, "r");
+if (cd == NULL) {
+X	perror ("CDopen failed");
+X	exit (1);
+X	}
+X
+/* show info about the entire disk */
+if (CDgetstatus(cd, &status) == 0) {
+X	perror ("CDgetstatus failed");
+X	CDclose(cd);
+X	exit (1);
+X	}
+if (status.state != CD_READY) {
+X	fputs ("The CD player is not ready\n", stderr);
+X	CDclose(cd);
+X	exit (1);
+X	}
+X
+printf ("The CD drive is Ready.  This drive %s support reading audio data over the SCSI bus\n",
+X	(status.scsi_audio ? "does" : "DOES NOT"));
+printf ("First track = %d, Last track = %d, Total time on disk = %02d:%02d\n\n",
+X	status.first, status.last, status.total_min, status.total_sec);
+X
+#ifdef NOTDEF
+/*
+X * since the current position changed as soon as we called CDgetstatus(),
+X * there's not much point in telling the user where we were.
+X */
+printf ("Current position is at track %d, timecode %02d:%02d, frame %d\n",
+X	status.track, status.min, status.sec, status.frame);
+printf ("Current posision relative to beginning of disk is %02d:%02d, frame %d\n\n",
+X	status.abs_min, status.abs_sec, status.abs_frame);
+#endif /* NOTDEF */
+X
+/* show info about each track */
+for (track = status.first; track <= status.last; track++) {
+X	if (CDgettrackinfo(cd, track, &info) == 0) {
+X		perror ("CDgettrackinfo failed");
+X		break;
+X		}
+X	printf ("\tTrack %2d:  Length %02d:%02d\n", track, info.total_min, info.total_sec);
+X	}
+X
+fputc ('\n', stdout);
+CDclose(cd);
+exit (0);
+}
+SHAR_EOF
+chmod 0644 cdinfo.c ||
+echo 'restore of cdinfo.c failed'
+Wc_c="`wc -c < 'cdinfo.c'`"
+test 1584 -eq "$Wc_c" ||
+	echo 'cdinfo.c: original size 1584, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+CFLAGS = -O3
+# -lcdaudio and -lds are required for accessing the cdaudio library
+# -laudio is required for access the DSP.
+CDLIBS = -lcdaudio -lds
+AUDIOLIBS = -laudio
+X
+all: cdinfo cdreader
+X
+cdreader: cdreader.c
+X	$(CC) -o cdreader $(CFLAGS) cdreader.c $(CDLIBS) $(AUDIOLIBS)
+X
+cdinfo: cdinfo.c
+X	$(CC) -o cdinfo $(CFLAGS) cdinfo.c $(CDLIBS)
+X
+lint:
+X	lint cdreader.c
+X
+shar:
+X	shar Readme cdreader.c cdinfo.c Makefile > cdstuff.shar
+X
+clean:
+X	rm -f a.out core mklog cdinfo cdreader cdstuff.shar *.o
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 491 -eq "$Wc_c" ||
+	echo 'Makefile: original size 491, current size' "$Wc_c"
+fi
+exit 0

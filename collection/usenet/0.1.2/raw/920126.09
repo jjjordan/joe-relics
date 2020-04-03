@@ -1,0 +1,176 @@
+Xref: funic comp.lang.tcl:174 alt.sources:3046
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!cs.utexas.edu!wotan.compaq.com!moxie!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Newsgroups: comp.lang.tcl,alt.sources
+Subject: smaillog.tcl - email activity report for smail 2.5
+Message-ID: <1992Jan23.151804.10124@NeoSoft.com>
+Date: 23 Jan 92 15:18:04 GMT
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Lines: 166
+
+smaillog.tcl is a program for Extended Tcl 6.1a which cracks the log file 
+produced by smail 2.5 and produces a report summarizing the number of 
+messages and bytes sent by sender and by recipient.
+
+It could be used, for example, as part of a shell script that ran nightly
+from cron, emailing the report to the sysadmin, posting it as news to
+a local group, or whatever.
+
+The output should look something like this:
+
+    Email activity report: 500 total messages for 1157293 total bytes.
+
+    Senders:
+
+    messages      bytes who
+    ======== ========== ===
+	   2       5005 AppleLink.Apple.COM!KREEGAR
+	   2       8605 Athena.MIT.EDU!cplee
+	   2       2666 Buster.Stafford.TX.US!cliff
+	   1       1037 Buster.Stafford.TX.US!uhura1!bryan
+	   2       3703 CC.UTAH.EDU!PIATKONM%SNYBUFVA.BITNET
+	   2       1999 CS.Stanford.EDU!bhayes
+	   .
+	   .
+
+    Recipients:
+
+    messages      bytes who
+    ======== ========== ===
+	   1        537 arielle
+	 134     296919 brad
+	   2       4749 chad
+	   2      16456 claire
+	   2       3118 darek
+	   .
+	   .
+
+--------------- cut here -------------
+#
+# smaillog.tcl - email usage report generator for smail 2.5
+#
+# Use with Extended Tcl 6.1a or later.
+#
+# Usage: tcl smaillog.tcl smail_log_filename
+#
+# Program will generate a report to stdout, summarizing the
+# number of messages processed and bytes sent, then produce
+# two reports: one is a list by sender of the number of messages
+# and bytes from that user, and two is a list by recipient of the
+# number of bytes and messages to that user.
+#
+# Four global arrays are used, sendCount, sendBytes, receiveCount and
+# receiveBytes.  We use "upvar" to access them so we can pass their
+# names to routines that can use either set.
+#
+#
+
+global smailLogFile
+set smailLogFile "/usr/local/smail/mail.log"
+
+global totalMessages totalBytes
+set totalMessages 0
+set totalBytes 0
+
+proc score_message {who bytes countArray bytesArray} {
+    upvar #0 $countArray msgCount
+    upvar #0 $bytesArray msgBytes
+
+    if [info exists msgCount($who)] {
+	incr msgCount($who)
+	incr msgBytes($who) $bytes
+    } else {
+	set msgCount($who) 1
+	set msgBytes($who) $bytes
+    }
+}
+
+proc doline {line} {
+    global totalMessages totalBytes
+
+    set line [split $line \t]
+
+    set bytes [lindex $line 1]
+    set sender [lindex $line 2]
+
+    incr totalMessages 1
+    incr totalBytes $bytes
+
+    score_message $sender $bytes sendCount sendBytes
+
+    do_recipient [lindex $line 3] $bytes
+}
+
+proc do_recipient {recipString bytes} {
+    set program [lindex $recipString 0]
+
+    if {$program == "/bin/lmail"} {
+	set recipient [lindex $recipString 1]
+	set recipient [string range $recipient 1 [expr [string length $recipient]-2]]
+	score_message $recipient $bytes receiveCount receiveBytes
+	return
+    }
+
+    if {$program == "/usr/bin/uux"} {
+	set system [lindex $recipString 4]
+	set destination [lindex $recipString 5]
+	set destination [string range $destination 2 [expr [string length $destination]-3]]
+	set destination [lindex [split $system !] 0]!$destination
+	score_message $destination $bytes receiveCount receiveBytes
+	return
+    }
+    echo "unrecognized program, '$recipString'"
+}
+
+proc report_header {} {
+    echo
+    echo "messages      bytes who"
+    echo "======== ========== ==="
+}
+
+proc report {} {
+    global totalMessages totalBytes
+
+    echo "Email activity report: $totalMessages total messages for $totalBytes total bytes."
+    echo
+    echo "Senders:"
+    report_header
+    report_on_arrays sendCount sendBytes
+
+    echo
+    echo "Recipients:"
+    report_header
+    report_on_arrays receiveCount receiveBytes
+}
+
+proc report_on_arrays {countArray byteArray} {
+    upvar #0 $countArray counts
+    upvar #0 $byteArray bytes
+
+    foreach user [lsort [array names counts]] {
+	echo [format "%8d %10d %s" $counts($user) $bytes($user) $user]
+    }
+}
+
+proc crack_smail_log_file {fileName} {
+
+    for_file line $fileName {
+	doline $line
+    }
+
+    report
+}
+
+if !$interactiveSession {
+
+    if {[llength $argv] != 1} {
+	echo "usage: tcl smaillog.tcl smail_log_filename"
+	exit 1
+    } else {
+	crack_smail_log_file $argv
+	exit 0
+    }
+}
+
+-- 
+-- "Any excuse will serve a tyrant."  -- Aesop

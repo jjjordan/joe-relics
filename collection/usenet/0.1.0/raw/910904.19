@@ -1,0 +1,869 @@
+Path: funic!fuug!mcsun!uunet!munnari.oz.au!murtoa.cs.mu.oz.au!csv.viccol.edu.au!timcc
+From: timcc@csv.viccol.edu.au (Tim Cook)
+Newsgroups: alt.sources
+Subject: dl v1.6, part 3 of 3
+Message-ID: <1991Aug21.174037.6833@csv.viccol.edu.au>
+Date: 21 Aug 91 22:40:37 GMT
+Organization: Computer Services, Victoria College, Melbourne
+Lines: 860
+
+#!/bin/sh
+# This is part 03 of a multipart archive
+# ============= allocate.c ==============
+if test -f 'allocate.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping allocate.c (File already exists)'
+else
+echo 'x - extracting allocate.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'allocate.c' &&
+/* allocate.c -	Interface to malloc/realloc
+X *
+X * DESCRIPTION
+X *	These routines, allocate and re_allocate call malloc(3) and
+X *	realloc(3) respectively.  If malloc or realloc returns NULL,
+X *	an error message is printed and execution is terminated,
+X *	otherwise, the value returned by malloc/realloc is returned.
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: allocate.c 1.0 91/08/19 $" ;
+X
+#include "config.h"
+X
+extern VOID_PTR malloc () ;
+extern VOID_PTR realloc () ;
+X
+X
+VOID_PTR allocate (length)
+X   size_t length ;
+{
+X   VOID_PTR tmp ;
+X
+X   if ((tmp = malloc (length)) == (VOID_PTR) NULL) {
+X      perror ("malloc") ;
+X      exit (1) ; }
+X   else
+X      return tmp ;
+X   }
+X
+X
+VOID_PTR re_allocate (p, length)
+X   VOID_PTR p ;
+X   size_t length ;
+{
+X   VOID_PTR tmp ;
+X
+X   if ((tmp = realloc (p, length)) == (VOID_PTR) NULL) {
+X      perror ("realloc") ;
+X      exit (1) ; }
+X   else
+X      return tmp ;
+X   }
+SHAR_EOF
+chmod 0640 allocate.c ||
+echo 'restore of allocate.c failed'
+fi
+# ============= pathname.c ==============
+if test -f 'pathname.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pathname.c (File already exists)'
+else
+echo 'x - extracting pathname.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pathname.c' &&
+/* pathname.c -	Construct a pathname from a directory and basename
+X *
+X * SYNOPSIS
+X *	char *pathname (char *directory, char *name)
+X *
+X * RETURNS
+X *	Returns "directory" + "/" + "name" (copied into static
+X *	storage), or a pointer to "name" if "directory" is null.
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: pathname.c 1.0 91/08/21 $" ;
+X
+#include "config.h"
+#include <sys/param.h>
+X
+#ifndef MAXPATHLEN
+#define MAXPATHLEN	1024
+#endif
+X
+X
+char *pathname (directory, name)
+X   char *directory, *name ;
+{
+X   static char return_value[MAXPATHLEN+1] ;
+X
+X   if (directory && *directory != EOS) {
+X      strcpy (return_value, directory) ;
+X      strcat (return_value, "/") ;
+X      strcat (return_value, name) ;
+X      return return_value ; }
+X   else
+X      return name ;
+X   }
+SHAR_EOF
+chmod 0640 pathname.c ||
+echo 'restore of pathname.c failed'
+fi
+# ============= split_pathname.c ==============
+if test -f 'split_pathname.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping split_pathname.c (File already exists)'
+else
+echo 'x - extracting split_pathname.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'split_pathname.c' &&
+/* split_pathname.c -	Split path into directory and name
+X *
+X * SYNOPSIS
+X *	char *split_pathname (const char *pathname, char *directory,
+X *              char *name)
+X *
+X * DESCRIPTION
+X *	Extracts the directory part and the name part of a Unix pathname.
+X *	Returns a pointer to the name part.
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: split_pathname.c 1.1 91/08/06 $" ;
+X
+#include "config.h"
+X
+#define NULL_CP		((char *) 0)
+#define EOS		'\0'
+X
+X
+char *split_pathname (pathname, directory, name)
+X   char *pathname, *directory, *name ;
+{
+X   char *p ;
+X
+X   strcpy (directory, pathname) ;
+X   while ((p = strrchr (directory, '/')) != NULL_CP && p[1] == EOS) *p = EOS ;
+X   if (p == NULL_CP) {
+X      strcpy (name, pathname) ;
+X      directory[0] = EOS ; }
+X   else {
+X      strcpy (name, p + 1) ;
+X      if (p == directory) {	/* The slash is at the start of pathname */
+X	 directory[1] = EOS ; }
+X      else {
+X	 *p = EOS ; } }
+X   return name ; }
+X
+X
+#ifdef TEST
+#include <stdio.h>
+X
+int main (argc, argv)
+X   int argc ;
+X   char **argv ;
+{
+X   char directory[256] ;
+X   char name[256] ;
+X
+X   if (split_pathname (argv[1], directory, name) == NULL_CP) {
+X      fprintf (stderr, "%s: couldn't parse \"%s\"\n", argv[0], argv[1]) ; }
+X   else {
+X      printf ("pathname:  \"%s\"\ndirectory: \"%s\"\nname:     \"%s\"\n",
+X	 argv[1], directory, name) ; }
+X   }
+#endif
+SHAR_EOF
+chmod 0640 split_pathname.c ||
+echo 'restore of split_pathname.c failed'
+fi
+# ============= getdesc.c ==============
+if test -f 'getdesc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping getdesc.c (File already exists)'
+else
+echo 'x - extracting getdesc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'getdesc.c' &&
+/* getdesc.c -	Get file description
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: getdesc.c 1.0 91/08/21 $" ;
+X
+#include "config.h"
+#include <fcntl.h>
+X
+extern int _initdesc () ;
+#ifdef NDBM
+extern DBM *_desc_database ;
+#endif
+X
+X
+char *getdesc (directory, name, inode)
+X   char *directory ;
+X   char *name ;
+X   ino_t inode ;
+{
+X   static datum key, value ;
+X
+X   if (name == NULL_CP && inode == 0) {
+X      return NULL_CP ; }
+X
+X   if (_initdesc (directory, O_RDONLY)) {
+X
+X      /* We have a description database */
+X
+X      int found = FALSE ;
+X
+X      if (name) {
+X
+X	 /* Check for it by name */
+X
+X	 key.dptr = name ;
+X	 key.dsize = strlen (name) ;
+X	 if (key.dsize == sizeof (ino_t))
+X	    key.dsize++ ;
+X	 value = DBM_fetch (_desc_database, key) ;
+X	 found = value.dptr != NULL_CP ; }
+X
+X      if (! found && inode) {
+X
+X	 /* Check for it by inode */
+X
+X	 key.dptr = (char *) &inode ;
+X	 key.dsize = sizeof (ino_t) ;
+X	 value = DBM_fetch (_desc_database, key) ;
+X	 if (value.dptr != NULL_CP) {
+X	    char temp[sizeof (ino_t) + 1] ;
+X
+X	    /* Now use the name we got using the inode */
+X
+X	    if (value.dsize == sizeof (ino_t)) {
+X	       strncpy (temp, value.dptr, sizeof (ino_t)) ;
+X	       temp[sizeof (ino_t) + 1] = EOS ;
+X	       key.dptr = temp ;
+X	       key.dsize = sizeof (temp) ; }
+X	    else {
+X	       key.dptr = value.dptr ;
+X	       key.dsize = value.dsize ; }
+X	    value = DBM_fetch (_desc_database, key) ;
+X	    found = value.dptr != NULL_CP ; } }
+X
+X      if (found)
+X	 return value.dptr ;
+X      }
+X   return NULL_CP ;
+X   }
+SHAR_EOF
+chmod 0640 getdesc.c ||
+echo 'restore of getdesc.c failed'
+fi
+# ============= setdesc.c ==============
+if test -f 'setdesc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping setdesc.c (File already exists)'
+else
+echo 'x - extracting setdesc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'setdesc.c' &&
+/* setdesc.c -	Set a file description
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: setdesc.c 1.0 91/08/21 $" ;
+X
+#include "config.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
+X
+extern int errno ;
+extern char *pathname () ;
+extern int _initdesc () ;
+#ifdef NDBM
+extern DBM *_desc_database ;
+#endif
+X
+X
+int setdesc (directory, name, inode, description)
+X   char *directory ;
+X   char *name ;
+X   ino_t inode ;
+X   char *description ;
+{
+X   datum key, content ;
+X
+X   if (! name) {
+X      errno = EINVAL ;
+X      return FALSE ; }
+X
+X   if (! inode) {
+X      struct stat file_status ;
+X
+X      if (stat (pathname (directory, name), &file_status) == 0)
+X	 inode = file_status.st_ino ; }
+X
+X   if (description == NULL_CP || *description == EOS) {
+X      /* Set the description to null?  This means delete */
+X
+X      if (! _initdesc (directory, O_RDWR))
+X	 return FALSE ;
+X
+X      if (inode) {
+X	 key.dptr = (char *) &inode ;
+X	 key.dsize = sizeof (ino_t) ;
+X	 DBM_delete (_desc_database, key) ; }
+X      key.dptr = name ;
+X      key.dsize = strlen (name) ;
+X      if (key.dsize == sizeof (ino_t))
+X	 key.dsize++ ;
+X      DBM_delete (_desc_database, key) ;
+X      return TRUE ; }
+X
+X   if (! _initdesc (directory, O_RDWR | O_CREAT))
+X      return FALSE ;
+X
+X   /* Store the description, indexed by the file name */
+X
+X   key.dptr = name ;
+X   key.dsize = strlen (name) ;
+X
+X   /*
+X    * Name and inode keys are distinguished by the key length.  Inode
+X    * keys are all "sizeof (ino_t)" long, while all other keys are
+X    * name keys.
+X    */
+X
+X   if (key.dsize == sizeof (ino_t))
+X      /*
+X       * To distinguish this from an inode key, we'll store the
+X       * terminating null byte as well
+X       */
+X      key.dsize++ ;
+X
+X   content.dptr = description ;
+X   content.dsize = strlen (description) + 1 ;
+X   if (DBM_store (_desc_database, key, content) < 0)
+X      return FALSE ;
+X
+X   if (inode) {
+X
+X      /* Store the file name, indexed by the inode number */
+X
+X      key.dptr = (char *) &inode ;
+X      key.dsize = sizeof (ino_t) ;
+X      content.dptr = name ;
+X      content.dsize = strlen (name) ;
+X      if (DBM_store (_desc_database, key, content) < 0)
+X	 return FALSE ;
+X      }
+X   return TRUE ;
+X   }
+SHAR_EOF
+chmod 0640 setdesc.c ||
+echo 'restore of setdesc.c failed'
+fi
+# ============= enddesc.c ==============
+if test -f 'enddesc.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping enddesc.c (File already exists)'
+else
+echo 'x - extracting enddesc.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'enddesc.c' &&
+/* enddesc.c -	Initialise/deallocate description database
+X *
+X * Copyright (c) 1991 Tim Cook.
+X * Non-profit distribution allowed.  See README for details.
+X */
+X
+static char rcsid[] = "$Header: enddesc.c 1.0 91/08/21 $" ;
+X
+#include <sys/param.h>
+#include <sys/errno.h>
+#include "config.h"
+X
+extern int errno ;
+#ifdef NDBM
+DBM *_desc_database = (DBM *) NULL ;
+#define DB_OPEN		(_desc_database != (DBM *) NULL)
+#else
+static int _db_open = FALSE ;
+#define DB_OPEN		_db_open
+#endif
+X
+X
+VOID enddesc ()
+{
+#ifdef NDBM
+X   if (_desc_database)
+X      dbm_close (_desc_database) ;
+#else
+X   dbmclose () ;
+#endif
+X   }
+X
+X
+/*
+X * This is support routine for getdesc() and setdesc(), and should not
+X * normally be called by the programmer. 
+X */
+X
+int _initdesc (directory, open_flags)
+X   char *directory ;
+X   int open_flags ;
+{
+X   static char desc_file[MAXPATHLEN+1] = "" ;
+X   static int db_flags ;
+X
+X   if (! directory || *directory == EOS)
+X      directory = "." ;
+X
+X   if (open_flags == db_flags && strcmp (directory, desc_file) == 0)
+X      return DB_OPEN ;		/* Tell 'em what we said before */
+X
+X   /* Otherwise, we need to try to open a database */
+X   {
+X      char *p ;
+#ifndef NDBM
+X      char *q ;
+X      struct stat status ;
+#endif
+X
+X      DBM_close (_desc_database) ;
+X
+X      strcpy (desc_file, directory) ;
+X      db_flags = open_flags ;
+X
+X      /* Find end of "desc_file" */
+X      for (p = desc_file ; *p != EOS ; p++) ;
+X
+#ifdef NDBM
+X
+X      /* By crikey, it's easier this way! */
+X
+X      strcpy (p, "/.desc") ;
+X
+#ifdef TEST
+X      printf ("Opening new database\n") ;
+#endif
+X      if ((_desc_database = dbm_open (desc_file, db_flags, 0666))
+X               == (DBM *) NULL) {
+X	 return FALSE ; }
+X
+#else	/* DBM */
+X
+X      _db_open = FALSE ;	/* We just closed it above */
+X
+X      strcpy (p, "/.desc.pag") ;
+X      q = strrchr (p, '.') ;
+X
+X      if (stat (desc_file, &status) != -1) {
+X
+X	 /* Database exists */
+X
+X	 *q = EOS ;		/* Hide ".pag" */
+X	 if (dbminit (desc_file) < 0) {
+X	    return FALSE ; }
+X	 else
+X	    _db_open = TRUE ; }
+X      else {
+X
+X	 /* No database */
+X
+X	 if (db_flags & O_RDWR) {
+X	    int fd ;
+X
+X	    /* Create .desc.(pag|dir) files */
+X	    if ((fd = open (desc_file, db_flags | O_EXCL, 0666))
+X		  < 0)
+X	       return FALSE ;
+X	    close (fd) ;
+X	    strcpy (q, ".dir") ;
+X	    if ((fd = open (desc_file, db_flags | O_EXCL, 0666))
+X		  < 0)
+X	       return FALSE ;
+X	    close (fd) ;
+X
+X	    /* Start up DBM */
+X	    *q = EOS ;		/* Hide ".dir" */
+X	    if (dbminit (desc_file) == 0)
+X	       _db_open = TRUE ; }
+X	 else {
+X	    errno = ENOENT ;
+X	    return FALSE ; } }
+#endif	/* NDBM */
+X
+X      /* Return "desc_file" to just a directory name */
+X      *p = EOS ;
+X      }
+X   return TRUE ;
+X   }
+SHAR_EOF
+chmod 0640 enddesc.c ||
+echo 'restore of enddesc.c failed'
+fi
+# ============= dl.1 ==============
+if test -f 'dl.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping dl.1 (File already exists)'
+else
+echo 'x - extracting dl.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'dl.1' &&
+.\" dl.1 -	Man page for descriptive ls
+.\"
+.\" Copyright (c) 1991 Tim Cook.
+.\" Non-profit distribution allowed.  See README for details.
+.\"
+.\" $Header: dl.1 1.2 91/08/07 $
+.\"
+.TH DL 1 "20 March, 1991"
+.UC 4
+.SH NAME
+dl \- Descriptive ls
+.SH SYNOPSIS
+.B dl
+[
+flags
+] [
+file ...
+]
+.SH DESCRIPTION
+.I Dl
+lists files and directories in the manner of ls(1), but includes a
+descriptive comment for each file that has a description set.
+By default,
+.I dl
+lists the file name, size of the file in bytes and the description.
+If the file is a directory, a hyphen (-) is shown instead of the size,
+and if the file is a directory that contains other directories, an equals
+sign (=) is shown.
+.PP
+Descriptions are set by describe(1) and are stored in a hidden file in
+the same directory as the files for which descriptions are held.
+.\" The descriptions are matched to files by name
+.\" and inode-number, so renaming or editing the file in the same directory
+.\" will not cause the loss of its description.
+.PP
+Options:
+.TP 1i
+.B \-d
+List the date and time of each file.  The last modification date and time
+are listed after the file size, in the same format used by ls(1).
+.TP 1i
+.B \-e
+List everything, even inaccessible files.
+By default, files that cannot be read or executed are ignored.
+.TP 1i
+.B \-t
+Sort by last modification time.  Most recently modified files come first.
+.TP 1i
+.BI \-f width
+Use a maximum of
+.I width
+columns to display the file name.
+If a file name is longer than
+.I width,
+it may expand into the area used to show the size.
+If this overflows, the size and other information will be listed on a
+separate line.
+.TP 1i
+.B \-R
+Recursively list any subdirectories encountered, just like ls(1).
+.SH FILES
+For each directory, a .desc.pag and .desc.dir (DBM files) are used to
+store descriptions.
+.SH SEE\ ALSO
+ls(1), describe(1).
+SHAR_EOF
+chmod 0640 dl.1 ||
+echo 'restore of dl.1 failed'
+fi
+# ============= describe.1 ==============
+if test -f 'describe.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping describe.1 (File already exists)'
+else
+echo 'x - extracting describe.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'describe.1' &&
+.\" describe.1 -	Man page for describe
+.\"
+.\" Copyright (c) 1991 Tim Cook.
+.\" Non-profit distribution allowed.  See README for details.
+.\"
+.\" $Header: describe.1 1.1 91/08/07 $
+.\"
+.TH DESCRIBE 1 "20 March, 1991"
+.UC 4
+.SH NAME
+describe - Set or list a descriptive comment for a file
+.SH SYNOPSIS
+.B describe file description
+.PP
+.B describe -s descriptions-file
+[
+directory
+]
+.PP
+.B describe -d file ...
+.PP
+.B describe -l
+[
+directory
+]
+.SH DESCRIPTION
+.I Describe
+sets, deletes or lists file descriptions, as used by dl(1).
+To set the description on one file, use the first form shown above.
+To set descriptions on a number of files, put the descriptions into a file,
+then use the -s option as shown above
+(leaving off
+.I directory
+implies the current directory).  If you use a hyphen (-) as the name of the
+descriptions file,
+.I describe
+will read standard input for the list of descriptions.
+To delete the description for one or more files, use the -d option as shown
+above.
+To list all the descriptions set for files in a directory, use the -l option
+(again, leaving off
+.I directory
+means the current directory).
+.PP
+A description-file is a simple text file.
+Each line should list the file name (quoted with double quotes if it
+contains white-space), followed by white-space, followed by the
+description.
+The description itself may contain white-space, and is only terminated
+by an end-of-line.
+Comments may appear in a description file, as a line that starts with a
+hash (#) character.
+.PP
+If you set a description to null,
+.I describe
+will attempt to delete any
+existing description, which will achieve the same result.
+.PP
+Descriptions are stored in DBM files.
+Each description is keyed by the file name, and the file name is also
+keyed by the file's inode-number.
+This means that renaming or editing the file in the same directory will
+not mean the loss of its description.
+If you wish to ``optimize'' the description database of a directory,
+you can do so in the following manner:
+.PP
+.nf
+X	% describe -l > /tmp/descriptions
+X	% rm .desc.*
+X	% describe -s /tmp/descriptions
+.fi
+.PP
+NOTE:  Old descriptions can be passed on to irrelevant files if you
+create a new file that uses the same inode that the originally
+described file used.  This can be avoided by either deleting the
+description when the original file is deleted, or making sure you set
+a new description when you create new files, even if you set it to
+null.
+.SH FILES
+For each directory, a .desc.pag and .desc.dir (DBM files) are used to
+store descriptions.
+.SH SEE\ ALSO
+dl(1).
+SHAR_EOF
+chmod 0640 describe.1 ||
+echo 'restore of describe.1 failed'
+fi
+# ============= getdesc.3 ==============
+if test -f 'getdesc.3' -a X"$1" != X"-c"; then
+	echo 'x - skipping getdesc.3 (File already exists)'
+else
+echo 'x - extracting getdesc.3 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'getdesc.3' &&
+.\" getdesc.3 -	Man page for getdesc(), setdesc() and enddesc()
+.\"
+.\" Copyright (c) 1991 Tim Cook.
+.\" Non-profit distribution allowed.  See README for details.
+.\"
+.\" $Header: getdesc.3 1.0 91/08/21 $
+.\"
+.TH GETDESC 3 "20 March, 1991"
+.UC 4
+.SH NAME
+getdesc, setdesc, enddesc - File description routines
+.SH SYNOPSIS
+.nf
+.ft B
+#include <sys/types.h>
+.sp
+char *getdesc (char *dir, char *name, ino_t inode)
+.sp
+int setdesc (char *dir, char *name, ino_t inode, char *desc)
+.sp
+void enddesc ()
+.ft R
+.fi
+.SH DESCRIPTION
+.I Getdesc
+returns a description for a file located in directory
+.I dir
+with either a basename of
+.I name
+or an inode number of
+.I inode.
+If
+.I name
+is null or
+.I inode
+is zero, their values will not be used to locate the description.
+.PP
+.I Setdesc
+sets a description for a file, specified as specified to
+.I getdesc.
+The
+.I name
+parameter to
+.I setdesc
+can not be null, and if the
+.I inode
+parameter is zero,
+.I setdesc
+will attempt to look up the file's inode number.
+Any null-terminated string can be used as a description, although it is
+advised that a file description be human-readable.
+If
+.I desc
+is null,
+.I setdesc
+will attempt to delete any existing description for the file.
+If a description database does not exist, it will be created.
+.PP
+.I Enddesc
+deallocates any resources that may have been allocated by
+.I getdesc
+or
+.I setdesc.
+.SH RETURN VALUE
+.I Getdesc
+returns null if no description was found, with errno set as possible
+explanation.
+.PP
+.I Setdesc
+returns 0 (FALSE) if it was unable to set a description, with errno
+set as possible explanation.  It returns non-zero (TRUE) if successful.
+.SH FILES
+For each directory, a .desc.pag and .desc.dir (DBM files) are used to
+store descriptions.
+.SH SEE\ ALSO
+dl(1), describe(1).
+SHAR_EOF
+chmod 0640 getdesc.3 ||
+echo 'restore of getdesc.3 failed'
+fi
+# ============= strpbrk.c ==============
+if test -f 'strpbrk.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping strpbrk.c (File already exists)'
+else
+echo 'x - extracting strpbrk.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'strpbrk.c' &&
+/*
+X * Copyright (c) 1985 Regents of the University of California.
+X * All rights reserved.
+X *
+X * Redistribution and use in source and binary forms are permitted
+X * provided that the above copyright notice and this paragraph are
+X * duplicated in all such forms and that any documentation,
+X * advertising materials, and other materials related to such
+X * distribution and use acknowledge that the software was developed
+X * by the University of California, Berkeley.  The name of the
+X * University may not be used to endorse or promote products derived
+X * from this software without specific prior written permission.
+X * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+X * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+X * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+X */
+X
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)strpbrk.c	5.5 (Berkeley) 5/10/89";
+#endif /* LIBC_SCCS and not lint */
+X
+char *
+strpbrk(s1, s2)
+X	register char *s1, *s2;
+{
+X	register int c, sc;
+X	register char *scanp;
+X
+X	for (; c = *s1; ++s1)
+X		for (scanp = s2; sc = *scanp++;)
+X			if (sc == c)
+X				return(s1);
+X	return(0);
+}
+SHAR_EOF
+chmod 0640 strpbrk.c ||
+echo 'restore of strpbrk.c failed'
+fi
+# ============= perror2.c ==============
+if test -f 'perror2.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping perror2.c (File already exists)'
+else
+echo 'x - extracting perror2.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'perror2.c' &&
+/* perror2 -	Like perror(3), but with two string prefixes
+X *
+X * SYNOPSIS
+X *	void perror2 (const char *str1, const char *str2) ;
+X *
+X * DESCRIPTION
+X *	Prints str1, then a colon and a space, then str2, then a colon and
+X *	a space, then the error message corresponding to the contents of
+X *	errno, then a newline on stderr.
+X */
+X
+static char rcsid[] = "$Header: perror2.c 1.1 91/03/22 $" ;
+X
+extern int strlen () ;
+X
+X
+void perror2 (str1, str2)
+X   char *str1, *str2 ;
+{
+X   extern int errno ;
+X   extern char *sys_errlist[] ;
+X   extern int sys_nerr ;
+X   register int save_errno = errno ;
+X   static char unknown_error[] = "Unknown error" ;
+X   static char colon_space[2] = {':', ' '} ;
+X   static char newline = '\n' ;
+X   char *p ;
+X
+X   if (save_errno < 0 || save_errno >= sys_nerr)
+X      p = unknown_error ;
+X   else
+X      p = sys_errlist[save_errno] ;
+X   write (2, str1, strlen (str1)) ;
+X   write (2, colon_space, sizeof (colon_space)) ;
+X   write (2, str2, strlen (str2)) ;
+X   write (2, colon_space, sizeof (colon_space)) ;
+X   write (2, p, strlen (p)) ;
+X   write (2, &newline, 1) ;
+X   }
+X
+X
+#ifdef TEST
+X
+int main (argc, argv)
+X   int argc ;
+X   char **argv ;
+{
+X   extern int errno ;
+X
+X   errno = atoi (argv[1]) ;
+X   perror2 (argv[2], argv[3]) ;
+X   exit (1) ;
+X   }
+X
+#endif	/* TEST */
+SHAR_EOF
+chmod 0640 perror2.c ||
+echo 'restore of perror2.c failed'
+fi
+exit 0

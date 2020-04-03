@@ -1,0 +1,51 @@
+Path: funic!fuug!mcsun!ieunet!tcdcs!unix1.tcd.ie!cbuckley
+From: cbuckley@unix1.tcd.ie (Colm Buckley)
+Newsgroups: alt.sources
+Subject: Re: random numbers in an interval
+Message-ID: <cbuckley.696391190@unix1.tcd.ie>
+Date: 26 Jan 92 01:59:50 GMT
+References: <7632@fuhainf.fernuni-hagen.de> <1992Jan25.213423.26015@odin.diku.dk>
+Sender: usenet@cs.tcd.ie (NN required at ashe.cs.tcd.ie)
+Organization: Trinity College, Dublin
+Lines: 39
+Nntp-Posting-Host: unix1.tcd.ie
+
+>  == juul@diku.dk (Anders Juul Munch)
+>> == streibel@fuhainf2.fernuni-hagen.de (Hans Streibel)
+
+>>I am looking for a good way to transform numbers given by a random number
+>>generator to a certain interval, let's say 0...N.
+>>All random number generators that I know of produce numbers in the range
+>>of 0 to MAX, where MAX is a very large number.
+
+> [... code using division deleted ...]
+
+A better (more elegant?) way is to use the mod function (%) in C. The
+library function "random" (see the man page for more information if you're
+on unix), or "rand" on older systems, produces a random number in the range
+0 to 2147483647 inclusive - (it's a "long"). To convert this to a range X
+to Y inclusive, use :
+
+	/* return a random number in the range low..high inclusive */
+	long random_range(long low, long high)
+	{
+		long random();
+		return low + (random() % (high - low + 1));
+	}
+
+or equivalent in another language. The above doesn't do any checks for
+silly things like low >= high or numbers out of range - these should be
+included in any real system.
+
+Hope this helps,
+
+Colm.
+
++-------------------------------------+----------------------------------+
+| Colm Buckley                        | "My program doesn't work."       |
+| Computer Science,                   | "You forgot the semicolon."      |
+| Trinity College, Dublin 2, Ireland  | "But..."                         |
+|                                     | "Line 376. Check."               |
+| cbuckley@unix1.tcd.ie               | "But..."                         |
+| CBUCKLEY@vax1.tcd.ie                | "Trust me."                      |
++-------------------------------------+----------------------------------+

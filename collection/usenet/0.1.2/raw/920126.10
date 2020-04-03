@@ -1,0 +1,167 @@
+Xref: funic comp.lang.tcl:175 alt.sources:3047
+Path: funic!news.funet.fi!sunic!seunet!mcsun!uunet!usc!cs.utexas.edu!wotan.compaq.com!moxie!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Newsgroups: comp.lang.tcl,alt.sources
+Subject: tupact.tcl - 9X faster C-news active file "minimum article" updater
+Message-ID: <1992Jan23.153548.10575@NeoSoft.com>
+Date: 23 Jan 92 15:35:48 GMT
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Lines: 157
+
+Below is a program for Extended Tcl 6.1a which updates the "minimum
+article" field of the C-news system's "active" file.
+
+As configured by the default distribution, it is never updated, which
+causes users of many newsreaders to get the somewhat annoying
+"4575 articles in group, read now? ... No articles." sort of messages
+when reading groups they rarely get to.
+
+A shell script called "upact" is included in /usr/lib/newsbin/expire
+which will rewrite the active file, updating that field.  Some people
+think it's a good idea to run at least once a week.
+
+The shell script "tupact", included in the shar archive below, is totally
+derived from "upact", and provides the locking functions and so forth,
+but it then runs tcl to execute tupact.tcl rather than doing the actual
+file updating itself.
+
+In tests, tupact uses nine times less CPU time than upact (a whopping
+28 times less "sys" CPU seconds) and runs in about a seventh the real
+time, meaning it beats your disk for three minutes instead of twenty...
+
+-------- cut here --------
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  tupact.tcl tupact
+# Wrapped by karl@sugar on Thu Jan 23 09:34:19 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'tupact.tcl' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tupact.tcl'\"
+else
+echo shar: Extracting \"'tupact.tcl'\" \(1331 characters\)
+sed "s/^X//" >'tupact.tcl' <<'END_OF_FILE'
+X#
+X# tupact.tcl - tcl-based C-news active file "third field" updater
+X#
+X# ...called by the companion shellscript, "tupact", which was almost
+X# entirely derived from the C-news "upact" script
+X#
+X# This program updates the "minimum article" field of the news
+X# system's "active" file.  As configured by the default distribution,
+X# it is never updated, but this causes you to get the annoying
+X# "4575 messages in group, read now? ... No messages." messages from
+X# rn, trn, etc.
+X#
+X# Running upact once a week makes the number of articles listed in the
+X# group must closer to the actual number.
+X#
+X#
+X#
+X
+Xproc doit {} {
+X    global env
+X
+X    set newfp [open "active.tmp" w]
+X    for_file line "active" {
+X
+X	assign_fields $line group max min fourth
+X        set dir [join [split $group .] /]
+X        set min ""
+X	if [file isdirectory $env(NEWSARTS)/$dir] {
+X	    cd $env(NEWSARTS)/$dir
+X	    set min [lindex [lsort [glob -nocomplain {[0-9]*}]] 0]
+X	}
+X	if {$min == ""} {
+X	    scan $max "%d" maxn
+X	    set min [expr $maxn+1]
+X	}
+X	set min [format "%010d" $min]
+X	puts $newfp "$group $max $min $fourth"
+X    }
+X    replace_active_file
+X}
+X
+Xproc replace_active_file {} {
+X    global env
+X    cd $env(NEWSCTL)
+X    catch "unlink active.old"
+X    link active active.old
+X    unlink active
+X    link active.tmp active
+X    unlink active.tmp
+X}
+X
+Xif !$interactiveSession doit
+END_OF_FILE
+if test 1331 -ne `wc -c <'tupact.tcl'`; then
+    echo shar: \"'tupact.tcl'\" unpacked with wrong size!
+fi
+chmod +x 'tupact.tcl'
+# end of 'tupact.tcl'
+fi
+if test -f 'tupact' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tupact'\"
+else
+echo shar: Extracting \"'tupact'\" \(864 characters\)
+sed "s/^X//" >'tupact' <<'END_OF_FILE'
+X#! /bin/sh
+X# Update 3rd field (minimum art. #) of a 4-field active file.
+X
+X# =()<. ${NEWSCONFIG-@<NEWSCONFIG>@}>()=
+X. ${NEWSCONFIG-/usr/lib/news/bin/config}
+X
+XPATH=$NEWSCTL/bin:$NEWSBIN/expire:$NEWSBIN:$NEWSPATH ; export PATH
+Xumask $NEWSUMASK
+X
+Xcd $NEWSCTL || { echo "$0: can't cd to $NEWSCTL" >&2; exit 1; }
+X
+X# check active file format
+Xset ""`sed 1q active`
+Xcase $# in
+X4)	;;
+X*)	echo "$0: active file has other than 4 fields" >&2
+X	exit 1 ;;
+Xesac
+X
+Xrm -f active.tmp
+Xif test -f active.tmp
+Xthen
+X	echo "$0: active.tmp exists and can't be removed; aborting" >&2
+X	exit 1
+Xfi
+X
+X# lock news system
+Xlock="$NEWSCTL/LOCK"
+Xltemp="$NEWSCTL/L.$$"
+Xecho $$ >$ltemp
+Xtrap "rm -f $ltemp ; exit 0" 0 1 2 15
+Xwhile true
+Xdo
+X	if newslock $ltemp $lock
+X	then
+X		trap "rm -f $ltemp $lock ; exit 0" 0 1 2 15
+X		break
+X	fi
+X	sleep 30
+Xdone
+X
+Xexport NEWSARTS NEWSCTL
+Xtcl $NEWSBIN/expire/tupact.tcl
+X
+Xexit 0
+END_OF_FILE
+if test 864 -ne `wc -c <'tupact'`; then
+    echo shar: \"'tupact'\" unpacked with wrong size!
+fi
+chmod +x 'tupact'
+# end of 'tupact'
+fi
+echo shar: End of shell archive.
+exit 0
+-- 
+-- "Any excuse will serve a tyrant."  -- Aesop

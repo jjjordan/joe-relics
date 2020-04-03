@@ -1,0 +1,689 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!logixwi!jpm
+From: jpm@Logix.DE (Jan-Piet Mens)
+Subject: genincl - Generate header files from NLS message files
+Organization: Logix GmbH, Wiesbaden, Germany
+Date: Sat, 21 Nov 1992 13:12:28 GMT
+Message-ID: <1992Nov21.131228.17114@Logix.DE>
+Lines: 680
+
+Submitted-by: jpm@Logix.DE
+Archive-name: GENINCL/part01
+
+
+genincl is a tool that takes an NLS (Native Language Support) source message
+file, and generates an include file for C programs, to access the message
+more-or-less readable method. Genincl also builds code for environments in
+which the NLS routines do not exist.
+
+	-JP
+
+---- Cut Here and feed the following to sh ----
+#!/bin/sh
+# This is GENINCL, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/21/1992 13:11 UTC by jpm@Logix.DE
+# Source directory /home/jpm/src/genincl
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#    777 -rw-r----- README
+#    518 -rw-r----- Makefile
+#   4891 -rwxr-x--x genincl
+#   5267 -rw-r----- genincl.1
+#    240 -rw-r----- gt.m
+#    396 -rw-r----- gt.c
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+genincl is a tool that takes an NLS (Native Language Support) source message
+file, and generates an include file for C programs, to access the message
+more-or-less readable method. Genincl also builds code for environments in
+which the NLS routines do not exist.
+X
+This archive contains the GENINCL program, as well as a small test program.
+X
+Installation:
+=============
+X	You may have to modify genincl to set the AWK= variable to your
+X	favorate awk interpreter.
+X	If you don't like the name of the message-macro (nlm), search for
+X	"macro=" in genincl and change the word.
+X
+Testing:
+X	Just type make to compile the program.
+X
+[ Don't forget to set your NLSPATH environment before testing the program ]
+X
+X	$ NLSPATH=`pwd`/%N.cat
+X	$ export NLSPATH
+X	$ ./gt
+X
+X
+Jan-Piet Mens
+jpm@Logix.DE
+SHAR_EOF
+chmod 0640 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 777 -eq "$Wc_c" ||
+	echo 'README: original size 777, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+CC=cc
+CFLAGS=-O -I.
+GENINCL=genincl
+X
+# Installation Directory
+BINDIR=/u/local/bin
+X
+all: catalogue gt
+X
+catalogue: gt.cat 
+X
+gt: gt.o
+X	$(CC) $(CFLAGS) -o $@ $?
+gt.o: gt.c gt.h
+X
+gt.h: gt.m
+X	$(GENINCL) gt.m
+X
+gt.cat: gt.m
+X	gencat -m gt.cat gt.m
+X
+clean:
+X	rm -f *.o core a.out gt.h gt.cat gt
+clobber: clean
+X
+install: genincl
+X	cp genincl $(BINDIR)
+X	chmod 555 $(BINDIR)/genincl
+X
+SHARFILES=README Makefile genincl genincl.1 gt.m gt.c
+X
+dist: $(SHARFILES)
+X	shar49 -n GENINCL -a -s 'jpm@Logix.DE' -o Part -l 50 -c \
+X		$(SHARFILES) 
+SHAR_EOF
+chmod 0640 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 518 -eq "$Wc_c" ||
+	echo 'Makefile: original size 518, current size' "$Wc_c"
+fi
+# ============= genincl ==============
+if test -f 'genincl' -a X"$1" != X"-c"; then
+	echo 'x - skipping genincl (File already exists)'
+else
+echo 'x - extracting genincl (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'genincl' &&
+#!/bin/sh
+# @(#)GENINCL Generate .h file from NLS message base. <jpm@Logix.DE>
+# Copyright Jan-Piet Mens, Logix GmbH, Wiesbaden, Germany
+# All rights reserved.
+#
+# ------------ CONFIGURATION SECTION -------------------------------------------
+X
+AWK=nawk	# The name of your ``awk'' interpreter (awk, nawk, gawk, mawk)
+MACRO=nlm	# The name of the macro for accessing messages
+ext=".m"	# Deflt input-filename extension (Should be left alone)
+X
+# ------------ END CONFIGURATION SECTION ---------------------------------------
+X
+tmpfile="/tmp/gen-i.$$"
+trap "rm -f ${tmpfile};" 1 2 15
+usage() {
+X	cat <<! >&2
+Usage: $0 [-h] [-f] [-o includefile] [-d dir] msgfile${ext}
+X
+X	-h		Show this message
+X	-o file		Write output into file (default is <msgfile>.h)
+X			If file is -, write to stdout
+X	-d dir		Output file will be written to <dir>
+X	-f		Force. Create output even if unchanged
+X	-v		Show version
+X	<msgfile>${ext}	Message file (as for gencat(1))
+!
+X	exit 9
+}
+X
+kopy() {
+X	if cp $1 $2 >/dev/null 2>&1 ; then
+X		:
+X	else
+X		echo "$0: Can't create output file [$2]" >&2
+X		rm -f ${tmpfile}
+X		exit 8
+X	fi
+}
+X
+output=""
+directory="."
+force=""
+X
+while getopts "fd:vho:" c
+do
+X	case "$c" in
+X		f)	force=TRUE;;
+X		d)	directory="$OPTARG";;
+X		o)	output="$OPTARG";;
+X		h)	usage;;
+X		v)	echo "GENINCL 1.2 by Jan-Piet Mens"; exit 0 ;;
+X		\?)	usage;;
+X	esac
+done
+shift `expr $OPTIND - 1`
+[ $# -ne 1 ] && { usage ; }
+X
+if [ ! -d "${directory}" ] ; then
+X	echo "$0: [${directory}] is not a directory" >&2
+X	exit 3
+fi
+X
+msgfile="`basename $1 ${ext}`"
+msgfile="${msgfile}${ext}"
+if [ ! -f "${msgfile}" ] ; then
+X	echo "$0: Can't open file [${msgfile}]" >&2
+X	exit 2
+fi
+if [ -z "${output}" ] ; then
+X	output="${directory}/`basename ${msgfile} ${ext}`.h"
+fi
+X
+#
+# This is what our message file looks like:
+#
+#	$set 1 Main_Program
+#	$ HelloWorld
+#	1 Hello World, how are you ?
+#	$ Tilton
+#	2 Bye bye Charlene
+#	
+#	$ comment
+#	$ comment
+#	$set 2 IO_errors
+#	$ Enoent
+#	3 File not found
+#	$ NoHost
+#	4 Can't access host [%s]
+#
+X
+# Output conditional code at the top of the .h file for
+# definition of the access-macro to messages. Take into
+# account, that the output may not be processed by an
+# ANSI compiler
+X
+cat <<!--end--  > ${tmpfile}
+/* This file was generated automagically from ${msgfile}
+X * Any modifications made here may disappear
+X * Change the source and re-run $0
+X */
+X
+#ifndef NO_NLS
+#    ifndef ${MACRO}
+#	include <nl_types.h>
+X
+X	extern char *catgets();
+X	extern nl_catd catopen();
+#	if defined(__STDC__)
+#		define ${MACRO}(set, mno) catgets(cat, (set), (mno), mno##_DFLT)
+#	else
+#		define ${MACRO}(set, mno) catgets(cat, (set), (mno), mno/**/_DFLT)
+#	endif /* __STDC__ */
+#    endif /* ${MACRO} */
+#else /* NO_NLS */
+#	define nl_catd int
+#	define catopen(a, b) 0
+#	define catclose(a)	/* nothing */
+#	if defined(__STDC__)
+#		define ${MACRO}(set, mno)	mno##_DFLT
+#	else
+#		define ${MACRO}(set, mno)	mno/**/_DFLT
+#	endif /* __STDC__ */
+#endif /* NO_NLS */
+!--end--
+${AWK} '
+BEGIN	{
+X		token="Identifier_missing_in_input_file"
+X	}
+X
+X	# A '$set' at the begin of line specifies a SET. Get the number,
+X	# and output a define for it.
+X	# All other "$xxx" we ignore ...
+X
+X	/^\$[^ ]/ {
+X		if ($1 == "$set") {
+X			if ($3 == "") {
+X				printf("#error Set number %d has no name in %s\n", $2, FILENAME);
+X			} else {
+X				printf("\n#define %sSet	(%d)\n", $3, $2)
+X			}
+X		}
+X		continue;
+X	}
+X	
+X	# If we have a "$ " (dollar-space), it is a comment in the messages
+X	# input file. Use the first word after the comment as a define for
+X	# the message, whose number appears next.
+X
+X	/^\$ /		{
+X				token=$2
+X				next
+X			}
+X
+X	# If we have a number followed by one space, it is a message.
+X	# Use the last token we found, and build a #define for it.
+X	# Then clear the token, so that we can introduce an error if the
+X	# author of the message file forgot to create a "$ token" input
+X	# line
+X	# For each token we define, we will also define a token_DFLT containing
+X	# the default message for catgets(3)
+X
+X	/^[0-9][0-9]* / {
+X				mno=$1
+X				$1=""
+X				txt=$0
+X				sub("^[ 	][ 	]*", "", txt);
+X				printf("#define %s (%d) \n", token, mno);
+X				printf("#define %s_DFLT \"%s\"\n", token, txt);
+X				token="Identifier_missing_in_input_file"
+X			}
+X		
+' ${msgfile}  >> ${tmpfile}
+X
+# Should the output go to standard out ?
+X
+if [ "${output}" = "-" ] ; then
+X	cat ${tmpfile}
+X	rm -f ${tmpfile}
+X	exit 0
+fi
+X
+# If our temporary output does not differ from the already present .h file,
+# then we don't copy. This enables us to use the whole thing in a Makefile.
+# This may be overridden by the -f (force) flag
+X
+if [ "${force}" = "TRUE" ] ; then
+X	kopy ${tmpfile} ${output}
+else
+X	if cmp ${tmpfile} ${output} >/dev/null 2>&1 ; then
+X		:
+X	else
+X		kopy ${tmpfile} ${output}
+X	fi
+fi
+X
+# If we are called from make, we must touch the output file. This should
+# not be done though, if we call directly from the shell.
+X
+if [ -n "${MAKE}" -o -n "${MAKEFLAGS}" ] ; then
+X	:
+else
+X	touch ${output}
+fi
+rm -f ${tmpfile}
+X
+Xexit 0
+SHAR_EOF
+chmod 0751 genincl ||
+echo 'restore of genincl failed'
+Wc_c="`wc -c < 'genincl'`"
+test 4891 -eq "$Wc_c" ||
+	echo 'genincl: original size 4891, current size' "$Wc_c"
+fi
+# ============= genincl.1 ==============
+if test -f 'genincl.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping genincl.1 (File already exists)'
+else
+echo 'x - extracting genincl.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'genincl.1' &&
+.TH GENINCL 1 "Logix GmbH" "Local User Commands"
+.SH NAME
+genincl \- generate include files from NLS message catalogues
+.SH SYNOPSIS
+.B genincl
+[
+.B -h
+] [
+.B -v
+] [
+.B -f
+] [
+.B -o
+.I outfile
+] [
+.B -d
+.I dir
+] 
+.B msgfile
+.SH DESCRIPTION
+.I genincl
+generates C header files from message an NLS (Native Language Support)
+catalogue given in
+.BR msgfile .
+The name of the message file is implicitly specified as
+.IB msgfile .m
+and
+.I genincl
+produces a default output file called
+.IB msgfile .h
+which may be renamed with the
+.B -o
+option.
+The simplest call to
+.I genincl
+is then
+.PP
+.RS
+genincl ifile
+.RE
+.PP
+which will generate an "ifile.h" from "ifile.m".
+.PP
+Generated output files are stored in the directory given with
+the 
+.B -d
+option, or in the current directory if none is specified. If
+.I genincl
+detects that no changes have occurred in the generated header file
+with respect to an existing header file, the output file will not be
+written; this allows use of
+.I genincl
+with
+.IR make (1).
+.PP
+.SH OPERATION
+.I genincl
+reads through the given
+.B msgfile
+and produces
+.B #defines
+according to the following rules:
+.in 1i
+If a 
+.B "$set"
+keyword is seen, the set number is used together with the comment behind it
+to generate a define for a set.
+.sp
+For each message in a set, two #defines are produced; the first contains the
+message number, whereas the second contains a string which may be used as the
+default string to be returned by
+.IR catgets (3C).
+.PP
+The header file that is built, forsees use in a non-ANSI-C environment, as
+well as an environment in which the NLS routines do not exist. If the 
+program which includes the header file is compiled with
+.B "-DNO_NLS"
+macros will be generated which insert the default message, whithout calling
+the 
+.IR catopen (),
+.IR catgets (),
+and
+.IR catclose ()
+routines.
+.SH EXAMPLE
+A sample input file as normally given to
+.IR gencat :
+.PP
+.RS
+.nf
+$set 1 Main
+$ HelloWorld
+1 Hello World, how are you ?
+$ Tilton
+2 Bye bye Charlene
+X
+$ This is a comment
+$set 2 IOERRS
+$ Enoent
+3 I cannot open your mailbox. Please check $MAIL
+$ NoHost
+4 Host [%s] is not responding. Try again ?
+.fi
+.RE
+.PP
+When
+.I genincl
+is run on this input file, it produces the following output:
+.PP
+.RS
+.nf
+/* This file was generated automagically from gt.m
+X * Any modifications made here may disappear
+X * Change the source and re-run ./genincl
+X */
+X
+#ifndef NO_NLS
+#    ifndef nlm
+#	include <nl_types.h>
+X
+X	extern char *catgets();
+X	extern nl_catd catopen();
+#	if defined(__STDC__)
+#		define nlm(set, mno) catgets(cat, (set), (mno), mno##_DFLT)
+#	else
+#		define nlm(set, mno) catgets(cat, (set), (mno), mno/**/_DFLT)
+#	endif /* __STDC__ */
+#    endif /* nlm */
+#else /* NO_NLS */
+#	define nl_catd int
+#	define catopen(a, b) 0
+#	define catclose(a)	/* nothing */
+#	if defined(__STDC__)
+#		define nlm(set, mno)	mno##_DFLT
+#	else
+#		define nlm(set, mno)	mno/**/_DFLT
+#	endif /* __STDC__ */
+#endif /* NO_NLS */
+X
+#define MainSet	(1)
+#define HelloWorld (1) 
+#define HelloWorld_DFLT "Hello World, how are you this morning ?"
+#define Tilton (2) 
+#define Tilton_DFLT "Bye bye Charlene"
+X
+#define IOERRSSet	(2)
+#define Enoent (3) 
+#define Enoent_DFLT "I cannot open your mailbox. Please check $MAIL"
+#define NoHost (4) 
+#define NoHost_DFLT "Host [%s] is not responding. Try again ?"
+.fi
+.RE
+.PP
+Our sample application will be
+.PP
+.RS
+.nf
+#include <stdio.h>
+#include <nl_types.h>
+#include <fcntl.h>
+#include "gt.h"
+X
+X
+int main(argc, argv)
+int argc;
+char **argv;
+{
+X	nl_catd cat;
+X	char *msg;
+X
+X	if ((cat = catopen("gt", O_RDONLY)) == (nl_catd)-1)
+X		(fprintf(stderr, "%s: Can't open message-catalogue\en",
+X				*argv));
+X
+X	msg = nlm(MainSet, HelloWorld);
+X	puts(msg);
+X
+X	msg = nlm(IOERRSSet, NoHost);
+X	puts(msg);
+X
+X	catclose(cat);
+}
+X
+.RE
+.PP
+.fi
+A sample
+.I makefile
+for putting all of the above together would look like this.
+.PP
+.RS
+.nf
+CC=cc
+CFLAGS=-O -I.
+GENINCL=genincl
+X
+all: prog messages.cat
+X
+prog: prog.o
+X	$(CC) $(CFLAGS) -o $@ $?
+prog.o: prog.c message.h
+X
+# Generate include file for application
+message.h: message.m
+X	$(GENINCL) message.m
+X
+# Generate NLS message catalogue
+message.cat: message.m
+X	gencat -m message.cat message.m
+X
+clean:
+X	rm -f *.o message.h message.cat prog
+.fi
+.RE
+.SH OPTIONS
+The following options are recognized:
+.IP "\fB-h\fR" 1.5i
+Help. Show usage.
+.IP "\fB-v\fR" 1.5i
+Version. Show version of
+.IR genincl .
+.IP "\fB-f\fR" 1.5i
+Force creation of an output file, even though
+.I genincl
+has discovered that the target has not changed with regard to the original.
+Use of this option is discouraged in makefiles.
+.IP "\fB-o\fR \fIoutfile\fR" 1.5i
+Output file. Instead of producing a file called
+.IB msgfile .h
+the output file will be called
+.BR outfile .
+As a special case, if
+.B outfile
+consists of a single dash, the output will be written to standard output.
+.IP "\fB-d\fR \fIdir\fR" 1.5i
+Generated files are stored in the directory
+.I dir
+or in the current directory if
+.I dir
+is not given.
+.SH FILES
+.IP "\fBfile.m\fR" 1i
+Input files for
+.I genincl
+consist of text files which are usually given to
+.IR gencat (1).
+.IP "\fBfile.h\fR" 1i
+.I genincl
+generates source code which is written into an include file for C.
+.SH AUTHOR
+Jan-Piet Mens - <jpm@Logix.DE>
+.SH SEE ALSO
+.IR gencat (1),
+.IR make (1),
+.IR catopen (3C),
+.IR catgets (3C)
+SHAR_EOF
+chmod 0640 genincl.1 ||
+echo 'restore of genincl.1 failed'
+Wc_c="`wc -c < 'genincl.1'`"
+test 5267 -eq "$Wc_c" ||
+	echo 'genincl.1: original size 5267, current size' "$Wc_c"
+fi
+# ============= gt.m ==============
+if test -f 'gt.m' -a X"$1" != X"-c"; then
+	echo 'x - skipping gt.m (File already exists)'
+else
+echo 'x - extracting gt.m (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'gt.m' &&
+$set 1 Main
+$ HelloWorld
+1 Hello World, how are you this morning ?
+$ Tilton
+2 Bye bye Charlene
+X
+$ This is a comment
+$set 2 IOERRS
+$ Enoent
+3 I cannot open your mailbox. Please check $MAIL
+$ NoHost
+4 Host [%s] is not responding. Try again ?
+SHAR_EOF
+chmod 0640 gt.m ||
+echo 'restore of gt.m failed'
+Wc_c="`wc -c < 'gt.m'`"
+test 240 -eq "$Wc_c" ||
+	echo 'gt.m: original size 240, current size' "$Wc_c"
+fi
+# ============= gt.c ==============
+if test -f 'gt.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping gt.c (File already exists)'
+else
+echo 'x - extracting gt.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'gt.c' &&
+#include <stdio.h>
+#include <nl_types.h>
+#include <fcntl.h>
+X
+#include "gt.h"
+X
+X
+int main(argc, argv)
+int argc;
+char **argv;
+{
+X	nl_catd cat;
+X	int mno;
+X	char *msg;
+X
+X	if ((cat = catopen("gt", O_RDONLY)) == (nl_catd)-1)
+X		(fprintf(stderr, "%s: Can't open message-catalogue\n",
+X				*argv));
+X
+X	msg = nlm(MainSet, HelloWorld);
+X	puts(msg);
+X
+X	msg = nlm(IOERRSSet, NoHost);
+X	puts(msg);
+X
+X	catclose(cat);
+}
+X
+X
+SHAR_EOF
+chmod 0640 gt.c ||
+echo 'restore of gt.c failed'
+Wc_c="`wc -c < 'gt.c'`"
+test 396 -eq "$Wc_c" ||
+	echo 'gt.c: original size 396, current size' "$Wc_c"
+fi
+exit 0
+-- 
+    __  _____   __  __ 
+   |  ||  _  \ |  \/  |    Logix GmbH                             jpm@Logix.DE
+ __|  ||  ___/ |      |    Moritzstrasse 50, +49-611-309797   jpm@logixwi.UUCP
+|_____||__|    |__||__|    D-6200 Wiesbaden  ...!uunet!mcsun!unido!logixwi!jpm

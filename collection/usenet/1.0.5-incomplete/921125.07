@@ -1,0 +1,6404 @@
+Path: funic!news.funet.fi!sunic!mcsun!uunet!usc!cs.utexas.edu!natinst.com!news.dell.com!texsun!cronkite.Central.Sun.COM!west.West.Sun.COM!male.EBay.Sun.COM!exodus.Eng.Sun.COM!peregrine.Eng.Sun.COM!falk
+From: falk@peregrine.Eng.Sun.COM (Ed Falk)
+Newsgroups: alt.sources
+Subject: dstar, part (2/2)
+Message-ID: <lh31usINNblp@exodus.Eng.Sun.COM>
+Date: 24 Nov 92 01:39:40 GMT
+Organization: Sun Microsystems Inc., Mountain View, CA
+Lines: 6394
+NNTP-Posting-Host: peregrine
+
+
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh to create the files:
+#	netio.c
+#	draw_image_xgl.c
+#	draw_bsp_xgl.c
+#	draw_objects_xgl.c
+#	laser.c
+#	blast.c
+#	special_xv.c
+#	control_ship.c
+#	create_planet.c
+#	create_monolith.c
+#	autopilot.c
+#	missile.c
+#	radar.c
+#	panel.c
+#	master.c
+#	fighter.c
+#	static.c
+#	create_eship.c
+#	missile_control.c
+#	robot_special.c
+#	control_robot.c
+# This archive created: Mon Nov 23 12:41:51 1992 by falk
+# archive part 2 of 2
+#
+#
+export PATH; PATH=/bin:$PATH
+
+
+if test -f netio.c ; then
+echo shar: will not over-write existing file netio.c
+else
+echo shar: extracting netio.c, 28125 characters
+sed 's/^X//' > netio.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)netio.c 1.2 92/05/28 SMI" ;
+X	/* from netio.c 1.4 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this is generic network stuff.  Communications functions are:
+X *
+X * init_netio(username,mastername)
+X *	intialize communications.  Called before notifier is started up.
+X *
+X * net_start_message(who)
+X *	start building out-going message, if who=NULL, then this is
+X *	a broadcast message.  Implicit flush if who is different than
+X *	previous addressee.
+X *
+X * net_flush()
+X *	flush outgoing message queue
+X *
+X * send_status(obj)
+X *	add object's status to outgoing message
+X *
+X * net_blow_away(weapon, object)
+X *	called when we've shot object
+X *
+X * net_remove_player(id)
+X *	remove player from game
+X *
+X * net_request_missile()
+X *	ask master for missile assignment
+X *
+X * net_poll()
+X *	called every 5 seconds to do bookkeeping
+X *
+X * handle_message(me, fd)
+X *	deal with an incoming message
+X *
+X *
+X *
+X */
+X
+X
+X
+X/*	NOTES:
+X *
+X * There is no more daemon.  The first player to join a local net
+X * becomes the master for that net.  The master for a net can
+X * be slaved to the master for a game.
+X *
+X * Algorithms:
+X *
+X * when the program starts up, it sends a net_joining packet out and
+X * starts the game as object id #0.  If, after 5 seconds, no NET_WELCOME
+X * packet arrives, it makes itself the master for the subnet.
+X *
+X * if a NET_WELCOME response is received within five seconds, the program
+X * becomes a slave.  It also moves its own status info into the assigned
+X * slot.
+X *
+X * When the master receives a net_joining message, it responds with a
+X * net_welcome message followed by a list of object descriptions for
+X * all the other players in the game.  It also sends the object
+X * description for this player to all the other players.
+X *
+X * Every ten seconds, the master polls all the players on its subnet
+X * to make sure they're alive.  If not, a net_died message is sent out.
+X *
+X * If player #1 doesn't hear a poll from the master in 20 seconds, it
+X * takes over as master.
+X *
+X *
+X * If a program is a master and it has been given a hostname
+X * as an argument, it tries to contact the master on that host.  If
+X * this is successful, it becomes a "subnet master".  This is like
+X * a slave except that it still has certain duties:
+X *
+X * o It relays net_joining messages to the master.
+X *
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <fcntl.h>
+X#include <sys/types.h>
+X#include <sys/uio.h>
+X#include <sys/socket.h>
+X#include <netinet/in.h>
+X#include <netdb.h>
+X#include <arpa/inet.h>
+X#include <sys/time.h>
+X#ifdef XV
+X#include <xview/notify.h>
+X#else
+X#include <sunwindow/notify.h>
+X#endif XV
+X#include <errno.h>
+X#include <net/if.h>
+X#include <sys/ioctl.h>
+X
+X#include "dstar.h"
+X#include "netio.h"
+X
+X
+X
+Xtypedef	int	fd ;
+X
+Xstatic	FILE	*iolog ;
+X
+X
+Xextern	int	debug_level ;
+X
+Xstatic	fd	Socket ;
+X
+Xstatic	struct sockaddr_in	Sock ;
+X
+Xstatic	struct sockaddr_in	myaddr ;
+X
+Xstatic	char			outbuf[MESSAGE_LENGTH] ;
+Xstatic	char			*Mastername ;
+Xstatic	char			*outptr ;
+Xstatic	int			outlen ;
+Xstatic	struct sockaddr_in	outaddress ;
+X
+Xstatic	Notify_value	handle_message() ;
+X
+X
+X
+X/*
+X * INTERNAL ROUTINES:
+X *
+X * report_problem	-	print object id, port & net address
+X *
+X * transmit(address, message, len)
+X *			-	send an output packet
+X *
+X * broadcast(message, len)
+X *			-	send packet to everybody
+X *
+X * net_flush()		-	deliver current message
+X *
+X * add_message(message, len)
+X *			-	buffer up message
+X *
+X * request_rebroadcast(address, message,len)
+X *			-	ask somebody to broadcast something
+X *
+X * rehash_netlists()	-	rebuild net lists if there's a change
+X */
+X
+X
+X
+X
+Xstatic
+Xreport_problem(id,addr)
+X	int	id ;
+Xregister struct sockaddr_in	*addr ;
+X{
+X	printf("sending to %d at %d, %d.%d.%d.%d\n", id, addr->sin_port,
+X	  addr->sin_addr.S_un.S_un_b.s_b1, addr->sin_addr.S_un.S_un_b.s_b2,
+X	  addr->sin_addr.S_un.S_un_b.s_b3, addr->sin_addr.S_un.S_un_b.s_b4) ;
+X}
+X
+X
+X
+Xdump_lists()
+X{
+Xregister Object	*object = &objects[0] ;
+X	int	i ;
+Xstatic	char	*classes[] = {"empty","static","player","missile"} ;
+Xstatic	char	*states[] = {"active","sleeping","dead"} ;
+X
+X	fprintf(iolog, "object lists:\n") ;
+X	for(i = 0; i<MAX_PLAYERS; ++i )
+X	{
+X	  if(object->class != OBJ_EMPTY)
+X	    printf("   %2d: %-20.20s %-7.7s %-8.8s %-20.20s\n",
+X	      i, object->name, classes[(int) object->class],
+X	      states[(int) object->status],
+X	      object->target != NULL ? object->target->name : "" ) ;
+X	  ++object ;
+X	}
+X}
+X
+X
+X
+X
+X
+Xstatic
+Xrequest_rebroadcast(address, message,len)
+Xregister struct sockaddr_in	*address ;
+Xregister char			*message ;
+Xregister int			len ;
+X{
+X	int		iret ;
+X	struct msghdr	msg_hdr ;
+X	struct iovec	iovecs[2] ;
+X	Net_broadcast	b_msg ;
+X
+X	b_msg.type = NET_BROADCAST ;
+X	b_msg.len = sizeof(b_msg) + len ;
+X	b_msg.id = Me->id ;
+X	b_msg.sequence = ++sequence_number ;
+X
+X	iovecs[0].iov_base = (char *) &b_msg ;
+X	iovecs[0].iov_len = sizeof(b_msg) ;
+X	iovecs[1].iov_base = message ;
+X	iovecs[1].iov_len = len ;
+X
+X	msg_hdr.msg_name = (char *) address ;
+X	msg_hdr.msg_namelen = sizeof(struct sockaddr_in) ;
+X	msg_hdr.msg_iov = iovecs ;
+X	msg_hdr.msg_iovlen = 2 ;
+X	msg_hdr.msg_accrights = NULL ;
+X	msg_hdr.msg_accrightslen = 0 ;
+X
+X	iret = sendmsg(Socket, &msg_hdr, 0) ;
+X	if(iret < 0)
+X	  perror("dstard: sendto") ;
+X}
+X
+X
+X
+Xrebroadcast(header)
+X	Net_broadcast	*header ;
+X{
+X	Sock.sin_family = AF_INET ;
+X	Sock.sin_port = htons(DSTAR_PORT) ;
+X	Sock.sin_addr.s_addr = Me->net_addr ;
+X	transmit(&Sock, ((char *)header)+sizeof(Net_broadcast),
+X		header->len - sizeof(Net_broadcast)) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xrehash_netlists()
+X{
+Xregister Object	*object, *obj1 ;
+Xregister Object *last_net, *last_subnet ;
+X	int	i,j ;
+X	int	count = 0 ;
+X
+X	object = &objects[0] ;
+X	for(i = MAX_PLAYERS; i--; )
+X	{
+X	  object->net_status = UNKNOWN ;
+X	  object->next_net = NULL ;
+X	  object->next_subnet = NULL ;
+X	  ++object ;
+X	}
+X	master_id = -1 ;
+X
+X	last_net = NULL ;
+X
+X	poll_master = 0 ;
+X
+X	object = &objects[0] ;
+X	for(i = 0; i<MAX_PLAYERS; ++i)
+X	{
+X	  if( object->class == OBJ_PLAYER )
+X	  {
+X	    if( object == Me  &&  count == 1 )
+X	      poll_master = 1 ;
+X	    else
+X	      ++count ;
+X
+X	    if( object->net_status == UNKNOWN )
+X	    {
+X	      if( last_net == NULL )
+X	      {
+X		object->net_status = MASTER ;
+X		master_id = object->id ;
+X	      }
+X	      else
+X	      {
+X		object->net_status = SUBMASTER ;
+X		last_net->next_net = object ;
+X	      }
+X	      obj1 = last_subnet = last_net = object ;
+X	      object->net_num = 0 ;
+X
+X	      ++obj1 ;
+X	      for(j = i+1; j<MAX_PLAYERS; ++j)
+X	      {
+X		if(obj1->class == OBJ_PLAYER  &&
+X		   obj1->net_addr == object->net_addr)
+X		{
+X		  ++object->net_num ;
+X		  last_subnet->next_subnet = obj1 ;
+X		  obj1->net_status = SLAVE ;
+X		  last_subnet = obj1 ;
+X		}
+X		++obj1 ;
+X	      }
+X	    }
+X	  }
+X	  ++object ;
+X	}
+X
+X	need_rehash = 0 ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 2)
+X	{
+X	  fprintf(iolog,"new net lists:\n") ;
+X	  object = &objects[master_id] ;
+X	  for(object = &objects[master_id];
+X	      object != NULL;
+X	      object = object->next_net)
+X	  {
+X	    fprintf(iolog, "  net %6.6lx\n",object->net_addr) ;
+X	    for(obj1 = object; obj1 != NULL; obj1 = obj1->next_subnet)
+X	      fprintf(iolog, "    %2d: %s\n",obj1->id, obj1->name) ;
+X	  }
+X	}
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+Xstatic
+Xtransmit(address,message,len)
+Xregister struct sockaddr_in	*address ;
+Xregister char			*message ;
+Xregister int			len ;
+X{
+Xregister int			iret ;
+X
+X	iret = sendto(Socket, message, len, 0, address,
+X		sizeof(struct sockaddr_in)) ;
+X	if(iret < 0)
+X	  perror("dstard: sendto") ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X/****
+X * this function makes sure that the provided message gets to all the players
+X * in the game.  If there's less than a certain number of players
+X * on each local net, the message is sent individually.  If there's more
+X * players than the threshold, the message is broadcast.
+X ****/
+X
+Xstatic
+Xbroadcast(message,len)
+Xregister char		*message ;
+Xregister int		len ;
+X{
+Xregister int		id ;
+Xregister int		i,j ;
+Xregister Object		*object = &objects[master_id] ;
+Xregister Object		*obj2 ;
+X
+X
+X	/* send to all other players, active or dead */
+X
+X	if( need_rehash )
+X	  rehash_netlists() ;
+X
+X	if( master_id == -1 )
+X	  return ;
+X
+X
+X	for( object = &objects[master_id];
+X	     object != NULL;
+X	     object = object->next_net )
+X	{
+X	  if(object->net_num <= BROADCAST_THRESH)
+X	  {
+X	    for(obj2 = object; obj2 != NULL; obj2 = obj2->next_subnet)
+X	    {
+X#ifdef	DEBUG
+X	      if(obj2->class != OBJ_PLAYER)
+X	      {
+X		fprintf(iolog,
+X		      "%s got into netlists somehow\n",object->name) ;
+X		rehash_netlists() ;
+X	      }
+X#endif	DEBUG
+X	      if( obj2 != Me )
+X		transmit(&obj2->address, message, len) ;
+X	    }
+X	  }
+X	  else if(object->net_addr == Me->net_addr)
+X	  {
+X	    bzero(&Sock, sizeof(Sock)) ;
+X	    Sock.sin_family = AF_INET ;
+X	    Sock.sin_port = htons(DSTAR_PORT) ;
+X	    Sock.sin_addr.s_addr = object->net_addr ;
+X	    transmit(&Sock, message, len) ;
+X	  }
+X	  else
+X	  {
+X	    request_rebroadcast(&object->address, message, len) ;
+X	  }
+X	}
+X}
+X
+X
+X
+X
+Xnet_flush()
+X{
+X	int	iret ;
+X
+X#ifdef	DEBUG
+X	if(Me->id == -1)
+X	{
+X	  fprintf(iolog, "attempt to transmit while not in game\n") ;
+X	}
+X#endif	DEBUG
+X
+X	if(outlen > 0)
+X	{
+X	  if(Me->id != -1)
+X	    if( outaddress.sin_addr.S_un.S_addr != 0 )
+X	      transmit(&outaddress, outbuf, outlen) ;
+X	    else
+X	      broadcast(outbuf, outlen) ;
+X
+X	  outptr = &outbuf[0] ;
+X	  outlen = 0 ;
+X	}
+X}
+X
+X
+X
+X
+Xnet_start_message(who)
+Xregister Object	*who ;
+X{
+Xregister u_long	newaddr ;
+X
+X	if( who == NULL )
+X	  newaddr = 0 ;
+X	else
+X	  newaddr = who->address.sin_addr.S_un.S_addr ;
+X
+X	if( newaddr != outaddress.sin_addr.S_un.S_addr  &&
+X	    outlen > 0 )
+X	  net_flush() ;
+X
+X	if( who == NULL )
+X	  outaddress.sin_addr.S_un.S_addr = 0 ;
+X	else
+X	  outaddress = who->address ;
+X}
+X
+X
+X
+X
+Xadd_message(message, len)
+Xregister Net_null	*message ;
+Xregister int		len ;
+X{
+X	int		iret ;
+X
+X	if(len + outlen > MESSAGE_LENGTH)
+X	  net_flush() ;
+X
+X	bcopy(message, outptr, len) ;
+X	outptr += len ;
+X	outlen += len ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xstatic
+Xjoin_game()
+X{
+X	Net_joining	outmsg ;
+X	struct hostent	*host ;
+Xregister Object		*object = &objects[0] ;
+Xregister int		i ;
+X
+X	for(i = MAX_PLAYERS; i--; )
+X	{
+X	  if( object->class != OBJ_EMPTY  &&  object != Me )
+X	  {
+X	    special_remove_player(object) ;
+X	    object->class = OBJ_EMPTY ;
+X	  }
+X	  ++object ;
+X	}
+X
+X	Me->id = -1 ;
+X	Me->target = NULL ;
+X	Me->net_status = UNKNOWN ;
+X
+X
+X
+X
+X	/* look for other people playing the game */
+X
+X	outmsg.type = NET_JOINING ;
+X	outmsg.len = sizeof(Net_joining) ;
+X	outmsg.id = -1 ;
+X	outmsg.sequence = ++sequence_number ;
+X	strcpy(outmsg.name, Me->name) ;
+X	outmsg.class = Me->class ;
+X	outmsg.address = myaddr ;
+X
+X	bzero(&Sock, sizeof(Sock)) ;
+X	Sock.sin_family = AF_INET ;
+X	Sock.sin_port = htons(DSTAR_PORT) ;
+X
+X	if(Mastername == NULL)		/* broadcast */
+X	{
+X	  Sock.sin_addr.s_addr = Me->net_addr ;
+X	  transmit(&Sock, &outmsg, sizeof(outmsg)) ;
+X	}
+X	else				/* send direct to master */
+X	{
+X	  host = gethostbyname(Mastername) ;
+X	  Sock.sin_addr = *(struct in_addr *) host->h_addr ;
+X	  request_rebroadcast(&Sock, &outmsg, sizeof(outmsg)) ;
+X	}
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	{
+X	  fprintf(iolog, "join game: my name = %s\n",Me->name ) ;
+X	}
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X/*	EXTERNAL ROUTINES:
+X *
+X * init_netio(username,mastername)
+X *	intialize communications.  Called before notifier is started up.
+X *
+X * net_blow_away(weapon, object)
+X *	called when we've shot object
+X *
+X * send_status(obj, who)
+X *	send status to specific player
+X *
+X * send_status_all(obj)
+X *	send status to everybody
+X *
+X * net_remove_player(id)
+X *	remove player from game
+X *
+X * net_request_missile()
+X *	ask master for missile assignment
+X *
+X * net_poll()
+X *	called every 5 seconds to do bookkeeping
+X */
+X
+X
+X
+X
+Xinit_netio(username, mastername)
+X	char		*username ;
+X	char		*mastername ;
+X{
+X	int		iret, i ;
+X	int		flags ;
+X	int		nfds, mask, sockmask ;
+X	int		done ;
+X	struct hostent	*host ;
+X	struct timeval	timeout ;
+X	struct sockaddr_in	broadaddr ;
+X
+X
+X
+X#ifdef	DEBUG
+X	if( status_display )
+X	  putchar('\f') ;
+X#endif	DEBUG
+X
+X
+X
+X	iolog = stderr ;
+X
+X
+X
+X	/* create socket for i/o */
+X
+X	Socket = socket(AF_INET, SOCK_DGRAM, 0) ;
+X#ifdef	COMMENT
+X	printf("socket done, fd=%d\n",Socket) ;
+X#endif	COMMENT
+X	if(Socket<0) {
+X	  perror("Dstar: Init_netio") ;
+X	  exit(1) ;
+X	}
+X
+X
+X	/* make it non-blocking */
+X
+X	flags = fcntl(Socket, F_GETFL, 0) ;
+X	flags |= FNDELAY ;
+X	fcntl(Socket, F_SETFL, flags) ;
+X
+X
+X
+X	/* give it a port & address */
+X
+X	bzero(&Sock, sizeof(Sock)) ;
+X
+X	Sock.sin_family = AF_INET ;
+X	Sock.sin_port = htons(DSTAR_PORT) ;
+X	Sock.sin_addr.s_addr = INADDR_ANY ;
+X
+X	iret = bind(Socket, &Sock, sizeof(Sock)) ;
+X#ifdef	COMMENT
+X	printf("bind done, iret=%d\n",iret) ;
+X#endif	COMMENT
+X	if(iret) {
+X	  perror("dstar: socket") ;
+X	  exit(1) ;
+X	}
+X
+X	sequence_number = 0 ;
+X
+X
+X
+X	gethostname(Hostname, 64) ;
+X#ifdef	COMMENT
+X	printf("hostname = %s\n",Hostname) ;
+X#endif	COMMENT
+X
+X	host = gethostbyname(Hostname) ;
+X	myaddr.sin_family = AF_INET ;
+X	myaddr.sin_port = htons(DSTAR_PORT) ;
+X	myaddr.sin_addr = *(struct in_addr *) host->h_addr ;
+X#ifdef	COMMENT
+X	printf("dstar net address is %d.%d.%d.%d\n",
+X	  myaddr.sin_addr.S_un.S_un_b.s_b1, myaddr.sin_addr.S_un.S_un_b.s_b2,
+X	  myaddr.sin_addr.S_un.S_un_b.s_b3, myaddr.sin_addr.S_un.S_un_b.s_b4) ;
+X#endif	COMMENT
+X
+X
+X
+X	outptr = &outbuf[0] ;
+X	outlen = 0 ;
+X	outaddress.sin_addr.S_un.S_addr = 0 ;
+X
+X
+X	/* initialize the stuff that special_init didn't do */
+X
+X	sprintf(Me->name, "%s@%s", username, Hostname) ;
+X	Me->address = myaddr ;
+X	Me->sequence = ++sequence_number ;
+X	Me->last_rep = Now ;
+X#ifdef	COMMENT
+X	Me->net_addr = myaddr.sin_addr.s_addr & 0xffffff00 ;
+X#endif	COMMENT
+X	getbroad(Socket, 1, &broadaddr) ;
+X	report_problem(0,&broadaddr) ;
+X	Me->net_addr = broadaddr.sin_addr.s_addr ;
+X
+X	Mastername = mastername ;
+X
+X	puts("checking network for other players...") ;
+X
+X	join_game() ;
+X
+X
+X	/* set up to receive messages */
+X
+X	(void) notify_set_input_func(&Socket, handle_message, Socket) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xsend_status(obj)
+Xregister Object	*obj ;
+X{
+X	Net_current_status	outmsg ;
+X	int			iret ;
+X
+X	outmsg.type = NET_CURRENT_STATUS ;
+X	outmsg.len = sizeof(Net_current_status) ;
+X	outmsg.id = Me->id ;
+X	outmsg.sequence = ++sequence_number ;
+X	outmsg.obj_id = obj->id ;
+X	bcopy(obj->name, outmsg.name, NAMELEN) ;
+X	outmsg.team = obj->team ;
+X	outmsg.score = obj->score ;
+X	outmsg.class = obj->class ;
+X	outmsg.status = obj->status ;
+X	outmsg.flags = obj->flags ;
+X	outmsg.Posn = obj->Posn ;
+X	outmsg.Forward = obj->Forward ;
+X	outmsg.Up = obj->Up ;
+X	outmsg.Right = obj->Right ;
+X	outmsg.Delta = obj->Delta ;
+X	outmsg.Pointing = obj->Pointing ;
+X	outmsg.Speed = obj->Speed ;
+X	outmsg.target = (obj->target != NULL) ? obj->target->id : -1 ;
+X	outmsg.description = obj->description ;
+X	outmsg.address = obj->address ;
+X	outmsg.net_addr = obj->net_addr ;
+X
+X	add_message(&outmsg, sizeof(outmsg)) ;
+X
+X	obj->last_rep = Now ;
+X}
+X
+X
+X
+X
+X
+X
+X
+Xnet_remove_player(id)
+X	int	id ;
+X{
+X	Net_died	died_msg ;
+X
+X	net_start_message( NULL ) ;
+X	died_msg.type = NET_DIED ;
+X	died_msg.len = sizeof(Net_died) ;
+X	died_msg.id = Me->id ;
+X	died_msg.sequence = ++sequence_number ;
+X	died_msg.his_id = id ;
+X	add_message(&died_msg, sizeof(died_msg)) ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	  fprintf(iolog, "net_remove_player: %2d: %s\n",
+X	    id, objects[id].name ) ;
+X#endif	DEBUG
+X
+X	remove_player(&died_msg) ;
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X#endif	DEBUG
+X}
+X
+X
+X
+Xnet_blow_away(weapon, object)
+X	Object	*weapon, *object ;
+X{
+X	Net_just_scored		outmsg ;
+X
+X	net_start_message( NULL ) ;
+X	outmsg.type = NET_JUST_SCORED ;
+X	outmsg.len = sizeof(Net_just_scored) ;
+X	outmsg.id = Me->id ;
+X	outmsg.sequence = ++sequence_number ;
+X	outmsg.weapon_id = weapon->id ;
+X	outmsg.his_id = object->id ;
+X
+X	add_message(&outmsg,sizeof(outmsg)) ;
+X
+X	player_scored(&outmsg) ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	  fprintf(iolog, "net_blow_away: %2d: %s with %s\n",
+X	    object->id, object->name, weapon->name ) ;
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+Xnet_request_missile()
+X{
+X	Net_request_missile	msg ;
+X
+X	msg.type = NET_REQUEST_MISSILE ;
+X	msg.len = sizeof(Net_request_missile) ;
+X	msg.id = Me->id ;
+X	msg.sequence = ++sequence_number ;
+X	if(Me->net_status != MASTER)
+X	{
+X	  net_start_message( &objects[master_id] ) ;
+X	  add_message(&msg, sizeof(msg)) ;
+X	  net_flush() ;
+X	}
+X	else
+X	  new_missile(&msg) ;
+X}
+X
+X
+X
+X
+Xnet_rename(newid)
+X	int	newid ;
+X{
+X	Net_rename	msg ;
+X
+X	msg.type = NET_RENAME ;
+X	msg.len = sizeof(msg) ;
+X	msg.id = Me->id ;
+X	msg.sequence = ++sequence_number ;
+X	msg.new_id = newid ;
+X
+X	net_start_message( NULL ) ;
+X	add_message(&msg, sizeof(msg) ) ;
+X
+X	rename(&msg) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X/*
+X * INPUT MESSAGE HANDLING:
+X *
+X * add_new_player(...)		- handle NET_JOINING
+X *
+X * welcome(hdr)			- handle NET_WELCOME message
+X *
+X * reassure_master(header)	- handle NET_ARE_YOU_THERE
+X *
+X * player_scored(header)	- handle NET_JUST_SCORED
+X *
+X * new_status(header)		- accept new status
+X *
+X * new_missile(header)		- handle NET_REQUEST_MISSILE
+X *
+X * remove_player(header)	- handle NET_DIED
+X *
+X */
+X
+X
+X
+X
+X
+X
+X
+X
+X
+Xstatic
+Xwelcome(header)
+Xregister Net_welcome	*header ;
+X{
+Xregister Object		*object = &objects[0] ;
+X	int		i ;
+X
+X	for(i = MAX_PLAYERS; i--; )
+X	{
+X	  if( object->class != OBJ_EMPTY  &&  object != Me )
+X	  {
+X	    special_remove_player(object) ;
+X	    object->class = OBJ_EMPTY ;
+X	  }
+X	  ++object ;
+X	}
+X
+X
+X
+X	object = &objects[header->player_id] ;
+X
+X	if(Me != object)
+X	{
+X	  *object = *Me ;
+X	  Me->class = OBJ_EMPTY ;
+X	  Me = object ;
+X	}
+X
+X	Me->id = header->player_id ;
+X	Me->team = header->team ;
+X	Me->target = NULL ;
+X	game_type = header->game_type ;
+X
+X	special_welcome() ;
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X	if(debug_level >= 1)
+X	  fprintf(iolog, "welcome: from %2d: %s\n", header->id,
+X	    objects[header->id].name ) ;
+X#endif	DEBUG
+X
+X	printf("my id = %d\n",Me->id) ;
+X}
+X
+X
+X
+X
+X
+Xstatic
+Xreassure_master(header)
+X	Net_are_you_there	*header ;
+X{
+X	int	i ;
+X
+X#ifdef	DEBUG
+X	printf("got a timeout message from %2d: %s\n",
+X	  header->id, objects[header->id].name) ;
+X#endif	DEBUG
+X	net_start_message( &objects[header->id] ) ;
+X	send_status(Me) ;
+X	for(i=0; i<MAX_MISSILES; ++i)
+X	  if(missiles[i] != NULL)
+X	    send_status(missiles[i]) ;
+X	net_flush() ;
+X}
+X
+X
+X
+X
+X
+Xstatic
+Xplayer_scored(header)
+X	Net_just_scored	*header ;
+X{
+Xregister Object		*object = &objects[header->weapon_id] ;
+Xregister Object		*victim = &objects[header->his_id] ;
+Xregister Object		*killer = &objects[header->id] ;
+X
+X	if( object->status != OBJ_ACTIVE )
+X	  return ;
+X
+X	if(victim == Me)
+X	  printf("just got blown away by %s",killer->name) ;
+X	else if(killer == Me)
+X	  printf("just blew away %s",victim->name) ;
+X	else
+X	  printf("%s just got blown away by %s", victim->name, killer->name);
+X
+X	if( object->class == OBJ_MISSILE )
+X	  printf(" with a missile\n") ;
+X	else
+X	  putchar('\n') ;
+X
+X	if(victim->f_vector[F_KILLED] != NULL)
+X	  (*victim->f_vector[F_KILLED])(object,victim,killer) ;
+X
+X	if(killer->f_vector[F_SCORED] != NULL)
+X	  (*killer->f_vector[F_SCORED])(object,victim,killer) ;
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+Xstatic
+Xaccept_new_status(header)
+Xregister Net_current_status	*header ;
+X{
+Xregister Object		*object = &objects[header->obj_id] ;
+Xextern	fptr		fighter_vector[VECTOR_LENGTH],
+X			missile_vector[VECTOR_LENGTH],
+X			static_vector[VECTOR_LENGTH] ;
+X
+X
+X	if(header->obj_id == Me->id)
+X	  fprintf(iolog,
+X	    "got a message about me from %s\n",objects[header->id].name) ;
+X
+X
+X	else if( Me->net_status == MASTER  &&
+X		 ( object->class == OBJ_EMPTY ||
+X		   object->address.sin_addr.s_addr !=
+X			header->address.sin_addr.s_addr ) )
+X	{
+X	  /* someone has put themselves into the game without
+X	     sending a NET_JOINING MESSAGE.  They probably timed
+X	     out and didn't know they were killed.  Send them
+X	     a new NET_WELCOME message to re-sync them.  */
+X
+X#ifdef	DEBUG
+X	  fprintf(iolog, "re-syncing %2d: %s\n",header->id, header->name) ;
+X	  if(debug_level >= 1)
+X	    if( object->class == OBJ_EMPTY )
+X	      fprintf(iolog, "because slot is empty\n") ;
+X	    else
+X	      fprintf(iolog,
+X"because message came from %s@%8.8lx, should have been %s@%8.8lx\n",
+X		header->name, header->address.sin_addr.s_addr,
+X		object->name, object->address.sin_addr.s_addr) ;
+X#endif	DEBUG
+X	  add_new_player((object->class == OBJ_EMPTY) ? header->id : -1,
+X			 header->name,
+X			 &header->address,
+X			 header->sequence,
+X			 header->class ) ;
+X#ifdef	DEBUG
+X	  if(debug_level >= 1)
+X	    dump_lists() ;
+X#endif	DEBUG
+X	}
+X
+X
+X
+X	else
+X	{
+X	  if(object->class == OBJ_EMPTY)
+X	  {
+X	    object->id = header->obj_id ;
+X	    bcopy(header->name, object->name, NAMELEN) ;
+X	    object->team = header->team ;
+X	    object->class = header->class ;
+X	    object->status = header->status ;
+X	    object->address = header->address ;
+X	    object->net_addr = header->net_addr ;
+X	    switch(header->class)
+X	    {
+X	      case OBJ_PLAYER:
+X		printf("new player: %d, %s\n",header->obj_id,header->name) ;
+X		bcopy(fighter_vector,object->f_vector,sizeof(fighter_vector)) ;
+X		break ;
+X	      case OBJ_MISSILE:
+X		bcopy(missile_vector,object->f_vector,sizeof(missile_vector)) ;
+X		break ;
+X	      case OBJ_STATIC:
+X		printf("new object: %d, %s\n",header->obj_id,header->name) ;
+X		bcopy(static_vector,object->f_vector,sizeof(static_vector)) ;
+X		break ;
+X	    }
+X
+X	    if( object->class == OBJ_PLAYER )
+X	      need_rehash = 1 ;
+X	    special_add_player(object) ;
+X#ifdef	DEBUG
+X	    if(debug_level >= 1)
+X	      dump_lists() ;
+X#endif	DEBUG
+X	  }
+X
+X	  (*object->f_vector[F_NEWSTAT])(object, header) ;
+X	}
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xnew_status(object, header)
+Xregister Object			*object ;
+Xregister Net_current_status	*header ;
+X{
+X	bcopy(header->name, object->name, NAMELEN) ;
+X	object->score = header->score ;
+X	object->status = header->status ;
+X	object->flags = header->flags ;
+X	object->Posn = header->Posn ;
+X	object->Forward = header->Forward ;
+X	object->Up = header->Up ;
+X	object->Right = header->Right ;
+X	object->Delta = header->Delta ;
+X	object->Pointing = header->Pointing ;
+X	object->Speed = header->Speed ;
+X	object->target =
+X	      (header->target != -1) ? &objects[header->target] : NULL ;
+X	object->description = header->description ;
+X	object->last_rep = Now ;
+X	special_new_status(object) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xstatic
+Xremove_player(header)
+X	Net_died	*header ;
+X{
+Xregister Object		*object = &objects[header->his_id] ;
+Xregister Object		*tmp ;
+X	int		done ;
+X	int		new_master ;
+X
+X	if(header->his_id == Me->id  &&  header->id != Me->id)
+X	{
+X	  printf("Hey! %s just pronounced me dead\n",objects[header->id].name) ;
+X	  join_game() ;
+X	  return ;
+X	}
+X
+X	if(object->class == OBJ_EMPTY)
+X	  return ;
+X
+X
+X
+X	if(header->id == header->his_id)
+X	  printf("%s leaving game\n",object->name) ;
+X	else if (objects[header->his_id].class != OBJ_MISSILE)
+X	  printf("%s removed by %s\n",object->name,objects[header->id].name) ;
+X
+X	special_remove_player(object) ;
+X
+X	object->class = OBJ_EMPTY ;
+X
+X	need_rehash = 1 ;
+X
+X#ifdef	DEBUG
+X	    if(debug_level >= 1)
+X	      dump_lists() ;
+X#endif	DEBUG
+X
+X	if( header->his_id == master_id  &&  poll_master )
+X	  take_over() ;
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X#endif	DEBUG
+X}
+X
+X
+X
+Xstatic
+Xrename(header)
+X	Net_rename	*header ;
+X{
+Xregister Object		*oldobj = &objects[header->id] ;
+Xregister Object		*newobj = &objects[header->new_id] ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	  fprintf(iolog,
+X	    (newobj->class != OBJ_EMPTY) ?
+X	      "error: %d: %s taking over non-empty slot %d\n" :
+X	      "%d: %s taking over slot %d\n",
+X	    header->id, oldobj->name, header->new_id) ;
+X#endif	DEBUG
+X
+X	*newobj = *oldobj ;
+X	newobj->id = header->new_id ;
+X
+X	oldobj->class = OBJ_EMPTY ;
+X
+X	need_rehash = 1 ;
+X}
+X
+X
+X
+Xstatic	Notify_value
+Xhandle_message(me, fd)
+X	int	*me ;
+X	int	fd ;
+X{
+X	struct sockaddr_in	from ;
+X	int			fromlen, msglen ;
+X	int			iret ;
+X	char			buf[MESSAGE_LENGTH] ;
+X	int			done = 0 ;
+Xregister char			*ptr ;
+Xregister Net_null		*header ;
+Xextern	fptr			fighter_vector[VECTOR_LENGTH] ;
+X
+X#ifdef	DEBUG
+X	if(me != &Socket)
+X	{
+X	  fprintf(iolog,"? wrong value for handle in handle_message") ;
+X	  return(NOTIFY_IGNORED) ;
+X	}
+X
+X	if(fd != Socket)
+X	{
+X	  fprintf(iolog,"? wrong value for fd in handle_message") ;
+X	  return(NOTIFY_IGNORED) ;
+X	}
+X#endif	DEBUG
+X
+X
+X	while(!done)
+X	{
+X	  fromlen = sizeof(from) ;
+X	  msglen = recvfrom(Socket, buf, sizeof(buf), 0, &from, &fromlen) ;
+X	  if(msglen<0)
+X	  {
+X	    done = 1 ;
+X	    if(errno != EWOULDBLOCK)
+X	      perror("dstar: recvfrom") ;
+X	  }
+X	  else
+X	  {
+X	    ptr = &buf[0] ;
+X	    while(msglen > 0)
+X	    {
+X	      header = (Net_null *) ptr ;
+X
+X	      if(msglen < sizeof(Net_null)  ||  msglen < header->len)
+X	      {
+X		fprintf(iolog,
+X		  "incomplete record in message, msglen=%d, len=%d\n",
+X		  msglen, header->len) ;
+X		if(msglen < sizeof(Net_null))
+X		  msglen = 0 ;
+X	      }
+X	      else if( header->id != Me->id  ||
+X		       from.sin_addr.s_addr != Me->address.sin_addr.s_addr)
+X	      {
+X		if(header->id >= 0)
+X		{
+X		  objects[header->id].sequence = header->sequence ;
+X		  objects[header->id].last_rep = Now ;
+X		}
+X
+X		switch(header->type)
+X		{
+X		  default:
+X		    printf("got an unknown header type: %d\n",
+X		      (int) header->type) ;
+X		    break ;
+X
+X		  case NET_NULL:
+X		    puts("null") ;
+X		    break ;
+X
+X		  case NET_JOINING:
+X		    if(Me->net_status == UNKNOWN)
+X		      become_master() ;
+X
+X		    if(Me->net_status == SUBMASTER)
+X		    {
+X		      net_start_message(&objects[master_id]) ;
+X		      add_message(header, header->len) ;
+X		    }
+X		    else if(Me->net_status == MASTER)
+X		      add_new_player( -1,
+X				      ((Net_joining *)header)->name,
+X				      &((Net_joining *)header)->address,
+X				      ((Net_joining *)header)->sequence,
+X				      ((Net_joining *)header)->class ) ;
+X		    break ;
+X
+X		  case NET_WELCOME:
+X		    if(Me->net_status == UNKNOWN)
+X		      Me->net_status = SLAVE ;
+X		    welcome(header) ;
+X		    break ;
+X
+X		  case NET_ARE_YOU_THERE:
+X		    reassure_master(header) ;
+X		    break ;
+X
+X		  case NET_JUST_SCORED:
+X		    if(Me->net_status != UNKNOWN)
+X		      player_scored(header) ;
+X		    break ;
+X
+X		  case NET_NEW_SCORES:
+X		    puts("new scores") ;
+X		    break ;
+X
+X		  case NET_CURRENT_STATUS:
+X		    if(Me->net_status != UNKNOWN)
+X		      accept_new_status(header) ;
+X		    break ;
+X
+X		  case NET_REQUEST_MISSILE:
+X		    if(Me->net_status != MASTER)
+X		      puts("?request missile") ;
+X		    else
+X		      new_missile(header) ;
+X		    break ;
+X
+X		  case NET_MISSILE:
+X		    if(Me->net_status != UNKNOWN)
+X		      missile_armed(((Net_missile *)header)->missile_id) ;
+X#ifdef	DEBUG
+X		    if(status_display)
+X		      status_update() ;
+X#endif	DEBUG
+X		    break ;
+X
+X		  case NET_DIED:
+X		    if(Me->net_status == UNKNOWN)
+X		      join_game() ;
+X		    else
+X		      remove_player(header) ;
+X		    break ;
+X
+X		  case NET_RENAME:
+X		    rename(header) ;
+X		    break ;
+X
+X		  case NET_BROADCAST:
+X		    rebroadcast(header) ;
+X		    break ;
+X		}
+X	      }
+X
+X	      ptr += header->len ;
+X	      msglen -= header->len ;
+X	    }
+X	  }
+X	}
+X
+X	if( Me->id != -1 )
+X	  net_flush() ;
+X
+X	return(NOTIFY_DONE) ;
+X}
+X
+X
+X
+X
+X
+X
+Xstatic int
+Xgetbroad(fd, n, addrs)
+X	int			fd, n ;
+X	struct sockaddr_in	*addrs ;
+X{
+X	int		iret, i ;
+X	struct ifconf	ifc ;
+X	u_char		buffer[1024] ;
+X	struct sockaddr_in	*sin ;
+X	int		num_freq ;
+X	int		nret = 0 ;
+X
+X
+X
+X	/*
+X	 * get list of interfaces
+X	 */
+X
+X	ifc.ifc_len = sizeof(buffer) ;
+X	ifc.ifc_buf = (caddr_t) buffer ;
+X
+X	if( ioctl(fd, SIOCGIFCONF, &ifc) < 0)
+X	  return -1 ;
+X
+X	
+X	/*
+X	 * for each interface...
+X	 */
+X
+X	num_freq = ifc.ifc_len/sizeof(struct ifreq) ;
+X
+X	for(i=0; i<num_freq; ++i)
+X	{
+X	  /*
+X	   * copy the interface structure to a work area
+X	   */
+X	  sin = (struct sockaddr_in *) &ifc.ifc_req[i].ifr_addr ;
+X
+X	  if( ifc.ifc_req[i].ifr_addr.sa_family == AF_INET )
+X	  {
+X	    /*
+X	     * get the flags
+X	     */
+X	    if( ioctl(fd, SIOCGIFFLAGS, &ifc.ifc_req[i]) >= 0)
+X	    {
+X	      /*
+X	       * if it's an interface that supports broadcast...
+X	       */
+X	      if( (ifc.ifc_req[i].ifr_flags & IFF_BROADCAST)  &&
+X		  (ifc.ifc_req[i].ifr_flags & IFF_UP) )
+X	      {
+X		/*
+X		 * get the broadcast address
+X		 */
+X		if( ioctl(fd, SIOCGIFBRDADDR, &ifc.ifc_req[i]) >= 0)
+X		{
+X		  ++nret ;
+X		  *addrs++ = *sin ;
+X		}
+X	      }
+X	    }
+X	  }
+X	}
+X	return nret ;
+X}
+X
+X
+X
+X
+X#ifdef	DEBUG
+X
+Xstatus_update()
+X{
+Xregister int	i ;
+Xregister Object	*object = &objects[0] ;
+Xstatic	char	*classes[] = {"empty","static","player","missile"} ;
+Xstatic	char	*states[] = {"active","sleeping","dead"} ;
+X
+X	printf("\033[3;1H \n\n\n") ;
+X	for(i = 0; i<MAX_PLAYERS; ++i)
+X	{
+X	  int i2 = i ;  Object *obj2 = object ;
+X	  if(object->class != OBJ_EMPTY)
+X	    printf("   %2d: %-20.20s %-7.7s %-8.8s %-20.20s %4d\033[K\n",
+X	      i, object->name, classes[(int) object->class],
+X	      states[(int) object->status],
+X	      object->target != NULL ? object->target->name : "",
+X	      Now.tv_sec - object->last_rep.tv_sec ) ;
+X	  else
+X	    printf("\033[K\n") ;
+X	  ++object ;
+X	}
+X	printf("\n\n\n") ;
+X}
+X
+X
+X#endif	DEBUG
+SHAR_EOF
+len=`wc -c < netio.c`
+if test $len != 28125 ; then
+echo shar: netio.c was $len bytes long, should have been 28125
+fi
+fi # end of overwriting check
+
+if test -f draw_image_xgl.c ; then
+echo shar: will not over-write existing file draw_image_xgl.c
+else
+echo shar: extracting draw_image_xgl.c, 13119 characters
+sed 's/^X//' > draw_image_xgl.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)draw_image_xgl.c 1.2 92/05/28 SMI" ;
+X	/* from draw_image_xgl.c 1.1 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file draws the image seen on the screen.  It is the top-level
+X * graphics routine
+X */
+X
+X
+X#define	STAT_LEFT	200	/* x-posn of status lines */
+X#define	LOCK_STAT_LEFT	400	/* x-posn of status lines */
+X
+X
+X#include <stdio.h>
+X#ifdef	XV
+X#include <xview/window_hs.h>
+X#else
+X#include <sunwindow/window_hs.h>
+X#endif
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X
+Xextern	int	debug_level ;
+X
+X#ifndef	XV
+Xextern	struct pixrect	dstar_pr ;
+X#endif
+X
+X	Xgl_trans	Idtrans = NULL ;
+X	Xgl_bounds_f3d	Idwin = {0.,1.,0.,1.,0.,1.} ;
+X	Xgl_bounds_f3d	Bigwin = {-2000.,2000.,-2000.,2000.,-2000.,2000.} ;
+Xstatic	Xgl_pt_f3d	cube1[] = { {-.5,-.5,-.5}, { .5,-.5,-.5},
+X			{ .5, .5,-.5}, {-.5, .5,-.5}, {-.5,-.5,-.5},
+X			{-.5,-.5, .5}, { .5,-.5, .5}, { .5, .5, .5},
+X			{-.5, .5, .5}, {-.5,-.5, .5}} ;
+Xstatic	Xgl_pt_f3d	cube2[] = {{ .5,-.5,-.5},{ .5,-.5,.5}} ;
+Xstatic	Xgl_pt_f3d	cube3[] = {{ .5, .5,-.5},{ .5, .5,.5}} ;
+Xstatic	Xgl_pt_f3d	cube4[] = {{-.5, .5,-.5},{-.5, .5,.5}} ;
+Xstatic	Xgl_pt_list	cube[4] ;
+X
+Xstatic	Xgl_pt_flag_f3d	decoration_pts[] = {
+X	 {-100.0, 0.0, 0.0, 0},		/* center */
+X	 { 100.0, 0.0, 0.0, 1},
+X	 {0.0, -100.0, 0.0, 0},
+X	 {0.0,  100.0, 0.0, 1},
+X	 {0.0, 0.0, -100.0, 0},
+X	 {0.0, 0.0,  100.0, 1},
+X
+X	 {900.0, -100.0, 0.0, 0},	/* X */
+X	 {1100.0,  100.0, 0.0, 1},
+X	 {900.0,  100.0, 0.0, 0},
+X	 {1100.0, -100.0, 0.0, 1},
+X
+X	 {-100.0, 1100.0, 0.0, 0},	/* Y */
+X	 {0.0, 1000.0, 0.0, 1},
+X	 {0.0, 900.0, 0.0, 1},
+X	 {100.0, 1100.0, 0.0, 0},
+X	 {0.0, 1000.0, 0.0, 1},
+X
+X	 {-100.0, 100.0, 1000.0, 0},	/* Z */
+X	 { 100.0, 100.0, 1000.0, 1},
+X	 {-100.0,-100.0, 1000.0, 1},
+X	 { 100.0,-100.0, 1000.0, 1}} ;
+Xstatic	Xgl_pt_list	decorations ;
+X
+Xstatic	Xgl_pt_flag_f3d	center_pts[] = {
+X	{ 0.45, 0.45, 0.0, 0}, { 0.55, 0.45, 0.0, 1},
+X	{ 0.55, 0.55, 0.0, 1}, { 0.45, 0.55, 0.0, 1},
+X	{ 0.45, 0.45, 0.0, 1},
+X	{ 0.45, 0.5, 0.0, 0}, { 0.47, 0.5, 0.0, 1},
+X	{ 0.53, 0.5, 0.0, 0}, { 0.55, 0.5, 0.0, 1},
+X	{ 0.5, 0.45, 0.0, 0}, { 0.5, 0.47, 0.0, 1},
+X	{ 0.5, 0.53, 0.0, 0}, { 0.5, 0.55, 0.0, 1}} ;
+Xstatic	Xgl_pt_list	center ;
+X
+Xstatic	Xgl_pt_f3d	laserbeam_pts[] = {
+X	  { 0.0, 0.0, 0.0}, { 0., 0., 0.0}, { 1.0, 0.0, 0.0}} ;
+Xstatic	Xgl_pt_list	laserbeam ;
+X
+Xstatic	Xgl_matrix_f3d	hsi_mat = {	/* viewport matrix for HSI */
+X	  {.1,0.,0.,0.},
+X	  {0.,.3,0.,0.},
+X	  {0.,0.,1.,0.},
+X	  {.15,.5,0.,1.}} ;
+X
+Xstatic	int	dbvalue = 2 ;
+X
+Xdraw_image()
+X{
+X	int	i,j,k,iret ;
+X	Mat3d	matrix, R_matrix ;
+X	Pt3d	p, q ;
+X	Pt3d	p1,p2,p3,p4,p5 ;
+X	float	dx ;
+X	Xgl_bounds_f2d	bounds ;
+Xstatic	Rect	onepix = {0,0,1,1} ;
+X	Rect	full_rect ;
+X	char	line[80] ;
+Xregister Object	*object ;
+X	int	color ;
+X	Xgl_pt	offset ;
+X	Xgl_pt_f3d	offset_p ;
+X#ifdef XV
+Xstatic 	Xgl_pt_f2d   	radar_pos =  {0.05, 0.25} ,
+X			armed_pos =  {0.05, 0.50} ,
+X			remain_pos = {0.05, 0.75} ,
+X			score_pos =  {0.05, 0.05} ,
+X			lock_pos =  {0.75, 0.15} ;
+X
+X/* Added score_text_npl - ds */
+X	Xgl_color	text_color ;
+X#else
+Xstatic	int		red_rop=0, yellow_rop, white_rop ;
+X#endif XV
+X
+X
+X#ifdef	DEBUG
+X	if(debug_level  && missiles[0] != NULL  &&  missiles[0]->target != NULL)
+X	  object = missiles[0] ;
+X	else
+X#endif	DEBUG
+X	  object = Me ;
+X
+X	/* set db control and clear back buffer */
+X
+X	dbuf_control(Main_gfx, dbvalue) ;
+X	xgl_object_get(Main_gfx, XGL_CTX_DC_VIEWPORT, &bounds) ;
+X	full_rect.r_left = 0 ;
+X	full_rect.r_top = 0 ;
+X	full_rect.r_width = bounds.xmax - bounds.xmin ;
+X	full_rect.r_height = bounds.ymax - bounds.ymin ;
+X#ifndef	XV
+X	if( red_rop == 0 ) {
+X	  red_rop = PIX_SRC | PIX_COLOR(dbmap[RED]) ;
+X	  yellow_rop = PIX_SRC | PIX_COLOR(dbmap[YELLOW]);
+X	  white_rop = PIX_SRC | PIX_COLOR(dbmap[WHITE]);
+X	}
+X#endif
+X
+X	pw_lock(Main_pw, &full_rect ) ;
+X	xgl_context_new_frame(Main_gfx) ;
+X	pw_unlock(Main_pw) ;
+X
+X	pw_lock(Main_pw, &onepix ) ;
+X
+X	/* turn on all clipping except back, set 1:1 view transformation */
+X
+X	Set_color(Main_gfx,WHITE) ;
+X	xgl_object_set(Main_gfx, XGL_CTX_CLIP_PLANES, 0x3e, 0) ;
+X
+X
+X	if( Idtrans == NULL ) {
+X	  Idtrans = xgl_transform_create(XGL_TRANS_DATA_TYPE, XGL_DATA_FLT,
+X		XGL_TRANS_DIMENSION, XGL_TRANS_3D, 0) ;
+X	  xgl_transform_identity(Idtrans) ;
+X	}
+X
+X	/* build orientation matrix */
+X
+X	ident_mat(R_matrix) ;
+X	R_matrix[2][0] = object->Forward.x ;
+X	R_matrix[2][1] = object->Forward.y ;
+X	R_matrix[2][2] = object->Forward.z ;
+X	R_matrix[1][0] = object->Up.x ;
+X	R_matrix[1][1] = object->Up.y ;
+X	R_matrix[1][2] = object->Up.z ;
+X	R_matrix[0][0] = object->Right.x ;
+X	R_matrix[0][1] = object->Right.y ;
+X	R_matrix[0][2] = object->Right.z ;
+X
+X	R_matrix[3][0] = object->Posn.x ;
+X	R_matrix[3][1] = object->Posn.y ;
+X	R_matrix[3][2] = object->Posn.z ;
+X	/* OBJ_MAT = users (Me) position and orientation in World Space */
+X	/* OBJ_MAT = ROTATION * TRANSLATION */
+X	xgl_transform_write(OBJ_MAT, R_matrix) ;
+X	R_matrix[3][0] = 0; R_matrix[3][1] = 0; R_matrix[3][2] = 0;
+X
+X	xgl_transform_write(ROT_MAT, R_matrix) ;
+X	xgl_transform_transpose(ROT_MAT, ROT_MAT) ;
+X
+X	/* build perspective & windowing matrices, draw stars */
+X
+X	xgl_transform_write(TM1, P_matrix) ;
+X	xgl_transform_multiply(WIN_MAT, ROT_MAT, TM1) ;
+X	xgl_object_set(Main_gfx, XGL_CTX_GLOBAL_MODEL_TRANS, WIN_MAT, 0) ;
+X
+X	Set_color(Main_gfx,WHITE) ;
+X	draw_starfield() ;
+X
+X	/* build inverse to position matrix and multiply with ROT_MAT
+X	   to form xform mat for viewed objects */
+X
+X	offset.pt_type = XGL_PT_F3D ;
+X	offset.pt.f3d = &offset_p ;
+X	offset_p.x = -object->Posn.x ;
+X	offset_p.y = -object->Posn.y ;
+X	offset_p.z = -object->Posn.z ;
+X	xgl_transform_translate(TM1, &offset, XGL_TRANS_REPLACE) ;
+X	xgl_transform_multiply(TM3, TM1, ROT_MAT) ;
+X	xgl_transform_write(TM1, P_matrix) ;
+X	xgl_transform_multiply(TM2, TM3, TM1) ;
+X	window_mat(-1.0,1.0, -0.75,0.75, -1.0,1.0, matrix) ;
+X	xgl_transform_write(TM1, matrix) ;
+X	xgl_transform_multiply(WIN_MAT, TM2, TM1) ;
+X
+X	/* draw test object */
+X
+X#ifdef	COMMENT
+X	draw_starfield() ;
+X#endif	COMMENT
+X
+X	decorations.pt_type = XGL_PT_FLAG_F3D ;
+X	decorations.bbox = NULL ;	/* TODO */
+X	decorations.num_pts =
+X		(sizeof(decoration_pts)/sizeof(Xgl_pt_flag_f3d)) ;
+X	decorations.pts.flag_f3d = decoration_pts ;
+X	xgl_multipolyline(Main_gfx, NULL, 1, &decorations) ;
+X
+X	/* draw enemy space ships and other objects */
+X
+X	draw_objects() ;
+X
+X
+X	/* set 1:1 view transformation */
+X
+X	window_mat(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, matrix) ;
+X	xgl_transform_write(WIN_MAT, matrix) ;
+X
+X
+X	/* mark screen center */
+X
+X	if( (Me->flags & RADAR_FLAG) == 0)
+X	{
+X	  Set_color(Main_gfx,BLUE) ;
+X	}
+X	else if(Me->target == NULL)
+X	{
+X	  Set_color(Main_gfx, YELLOW) ;
+X	}
+X	else
+X	{
+X	  Set_color(Main_gfx, RED) ;
+X	}
+X	center.pt_type = XGL_PT_FLAG_F3D ;
+X	center.bbox = NULL ;	/* TODO */
+X	center.num_pts =
+X		(sizeof(center_pts)/sizeof(Xgl_pt_flag_f3d)) ;
+X	center.pts.flag_f3d = center_pts ;
+X	xgl_multipolyline(Main_gfx, NULL, 1, &center) ;
+X
+X	if(auto_pilot  ||  debug_level)
+X	{
+X	  Mouse_ax = object->Delta.x * (1.0/VIEWSCALE) + .5 ;
+X	  Mouse_ay = object->Delta.y * (1.0/VIEWSCALE) + .5 ;
+X	  Mouse_x = Mouse_ax * full_rect.r_width ;
+X	  Mouse_y = (1.0 - Mouse_ay) * full_rect.r_height ;
+X	}
+X
+X	/* draw laser beams if appropriate */
+X
+X	if(Me->flags & LASER_FLAG)
+X	{
+X	  Set_color(Main_gfx,RED) ;
+X	  laserbeam_pts[1].x = Mouse_ax ;
+X	  laserbeam_pts[1].y = Mouse_ay ;
+X	  laserbeam.pt_type = XGL_PT_F3D ;
+X	  laserbeam.bbox = NULL ;	/* TODO */
+X	  laserbeam.num_pts = (sizeof(laserbeam_pts)/sizeof(Xgl_pt_f3d)) ;
+X	  laserbeam.pts.f3d = laserbeam_pts ;
+X	  xgl_multipolyline(Main_gfx, NULL, 1, &laserbeam) ;
+X	}
+X
+X
+X
+X	/* draw cursor if appropriate */
+X
+X	if(auto_pilot  ||  debug_level)
+X	{
+X#ifndef	XV
+X	  pw_rop(Main_pw, Mouse_x-8, Mouse_y-8, 16, 16,
+X		PIX_SRC | PIX_DST | PIX_COLOR(0xff), &dstar_pr, 0,0) ;
+X#else
+X	  Xgl_pt_i2d	pos;
+X	  Xgl_color	rop_color ;
+X	  rop_color.index = dbmap[YELLOW] ;
+X
+X	  pos.x = Mouse_x-8;
+X	  pos.y = Mouse_y-8;
+X	  xgl_object_set(Main_gfx, XGL_CTX_SURF_FRONT_COLOR, &rop_color, 0) ;
+X	  xgl_context_copy_raster(Main_gfx, (Xgl_bounds_i2d *)NULL,
+X		&pos, Cursor_ras);
+X#endif	XV
+X	}
+X
+X
+X
+X	pw_unlock(Main_pw) ;
+X
+X	/* control panel: set db control and clear back buffer */
+X
+X	dbuf_control(Control_gfx, dbvalue) ;
+X#ifndef	XV
+X	xgl_context_new_frame(Control_gfx) ;
+X#endif
+X
+X	pw_lock(Control_pw, &onepix ) ;
+X
+X
+X	xgl_transform_write(Ctrl_view_mat, hsi_mat) ;
+X	draw_hsi(Control_gfx) ;
+X
+X
+X	/* radar status */
+X
+X	if( (Me->flags & RADAR_FLAG) != 0)
+X	{
+X	  if( Me->target == NULL )
+X	  {
+X#ifndef XV
+X	    pw_text(Control_pw, STAT_LEFT, 10, yellow_rop, NULL, "radar on") ;
+X#else
+X	    text_color.index = dbmap[YELLOW] ;
+X	    xgl_object_set(Text_gfx, XGL_CTX_SFONT_TEXT_COLOR, &text_color, 0) ;
+X	    xgl_stroke_text(Text_gfx, "radar on", &radar_pos, NULL);
+X#endif
+X	  }
+X	  else
+X	  {
+X	    register float dx,dy,dz ;
+X
+X	    dx = Me->target->Posn.x - Me->Posn.x ;
+X	    dy = Me->target->Posn.y - Me->Posn.y ;
+X	    dz = Me->target->Posn.z - Me->Posn.z ;
+X	    dx = sqrt(dx*dx+dy*dy+dz*dz) ;
+X	    sprintf(line, "radar locked, range =%7.1f %-20.20s",
+X	      dx, Me->target->name) ;
+X#ifndef XV
+X	    pw_text(Control_pw, STAT_LEFT, 10, red_rop, NULL, line) ;
+X#else
+X	    text_color.index = dbmap[RED] ;
+X	    xgl_object_set(Text_gfx, XGL_CTX_SFONT_TEXT_COLOR, &text_color, 0) ;
+X	    xgl_stroke_text(Text_gfx, line, &radar_pos, NULL);
+X#endif
+X	  }
+X	}
+X
+X	/* score - added by dennis simpson */
+X
+X	sprintf(line,"Score:    %d", Me->score);
+X#ifndef	XV
+X	pw_text(Control_pw, STAT_LEFT, 90, white_rop, NULL, line);
+X#else
+X	text_color.index = dbmap[WHITE] ;
+X	xgl_object_set(Text_gfx, XGL_CTX_SFONT_TEXT_COLOR, &text_color, 0) ;
+X	xgl_stroke_text(Text_gfx, line, &score_pos, NULL);
+X#endif
+X
+X	/* radar lock added by ds */
+X
+X	{Object *ob;int i;
+X	ob=&objects[0];
+X	line[0] = '\0' ;
+X#ifdef	XV
+X	lock_pos.y = .75 ;
+X	text_color.index = dbmap[YELLOW] ;
+X	xgl_object_set(Text_gfx, XGL_CTX_SFONT_TEXT_COLOR, &text_color, 0) ;
+X	for(i=0;i<MAX_OBJECTS && lock_pos.y >= 0.;i++)
+X#else
+X	j = 50 ;
+X	for(i=0;i<MAX_OBJECTS && j <= 110;i++)
+X#endif	XV
+X	{
+X		if(ob->class == OBJ_PLAYER &&
+X		    ob->status == OBJ_ACTIVE &&
+X		    ob->target == Me)
+X		{
+X		    sprintf(line,"Locked by %s score: %d", ob->name,ob->score);
+X#ifdef	XV
+X		    xgl_stroke_text(Text_gfx, line, &lock_pos, NULL) ;
+X		    lock_pos.y -= .15 ;
+X#else
+X		    pw_text(Control_pw, LOCK_STAT_LEFT, j,
+X			yellow_rop, NULL, line);
+X		    j += 20 ;
+X#endif	XV
+X		}
+X		ob++;
+X	}
+X			
+X
+X	/* missile armed */
+X
+X#ifdef	XV
+X	text_color.index = dbmap[WHITE] ;
+X	xgl_object_set(Text_gfx, XGL_CTX_SFONT_TEXT_COLOR, &text_color, 0) ;
+X#endif	/* XV */
+X
+X	if( armed_missiles > 0 )
+X	{
+X#ifndef	XV
+X	  pw_text(Control_pw, STAT_LEFT, 30, white_rop, NULL, "missile armed") ;
+X#else
+X	  xgl_stroke_text(Text_gfx, "missile armed", &armed_pos, NULL);
+X	}
+X#endif	XV
+X	}
+X
+X	/* missiles remaining */
+X
+X	sprintf(line,"missiles remaining: %-2d",missiles_remaining) ;
+X#ifndef	XV
+X	pw_text(Control_pw, STAT_LEFT, 50, white_rop, NULL, line) ;
+X#else
+X	xgl_stroke_text(Text_gfx, line, &remain_pos, NULL);
+X#endif	XV
+X
+X	pw_unlock(Control_pw) ;
+X
+X	dbuf_swap() ;
+X}
+X
+X
+X
+Xset_line_color(ctx, i)
+X	Xgl_3d_ctx	ctx ;
+X	int		i ;
+X{
+X	Xgl_color	color ;
+X
+X	color.index = dbmap[i] ;
+X	xgl_object_set(ctx, XGL_CTX_LINE_COLOR, &color, 0) ;
+X}
+X
+X
+X
+Xset_pgon_color(ctx, i)
+X	Xgl_3d_ctx	ctx ;
+X	int		i ;
+X{
+X	Xgl_color	color ;
+X
+X	color.index = dbmap[i] ;
+X	xgl_object_set(ctx, XGL_CTX_SURF_FRONT_COLOR, &color, 0) ;
+X}
+X
+X
+X
+Xstatic	Mat3d	Identity = {{1.0,0.0,0.0,0.0},
+X			    {0.0,1.0,0.0,0.0},
+X			    {0.0,0.0,1.0,0.0},
+X			    {0.0,0.0,0.0,1.0}} ;
+X
+Xstatic	Mat2d	Identity2 =  {{1.0,0.0},
+X			      {0.0,1.0},
+X			      {0.0,0.0}} ;
+X
+X
+X
+X
+X
+Xident_mat(matrix)
+X	Mat3d	matrix ;
+X{
+X	bcopy(Identity, matrix, sizeof(Mat3d)) ;
+X}
+X
+X
+X/*
+X *   viewplane model of perspective.  calling routine specifies the
+X *   z-coordinate from which the model is being viewed (ze) and the
+X *   z-coordinate of the viewing projection plane (zp, typically 0.0)
+X */
+X
+Xvoid
+Xpersp(ze,zp,matrix)
+X	float	ze,zp ;
+X	Mat3d	matrix ;
+X{
+X	bcopy(Identity, matrix, sizeof(Mat3d)) ;
+X
+X	if(ze!=zp)
+X	{
+X	  matrix[2][3] = -1.0/(zp-ze) ;
+X	  matrix[3][3] = -ze * matrix[2][3] ;
+X	  matrix[2][2] = matrix[2][3] + matrix[3][3] ;
+X	}
+X}
+X
+X
+X/*
+X * build a matrix that maps the region defined by [x0,y0,z0 x1,y1,z1]
+X * to the gp's viewport
+X */
+X
+X
+Xwindow_mat2(x0,x1,y0,y1,matrix)
+X	float	x0,x1,y0,y1 ;
+Xregister Mat2d	matrix ;
+X{
+X	bcopy(Identity2, matrix, sizeof(Mat2d)) ;
+X
+X	matrix[0][0] = 2.0/(x1-x0) ;
+X	matrix[1][1] = 2.0/(y1-y0) ;
+X	matrix[2][0] = -1.0 - x0 * matrix[0][0] ;
+X	matrix[2][1] = -1.0 - y0 * matrix[1][1] ;
+X}
+X
+X
+Xwindow_mat(x0,x1,y0,y1,z0,z1,matrix)
+X	float	x0,x1,y0,y1,z0,z1 ;
+Xregister Mat3d	matrix ;
+X{
+X	bcopy(Identity, matrix, sizeof(Mat3d)) ;
+X
+X	matrix[0][0] = 2.0/(x1-x0) ;
+X	matrix[1][1] = 2.0/(y1-y0) ;
+X	matrix[2][2] = 1.0/(z1-z0) ;
+X	matrix[3][0] = -1.0 - x0 * matrix[0][0] ;
+X	matrix[3][1] = -1.0 - y0 * matrix[1][1] ;
+X	matrix[3][2] = - z0 * matrix[2][2] ;
+X}
+X
+X
+X
+X
+Xpersp_window_mat(ze,zp,x0,x1,y0,y1,z0,z1,matrix)
+X	float	ze,zp,x0,x1,y0,y1,z0,z1 ;
+Xregister Mat3d	matrix ;
+X{
+Xregister float		dist ;
+X
+X	bcopy(Identity, matrix, sizeof(Mat3d)) ;
+X
+X	dist = x1-x0 ;
+X	matrix[0][0] = 2.0/dist ;
+X	matrix[3][0] = -(x1+x0)*.5*matrix[0][0] ;
+X
+X	dist = y1-y0 ;
+X	matrix[1][1] = 2.0/dist ;
+X	matrix[3][1] = -(y1+y0)*.5*matrix[1][1] ;
+X
+X	dist = zp-ze ;
+X	matrix[2][3] = 1.0/dist ;
+X	matrix[3][3] = -ze * matrix[2][3] ;
+X
+X	dist = z1-z0 ;
+X	matrix[2][2] = (z1*matrix[2][3] + matrix[3][3]) / dist ;
+X	matrix[3][2] = -z0 * matrix[2][2] ;
+X}
+SHAR_EOF
+len=`wc -c < draw_image_xgl.c`
+if test $len != 13119 ; then
+echo shar: draw_image_xgl.c was $len bytes long, should have been 13119
+fi
+fi # end of overwriting check
+
+if test -f draw_bsp_xgl.c ; then
+echo shar: will not over-write existing file draw_bsp_xgl.c
+else
+echo shar: extracting draw_bsp_xgl.c, 2780 characters
+sed 's/^X//' > draw_bsp_xgl.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)draw_bsp_xgl.c 1.1 92/05/28 SMI" ;
+X	/* from draw_bsp_xgl.c 1.1 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file draws a bsp_tree object
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "bsp_object.h"
+X
+Xextern	int	debug_level ;
+X
+X#define	MAX_VECS	50
+X
+Xstatic	Pt3d	Pointzero = {0.0, 0.0, 0.0} ;
+X
+Xstatic	int	current_color ;
+Xstatic	int	current_pg_color ;
+Xstatic	Xgl_color	pg_color ;
+X
+X
+X#define	bsp_color_line(color) if(color != current_color)	\
+X	    Set_color(Main_gfx, current_color = color) ;
+X
+X#define	bsp_color_pg(color) if(color != current_pg_color){	\
+X	    pg_color.index = dbmap[current_pg_color = color] ;	\
+X	    xgl_object_set(Main_gfx,				\
+X		XGL_CTX_SURF_FRONT_COLOR, &pg_color, 0) ; }
+X
+X
+X
+Xint
+Xdraw_object_bsp(desc, viewer)
+X	Object_Desc	*desc ;
+X	Pt3d	*viewer;
+X{
+X	Bsp_Node	*top ;
+Xstatic	void		fill_vec() ;
+Xstatic	void		draw_node() ;
+X
+X	top = (Bsp_Node *)desc->first ;
+X	current_color = -1 ;
+X	draw_node(top, viewer) ;
+X}
+X
+X
+X
+X
+X
+X
+Xstatic	void
+Xdraw_node(node, viewer)
+Xregister Bsp_Node	*node ;
+X	 Pt3d	*viewer;
+X{
+X	Pt3d	vector ;
+X	int	i,j ;
+X	Xgl_pt_list	pl[BSP_MAX_LOOP] ;
+X
+X
+X	vector = *viewer ;
+X	vector.x -= node->vertices->x ;
+X	vector.y -= node->vertices->y ;
+X	vector.z -= node->vertices->z ;
+X
+X	if ((vector.x*node->normal.x +
+X	     vector.y*node->normal.y +
+X	     vector.z*node->normal.z ) < 0.0)	/* back face */
+X	{
+X	  if(node->front_child)
+X	    draw_node(node->front_child, viewer) ;
+X	  if(node->flags & BSP_BACK_VIEW)
+X	  {
+X	    for(i=0, j=0; i<node->nloop; ++i)
+X	    {
+X	      pl[i].pt_type = XGL_PT_F3D ;
+X	      pl[i].bbox = NULL ;
+X	      pl[i].num_pts = node->loops[i] ;
+X	      pl[i].pts.f3d = &node->vertices[j] ;
+X	      j += node->loops[i] ;
+X	    }
+X
+X	    if(node->color)
+X	    {
+X	      bsp_color_pg(node->color) ;
+X	      xgl_polygon(Main_gfx,XGL_FACET_NONE,NULL,NULL, node->nloop, pl);
+X	    }
+X	    if(node->trimcolor)
+X	    {
+X	      bsp_color_line(node->trimcolor) ;
+X	      xgl_multipolyline(Main_gfx, NULL, node->nloop, pl) ;
+X	    }
+X	  }
+X	  if(node->back_child)
+X	    draw_node(node->back_child, viewer) ;
+X	}
+X	else				/* front face */
+X	{
+X	  if(node->back_child)
+X	    draw_node(node->back_child, viewer) ;
+X	  for(i=0, j=0; i<node->nloop; ++i)
+X	  {
+X	    pl[i].pt_type = XGL_PT_F3D ;
+X	    pl[i].bbox = NULL ;
+X	    pl[i].num_pts = node->loops[i] ;
+X	    pl[i].pts.f3d = &node->vertices[j] ;
+X	    j += node->loops[i] ;
+X	  }
+X
+X	  if(node->color)
+X	  {
+X	    bsp_color_pg(node->color) ;
+X	    xgl_polygon(Main_gfx,XGL_FACET_NONE,NULL,NULL, node->nloop, pl);
+X	  }
+X	  if(node->trimcolor)
+X	  {
+X	    bsp_color_line(node->trimcolor) ;
+X	    xgl_multipolyline(Main_gfx, NULL, node->nloop, pl) ;
+X	  }
+X	  if(node->front_child)
+X	    draw_node(node->front_child, viewer) ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < draw_bsp_xgl.c`
+if test $len != 2780 ; then
+echo shar: draw_bsp_xgl.c was $len bytes long, should have been 2780
+fi
+fi # end of overwriting check
+
+if test -f draw_objects_xgl.c ; then
+echo shar: will not over-write existing file draw_objects_xgl.c
+else
+echo shar: extracting draw_objects_xgl.c, 5797 characters
+sed 's/^X//' > draw_objects_xgl.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)draw_objects_xgl.c 1.1 92/05/28 SMI" ;
+X	/* from draw_objects_xgl.c 1.1 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file goes through the object list and draws all of the objects
+X * on the screen
+X */
+X
+X
+X#define	MAX_TMP	100	/* how many points to buffer */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "line_object.h"
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X
+Xstatic
+Xrebuild_sort_list()
+X{
+Xregister Object	*object = &objects[0] ;
+Xregister int	i ;
+X
+X
+Xfor(i=0; i<nobjects; ++i)
+Xobject = &objects[sort_list[i]] ;
+X
+X	nobjects = 0 ;
+X	for( i=0; i<MAX_OBJECTS; ++i)
+X	{
+X	  if( object->class != OBJ_EMPTY )
+X	    sort_list[nobjects++] = i ;
+X	  ++object ;
+X	}
+X}
+X
+X
+X
+Xstatic	int
+Xdraw_object_lines(desc)
+X	Object_Desc	*desc ;
+X{
+X	XYZF	*xyzf ;
+X	int	color ;
+X	Xgl_pt_flag_f3d	tmp_pts[MAX_TMP], *op ;
+X	Xgl_pt_list	tmp_pt_list ;
+X
+X	xyzf = (XYZF *) desc->first ;
+X
+X	color = -1 ;
+X	op = tmp_pts ;
+X	tmp_pt_list.pt_type = XGL_PT_FLAG_F3D ;
+X	tmp_pt_list.bbox = NULL ;
+X	tmp_pt_list.num_pts = 0 ;
+X	tmp_pt_list.pts.flag_f3d = tmp_pts ;
+X	while(xyzf->color != LINE_END)
+X	{
+X	  if(xyzf->color != color  ||  tmp_pt_list.num_pts >= MAX_TMP)
+X	  {
+X	    if( tmp_pt_list.num_pts > 1 )
+X	    {
+X	      xgl_multipolyline(Main_gfx, NULL, 1, &tmp_pt_list) ;
+X	      tmp_pts[0] = tmp_pts[tmp_pt_list.num_pts-1] ;
+X	      tmp_pt_list.num_pts = 1 ;
+X	      op = &tmp_pts[1] ;
+X	    }
+X	    Set_color(Main_gfx, color=xyzf->color) ;
+X	  }
+X	  op->x = xyzf->p.x ;
+X	  op->y = xyzf->p.y ;
+X	  op->z = xyzf->p.z ;
+X	  op->flag = xyzf->color != MOVE ;
+X	  ++op ;
+X	  ++tmp_pt_list.num_pts ;
+X	  ++xyzf ;
+X	}
+X	if( tmp_pt_list.num_pts > 1 )
+X	  xgl_multipolyline(Main_gfx, NULL, 1, &tmp_pt_list) ;
+X}
+X
+X
+X
+Xstatic	int
+Xdraw_laser_beams(object)
+X	Object	*object ;
+X{
+X	Pt3d  beam[2] ;
+X	Xgl_pt_list	tmp_pt_list ;
+X
+X	Set_color(Main_gfx,RED) ;
+X	beam[0] = beam[1] = object->Posn ;
+X	beam[1].x += object->Pointing.x * LASER_RANGE ;
+X	beam[1].y += object->Pointing.y * LASER_RANGE ;
+X	beam[1].z += object->Pointing.z * LASER_RANGE ;
+X	tmp_pt_list.pt_type = XGL_PT_F3D ;
+X	tmp_pt_list.bbox = NULL ;
+X	tmp_pt_list.num_pts = 2 ;
+X	tmp_pt_list.pts.f3d = beam ;
+X	xgl_multipolyline(Main_gfx, NULL, 1, &tmp_pt_list) ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xdraw_object(object)
+X	Object		*object ;
+X{
+X	Mat3d		WtoM, MtoW ;
+X	Object_Desc	*desc ;
+X	float		Dist ;
+Xregister float		dx, dy, dz ;
+Xextern	int		draw_object_bsp() ;
+X
+X	/* build transformation matrix (model space to world) */
+X	/* and at the same time build  (world to model space) */
+X
+X	ident_mat(MtoW) ;
+X	ident_mat(WtoM) ;
+X
+X	WtoM[0][2] = (MtoW[2][0] = object->Forward.x) ;
+X	WtoM[1][2] = (MtoW[2][1] = object->Forward.y) ;
+X	WtoM[2][2] = (MtoW[2][2] = object->Forward.z) ;
+X	WtoM[0][1] = (MtoW[1][0] = object->Up.x) ;
+X	WtoM[1][1] = (MtoW[1][1] = object->Up.y) ;
+X	WtoM[2][1] = (MtoW[1][2] = object->Up.z) ;
+X	WtoM[0][0] = (MtoW[0][0] = object->Right.x) ;
+X	WtoM[1][0] = (MtoW[0][1] = object->Right.y) ;
+X	WtoM[2][0] = (MtoW[0][2] = object->Right.z) ;
+X	MtoW[3][0] = object->Posn.x ;
+X	MtoW[3][1] = object->Posn.y ;
+X	MtoW[3][2] = object->Posn.z ;
+X
+X	xgl_transform_write( TM1, MtoW) ;
+X	xgl_transform_multiply( TM2, TM1, WIN_MAT) ;
+X	xgl_object_set(Main_gfx, XGL_CTX_GLOBAL_MODEL_TRANS, TM2, 0) ;
+X
+X	dx = object->Posn.x - Me->Posn.x ;
+X	dy = object->Posn.y - Me->Posn.y ;
+X	dz = object->Posn.z - Me->Posn.z ;
+X	Dist = dx*dx + dy*dy + dz*dz ;
+X
+X	desc = descriptions[object->description] ;
+X	while(Dist < desc->thresh && desc->next)
+X	  desc = desc->next ;
+X
+X	if(desc->type == LINE_DRAWING)
+X	  draw_object_lines(desc) ;
+X
+X	/* Transform the user's position (Me->Posn) into
+X	   the object's model space coordinates */
+X	else if(desc->type == BSP_TREE) {
+X	  Pt3d		viewer;
+X	  Xgl_pt	Xfpt ;
+X
+X	  xgl_transform_write( TM1, WtoM);
+X
+X	  Xfpt.pt_type = XGL_PT_F3D ;
+X	  Xfpt.pt.f3d = &viewer ;
+X	  viewer.x = -object->Posn.x ;
+X	  viewer.y = -object->Posn.y ;
+X	  viewer.z = -object->Posn.z ;
+X	  xgl_transform_translate(TM1, &Xfpt, XGL_TRANS_PRECONCAT) ;
+X
+X	  viewer = Me->Posn ;
+X	  xgl_transform_point(TM1, &Xfpt) ;
+X	  draw_object_bsp(desc, &viewer) ;
+X	}
+X
+X	else
+X	  printf("undefined object type %d\n",desc->type) ;
+X
+X	if(object->flags & LASER_FLAG)
+X	{
+X	  xgl_object_set(Main_gfx, XGL_CTX_GLOBAL_MODEL_TRANS, WIN_MAT, 0) ;
+X	  draw_laser_beams(object) ;
+X	  xgl_object_set(Main_gfx, XGL_CTX_GLOBAL_MODEL_TRANS, TM2, 0) ;
+X	}
+X}
+X
+X
+X
+Xdraw_objects()
+X{
+Xregister int	i ;
+Xregister Object	*object ;
+X
+X
+X	/* sort all objects by distance along Me->Forward */
+X	/* a simple bubble sort will do very well with the
+X	   frame-to-frame coherence that exists */
+X
+X	{
+X	  int		n, next_n ;
+X	  float		distance[MAX_OBJECTS] ;
+X	  register int	j ;
+X	  register Object **optr ;
+X
+X	  object = &objects[0] ;
+X	  for(i=0; i<MAX_OBJECTS; ++i)
+X	  {
+X	    if(object->class != OBJ_EMPTY  &&
+X	       object->status != OBJ_SLEEPING)
+X	    {
+X	      distance[i] = Me->Forward.x*(object->Posn.x - Me->Posn.x) +
+X			    Me->Forward.y*(object->Posn.y - Me->Posn.y) +
+X			    Me->Forward.z*(object->Posn.z - Me->Posn.z) ;
+X	    }
+X	    ++object ;
+X	  }
+X
+X	  n = nobjects-1 ;
+X
+X	  while(n > 0)
+X	  {
+X	    next_n = 0 ;
+X	    for(i=0; i<n; ++i)
+X	    {
+X	      if(distance[sort_list[i+1]] > distance[sort_list[i]])
+X	      {
+X		j = sort_list[i+1] ;
+X		sort_list[i+1] = sort_list[i] ;
+X		sort_list[i] = j ;
+X		next_n = i ;
+X	      }
+X	    }
+X	    n = next_n ;
+X	  }
+X	}
+X
+X
+X	/* draw enemy ships */
+X
+X	for(i=0; i<nobjects; ++i)
+X	{
+X	  object = &objects[sort_list[i]] ;
+X	  if(object->class != OBJ_EMPTY  &&
+X	     object->status != OBJ_SLEEPING)
+X	  {
+X	    draw_object(object) ;
+X	  }
+X	  else if (object->class == OBJ_EMPTY)
+X	  {
+X#ifdef	DEBUG
+X	    printf("internal error: sort_list contains pointer") ;
+X	    printf(" to inactive object %d, %s\n",
+X			sort_list[i], object->name) ;
+X#endif	DEBUG
+X	    rebuild_sort_list() ;
+X	  }
+X	}
+X
+X	xgl_object_set(Main_gfx, XGL_CTX_GLOBAL_MODEL_TRANS, WIN_MAT, 0) ;
+X}
+SHAR_EOF
+len=`wc -c < draw_objects_xgl.c`
+if test $len != 5797 ; then
+echo shar: draw_objects_xgl.c was $len bytes long, should have been 5797
+fi
+fi # end of overwriting check
+
+if test -f laser.c ; then
+echo shar: will not over-write existing file laser.c
+else
+echo shar: extracting laser.c, 1840 characters
+sed 's/^X//' > laser.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)laser.c 1.1 92/05/28 SMI" ;
+X	/* from laser.c 1.3 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * test all objects to see if they've been touched by the laser beam
+X */
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X#define	LASER_THRESH2	(LASER_THRESH*LASER_THRESH)
+X
+X
+X/*******
+X *
+X * test_object(object)
+X *
+X * check to see if the object lies along the laser beam, and how
+X * close.
+X *
+X * given P0 is my position, P1 is the object's position and V is the
+X * vector along the laser beam, then the point of closest approach, P, for
+X * the laser beam to P1 is
+X *
+X *	d = V * (P1-P0)			(* = dot-product)
+X *	P = dV
+X *
+X * Note that since V is normalized, d is the distance from P0 to P.
+X *
+X ******/
+X
+X
+X
+Xtest_object(object)
+X	Object	*object ;
+X{
+X	Pt3d	P, dP ;
+X	float		d, dist ;
+X
+X	dP.x = object->Posn.x - Me->Posn.x ;
+X	dP.y = object->Posn.y - Me->Posn.y ;
+X	dP.z = object->Posn.z - Me->Posn.z ;
+X
+X	d = dP.x * Me->Pointing.x +
+X	    dP.y * Me->Pointing.y +
+X	    dP.z * Me->Pointing.z ;
+X
+X	if (d < 0.0  ||  d > LASER_RANGE)
+X	  return ;
+X
+X	P.x = Me->Posn.x + d*Me->Pointing.x ;
+X	P.y = Me->Posn.y + d*Me->Pointing.y ;
+X	P.z = Me->Posn.z + d*Me->Pointing.z ;
+X
+X	dist = (P.x - object->Posn.x) * (P.x - object->Posn.x) +
+X	       (P.y - object->Posn.y) * (P.y - object->Posn.y) +
+X	       (P.z - object->Posn.z) * (P.z - object->Posn.z) ;
+X
+X	if(dist > LASER_THRESH2)
+X	  return ;
+X
+X
+X	/* GOT IT! */
+X
+X
+X	net_blow_away(Me, object) ;
+X}
+X
+X
+X
+X
+Xtest_objects()
+X{
+X	int	i ;
+X	Object	*object ;
+X
+X	/* check enemy ships */
+X
+X	object = &objects[0] ;
+X	for(i=0; i<MAX_OBJECTS; ++i)
+X	{
+X	  if(object != Me  &&
+X	     (object->class == OBJ_PLAYER  ||
+X	      object->class == OBJ_MISSILE)  &&
+X	     object->status == OBJ_ACTIVE )
+X	  {
+X	    test_object(object) ;
+X	  }
+X	  ++object ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < laser.c`
+if test $len != 1840 ; then
+echo shar: laser.c was $len bytes long, should have been 1840
+fi
+fi # end of overwriting check
+
+if test -f blast.c ; then
+echo shar: will not over-write existing file blast.c
+else
+echo shar: extracting blast.c, 1214 characters
+sed 's/^X//' > blast.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)blast.c 1.1 92/05/28 SMI" ;
+X	/* @(#)blast.c 1.3 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file is special for the fighter visuals.  It contains functions:
+X *
+X * set_blast_state(state)
+X *	changes graphics when blast state changes
+X *
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "line_object.h"
+X
+Xextern	int	debug_level ;
+X
+Xstatic	XYZF	blast_0[] = {
+X#include "blast_line0.h"
+X} ;
+X
+Xstatic	XYZF	blast_1[] = {
+X#include "blast_line1.h"
+X} ;
+X
+X
+X
+X
+X
+X
+X/* this routine creates a description for an explosion */
+X
+X
+Xvoid
+Xinit_blasts(index)
+X	int	index ;
+X{
+X	Object_Desc	*desc1, *desc2 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X	desc2 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1 && desc2)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 100.0*100.0 ;
+X	  desc1->next = desc2 ;
+X	  desc1->type = LINE_DRAWING ;
+X	  desc1->first = (caddr_t) blast_0 ;
+X
+X	  desc2->thresh = 0.0 ;
+X	  desc2->next = NULL ;
+X	  desc2->type = LINE_DRAWING ;
+X	  desc2->first = (caddr_t) blast_1 ;
+X	}
+X	else
+X	{
+X	  perror("init_blasts: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < blast.c`
+if test $len != 1214 ; then
+echo shar: blast.c was $len bytes long, should have been 1214
+fi
+fi # end of overwriting check
+
+if test -f special_xv.c ; then
+echo shar: will not over-write existing file special_xv.c
+else
+echo shar: extracting special_xv.c, 27268 characters
+sed 's/^X//' > special_xv.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)special_xv.c 1.2 92/05/28 SMI" ;
+X	/* from special.c 1.5 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file contains stuff that varies between fighter, robot etc.
+X *
+X * It contains these routines:
+X *
+X * init_game_special(&argc,argv)
+X *	initialize all window system stuff etc.  Called once at startup.
+X *
+X * init_communications()
+X *	sign on to the game.	Called once at startup.
+X *
+X * dstar_main_loop()
+X *	Start the game, calls window_main_loop().  Called once at startup.
+X *
+X * terminate_game()
+X *	called from sigint handler (not interrupt time) to shut down.
+X *
+X * special_welcome()
+X *	set id & team from data sent by daemon
+X *
+X * normal_action()
+X *	called from time function, once per slice
+X *
+X * blast_action()
+X *	called from time function, once per time slice while dead
+X *
+X * set_blast_state()
+X *	called from time function, once per state change while dead
+X *
+X * special_add_player(object)
+X *	called when a new object joins the game
+X *
+X * special_remove_player(object)
+X *	called when an object leaves the game
+X *
+X * special_got_blasted(object)
+X *	called got shot (by player "object")
+X *
+X * special_new_status(object)
+X *	called when an object changes status
+X */
+X
+X
+X
+X#include <fcntl.h>
+X#include <stdio.h>
+X#include <xview/window_hs.h>
+X#include <X11/Xlib.h>
+X#include <X11/Xatom.h>
+X#include <xview/xview.h>
+X#include <xview/canvas.h>
+X#include <xview/cursor.h>
+X#include <xview/cms.h>
+X#include <math.h>
+X#include <sys/time.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X
+Xstatic	Server_image	Main_Image, Main_sleep_Image, Main_no_Image ;
+Xstatic	Server_image	current_image ;
+X
+X	Frame	Main_Frame ;
+X	Canvas	Main_Canvas ;
+X	Icon	Main_Icon ;
+X	Cursor	Main_Cursor ;
+X	Cursor	Default_Cursor ;
+X
+XXgl_X_window    Main_x_win, Control_x_win, xgl_x_win;
+XAtom            catom;
+XWindow          frame_window;
+XWindow          Main_canvas_window, Control_canvas_window, 
+X		canvas_window;
+XDisplay	    	*display;
+XXv_Window       Main_pw;
+X
+X
+Xstatic	struct timeval	First_Time ;
+Xstatic	int		nframes ;
+X
+X	int		status_display ;
+X
+X#ifdef	XGL
+Xstatic	Xgl_sys_st	Main_state ;
+Xstatic	Xgl_cmap	cmap1, cmap2 ;
+Xstatic	Xgl_color_list	ctable ;
+Xstatic	Xgl_color	ctab1[64], ctab2[64] ;
+Xstatic	Xgl_win_ras	Main_ras, Control_ras ;
+X	Xgl_mem_ras	Cursor_ras;
+X	Xgl_3d_ctx	Main_gfx, Control_gfx ;
+X	Xgl_2d_ctx	Text_gfx;
+Xstatic	Xgl_bounds_f3d	Idwin = {-1.,1.,-1.,1.,-1.,1.} ;
+Xstatic	Xgl_bounds_f2d	Ctrldcvp = {0.,500.,600.,740.} ;
+Xstatic	Xgl_bounds_f3d	Ctrlwin = {0.0,2.0,0.0,5.0,0.,1.} ;
+Xstatic	Xgl_bounds_f2d	Textdcvp = {200.,740.,600.,740.} ;
+Xstatic	Xgl_bounds_f2d	Textwin = {-0.5,1.5,0.0,5.0} ;
+Xstatic	int		dbuffer = 0 ;
+X
+X#define	Dev_gp1_dbuf_putcolormap(ctx,start,len,r,g,b)	\
+X			dbuf_putcolormap(start,len,r,g,b)
+X#else
+X	GP1_handle	Main_gfx, Control_gfx ;
+X#endif	XGL
+X
+Xstatic	unsigned char	red[]   = {  0, 255, 192, 128, 255,   0,   0, 255 } ;
+Xstatic	unsigned char	green[] = {  0, 255, 192, 128,   0, 255,   0, 255 } ;
+Xstatic	unsigned char	blue[]  = { 64, 255, 192, 128,   0,   0, 255,   0 } ;
+X
+Xstatic	short	dstar_icon[] = {
+X#include "dstar.icon"
+X} ;
+X
+Xstatic	short	dstar_sleep_icon[] = {
+X#include "dstar_sleep.icon"
+X} ;
+X
+Xstatic	short	nodstar_icon[] = {
+X#include "nodstar.icon"
+X} ;
+X
+Xstatic short	dstar_cursor[] = {
+X#include "cursor2.pr"
+X} ;
+X
+X
+Xstatic	void	open_graphics() ;
+Xstatic	void	Canvas_Proc() ;
+Xstatic	void	Canvas_Resize_Proc(), Fake_Resize_Proc() ;
+Xstatic	void	Control_Proc() ;
+Xstatic	void	Control_Repaint_Proc() ;
+Xstatic	void	Control_Resize_Proc() ;
+Xstatic	Notify_value	Destroy_func(), Close_func() ;
+X	void	timefunc(), sleepfunc() ;
+Xstatic	int	sigint() ;
+Xextern	Notify_value	dstar_prioritizer() ;
+X
+X
+X#define	MAX_FIGHTERS	2
+X
+Xstatic	int	fighters[MAX_FIGHTERS] ;
+X
+X
+X
+Xstatic	char	*help_info ="\
+X-k n		kill flag, 1=robots, 2=humans, 3=both\n\
+X-t n		time interval for above\n\
+X-free		free-for-all\n\
+X-teams		players divided into two teams\n\
+X-help		this list\n\
+Xhostname	used to slave one local net to another" ;
+X
+Xstatic	    need_resize = FALSE;
+XXv_window   resize_win;
+Xint	    resize_width, resize_height;
+X
+X
+X
+X
+X
+X
+X
+X
+Xinit_game_special(argc,argv)
+X	int	argc ;
+X	char	**argv ;
+X{
+X	int		i,j,k,iret ;
+X	int		c ;
+X	Pt3d		p1, p2, p3, p4 ;
+X	char		*mastername = NULL ;
+X	unsigned char	r[256], g[256], b[256] ;
+X	static Xv_singlecolor	cursor_color = {255,255,0} ;
+X	unsigned char   *mem;
+X    	Xgl_color	rop_color, space_color, text_color;
+X	int		panel_flag = 0 ;
+Xextern	fptr		fighter_vector[VECTOR_LENGTH] ;
+X	Server_image	svr_image ;
+X
+X
+X	xv_init(XV_INIT_ARGC_PTR_ARGV, &argc, argv,NULL);
+X
+X	Main_Image = (Server_image)xv_create(NULL, SERVER_IMAGE,
+X	    XV_WIDTH,			64,
+X	    XV_HEIGHT,			64,
+X	    SERVER_IMAGE_BITS,		dstar_icon,
+X	    NULL);
+X
+X	Main_sleep_Image = (Server_image)xv_create(NULL, SERVER_IMAGE,
+X	    XV_WIDTH,			64,
+X	    XV_HEIGHT,			64,
+X	    SERVER_IMAGE_BITS,		dstar_sleep_icon,
+X	    NULL);
+X
+X	Main_no_Image = (Server_image)xv_create(NULL, SERVER_IMAGE,
+X	    XV_WIDTH,			64,
+X	    XV_HEIGHT,			64,
+X	    SERVER_IMAGE_BITS,		nodstar_icon,
+X	    NULL);
+X
+X	Main_Icon = (Icon)xv_create(XV_NULL, ICON,
+X	    ICON_IMAGE,			Main_no_Image,
+X	    XV_X,			100,
+X	    XV_Y,			100,
+X	    NULL);
+X
+X	svr_image = (Server_image)xv_create(XV_NULL, SERVER_IMAGE,
+X	    XV_WIDTH,			16,
+X	    XV_HEIGHT,			16,
+X	    SERVER_IMAGE_BITS,		dstar_cursor,
+X	    NULL);
+X
+X	Main_Cursor = (Xv_Cursor)xv_create(XV_NULL, CURSOR,
+X	    CURSOR_IMAGE,           svr_image,
+X	    CURSOR_XHOT, 8, CURSOR_YHOT, 8,
+X	    CURSOR_FOREGROUND_COLOR, cursor_color,
+X	    NULL);
+X
+X	Main_Frame = window_create(NULL, FRAME,
+X	    FRAME_ICON, Main_Icon,
+X	    FRAME_LABEL, "Dstar - experimental",
+X	    FRAME_ARGC_PTR_ARGV, &argc, argv,
+X	0 ) ;
+X	if(Main_Frame == NULL)
+X	  exit(1) ;
+X
+X	current_image = Main_no_Image ;
+X
+X	Main_Canvas = window_create(Main_Frame, CANVAS,
+X	    WIN_WIDTH, 1000,
+X	    WIN_HEIGHT, 750,
+X	    OPENWIN_AUTO_CLEAR, FALSE,
+X	    CANVAS_RESIZE_PROC, Fake_Resize_Proc,
+X	    CANVAS_RETAINED, FALSE,
+X	    CANVAS_FIXED_IMAGE, FALSE,
+X	    NULL);
+X	if(Main_Canvas == NULL)
+X	  exit(1) ;
+X	Main_pw = (Xv_Window) canvas_paint_window(Main_Canvas);
+X	xv_set(Main_pw,
+X	    WIN_EVENT_PROC, Canvas_Proc,
+X	    WIN_CONSUME_EVENTS, WIN_MOUSE_BUTTONS, 
+X				LOC_MOVE,
+X				LOC_DRAG,
+X				WIN_IN_TRANSIT_EVENTS,
+X				WIN_ASCII_EVENTS, 
+X				WIN_LEFT_KEYS, 
+X				WIN_RIGHT_KEYS, 
+X				WIN_TOP_KEYS,
+X				NULL,
+X	0 ) ;
+X
+X	Default_Cursor = (Cursor) window_get(Main_pw, WIN_CURSOR) ;
+X
+X	window_fit(Main_Frame);
+X
+X#ifdef	XGL
+X	Main_state = xgl_open(XGL_SYS_ST_ERROR_DETECTION, TRUE, 0 ) ;
+X	if(Main_state == NULL)
+X	  exit(1) ;
+X
+X	/* compute d.b. colormaps */
+X
+X	for(i=0; i<8; ++i)
+X	  for(j=0; j<8; ++j)
+X	  {
+X	    ctab1[i+8*j].rgb.r = (float)red[j]/256. ;
+X	    ctab1[i+8*j].rgb.g = (float)green[j]/256. ;
+X	    ctab1[i+8*j].rgb.b = (float)blue[j]/256. ;
+X	    ctab2[8*i+j].rgb.r = (float)red[j]/256. ;
+X	    ctab2[8*i+j].rgb.g = (float)green[j]/256. ;
+X	    ctab2[8*i+j].rgb.b = (float)blue[j]/256. ;
+X	  }
+X	for(i=0; i<8; ++i)
+X	  dbmap[i] = (i << 3) | i ;
+X
+X	ctable.start_index = 0 ;
+X	ctable.length = 64 ;
+X	ctable.colors = ctab1 ;
+X	cmap1 = xgl_color_map_create(
+X			XGL_CMAP_COLOR_TABLE_SIZE,	64,
+X			XGL_CMAP_COLOR_TABLE,		&ctable, 0) ;
+X	if(cmap1 == NULL)
+X	  exit(1) ;
+X	ctable.colors = ctab2 ;
+X	cmap2 = xgl_color_map_create(
+X			XGL_CMAP_COLOR_TABLE_SIZE,	64,
+X			XGL_CMAP_COLOR_TABLE,		&ctable, 0) ;
+X	if(cmap2 == NULL)
+X	  exit(1) ;
+X
+X	display = (Display *) xv_get(Main_Frame, XV_DISPLAY);
+X
+X	Main_canvas_window = (Window) xv_get(Main_pw, XV_XID);
+X	frame_window = (Window) xv_get(Main_Frame, XV_XID);
+X
+X	catom = XInternAtom(display, "WM_COLORMAP_WINDOWS", False);
+X	XChangeProperty(display, frame_window, catom, XA_WINDOW, 32, 
+X		PropModeAppend, &Main_canvas_window, 1);
+X
+X	Main_x_win.X_display = (void *) display;
+X	Main_x_win.X_window = (Xgl_usgn32) Main_canvas_window;
+X	Main_x_win.X_screen = (int) DefaultScreen(display);
+X
+X	Main_ras = xgl_window_raster_device_create(
+X			XGL_WIN_X, &Main_x_win,
+X			XGL_RAS_COLOR_MAP,	cmap1,
+X			XGL_RAS_COLOR_TYPE,	XGL_COLOR_INDEX, 
+X			0 ) ;
+X	if(Main_ras == NULL)
+X	  exit(1) ;
+X
+X	Cursor_ras = xgl_memory_raster_device_create(
+X		XGL_RAS_DEPTH, 1,
+X		XGL_RAS_WIDTH, 16,
+X		XGL_RAS_HEIGHT, 16,
+X		0);
+X	xgl_object_get(Cursor_ras, XGL_MEM_RAS_MEMORY_ADDRESS, &mem);
+X	for (i = 0; i < 16; i++) {
+X	    mem[i * 2] = dstar_cursor[i] >> 8;
+X	    mem[i * 2 + 1] = dstar_cursor[i];
+X	}
+X
+X
+X	WIN_MAT = xgl_transform_create(0) ;
+X	OBJ_MAT = xgl_transform_create(0) ;
+X	ROT_MAT = xgl_transform_create(0) ;
+X	TM1 = xgl_transform_create(0) ;
+X	TM2 = xgl_transform_create(0) ;
+X	TM3 = xgl_transform_create(0) ;
+X	Ctrl_view_mat = xgl_transform_create(0) ;
+X	PERSP_MAT = xgl_transform_create(0) ;
+X	ID_MAT = xgl_transform_create(0) ;
+X	xgl_transform_identity(ID_MAT) ;
+X
+X	space_color.index = dbmap[0];
+X	rop_color.index = dbmap[YELLOW];
+X	Main_gfx = xgl_3d_context_create(
+X		    XGL_CTX_DEFERRAL_MODE,	XGL_DEFER_ASAP,
+X		    XGL_CTX_DEVICE,		Main_ras,
+X		    XGL_CTX_NEW_FRAME_ACTION, XGL_CTX_NEW_FRAME_VRETRACE|
+X					      XGL_CTX_NEW_FRAME_CLEAR,
+X		    XGL_CTX_PICK_ENABLE,	FALSE,
+X		    XGL_CTX_VDC_MAP,	XGL_VDC_MAP_ALL,
+X		    XGL_CTX_VDC_WINDOW,	&Idwin,
+X		    XGL_CTX_VDC_ORIENTATION, XGL_Y_UP_Z_TOWARD,
+X		    XGL_CTX_GLOBAL_MODEL_TRANS, WIN_MAT,
+X		    XGL_CTX_SURF_FRONT_COLOR, &rop_color,
+X		    XGL_3D_CTX_SURF_FACE_DISTINGUISH, 0,
+X		    XGL_3D_CTX_SURF_FRONT_ILLUMINATION, XGL_ILLUM_NONE,
+X		    XGL_3D_CTX_SURF_BACK_ILLUMINATION,  XGL_ILLUM_NONE,
+X		    XGL_3D_CTX_SURF_FACE_CULL, XGL_CULL_OFF,
+X		    XGL_3D_CTX_VIEW_CLIP_PLUS_W_ONLY, FALSE,
+X		    0 ) ;
+X
+X	Control_gfx = xgl_3d_context_create(
+X		    XGL_CTX_DEFERRAL_MODE,	XGL_DEFER_ASAP,
+X		    XGL_CTX_DEVICE,		Main_ras,
+X		    XGL_CTX_PICK_ENABLE,	FALSE,
+X		    XGL_CTX_VDC_MAP,	XGL_VDC_MAP_ALL,
+X		    XGL_CTX_VDC_WINDOW,	&Ctrlwin,
+X		    XGL_CTX_VDC_ORIENTATION, XGL_Y_UP_Z_TOWARD,
+X		    XGL_CTX_VIEW_TRANS, Ctrl_view_mat,
+X		    XGL_3D_CTX_SURF_FACE_DISTINGUISH, 0,
+X		    XGL_3D_CTX_SURF_FRONT_ILLUMINATION, XGL_ILLUM_NONE,
+X		    XGL_3D_CTX_SURF_BACK_ILLUMINATION,  XGL_ILLUM_NONE,
+X		    XGL_3D_CTX_SURF_FACE_CULL, XGL_CULL_OFF,
+X		    XGL_3D_CTX_VIEW_CLIP_PLUS_W_ONLY, FALSE,
+X		    0 ) ;
+X	text_color.index = dbmap[RED];
+X	Text_gfx = xgl_2d_context_create(
+X		    XGL_CTX_DEFERRAL_MODE,	XGL_DEFER_ASAP,
+X		    XGL_CTX_DEVICE,		Main_ras,
+X		    XGL_CTX_VDC_MAP,	XGL_VDC_MAP_ALL,
+X		    XGL_CTX_VDC_WINDOW,	&Textwin,
+X		    XGL_CTX_VDC_ORIENTATION, XGL_Y_UP_Z_TOWARD,
+X		    XGL_CTX_LINE_COLOR, &text_color, 
+X		    XGL_CTX_SFONT_TEXT_COLOR, &text_color, 
+X		    XGL_CTX_SFONT_CHAR_HEIGHT,  0.05, 
+X		    XGL_CTX_SFONT_CHAR_EXPANSION_FACTOR,  0.35, 
+X		    XGL_CTX_SFONT_TEXT_ALIGN_HORIZ,  XGL_TEXT_ALIGN_HORIZ_LEFT, 
+X		    XGL_CTX_SFONT_TEXT_ALIGN_VERT,  XGL_TEXT_ALIGN_VERT_HALF, 
+X		    0 ) ;
+X
+X
+X#else
+X	Main_gfx = Dev_gp1_create(Main_pw, 3, &iret) ;
+X	if(!Main_gfx) {
+X	  printf("can't open gp, err=%d\n",iret) ;
+X	  exit(1) ;
+X	}
+X	Dev_gp1_reset_to_defaults(Main_gfx) ;
+X
+X	hwdb = pw_dbl_get(Main_pw, PW_DBL_AVAIL) ;
+X	hwdb = 0 ;
+X	printf("hwdb=%d\n",hwdb) ;
+X#endif	XGL
+X
+X
+X	status_display = 0 ;
+X
+X	while(--argc > 0)
+X	{
+X	  ++argv ;
+X	  if(strcmp(*argv,"-free")==0)
+X	    game_type = GAME_FREE ;
+X
+X	  else if(strcmp(*argv,"-teams")==0)
+X	    game_type = GAME_TEAMS ;
+X
+X	  else if(strcmp(*argv,"-help")==0)
+X	  {
+X	    printf(help_info) ;
+X	    exit(0) ;
+X	  }
+X
+X	  else if(strcmp(*argv,"-ctdb")==0)
+X	    hwdb = 0 ;
+X
+X	  else if(strcmp(*argv,"-panel")==0)
+X	    panel_flag = 1 ;
+X
+X	  else if(strcmp(*argv,"-status")==0)
+X	    status_display = 1 ;
+X
+X	  else if(strcmp(*argv,"-debug")==0)
+X	    debug_level = 1 ;
+X
+X	  else if(**argv == '-')
+X	    printf("unknown option %s, '-help' for more info\n",*argv) ;
+X
+X	  else
+X	    mastername = *argv ;
+X	}
+X
+X#ifdef	DEBUG
+X	if(panel_flag)
+X	{
+X	  init_panel(Main_Frame) ;
+X	  window_fit_height(Main_Frame) ;
+X	}
+X#endif	DEBUG
+X
+X
+X#ifndef	XGL
+X	if(!hwdb)
+X	{
+X	  Dev_gp1_set_dbuf(Main_gfx, 3, "dstar") ;
+X	  Dev_gp1_dbuf_putcolormap(Main_gfx, 0, 8, red, green, blue) ;
+X	  Dev_gp1_dbuf_control(Main_gfx, 3) ;
+X	  Dev_gp1_dbuf_write_mask(Main_gfx, 7) ;
+X	  Dev_gp1_dbuf_color(Main_gfx,4) ;
+X	}
+X	else
+X	{
+X	  pw_dbl_access(Main_pw) ;
+X	  pw_dbl_set(Main_pw, PW_DBL_WRITE, PW_DBL_BOTH, 0) ;
+X	  hwdb = 1 ;
+X	  Dev_gp1_set_sbuf(Main_gfx, 3, "dstar") ;
+X	  Dev_gp1_set_write_mask(Main_gfx, 7) ;
+X	  Dev_gp1_set_color(Main_gfx,4) ;
+X	}
+X
+X	Dev_gp1_getcmsname(Main_gfx, cmsname) ;
+X	pw_setcmsname(Control_pw, cmsname) ;
+X	pw_putcolormap(Control_pw, 0,1, red,green,blue) ;
+X#endif	!XGL
+X
+X
+X#ifdef	XGL
+X	persp_window_mat(0.,1.,-1.,1.,-1.,1.,1.,10000.,P_matrix) ;
+X#else
+X	Dev_gp1_persp_window_mat(0.,1.,-1.,1.,-1.,1.,1.,10000.,P_matrix) ;
+X#endif	XGL
+X
+X
+X	notify_interpose_destroy_func(Main_Frame, Destroy_func) ;
+X	notify_interpose_event_func(Main_Frame, Close_func, NOTIFY_SAFE) ;
+X
+X	Me->id = -1 ;
+X	Me->team = 0 ;
+X	Me->score = 0 ;
+X	Me->class = OBJ_PLAYER ;
+X	Me->status = (int) window_get(Main_Frame, FRAME_CLOSED) ?
+X		OBJ_SLEEPING : OBJ_ACTIVE ;
+X	Me->flags = 0 ;
+X	Me->Posn.x = (random() % 3000) - 1500.0 ;
+X	Me->Posn.y = (random() % 3000) - 1500.0 ;
+X	Me->Posn.z = - 2000.0 ;
+X	Me->Forward.x = 0.0 ;
+X	Me->Forward.y = 0.0 ;
+X	Me->Forward.z = 1.0 ;
+X	Me->Up.x = 0.0 ;
+X	Me->Up.y = 1.0 ;
+X	Me->Up.z = 0.0 ;
+X	Me->Right.x = 1.0 ;
+X	Me->Right.y = 0.0 ;
+X	Me->Right.z = 0.0 ;
+X	Me->Delta.x = 0.0 ;
+X	Me->Delta.y = 0.0 ;
+X	Me->Delta.z = 0.0 ;
+X	Me->Pointing = Me->Forward ;
+X	Me->Speed = DEFAULT_SPEED ;
+X	Me->description = FIGHTER1_DESC ;
+X	bcopy(fighter_vector, Me->f_vector, sizeof(fighter_vector)) ;
+X
+X	Left_But = 1 ;
+X	Middle_But = 0 ;
+X	Right_But = 0 ;
+X	Side_1 = Side_2 = Side_3 = Side_4 = Side_5 =
+X	Side_6 = Side_7 = Side_8 = Side_9 = Side_10 = 0 ;
+X
+X	init_blasts(BLAST_DESC) ;
+X	init_fighter1(FIGHTER1_DESC) ;
+X	init_fighter2(FIGHTER2_DESC) ;
+X	init_planet(PLANET1_DESC) ;
+X	init_monolith(MONOLITH_DESC) ;
+X	init_missile(MISSILE_DESC) ;
+X	missile_init() ;
+X
+X
+X
+X
+X	fighters[0] = FIGHTER1_DESC ;
+X	fighters[1] = FIGHTER2_DESC ;
+X
+X	for(i=0; i<MAX_OBJECTS; sort_list[i++] = 0) ;
+X	nobjects = 0 ;
+X
+X	init_netio(getenv("USER"), mastername) ;
+X
+X	First_Time.tv_sec = -1 ;
+X	nframes = 0 ;
+X
+X	auto_pilot = 0 ;
+X	mouse_control = 0 ;
+X}
+X
+X
+X#ifdef	DEBUG
+Xstatic
+Xreport_rate()
+X{
+X	char	line[40] ;
+X	float	dtime ;
+X	float	rate ;
+X
+X	if(First_Time.tv_sec == -1)
+X	  First_Time = Now ;
+X	else
+X	{
+X	  dtime = (Now.tv_sec - First_Time.tv_sec) +
+X		  (Now.tv_usec - First_Time.tv_usec)*.000001 ;
+X
+X	  ++nframes ;
+X	  if(nframes%10 == 0)
+X	  {
+X	    rate = nframes/dtime ;
+X	    sprintf(line,"%7.2f %4d %8.3f",dtime,nframes,rate) ;
+X	    window_set(Main_Frame, FRAME_LABEL, line, 0) ;
+X	  }
+X	}
+X}
+X#endif	DEBUG
+X
+X
+X
+Xvoid
+Xdstar_main_loop()
+X{
+X	window_main_loop(Main_Frame) ;
+X}
+X
+X
+X
+Xint
+Xterminate_game()
+X{
+X	window_set(Main_Frame, FRAME_NO_CONFIRM, TRUE, 0);
+X	window_destroy(Main_Frame) ;
+X}
+X
+X
+X
+Xvoid
+Xspecial_welcome()
+X{
+X	set_ship_description() ;
+X}
+X
+X
+X
+Xspecial_sleep_func()
+X{
+X	int	i, nawake = 0, nsleep = 0 ;
+Xregister Object	*obj = &objects[0] ;
+X	Server_image	new_image ;
+X
+X	for(i=0; i<MAX_OBJECTS; ++i)
+X	{
+X	  if( obj->class == OBJ_PLAYER  &&
+X	      !(obj->flags & ROBOT_FLAG)  &&
+X	      obj != Me )
+X	  {
+X	    if( obj->status == OBJ_SLEEPING )
+X	      ++nsleep ;
+X	    else
+X	      ++nawake ;
+X	  }
+X	  ++obj ;
+X	}
+X	if(nawake > 0)
+X	  new_image = Main_Image ;
+X	else if(nsleep > 0)
+X	  new_image = Main_sleep_Image ;
+X	else
+X	  new_image = Main_no_Image ;
+X
+X	if(new_image != current_image)
+X	{
+X	  window_set(Main_Icon, ICON_IMAGE, new_image, 0 ) ;
+X	  current_image = new_image ;
+X	}
+X}
+X
+X
+X
+Xvoid
+Xnormal_action()
+X{
+X	if (need_resize == TRUE) {
+X	    Canvas_Resize_Proc(resize_win, resize_width, resize_height);
+X	    need_resize = FALSE;
+X	}
+X	get_input() ;
+X	if(Me->flags & RADAR_FLAG)
+X	  do_radar() ;
+X	else
+X	  Me->target = NULL ;
+X	control_ship() ;	/* read inputs, set position */
+X	control_enemies() ;
+X#ifdef	DEBUG
+X	report_rate() ;
+X#endif
+X	draw_image() ;
+X	if(Me->flags & LASER_FLAG)
+X	  test_objects() ;
+X
+X
+X	if( Me->id != -1 )
+X	{
+X	  net_start_message( NULL ) ;
+X	  send_status(Me) ;	/* tell everyone where I am */
+X	  fly_missiles() ;
+X	}
+X}
+X
+X
+X
+Xvoid
+Xblast_action()
+X{
+Xregister Object	*me = Me ;
+X	control_object(me) ;
+X#ifdef	DEBUG
+X	report_rate() ;
+X#endif
+X	draw_image() ;
+X
+X	if( me->id != -1 )
+X	{
+X	  net_start_message( NULL ) ;
+X	  fly_missiles() ;
+X	}
+X}
+X
+X
+X
+X
+X
+X/* this routine is called whenever the blast state changes */
+X
+X
+Xset_blast_state(state)
+X	Blast_State	state ;
+X{
+Xstatic	char	red0[]	= {192} ;
+Xstatic	char	green0[] = {  0} ;
+Xstatic	char	blue0[]	= {  0} ;
+Xstatic	char	red1[]	= {  0} ;
+Xstatic	char	green1[] = {  0} ;
+Xstatic	char	blue1[]	= { 64} ;
+X
+X	switch(state)
+X	{
+X	  case B_FLASH:
+X	    Dev_gp1_dbuf_putcolormap(Main_gfx, 0, 1, red0, green0, blue0) ;
+X	    break ;
+X
+X	  case B_WAIT:
+X	    Dev_gp1_dbuf_putcolormap(Main_gfx, 0, 1, red1, green1, blue1) ;
+X	    break ;
+X
+X	  case B_NIL:
+X	    Me->status = OBJ_ACTIVE ;
+X	    Me->Posn.x = (random() % 3000) - 1500.0 ;
+X	    Me->Posn.y = (random() % 3000) - 1500.0 ;
+X	    Me->Posn.z = (random() % 3000) - 1500.0 ;
+X	    Me->Speed = DEFAULT_SPEED ;
+X	    set_ship_description() ;
+X	    net_start_message( NULL ) ;
+X	    send_status(Me) ;		/* tell everyone I'm back */
+X	    break ;
+X	}
+X}
+X
+X
+X
+Xspecial_add_player(object)
+Xregister Object	*object ;
+X{
+X	sort_list[nobjects++] = object->id ;
+X}
+X
+X
+X
+X
+Xspecial_remove_player(object)
+Xregister Object	*object ;
+X{
+Xregister int	i = 0 ;
+Xregister int	done = 0 ;
+Xregister int	j ;
+Xregister int	id = object->id ;
+X	int	nobj = 0 ;
+Xregister Object	*obj = &objects[0] ;
+X
+X	if(object != Me)
+X	  while(!done)
+X	  {
+X	    if(sort_list[i] == id)
+X	    {
+X	      for(j=i+1; j<MAX_OBJECTS; sort_list[i++] = sort_list[j++]) ;
+X	      --nobjects ;
+X	      done = 1 ;
+X	    }
+X	    else if (++i >= nobjects)
+X	    {
+X	      fprintf(stderr,
+X		  "internal error: object %d: %s not found in sort_list\n",
+X		  object->id, object->name) ;
+X	      done = 1 ;
+X	    }
+X	  }
+X}
+X
+X
+Xspecial_got_blasted(object)
+X	Object	*object ;
+X{
+X	missiles_remaining = MISSILES_PER_LIFE ;
+X}
+X
+X
+X
+X
+Xspecial_someone_got_blasted(object,victim)
+X	Object	*object,*victim ;
+X{}
+X
+X
+X
+X
+Xspecial_new_status(object)
+X	Object	*object ;
+X{}
+X
+X
+X
+X
+Xstatic
+Xset_ship_description()
+X{
+X	Me->description = fighters[Me->team % MAX_FIGHTERS] ;
+X}
+X
+X
+X
+X
+X/****
+X *
+X * read control inputs, update ship's position/velocity/"up" vectors
+X *
+X ****/
+X
+X
+X#ifdef	XGL
+Xstatic
+Xget_input()
+X{
+X	Xgl_bounds_f2d	bounds ;
+X
+X	xgl_object_get(Main_gfx, XGL_CTX_DC_VIEWPORT, &bounds) ;
+X
+X	Mouse_ax = (float) Mouse_x / (bounds.xmax - bounds.xmin) ;
+X	Mouse_ay = 1.0 - (float) Mouse_y / (bounds.ymax - bounds.ymin) ;
+X}
+X
+X#else
+X
+Xstatic
+Xget_input()
+X{
+X	Rect		*rect, *Dev_gp1_rect() ;
+X
+X	rect = Dev_gp1_rect(Main_gfx) ;
+X
+X	Mouse_ax = (float) Mouse_x / rect->r_width ;
+X	Mouse_ay = 1.0 - (float) Mouse_y / rect->r_height ;
+X}
+X#endif	XGL
+X
+X
+X
+X
+X
+X
+Xstatic	void
+XCanvas_Proc(window, event, arg)
+X	Window	window ;
+X	Event	*event ;
+X	caddr_t	arg ;
+X{
+X	Cursor	new_cursor ;
+X
+X	Mouse_x = event_x(event) ;
+X	Mouse_y = event_y(event) ;
+X
+X	if (event_is_ascii(event) && event_is_up(event))
+X	    return;
+X#if FALSE
+Xprintf("in Canvas_Proc: %d\n", event_id(event));
+X#endif
+X	switch(event_id(event))
+X	{
+X	  case 'A':
+X	    auto_fire = !auto_pilot ;
+X	  case 'a':
+X	    if(auto_pilot)
+X	    {
+X	      auto_pilot = auto_fire = 0 ;
+X	    }
+X	    else
+X	    {
+X	      auto_pilot = 1 ;
+X	    }
+X	    save_auto_state();
+X	    if(!mouse_control || auto_pilot)
+X	    {
+X	      new_cursor = Default_Cursor ;
+X	    }
+X	    else
+X	    {
+X	      new_cursor = Main_Cursor ;
+X	    }
+X	    window_set(Main_pw, WIN_CURSOR, new_cursor, 0) ;
+X	    break ;
+X
+X	  case 'r':
+X	    if (event_is_down(event)) {
+X		if( !((Me->flags ^= RADAR_FLAG) & RADAR_FLAG))
+X		  Me->target = NULL ;
+X	    }
+X	    break ;
+X
+X	  case MS_LEFT:
+X	    Left_But = event_is_down(event) ;
+X	    if(Left_But)
+X	    {
+X	      mouse_control = !mouse_control ;
+X	      if(!mouse_control)
+X		{
+X		  restore_auto_state();
+X		  new_cursor = Default_Cursor ;
+X		}
+X	      else
+X		{
+X	          if(auto_pilot)
+X		  {
+X		    save_auto_state();
+X		    auto_pilot = auto_fire = 0;
+X		  }
+X		new_cursor = Main_Cursor ;
+X		}
+X	      window_set(Main_pw, WIN_CURSOR, new_cursor, 0) ;
+X	    }
+X	    break ;
+X
+X	  case MS_MIDDLE:
+X	    Middle_But = event_is_down(event) ;
+X	    break ;
+X
+X	  case MS_RIGHT:
+X	    Right_But = event_is_down(event) ;
+X	    break ;
+X
+X#if FALSE
+X	  case KEY_TOP(1):
+X#endif
+X	  case KEY_TOP(2):
+X	    if(event_is_down(event))
+X	      missile_arm() ;
+X	    break ;
+X
+X#if FALSE
+X	  case KEY_TOP(2):
+X#endif
+X	  case KEY_TOP(3):
+X	    if(event_is_down(event))
+X	      missile_launch(NULL) ;
+X	    break ;
+X
+X	  case KEY_LEFT(1):
+X	  case KEY_RIGHT(1):
+X	    Side_1 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(2):
+X	  case KEY_RIGHT(2):
+X	    Side_2 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(3):
+X	  case KEY_RIGHT(4):
+X	    Side_3 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(4):
+X	  case KEY_RIGHT(5):
+X	    Side_4 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(6):
+X	  case KEY_RIGHT(8):
+X	    Side_6 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(5):
+X	  case KEY_LEFT(7):
+X	    win_post_event(Main_Frame, event, NOTIFY_SAFE) ;
+X	    break ;
+X
+X	  case KEY_LEFT(8):
+X	  case KEY_RIGHT(11):
+X	    Side_8 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(9):
+X	  case KEY_RIGHT(13):
+X	    Side_9 = event_is_down(event) ;
+X	    break ;
+X
+X	  case KEY_LEFT(10):
+X	  case KEY_RIGHT(14):
+X	    Side_10 = event_is_down(event) ;
+X	    break ;
+X
+X	  case LOC_WINEXIT:
+X#ifdef COMMENT
+X	    Left_But = 0 ;
+X	    Middle_But = 0 ;
+X	    Right_But = 0 ;
+X	    Side_1 = Side_2 = Side_3 = Side_4 = Side_5 =
+X	    Side_6 = Side_7 = Side_8 = Side_9 = Side_10 = 0 ;
+X#endif COMMENT
+X
+X	  case LOC_WINENTER:
+X#if FALSE
+X	  case LOC_RGNENTER:
+X	    Left_But = (int) window_get(window, WIN_EVENT_STATE, MS_LEFT) ;
+X	    Middle_But = (int) window_get(window, WIN_EVENT_STATE, MS_MIDDLE) ;
+X	    Right_But = (int) window_get(window, WIN_EVENT_STATE, MS_RIGHT) ;
+X	    Side_1 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(1)) ;
+X	    Side_2 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(2)) ;
+X	    Side_3 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(3)) ;
+X	    Side_4 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(4)) ;
+X	    Side_5 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(5)) ;
+X	    Side_6 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(6)) ;
+X	    Side_7 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(7)) ;
+X	    Side_8 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(8)) ;
+X	    Side_9 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(9)) ;
+X	    Side_10 = (int) window_get(window, WIN_EVENT_STATE, KEY_LEFT(10)) ;
+X#endif
+X	    break ;
+X	}
+X}
+X
+Xstatic	void
+XFake_Resize_Proc(canvas, width, height)
+XCanvas	canvas ;
+Xint	width, height ;
+X{
+X    resize_win    = canvas;
+X    resize_width  = width;
+X    resize_height = height;
+X    need_resize   = TRUE;
+X}
+X
+Xstatic	void
+XCanvas_Resize_Proc(canvas, width, height)
+X	Canvas	canvas ;
+X	int	width, height ;
+X{
+X    Xgl_bounds_f2d	new_ctrldcvp ;
+X    Xgl_bounds_f2d	new_textdcvp ;
+X
+X    if (!Main_Canvas) 
+X	return;
+X    if (Main_ras) {
+X	xgl_window_raster_resize(Main_ras);
+X    }
+X#if FALSE
+X    if (!Control_gfx || !Text_gfx) 
+X	return;
+X    xgl_object_get(Control_gfx, XGL_CTX_DC_VIEWPORT, &new_ctrldcvp);
+X    xgl_object_get(Text_gfx, XGL_CTX_DC_VIEWPORT, &new_textdcvp);
+X#if FALSE
+X    fprintf(stderr, "old ctrl: %f %f %f %f\n", 
+X	    new_ctrldcvp.xmin, new_ctrldcvp.xmax, 
+X	    new_ctrldcvp.ymin, new_ctrldcvp.ymax);
+X    fprintf(stderr, "old text: %f %f %f %f\n", 
+X    	    new_textdcvp.xmin, new_textdcvp.xmax, 
+X	    new_textdcvp.ymin, new_textdcvp.ymax);
+X#endif
+X    new_ctrldcvp.xmin = 0.02 * (float)width;
+X    new_ctrldcvp.xmax = 0.50 * (float)width;
+X    new_ctrldcvp.ymin = 0.80 * (float)height;
+X    new_ctrldcvp.ymax = 0.98 * (float)height;
+X    new_textdcvp.xmin = 0.20 * (float)width;
+X    new_textdcvp.xmax = 0.74 * (float)width;
+X    new_textdcvp.ymin = 0.80 * (float)height;
+X    new_textdcvp.ymax = 0.98 * (float)height;
+X#if FALSE
+X    fprintf(stderr, "%d %d\n", width, height);
+X    fprintf(stderr, "%d %d\n", w, h);
+X    fprintf(stderr, "setting ctrl to: %f %f %f %f\n", 
+X	    new_ctrldcvp.xmin, new_ctrldcvp.xmax, 
+X	    new_ctrldcvp.ymin, new_ctrldcvp.ymax);
+X    fprintf(stderr, "setting text to: %f %f %f %f\n", 
+X    	    new_textdcvp.xmin, new_textdcvp.xmax, 
+X	    new_textdcvp.ymin, new_textdcvp.ymax);
+X#endif
+X
+X    xgl_object_set(Control_gfx, XGL_CTX_DC_VIEWPORT, &new_ctrldcvp, 0);
+X#if FALSE
+X    fprintf(stderr, "between 1st and 2nd resizes\n");
+X    fflush(stdout);
+X#endif
+X    xgl_object_set(Text_gfx, XGL_CTX_DC_VIEWPORT, &new_textdcvp, 0);
+X    xgl_object_get(Control_gfx, XGL_CTX_DC_VIEWPORT, &new_ctrldcvp);
+X    xgl_object_get(Text_gfx, XGL_CTX_DC_VIEWPORT, &new_textdcvp);
+X#if FALSE
+X    fprintf(stderr, "new ctrl: %f %f %f %f\n", 
+X	    new_ctrldcvp.xmin, new_ctrldcvp.xmax, 
+X	    new_ctrldcvp.ymin, new_ctrldcvp.ymax);
+X    fprintf(stderr, "new text: %f %f %f %f\n", 
+X    	    new_textdcvp.xmin, new_textdcvp.xmax, 
+X	    new_textdcvp.ymin, new_textdcvp.ymax);
+X#endif
+X#endif
+X}
+X
+X
+X
+Xstatic	void
+XControl_Proc(window, event, arg)
+X	Window	window ;
+X	Event	*event ;
+X	caddr_t	arg ;
+X{
+X}
+X
+X
+X
+Xstatic	void
+XControl_Repaint_Proc(canvas, pixwin, repaint_area)
+X	Canvas	canvas ;
+X	Pixwin	*pixwin ;
+X	Rectlist *repaint_area ;
+X{
+X}
+X
+X
+X
+Xstatic	void
+XControl_Resize_Proc(canvas, width, height)
+X	Canvas	canvas ;
+X	int	width, height ;
+X{
+X}
+X
+X
+X
+Xstatic	Notify_value
+XDestroy_func(frame, status)
+X	Frame	frame ;
+X	Destroy_status	status ;
+X{
+X	if(status != DESTROY_CHECKING)
+X	{
+X	  (void) notify_set_itimer_func(&Main_Timer, timefunc,
+X	      ITIMER_REAL, NULL, 0) ;
+X	  if( Me->id != -1 )
+X	  {
+X	    net_remove_player(Me->id) ;
+X	    net_flush() ;
+X	  }
+X	}
+X
+X	return(notify_next_destroy_func(frame, status)) ;
+X}
+X
+X
+X
+Xstatic	Notify_value
+XClose_func(frame, event, arg, type)
+X	Frame			frame ;
+X	Event			*event ;
+X	Notify_arg		arg ;
+X	Notify_event_type	type ;
+X{
+X	int		closed_initial, closed_current ;
+X	Notify_value	value ;
+X
+X	closed_initial = (int) window_get(frame, FRAME_CLOSED) ;
+X
+X	value = notify_next_event_func(frame, event, arg, type) ;
+X
+X	closed_current = (int) window_get(frame, FRAME_CLOSED) ;
+X
+X	if(closed_initial != closed_current)
+X	  if(closed_current)
+X	  {
+X	    Me->status = OBJ_SLEEPING ;
+X	    (void) notify_set_itimer_func(&Main_Timer, sleepfunc,
+X		    ITIMER_REAL, &Sleep_Timer, 0) ;
+X	    if( Me->id != -1 )
+X	    {
+X	      net_start_message( NULL ) ;
+X	      send_status(Me) ;	/* tell everyone where I am */
+X	    }
+X	  }
+X	  else
+X	  {
+X	    Me->status = OBJ_ACTIVE ;
+X	    (void) notify_set_itimer_func(&Main_Timer, timefunc,
+X		    ITIMER_REAL, &Main_Timer, 0) ;
+X	  }
+X
+X	return( value ) ;
+X}
+X
+Xstatic int	auto_saved;
+X/* really should come up with an "auto-word" with defined bits/fields */
+X
+Xsave_auto_state()
+X{
+X	auto_saved = auto_pilot;
+X	auto_saved |= auto_fire << 1;
+X}
+X
+Xrestore_auto_state()
+X{
+X	auto_pilot = auto_saved & 0x1;
+X	auto_fire = (auto_saved >> 1) & 0x1;
+X}
+X
+X
+X
+X#ifdef	XGL
+Xdbuf_putcolormap(start, len, r,g,b)
+X	int	start, len ;
+X	u_char	*r,*g,*b ;
+X{
+X	int	i,j ;
+X
+X	for(j=start; j<start+len; ++j)
+X	  for(i=0; i<8; ++i)
+X	  {
+X	    ctab1[i+8*j].rgb.r = (float)r[j]/256. ;
+X	    ctab1[i+8*j].rgb.g = (float)g[j]/256. ;
+X	    ctab1[i+8*j].rgb.b = (float)b[j]/256. ;
+X	    ctab2[8*i+j].rgb.r = (float)r[j]/256. ;
+X	    ctab2[8*i+j].rgb.g = (float)g[j]/256. ;
+X	    ctab2[8*i+j].rgb.b = (float)b[j]/256. ;
+X	  }
+X	ctable.start_index = 0 ;
+X	ctable.length = 64 ;
+X	ctable.colors = ctab1 ;
+X	xgl_object_set(cmap1, XGL_CMAP_COLOR_TABLE, &ctable, 0) ;
+X	ctable.colors = ctab2 ;
+X	xgl_object_set(cmap2, XGL_CMAP_COLOR_TABLE, &ctable, 0) ;
+X}
+X
+X
+Xdbuf_control(ctx, ctrl)
+X	Xgl_3d_ctx	ctx ;
+X	int		ctrl ;
+X{
+X	int	mask ;
+Xstatic	int	masks[2][4] = {{0,070,007,077}, {0,007,070,077}} ;
+X
+X	mask = masks[dbuffer][ctrl] ;
+X
+X	xgl_object_set(ctx, XGL_CTX_PLANE_MASK, mask, 0) ;
+X}
+X
+X
+Xdbuf_swap()
+X{
+X	dbuffer = 1-dbuffer ;
+X
+X	xgl_object_set(Main_ras, XGL_RAS_COLOR_MAP,
+X		dbuffer == 0 ? cmap1 : cmap2, 0 ) ;
+X}
+X#endif	XGL
+SHAR_EOF
+len=`wc -c < special_xv.c`
+if test $len != 27268 ; then
+echo shar: special_xv.c was $len bytes long, should have been 27268
+fi
+fi # end of overwriting check
+
+if test -f control_ship.c ; then
+echo shar: will not over-write existing file control_ship.c
+else
+echo shar: extracting control_ship.c, 1403 characters
+sed 's/^X//' > control_ship.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)control_ship.c 1.1 92/05/28 SMI" ;
+X	/* from control_ship.c 1.3 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this file contains specific control stuff:
+X *
+X * control_ship()
+X *	read control inputs and act accordingly
+X *
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X
+X/****
+X *
+X * read control inputs, update ship's position/velocity/"up" vectors
+X *
+X ****/
+X
+X
+Xcontrol_ship()
+X{
+X	Pt3d	new_delta ;
+X
+X	/* read mouse input */
+X
+X	if(!auto_pilot)
+X	{
+X	  new_delta.x = VIEWSCALE*(Mouse_ax - .5) ;
+X	  new_delta.y = VIEWSCALE*(Mouse_ay - .5) ;
+X
+X	  adjust_vector(Me,&new_delta) ;
+X
+X	  if(mouse_control)
+X	    Me->Delta = new_delta ;
+X	  else
+X	  {
+X	    Me->Delta.x = 0.0 ;
+X	    Me->Delta.y = 0.0 ;
+X	  }
+X
+X	  if(Middle_But)
+X	    Me->flags |= LASER_FLAG ;
+X	  else
+X	    Me->flags &= ~LASER_FLAG ;
+X
+X	  if(Side_9)
+X	    Me->Delta.z = -ROLL_RATE ;
+X	  else if (Side_10)
+X	    Me->Delta.z = ROLL_RATE ;
+X	  else
+X	    Me->Delta.z = 0.0 ;
+X	}
+X	else
+X	{
+X	  auto_control(Me, AUTO_RANGE, MAX_TURN, MAX_SLEW) ;
+X	  if(Middle_But)
+X	    Me->flags |= LASER_FLAG ;
+X
+X	  if(Side_9)
+X	    Me->Delta.z = -0.3 ;
+X	  else if (Side_10)
+X	    Me->Delta.z = 0.3 ;
+X	  else
+X	    Me->Delta.z = 0.0 ;
+X	}
+X
+X	/* transform delta from ship coords to universal coords */
+X
+X	adjust_vectors(Me) ;
+X}
+SHAR_EOF
+len=`wc -c < control_ship.c`
+if test $len != 1403 ; then
+echo shar: control_ship.c was $len bytes long, should have been 1403
+fi
+fi # end of overwriting check
+
+if test -f create_planet.c ; then
+echo shar: will not over-write existing file create_planet.c
+else
+echo shar: extracting create_planet.c, 1105 characters
+sed 's/^X//' > create_planet.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)create_planet.c 1.1 92/05/28 SMI" ;
+X	/* from create_planet.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * This file generates the graphic description of a planet
+X *
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "line_object.h"
+X#include "bsp_object.h"
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X#include "planet1.h"
+X#include "planet2.h"
+X
+X
+X/* these routines create a description for an enemy fighter */
+X
+X
+Xvoid
+Xinit_planet(index)
+X	int	index ;
+X{
+X
+X	Object_Desc	*desc1, *desc2 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X	desc2 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1 && desc2)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 2000.0*2000.0 ;
+X	  desc1->next = desc2 ;
+X	  desc1->type = BSP_TREE ;
+X	  desc1->first = (caddr_t) &BSP_ROOT2 ;
+X
+X	  desc2->thresh = 0.0 ;
+X	  desc2->next = NULL ;
+X	  desc2->type = BSP_TREE ;
+X	  desc2->first = (caddr_t) &BSP_ROOT1 ;
+X	}
+X	else
+X	{
+X	  perror("init_planet: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+X
+X
+X
+X
+SHAR_EOF
+len=`wc -c < create_planet.c`
+if test $len != 1105 ; then
+echo shar: create_planet.c was $len bytes long, should have been 1105
+fi
+fi # end of overwriting check
+
+if test -f create_monolith.c ; then
+echo shar: will not over-write existing file create_monolith.c
+else
+echo shar: extracting create_monolith.c, 858 characters
+sed 's/^X//' > create_monolith.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)create_monolith.c 1.1 92/05/28 SMI" ;
+X	/* from create_monolith.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * This file generates the graphic description of a monolith
+X *
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "bsp_object.h"
+X
+Xextern	int	debug_level ;
+X
+X
+X#include "monolith_bsp.h"
+X
+X
+X/* these routines create a description for a monolith */
+X
+X
+Xvoid
+Xinit_monolith(index)
+X	int	index ;
+X{
+X
+X	Object_Desc	*desc1 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 0.0 ;
+X	  desc1->next = NULL ;
+X	  desc1->type = BSP_TREE ;
+X	  desc1->first = (caddr_t) &Nmono6 ;
+X	}
+X	else
+X	{
+X	  perror("init_monolith: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < create_monolith.c`
+if test $len != 858 ; then
+echo shar: create_monolith.c was $len bytes long, should have been 858
+fi
+fi # end of overwriting check
+
+if test -f autopilot.c ; then
+echo shar: will not over-write existing file autopilot.c
+else
+echo shar: extracting autopilot.c, 4636 characters
+sed 's/^X//' > autopilot.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)autopilot.c 1.1 92/05/28 SMI" ;
+X	/* from autopilot.c 1.3 92/05/28 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this is the autopilot function.
+X *
+X * Go through the list of objects, select the closest object within view.
+X * If that object is closer than AUTO_RANGE:
+X *   place cursor on that object.
+X *   If object is closer than LASER_RANGE, fire lasers.
+X *
+X * If no objects closer than AUTO_THRESH:
+X *   Set delta to (0.1,0.0) or (0.0,0.1) depending on time.
+X *
+X *
+X */
+X
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "parameters.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+X
+X#define	MAX_TURN_ERROR2	(MAX_TURN_ERROR*MAX_TURN_ERROR)
+X
+Xextern	int	debug_level ;
+X
+X
+X
+Xauto_control(object, auto_range, max_turn, max_slew)
+X	Object	*object ;
+X	float	auto_range, max_turn, max_slew ;
+X{
+X	int	i,j ;
+X	Pt3d	v1, v2 ;
+X	float	d ;
+X	Object	*obj2 = &objects[0] ;
+X	Object	*closest = NULL ;
+X	Mat3d	xform ;
+X	float	dist ;
+X
+X	object->flags &= ~LASER_FLAG ;
+X
+X	if(object->target != NULL)
+X	{
+X	  v1.x = object->target->Posn.x - object->Posn.x ;
+X	  v1.y = object->target->Posn.y - object->Posn.y ;
+X	  v1.z = object->target->Posn.z - object->Posn.z ;
+X	  dist = v1.x*v1.x + v1.y*v1.y + v1.z*v1.z ;
+X
+X	  /* we've got a victim, find delta to take us there:
+X	   *
+X	   * Build vector to victim in world coords.
+X	   * transform to ship coords, ignore z.
+X	   * normalize (we already have distance), multiply by feedback gain
+X	   * limit to max turn rate.
+X	   */
+X
+X	  v2.x = v1.x*object->Right.x +
+X		 v1.y*object->Right.y +
+X		 v1.z*object->Right.z ;
+X	  v2.y = v1.x*object->Up.x +
+X		 v1.y*object->Up.y +
+X		 v1.z*object->Up.z ;
+X
+X	  if(auto_fire && dist < LASER_RANGE*LASER_RANGE*2.0)
+X	    object->flags |= LASER_FLAG ;
+X	  
+X	  if(dist < LASER_RANGE*LASER_RANGE)
+X	    dist = 1.0 / sqrt(dist) ;
+X	  else
+X	    dist = FEEDBACK_GAIN / sqrt(dist) ;
+X
+X	  v2.x *= dist ;
+X	  v2.y *= dist ;
+X
+X	  if(v2.x >  max_turn) v2.x =  max_turn ;
+X	  if(v2.x < -max_turn) v2.x = -max_turn ;
+X	  if(v2.y >  max_turn) v2.y =  max_turn ;
+X	  if(v2.y < -max_turn) v2.y = -max_turn ;
+X	}
+X	else
+X	{
+X	  v2.x = SCAN_TURN ;
+X	  v2.y = 0.0 ;
+X	}
+X	set_delta(object, &v2, max_slew) ;
+X	adjust_vector(object,&object->Delta) ;
+X#ifdef	COMMENT
+X	for(i=0; i<MAX_OBJECTS; ++i)
+X	{
+X	  if(obj2 != object &&
+X		(obj2->class == OBJ_ACTIVE  ||
+X		 obj2->class == OBJ_MISSILE) )
+X	  {
+X	    dist = 
+X	      (obj2->Posn.x - object->Posn.x)*(obj2->Posn.x - object->Posn.x) +
+X	      (obj2->Posn.y - object->Posn.y)*(obj2->Posn.y - object->Posn.y) +
+X	      (obj2->Posn.z - object->Posn.z)*(obj2->Posn.z - object->Posn.z);
+X	    if(dist < mindist)
+X	    {
+X	      v1.x = obj2->Posn.x - object->Posn.x ;
+X	      v1.y = obj2->Posn.y - object->Posn.y ;
+X	      v1.z = obj2->Posn.z - object->Posn.z ;
+X	      d = v1.x * object->Pointing.x +
+X		  v1.y * object->Pointing.y +
+X		  v1.z * object->Pointing.z ;
+X	      if(d > 0.0 && d*d > dist * 0.5)	/* cos(45)**2 */
+X	      {
+X		closest = obj2 ;
+X		mindist = dist ;
+X	      }
+X	    }
+X	  }
+X	++obj2 ;
+X	}
+X
+X
+X	if(closest != NULL)
+X	{
+X	  if(auto_fire && mindist < LASER_RANGE*LASER_RANGE*2.0)
+X	    object->flags |= LASER_FLAG ;
+X	  
+X	  /* we've got a victim, find delta to take us there:
+X	   *
+X	   * Build vector to victim in world coords.
+X	   * transform to ship coords, ignore z.
+X	   * normalize (we already have distance), multiply by feedback gain
+X	   * limit to max turn rate.
+X	   */
+X
+X	  v1.x = closest->Posn.x - object->Posn.x ;
+X	  v1.y = closest->Posn.y - object->Posn.y ;
+X	  v1.z = closest->Posn.z - object->Posn.z ;
+X
+X	  v2.x = v1.x*object->Right.x +
+X		 v1.y*object->Right.y +
+X		 v1.z*object->Right.z ;
+X	  v2.y = v1.x*object->Up.x +
+X		 v1.y*object->Up.y +
+X		 v1.z*object->Up.z ;
+X
+X	  if(mindist < LASER_RANGE*LASER_RANGE)
+X	    mindist = 1.0 / sqrt(mindist) ;
+X	  else
+X	    mindist = FEEDBACK_GAIN / sqrt(mindist) ;
+X
+X	  v2.x *= mindist ;
+X	  v2.y *= mindist ;
+X
+X	  if(v2.x >  max_turn) v2.x =  max_turn ;
+X	  if(v2.x < -max_turn) v2.x = -max_turn ;
+X	  if(v2.y >  max_turn) v2.y =  max_turn ;
+X	  if(v2.y < -max_turn) v2.y = -max_turn ;
+X	}
+X	else
+X	{
+X	  v2.x = SCAN_TURN ;
+X	  v2.y = 0.0 ;
+X	}
+X	set_delta(object, &v2, max_slew) ;
+X	adjust_vector(object,&object->Delta) ;
+X#endif	COMMENT
+X}
+X
+X
+X
+Xset_delta(object, vector, max_slew)
+X	Object		*object ;
+X	Pt3d		*vector ;
+X	float		max_slew ;
+X{
+X	Pt3d		v1 ;
+Xregister float		d1, max_turn ;
+X
+X	v1.x = vector->x - object->Delta.x ;
+X	v1.y = vector->y - object->Delta.y ;
+X	d1 = v1.x*v1.x + v1.y*v1.y ;
+X	if(d1 > MAX_TURN_ERROR2)
+X	{
+X	  d1 = sqrt(d1) ;
+X	  max_turn = Dtime * max_slew ;
+X	  if(d1 > max_turn)
+X	    d1 = max_turn/d1 ;
+X	  else
+X	    d1 = 1.0 ;
+X	  object->Delta.x += d1*v1.x ;
+X	  object->Delta.y += d1*v1.y ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < autopilot.c`
+if test $len != 4636 ; then
+echo shar: autopilot.c was $len bytes long, should have been 4636
+fi
+fi # end of overwriting check
+
+if test -f missile.c ; then
+echo shar: will not over-write existing file missile.c
+else
+echo shar: extracting missile.c, 1066 characters
+sed 's/^X//' > missile.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)missile.c 1.1 92/05/28 SMI" ;
+X	/* from missile.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "netio.h"
+X
+X
+X
+Xstatic	missile_status() ;
+Xextern	control_object() ;
+Xstatic	missile_killed() ;
+X
+X
+X	fptr	missile_vector[VECTOR_LENGTH] = {
+X		  missile_status,	/* new status		*/
+X		  control_object,	/* control		*/
+X		  missile_killed,	/* when killed		*/
+X		  NULL,			/* when kills		*/
+X		} ;
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+Xstatic
+Xmissile_status(object, header)
+Xregister Object			*object ;
+X	Net_current_status	*header ;
+X{
+X	if( object->status != OBJ_DEAD )
+X	  new_status(object, header) ;
+X}
+X
+X
+X
+X
+X
+X
+Xstatic
+Xmissile_killed(object,victim,killer)
+Xregister Object		*object ;
+Xregister Object		*victim ;
+Xregister Object		*killer ;
+X{
+X	if(victim->status == OBJ_ACTIVE)
+X	{
+X	  killer->score += SCORE_KILL ;
+X	  victim->status = OBJ_DEAD ;
+X	}
+X
+X	if( victim->team == Me->id )
+X	  missile_shot(victim) ;
+X
+X	special_someone_got_blasted(object,victim) ;
+X}
+SHAR_EOF
+len=`wc -c < missile.c`
+if test $len != 1066 ; then
+echo shar: missile.c was $len bytes long, should have been 1066
+fi
+fi # end of overwriting check
+
+if test -f radar.c ; then
+echo shar: will not over-write existing file radar.c
+else
+echo shar: extracting radar.c, 2878 characters
+sed 's/^X//' > radar.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)radar.c 1.1 92/05/28 SMI" ;
+X	/* from radar.c 1.3 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * this is the radar function.
+X *
+X * If target is set and target is out of range, clear target.
+X *
+X * If target is clear go through the list of objects, select the
+X * closest object within view.
+X * If that object is closer than AUTO_RANGE, it is new target
+X *
+X */
+X
+X
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "parameters.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+X
+Xextern	int	debug_level ;
+X
+X#define	RADAR_RANGE2	(RADAR_RANGE*RADAR_RANGE)
+X#define	RADAR_TAN2	(RADAR_TAN*RADAR_TAN)
+X
+X
+Xdo_radar()
+X{
+X	int	i,j ;
+X	Pt3d	v1, v2 ;
+X	float	d ;
+Xregister Object	*obj2 ;
+X	Object	*closest = NULL ;
+X	Mat3d	xform ;
+X	float	mindist ;
+X	float	dist2, tan2 ;
+X
+X	if(Me->target != NULL)
+X	{
+X	  /* no longer in the game? */
+X	  if( (Me->target->class != OBJ_PLAYER  &&
+X	       Me->target->class != OBJ_MISSILE)  ||
+X	      Me->target->status != OBJ_ACTIVE )
+X	    Me->target = NULL ;
+X	  else
+X	  {
+X	    /* out of range? */
+X	    v1.x = Me->target->Posn.x - Me->Posn.x ;
+X	    v1.y = Me->target->Posn.y - Me->Posn.y ;
+X	    v1.z = Me->target->Posn.z - Me->Posn.z ;
+X	    dist2 = v1.x*v1.x + v1.y*v1.y + v1.z*v1.z ;
+X	    if(dist2 > RADAR_RANGE2)
+X	      Me->target = NULL ;
+X
+X	    else
+X	    {
+X	      /* transform into ship coordinates */
+X	      v2.z = v1.x*Me->Forward.x +
+X		     v1.y*Me->Forward.y +
+X		     v1.z*Me->Forward.z ;
+X
+X	      /* behind us? */
+X	      if(v2.z < 0.0)
+X		Me->target = NULL ;
+X	      else
+X	      {
+X		/* not within narrow view? */
+X		v2.x = v1.x*Me->Right.x +
+X		       v1.y*Me->Right.y +
+X		       v1.z*Me->Right.z ;
+X		v2.y = v1.x*Me->Up.x +
+X		       v1.y*Me->Up.y +
+X		       v1.z*Me->Up.z ;
+X
+X		tan2 = (v2.x*v2.x + v2.y*v2.y)/(v2.z*v2.z) ;
+X		if(tan2 > RADAR_TAN2)
+X		  Me->target = NULL ;
+X	      }
+X	    }
+X	  }
+X	}
+X
+X
+X	if(Me->target == NULL)
+X	{
+X	  /* search for any object within range */
+X
+X	  obj2 = &objects[0] ;
+X	  mindist =  RADAR_RANGE2 ;
+X	  for(i=0; i<MAX_OBJECTS; ++i)
+X	  {
+X	    if(obj2 != Me &&
+X	       (obj2->class == OBJ_PLAYER  ||
+X	        obj2->class == OBJ_MISSILE)  &&
+X	       obj2->status == OBJ_ACTIVE)
+X	    {
+X	      v1.x = obj2->Posn.x - Me->Posn.x ;
+X	      v1.y = obj2->Posn.y - Me->Posn.y ;
+X	      v1.z = obj2->Posn.z - Me->Posn.z ;
+X	      dist2 = v1.x*v1.x + v1.y*v1.y + v1.z*v1.z ;
+X	      if(dist2 < mindist)
+X	      {
+X		v2.z = v1.x*Me->Forward.x +
+X		       v1.y*Me->Forward.y +
+X		       v1.z*Me->Forward.z ;
+X		if(v2.z > 0.0)
+X		{
+X		  v2.x = v1.x*Me->Right.x +
+X			 v1.y*Me->Right.y +
+X			 v1.z*Me->Right.z ;
+X		  v2.y = v1.x*Me->Up.x +
+X			 v1.y*Me->Up.y +
+X			 v1.z*Me->Up.z ;
+X		  tan2 = (v2.x*v2.x + v2.y*v2.y)/(v2.z*v2.z) ;
+X		  if(tan2 < RADAR_TAN2)
+X		  {
+X		    closest = obj2 ;
+X		    mindist = dist2 ;
+X		  }
+X		}
+X	      }
+X	    }
+X	  ++obj2 ;
+X	  }
+X
+X	  if(closest != NULL)
+X	    Me->target = closest ;
+X	}
+X}
+SHAR_EOF
+len=`wc -c < radar.c`
+if test $len != 2878 ; then
+echo shar: radar.c was $len bytes long, should have been 2878
+fi
+fi # end of overwriting check
+
+if test -f panel.c ; then
+echo shar: will not over-write existing file panel.c
+else
+echo shar: extracting panel.c, 3391 characters
+sed 's/^X//' > panel.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)panel.c 1.2 92/05/28 SMI" ;
+X	/* from panel.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#include <stdio.h>
+X#ifdef XV
+X#include <xview/xview.h>
+X#include <xview/panel.h>
+X#else
+X#include <suntool/sunview.h>
+X#include <suntool/panel.h>
+X#endif XV
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X	float		missile_speed, missile_feedback, missile_turn,
+X			missile_slew ;
+X
+Xstatic	Panel		panel ;
+Xstatic	Panel_item	kill_but ;
+Xstatic	Panel_item	debug_toggle ;
+Xstatic	Panel_item	my_speed_slider ;
+Xstatic	Panel_item	speed_slider ;
+Xstatic	Panel_item	feedback_slider ;
+Xstatic	Panel_item	turn_slider ;
+Xstatic	Panel_item	slew_slider ;
+X
+Xstatic	void		kill_proc() ;
+Xstatic	void		set_debug() ;
+Xstatic	void		my_speed_proc() ;
+Xstatic	void		speed_proc() ;
+Xstatic	void		feedback_proc() ;
+Xstatic	void		turn_proc() ;
+Xstatic	void		slew_proc() ;
+X
+Xinit_panel(frame)
+X	Frame	frame ;
+X{
+X	panel = window_create(frame, PANEL, 0) ;
+X	if(panel == NULL)
+X	  exit(1) ;
+X
+X	missile_speed = MISSILE_SPEED ;
+X	missile_feedback = MISSILE_GAIN ;
+X	missile_turn = MISSILE_TURN ;
+X	missile_slew = MISSILE_SLEW ;
+X
+X	kill_but = panel_create_item(panel, PANEL_BUTTON,
+X		PANEL_LABEL_IMAGE,
+X			panel_button_image(panel, "kill missile", 0, 0),
+X		PANEL_NOTIFY_PROC, kill_proc,
+X		0 ) ;
+X
+X	debug_toggle = panel_create_item(panel, PANEL_TOGGLE,
+X		PANEL_CHOICE_STRINGS, "debug", 0,
+X		PANEL_TOGGLE_VALUE, 0, FALSE,
+X		PANEL_NOTIFY_PROC, set_debug,
+X		0 ) ;
+X
+X	my_speed_slider = panel_create_item(panel, PANEL_SLIDER,
+X		PANEL_LABEL_STRING, "my speed",
+X		PANEL_NOTIFY_PROC, my_speed_proc,
+X		PANEL_MAX_VALUE, 50,
+X		PANEL_VALUE, (int) Me->Speed,
+X		0 ) ;
+X
+X	speed_slider = panel_create_item(panel, PANEL_SLIDER,
+X		PANEL_LABEL_STRING, "speed",
+X		PANEL_NOTIFY_PROC, speed_proc,
+X		PANEL_MAX_VALUE, 100,
+X		PANEL_VALUE, (int) missile_speed,
+X		0 ) ;
+X
+X	feedback_slider = panel_create_item(panel, PANEL_SLIDER,
+X		PANEL_LABEL_STRING, "feedback",
+X		PANEL_NOTIFY_PROC, feedback_proc,
+X		PANEL_MAX_VALUE, 100,
+X		PANEL_VALUE, (int) (missile_feedback*10.0),
+X		0 ) ;
+X
+X	turn_slider = panel_create_item(panel, PANEL_SLIDER,
+X		PANEL_LABEL_STRING, "max turn",
+X		PANEL_NOTIFY_PROC, turn_proc,
+X		PANEL_MAX_VALUE, 200,
+X		PANEL_VALUE, (int) (missile_turn*100.0),
+X		0 ) ;
+X
+X	slew_slider = panel_create_item(panel, PANEL_SLIDER,
+X		PANEL_LABEL_STRING, "slew rate",
+X		PANEL_NOTIFY_PROC, slew_proc,
+X		PANEL_MAX_VALUE, 200,
+X		PANEL_VALUE, (int) (missile_slew * 100.0),
+X		0 ) ;
+X
+X
+X	window_fit_height(panel) ;
+X}
+X
+X
+X
+Xstatic	void
+Xkill_proc(item, event)
+X	Panel_item	item ;
+X	Event		*event ;
+X{
+X	if(missiles[0] != NULL)
+X	  missiles[0]->time = 0.0 ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xset_debug(item, value, event)
+X	Panel_item	item ;
+X	unsigned int	value ;
+X	Event		*event ;
+X{
+X	debug_level = (value & 1) ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xmy_speed_proc(item, value, event)
+X	Panel_item	item ;
+X	int		value ;
+X	Event		*event ;
+X{
+X	Me->Speed = value ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xspeed_proc(item, value, event)
+X	Panel_item	item ;
+X	int		value ;
+X	Event		*event ;
+X{
+X	missile_speed = value ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xfeedback_proc(item, value, event)
+X	Panel_item	item ;
+X	int		value ;
+X	Event		*event ;
+X{
+X	missile_feedback = value*0.1 ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xturn_proc(item, value, event)
+X	Panel_item	item ;
+X	int		value ;
+X	Event		*event ;
+X{
+X	missile_turn = value*0.01 ;
+X}
+X
+X
+X
+X
+Xstatic	void
+Xslew_proc(item, value, event)
+X	Panel_item	item ;
+X	int		value ;
+X	Event		*event ;
+X{
+X	missile_slew = value*0.01 ;
+X}
+SHAR_EOF
+len=`wc -c < panel.c`
+if test $len != 3391 ; then
+echo shar: panel.c was $len bytes long, should have been 3391
+fi
+fi # end of overwriting check
+
+if test -f master.c ; then
+echo shar: will not over-write existing file master.c
+else
+echo shar: extracting master.c, 6899 characters
+sed 's/^X//' > master.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)master.c 1.1 92/05/28 SMI" ;
+X	/* from master.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * This is the stuff handled by the master.
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <sys/time.h>
+X
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "netio.h"
+X
+X
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X
+X
+X
+X/****
+X * get free entry in object list
+X ****/
+X
+X
+Xstatic	int
+Xget_free_object()
+X{
+Xregister int		id ;
+Xregister Object		*object ;
+X
+X	id = 0;
+X	object = &objects[0] ;
+X	for(;;)
+X	{
+X	  if(object->class == OBJ_EMPTY)
+X	    return(id) ;
+X	  else if(++id >= MAX_PLAYERS)
+X	    return(-1) ;
+X	  else
+X	    ++object ;
+X	}
+X}
+X
+X
+X
+X
+X/****
+X *
+X * tell somebody about all the players in the game
+X *
+X ****/
+X
+Xstatic
+Xsend_lists(id)
+X	int		id ;
+X{
+Xregister int			i ;
+Xregister Object			*object ;
+X
+X
+X	object = &objects[0] ;
+X	for(i=0; i < MAX_PLAYERS; ++i)
+X	{
+X	  if(object->class != OBJ_EMPTY  &&  object->id != id)
+X	    send_status(object) ;
+X	  ++object ;
+X	}
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+Xpoll_player(player)
+Xregister Object	*player ;
+X{
+X	Net_are_you_there poll_msg ;
+X
+X	if(Now.tv_sec - player->last_rep.tv_sec > 60)
+X	{
+X	  /* He's dead Jim. You grab his tricorder, I'll get his wallet */
+X	  net_remove_player(player->id) ;
+X	}
+X	else if(Now.tv_sec - player->last_rep.tv_sec > 30)
+X	{
+X	  /* where is it? */
+X	  net_start_message( player ) ;
+X	  poll_msg.type = NET_ARE_YOU_THERE ;
+X	  poll_msg.len = sizeof(Net_are_you_there) ;
+X	  poll_msg.id = Me->id ;
+X	  poll_msg.sequence = ++sequence_number ;
+X	  poll_msg.his_id = player->id ;
+X	  add_message(&poll_msg, sizeof(poll_msg)) ;
+X	}
+X}
+X
+X
+X
+X
+X
+Xnet_poll()
+X{
+Xregister Object		*object ;
+X	int		count ;
+X	Net_died	died_msg ;
+X	int		iret ;
+X
+X	if(Me->net_status == UNKNOWN)
+X	{
+X	  become_master() ;
+X#ifdef	DEBUG
+X	  if(status_display)
+X	    status_update() ;
+X#endif	DEBUG
+X	  return ;
+X	}
+X
+X
+X
+X
+X
+X
+X	if(Me->net_status != MASTER)
+X	{
+X#ifdef	DEBUG
+X	  if(status_display)
+X	    status_update() ;
+X#endif	DEBUG
+X	  if( poll_master )
+X	    poll_player(&objects[master_id]) ;
+X	  return ;
+X	}
+X
+X
+X
+X
+X	object = &objects[0] ;
+X	for(count = MAX_PLAYERS; count--; )
+X	{
+X	  if(object != Me  &&
+X	     (object->class == OBJ_PLAYER ||
+X	      (object->class == OBJ_MISSILE  &&  object->team != Me->id)) )
+X	    poll_player( object ) ;
+X	  ++object ;
+X	}
+X
+X
+X	/* finally, re-sync static objects */
+X
+X	net_start_message( NULL ) ;
+X	object = &objects[0] ;
+X	for(count = MAX_PLAYERS; count--; )
+X	{
+X	  if( object->class == OBJ_STATIC )
+X	    send_status( object ) ;
+X	  ++object ;
+X	}
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+X
+X/*
+X * MASTER DUTY HANDLERS:
+X *
+X * become_master()	-	initialize extra duty functions
+X *
+X */
+X
+X
+X
+X
+X
+Xbecome_master()
+X{
+Xregister Object	*object ;
+X
+X
+X	puts("No other players, waiting...") ;
+X
+X	Me->id = 0 ;
+X
+X	special_welcome() ;
+X
+X	/* put static objects into database */
+X
+X	create_planet(get_free_object()) ;
+X	create_monolith(get_free_object()) ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	  dump_lists() ;
+X#endif	DEBUG
+X
+X	rehash_netlists() ;
+X}
+X
+X
+X
+X
+X
+X
+X
+Xtake_over()
+X{
+Xregister Object	*object ;
+X
+X
+X#ifdef	DEBUG
+X	printf("taking over as master\n") ;
+X#endif	DEBUG
+X
+X	if( objects[0].class == OBJ_EMPTY )
+X	{
+X	  net_rename(0) ;
+X	  Me = &objects[0] ;
+X	}
+X
+X	else if( &objects[0] == Me )
+X	  Me->id = 0 ;
+X
+X#ifdef	DEBUG
+X	if(debug_level >= 1)
+X	  dump_lists() ;
+X#endif	DEBUG
+X
+X	rehash_netlists() ;
+X	net_flush() ;
+X}
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X/*
+X * INPUT MESSAGE HANDLING:
+X *
+X * add_new_player(...)		- handle NET_JOINING
+X *
+X * new_missile(header)		- handle NET_REQUEST_MISSILE
+X *
+X */
+X
+X
+X
+X
+X
+X
+X/****
+X * add player to database (master only)
+X * inform all players of this player's presence
+X * inform this player of all other players
+X * inform all slave daemons of this player's presence
+X ****/
+X
+X
+Xadd_new_player(id,name,address,sequence,class)
+X	int		id ;
+X	char			*name ;
+X	struct sockaddr_in	*address ;
+X	int			sequence ;
+X	Object_Class		class ;
+X{
+X	int		i ;
+Xregister Object		*object ;
+Xextern	fptr		fighter_vector[VECTOR_LENGTH],
+X			missile_vector[VECTOR_LENGTH],
+X			static_vector[VECTOR_LENGTH] ;
+X	Net_welcome	w_msg ;
+X
+X	if(id == -1)
+X	  id = get_free_object() ;
+X
+X	if(id != -1)
+X	{
+X	  object = &objects[id] ;
+X	  object->id = id ;
+X	  strncpy(object->name, name, NAMELEN) ;
+X	  object->team = (game_type == GAME_FREE ? id : id%2) ;
+X	  object->score = 0 ;
+X	  object->class = class ;
+X	  object->status = OBJ_SLEEPING ;
+X	  object->flags = 0 ;
+X	  object->target = NULL ;
+X	  object->description = -1 ;
+X	  object->address = *address ;
+X	  object->sequence = sequence ;
+X	  object->last_rep = Now ;
+X	  object->net_addr = inet_netof(object->address.sin_addr) ;
+X	  object->net_status = SLAVE ;
+X	  switch(class)
+X	  {
+X	    case OBJ_PLAYER:
+X	      printf("new player: %d, %s\n",id,name) ;
+X	      bcopy(fighter_vector,object->f_vector,sizeof(fighter_vector)) ;
+X	      break ;
+X	    case OBJ_MISSILE:
+X	      bcopy(missile_vector,object->f_vector,sizeof(missile_vector)) ;
+X	      break ;
+X	    case OBJ_STATIC:
+X	      printf("new object: %d, %s\n",id,name) ;
+X	      bcopy(static_vector,object->f_vector,sizeof(static_vector)) ;
+X	      break ;
+X	  }
+X
+X	  need_rehash = 1 ;
+X	  special_add_player(object) ;
+X
+X	  /* tell player about all players */
+X
+X	  w_msg.type = NET_WELCOME ;
+X	  w_msg.len = sizeof(w_msg) ;
+X	  w_msg.id = Me->id ;
+X	  w_msg.sequence = ++sequence_number ;
+X	  w_msg.player_id = id ;
+X	  w_msg.team = (game_type == GAME_FREE ? id : id%2) ;
+X	  w_msg.game_type = game_type ;
+X
+X	  net_start_message( object ) ;
+X	  add_message(&w_msg, sizeof(w_msg)) ;
+X	  send_lists(object->id) ;
+X	}
+X	else
+X	{
+X	  printf("too many players, %s is being ignored\n",name) ;
+X	}
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X	if(debug_level >= 1)
+X	  dump_lists() ;
+X#endif	DEBUG
+X}
+X
+X
+X
+X
+X
+X
+X
+Xnew_missile(header)
+Xregister Net_request_missile	*header ;
+X{
+Xregister Object		*missile, *owner ;
+X	Net_missile	outmsg ;
+X	int		id, get_free_object() ;
+Xextern	fptr		missile_vector[VECTOR_LENGTH] ;
+X
+X	owner = &objects[header->id] ;
+X	id = get_free_object() ;
+X	if(id >= 0)
+X	{
+X	  missile = &objects[id] ;
+X	  missile->id = id ;
+X	  strncpy(missile->name, "missileX", NAMELEN) ;
+X	  missile->team = owner->id ;
+X	  missile->score = 0 ;
+X	  missile->class = OBJ_MISSILE ;
+X	  missile->status = OBJ_SLEEPING ;
+X	  missile->flags = 0 ;
+X	  missile->target = NULL ;
+X	  missile->description = -1 ;
+X	  missile->address = owner->address ;
+X	  missile->last_rep = Now ;
+X	  missile->net_status = SLAVE ;
+X	  bcopy(missile_vector, missile->f_vector, sizeof(missile->f_vector)) ;
+X
+X	  if(header->id != Me->id)
+X	  {
+X	    outmsg.type = NET_MISSILE ;
+X	    outmsg.len = sizeof(Net_missile) ;
+X	    outmsg.id = Me->id ;
+X	    outmsg.sequence = ++sequence_number ;
+X	    outmsg.missile_id = id ;
+X	    net_start_message( owner ) ;
+X	    add_message(&outmsg, sizeof(outmsg)) ;
+X	    special_add_player(missile) ;
+X	  }
+X	  else
+X	    missile_armed(id) ;
+X	}
+X	else
+X	{
+X	  printf("too many players, missile from %s is being ignored\n",
+X		owner->name) ;
+X	}
+X
+X#ifdef	DEBUG
+X	if(status_display)
+X	  status_update() ;
+X#endif	DEBUG
+X}
+SHAR_EOF
+len=`wc -c < master.c`
+if test $len != 6899 ; then
+echo shar: master.c was $len bytes long, should have been 6899
+fi
+fi # end of overwriting check
+
+if test -f fighter.c ; then
+echo shar: will not over-write existing file fighter.c
+else
+echo shar: extracting fighter.c, 1240 characters
+sed 's/^X//' > fighter.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)fighter.c 1.1 92/05/28 SMI" ;
+X	/* from fighter.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * special routines for driving a fighter (not myself)
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <sys/time.h>
+X
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+Xextern	new_status() ;
+Xextern	control_object() ;
+Xstatic	fighter_killed() ;
+X
+X
+X	fptr	fighter_vector[VECTOR_LENGTH] = {
+X		  new_status,		/* new status		*/
+X		  control_object,	/* control		*/
+X		  fighter_killed,	/* when killed		*/
+X		  NULL,			/* when kills		*/
+X		} ;
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+Xstatic
+Xfighter_killed(object,victim,killer)
+Xregister Object		*object ;
+Xregister Object		*victim ;
+Xregister Object		*killer ;
+X{
+X	if(victim->status == OBJ_ACTIVE)
+X	{
+X	  killer->score += SCORE_KILL ;
+X	  victim->score -= SCORE_KILL ;
+X	}
+X
+X	if(victim == Me)
+X	{
+X	  victim->status = OBJ_DEAD ;
+X	  victim->flags &= ~(LASER_FLAG) ;
+X	  victim->Delta.x = 0.0 ;
+X	  victim->Delta.y = 0.0 ;
+X	  victim->Delta.z = 0.5 ;
+X	  victim->Pointing = Me->Forward ;
+X	  victim->Speed *= 0.7 ;
+X	  victim->description = BLAST_DESC ;
+X	  special_got_blasted(object) ;
+X	  net_start_message( NULL ) ;
+X	  send_status(Me) ;
+X	}
+X
+X	special_someone_got_blasted(object,victim) ;
+X}
+SHAR_EOF
+len=`wc -c < fighter.c`
+if test $len != 1240 ; then
+echo shar: fighter.c was $len bytes long, should have been 1240
+fi
+fi # end of overwriting check
+
+if test -f static.c ; then
+echo shar: will not over-write existing file static.c
+else
+echo shar: extracting static.c, 2078 characters
+sed 's/^X//' > static.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)static.c 1.1 92/05/28 SMI" ;
+X	/* from static.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * special routines for driving a static object
+X */
+X
+X
+X
+X#include <stdio.h>
+X#include <sys/time.h>
+X
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+Xextern	new_status() ;
+Xextern	control_object() ;
+X
+X
+X	fptr	static_vector[VECTOR_LENGTH] = {
+X		  new_status,		/* new status		*/
+X		  control_object,	/* control		*/
+X		  NULL,			/* when killed		*/
+X		  NULL,			/* when kills		*/
+X		} ;
+X
+X
+X
+X
+X
+Xcreate_planet(id)
+X	int	id ;
+X{
+X	Object	*object = &objects[id] ;
+X
+X	object->id = id ;
+X	strncpy(object->name, "mars", NAMELEN) ;
+X	object->class = OBJ_STATIC ;
+X	object->status = OBJ_ACTIVE ;
+X	object->flags = 0 ;
+X	object->Posn.x = -1000.0 ;
+X	object->Posn.y = 0 ;
+X	object->Posn.z = 0 ;
+X	object->Forward.x = 0.0 ;
+X	object->Forward.y = 0.0 ;
+X	object->Forward.z = 1.0 ;
+X	object->Up.x = 0.0 ;
+X	object->Up.y = 1.0 ;
+X	object->Up.z = 0.0 ;
+X	object->Right.x = 1.0 ;
+X	object->Right.y = 0.0 ;
+X	object->Right.z = 0.0 ;
+X	object->Delta.x = 0.003 ;
+X	object->Delta.y = 0.0 ;
+X	object->Delta.z = 0.0 ;
+X	object->Speed = 3.0 ;
+X	object->target = NULL ;
+X	object->description = PLANET1_DESC ;
+X	bcopy(static_vector, object->f_vector, sizeof(static_vector)) ;
+X	special_add_player(object) ;
+X}
+X
+X
+Xcreate_monolith(id)
+X	int	id ;
+X{
+X	Object	*object = &objects[id] ;
+X
+X	object->id = id ;
+X	strncpy(object->name,"TMA-2",NAMELEN) ;
+X	object->class = OBJ_STATIC ;
+X	object->status = OBJ_ACTIVE ;
+X	object->flags = 0 ;
+X	object->Posn.x = 0.0 ;
+X	object->Posn.y = -1000.0 ;
+X	object->Posn.z = 0 ;
+X	object->Forward.x = 0.0 ;
+X	object->Forward.y = 0.0 ;
+X	object->Forward.z = 1.0 ;
+X	object->Up.x = 0.0 ;
+X	object->Up.y = 1.0 ;
+X	object->Up.z = 0.0 ;
+X	object->Right.x = 1.0 ;
+X	object->Right.y = 0.0 ;
+X	object->Right.z = 0.0 ;
+X	object->Delta.x = 0.0 ;
+X	object->Delta.y = 0.005 ;
+X	object->Delta.z = 0.0 ;
+X	object->Speed = 5.0 ;
+X	object->target = NULL ;
+X	object->description = MONOLITH_DESC ;
+X	bcopy(static_vector, object->f_vector, sizeof(static_vector)) ;
+X	special_add_player(object) ;
+X}
+SHAR_EOF
+len=`wc -c < static.c`
+if test $len != 2078 ; then
+echo shar: static.c was $len bytes long, should have been 2078
+fi
+fi # end of overwriting check
+
+if test -f create_eship.c ; then
+echo shar: will not over-write existing file create_eship.c
+else
+echo shar: extracting create_eship.c, 2870 characters
+sed 's/^X//' > create_eship.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)create_eship.c 1.1 92/05/28 SMI" ;
+X	/* from create_eship.c 1.3 90/07/23 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X/*
+X * This file generates the graphic description of an enemy fighter
+X *
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "graphics.h"
+X#include "dstar.h"
+X#include "object_types.h"
+X#include "line_object.h"
+X#include "bsp_object.h"
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X
+X/* these routines create a description for an enemy fighter */
+X
+X
+Xvoid
+Xinit_fighter1(index)
+X	int	index ;
+X{
+X
+Xstatic	XYZF	fighter_1[] = {
+X#include "fighter1_line.h"
+X	} ;
+X
+X#include "fighter1_bsp.h"
+X
+X	Object_Desc	*desc1, *desc2 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X	desc2 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1 && desc2)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 100.0*100.0 ;
+X	  desc1->next = desc2 ;
+X	  desc1->type = LINE_DRAWING ;
+X	  desc1->first = (caddr_t) fighter_1 ;
+X
+X	  desc2->thresh = 0.0 ;
+X	  desc2->next = NULL ;
+X	  desc2->type = BSP_TREE ;
+X	  desc2->first = (caddr_t) &FIGHTER1_TOP ;
+X	}
+X	else
+X	{
+X	  perror("init_enemy_ship: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+X
+X
+X
+X
+X
+X
+Xvoid
+Xinit_fighter2(index)
+X	int	index ;
+X{
+X
+Xstatic	XYZF	fighter_2[] = {
+X#include "fighter2_line.h"
+X	} ;
+X
+X#include "fighter2_bsp.h"
+X
+X	Object_Desc	*desc1, *desc2 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X	desc2 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1 && desc2)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 100.0*100.0 ;
+X	  desc1->next = desc2 ;
+X	  desc1->type = LINE_DRAWING ;
+X	  desc1->first = (caddr_t) fighter_2 ;
+X
+X	  desc2->thresh = 0.0 ;
+X	  desc2->next = NULL ;
+X	  desc2->type = BSP_TREE ;
+X	  desc2->first = (caddr_t) &FIGHTER2_TOP ;
+X	}
+X	else
+X	{
+X	  perror("init_enemy_ship: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+X
+X
+X
+X
+X
+X
+Xvoid
+Xinit_missile(index)
+X	int	index ;
+X{
+X
+Xstatic	XYZF	missile[] = {
+X#include "missile_line.h"
+X	} ;
+X
+X	Object_Desc	*desc1 ;
+X
+X	desc1 = (Object_Desc *) malloc(sizeof(Object_Desc)) ;
+X
+X	if(desc1 != NULL)
+X	{
+X	  descriptions[index] = desc1 ;
+X
+X	  desc1->thresh = 0.0 ;
+X	  desc1->next = NULL ;
+X	  desc1->type = LINE_DRAWING ;
+X	  desc1->first = (caddr_t) missile ;
+X	}
+X	else
+X	{
+X	  perror("init_missile: malloc:") ;
+X	  exit(1) ;
+X	}
+X}
+X
+X
+X
+X
+X
+X
+X/* this routine creates an enemy ship */
+X
+XObject *
+Xcreate_enemy_ship(index,posn,forward,up,right,delta,speed)
+X	int	index ;
+X	Pt3d	*posn, *forward, *up, *right, *delta ;
+X	float	speed ;
+X{
+X	Object	*object = &objects[index] ;
+X
+X	object->id = -1 ;
+X	strcpy(object->name,"robot") ;
+X	object->score = 0 ;
+X	object->class = OBJ_PLAYER ;
+X	object->status = OBJ_ACTIVE ;
+X	object->flags = LASER_FLAG ;
+X	object->Posn = *posn ;
+X	object->Forward = *forward ;
+X	object->Up = *up ;
+X	object->Right = *right ;
+X	object->Delta = *delta ;
+X	object->Pointing = *forward ;
+X	object->Speed = speed ;
+X	object->description = FIGHTER1_DESC ;
+X
+X	return ;
+X}
+SHAR_EOF
+len=`wc -c < create_eship.c`
+if test $len != 2870 ; then
+echo shar: create_eship.c was $len bytes long, should have been 2870
+fi
+fi # end of overwriting check
+
+if test -f missile_control.c ; then
+echo shar: will not over-write existing file missile_control.c
+else
+echo shar: extracting missile_control.c, 6425 characters
+sed 's/^X//' > missile_control.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)missile_control.c 1.1 92/05/28 SMI" ;
+X	/* from missile_control.c 1.3 90/05/02 SMI */
+X#endif
+X
+X/*
+X * Copyright (c) 1986 by Sun Microsystems, Inc.
+X */
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+X#ifdef	DEBUG
+Xextern	float	missile_feedback, missile_turn, missile_speed, missile_slew ;
+X#endif	DEBUG
+X
+X
+X
+X/*
+X * clear out missile list
+X */
+X
+Xmissile_init()
+X{
+X	int	i ;
+X
+X	for(i=0; i<MAX_MISSILES; ++i)
+X	  missiles[i] = NULL ;
+X
+X	num_missiles = 0 ;
+X	armed_missiles = 0 ;
+X	missiles_remaining = MISSILES_PER_LIFE ;
+X
+X#ifdef	DEBUG
+X	missile_feedback = MISSILE_GAIN ;
+X	missile_turn = MISSILE_TURN ;
+X	missile_speed = MISSILE_SPEED ;
+X	missile_slew = MISSILE_SLEW ;
+X#endif	DEBUG
+X}
+X
+X
+X#ifdef	DEBUG
+X#undef	MISSILE_GAIN
+X#undef	MISSILE_TURN
+X#undef	MISSILE_SPEED
+X#undef	MISSILE_SLEW
+X#define	MISSILE_GAIN	missile_feedback
+X#define	MISSILE_TURN	missile_turn
+X#define	MISSILE_SPEED	missile_speed
+X#define	MISSILE_SLEW	missile_slew
+X#endif	DEBUG
+X
+X/*
+X * prepare to fire a missile, ask master for an id
+X */
+X
+Xmissile_arm()
+X{
+X	if(armed_missiles > 0)
+X	  puts("missile already armed") ;
+X	else if(num_missiles >= MAX_MISSILES)
+X	  puts("too many missiles flying at once") ;
+X	else if( missiles_remaining <= 0 )
+X	  puts("out of missiles") ;
+X	else
+X	  net_request_missile() ;
+X}
+X
+X
+X
+X/*
+X * called when master assigns missile id
+X */
+X
+Xmissile_armed(id)
+X	int	id ;
+X{
+X	int	i ;
+Xregister Object	*object ;
+Xextern	fptr	missile_vector[VECTOR_LENGTH] ;
+X
+X	if(id < 0)
+X	  puts("can't arm missile, too many objects in game") ;
+X	else
+X	{
+X	  for(i=0; i<MAX_MISSILES; ++i)
+X	  {
+X	    if(missiles[i] == NULL)
+X	    {
+X	      missiles[i] = object = &objects[id] ;
+X	      object->id = id ;
+X	      sprintf(object->name, "missile%d@%s", i, Hostname) ;
+X	      object->team = Me->id ;
+X	      object->score = 0 ;
+X	      object->class = OBJ_MISSILE ;
+X	      object->status = OBJ_SLEEPING ;
+X	      object->description = MISSILE_DESC ;
+X	      object->target = Me->target ;
+X	      object->address = Me->address ;
+X	      object->net_addr = Me->net_addr ;
+X	      object->net_status = SLAVE ;
+X	      bcopy(missile_vector, object->f_vector, sizeof(missile_vector)) ;
+X	      ++armed_missiles ;
+X	      ++num_missiles ;
+X	      --missiles_remaining ;
+X	      special_add_player(object) ;
+X	      i = MAX_MISSILES ;
+X	    }
+X	  }
+X	}
+X}
+X
+X
+X
+X/*
+X * launch command from player
+X */
+X
+Xmissile_launch()
+X{
+Xregister Object	*victim ;
+Xregister Object *missile ;
+Xregister int	i ;
+X
+X	victim = Me->target ;
+X
+X	if(armed_missiles <= 0)
+X	  puts("no missile armed") ;
+X	else
+X	  for(i=0; i<MAX_MISSILES; ++i)
+X	    if( (missile = missiles[i]) != NULL )
+X	      if( missile->class != OBJ_MISSILE )
+X	      {
+X		printf("missile %d fizzled\n",i) ;
+X		missiles[i] = NULL ;
+X		--armed_missiles ;
+X		--num_missiles ;
+X	      }
+X	      else if( missiles[i]->status == OBJ_SLEEPING )
+X	      {
+X		missile = missiles[i] ;
+X		missile->status = OBJ_ACTIVE ;
+X		missile->flags = (victim != NULL) ? RADAR_FLAG : 0 ;
+X		missile->Posn = Me->Posn ;
+X		missile->Forward = Me->Forward ;
+X		missile->Up = Me->Up ;
+X		missile->Right = Me->Right ;
+X		missile->Delta.x = 0.0 ;
+X		missile->Delta.y = 0.0 ;
+X		missile->Delta.z = 0.0 ;
+X		missile->Pointing = Me->Pointing ;
+X		missile->Speed = MISSILE_SPEED ;
+X		missile->target = victim ;
+X		missile->time = MISSILE_LIFE ;
+X		--armed_missiles ;
+X		i = MAX_MISSILES ;
+X	      }
+X}
+X
+X
+X
+X/*
+X * remove a missile from the game
+X */
+X
+Xstatic
+Xfree_missile(id)
+X	int	id ;
+X{
+X	if(missiles[id] != NULL)
+X	{
+X	  net_remove_player(missiles[id]->id) ;
+X	  missiles[id] = NULL ;
+X	  --num_missiles ;
+X	}
+X}
+X
+X
+X
+X/*
+X * missile has been shot down, was it one of ours?
+X */
+X
+Xmissile_shot(missile)
+Xregister Object	*missile ;
+X{
+Xregister int	i ;
+X
+X	for(i=0; i<MAX_MISSILES; ++i)
+X	  if(missile == missiles[i])
+X	  {
+X	    missile->status = OBJ_DEAD ;
+X	    missile->flags = 0 ;
+X	    missile->Delta.x = 0.0 ;
+X	    missile->Delta.y = 0.0 ;
+X	    missile->Delta.z = 0.5 ;
+X	    missile->Speed *= 0.7 ;
+X	    missile->description = BLAST_DESC ;
+X	    missile->time = DEATH_INTERVAL ;
+X	  }
+X}
+X
+X
+X
+X/*
+X * handle all missiles for one frame
+X */
+X
+Xfly_missiles()
+X{
+Xregister int		i ;
+Xregister Object		*missile ;
+Xregister float		dist, d ;
+X	Pt3d		v1, v2 ;
+X
+X	for(i=0; i<MAX_MISSILES; ++i)
+X	  if( (missile = missiles[i]) != NULL  &&
+X	     missile->status != OBJ_SLEEPING )
+X	  {
+X	    if( (missile->time -= Dtime) < 0.0)
+X	      free_missile(i) ;
+X	    else
+X	    {
+X	      if(missile->target != NULL)
+X	      {
+X		if( missile->target->class == OBJ_EMPTY  ||
+X		    missile->target->status != OBJ_ACTIVE )
+X		{
+X		  missile->target = NULL ;
+X		  missile->flags = 0 ;
+X		}
+X		else
+X		{
+X		  /* renew missile's life */
+X		  missile->time += MISSILE_REGEN*Dtime ;
+X		  v1.x = missile->target->Posn.x - missile->Posn.x ;
+X		  v1.y = missile->target->Posn.y - missile->Posn.y ;
+X		  v1.z = missile->target->Posn.z - missile->Posn.z ;
+X		  dist = v1.x*v1.x + v1.y*v1.y + v1.z*v1.z ;
+X		  if(dist > (MISSILE_RANGE*MISSILE_RANGE))
+X		  {
+X		    missile->target = NULL ;		/* lost it */
+X		    missile->flags = 0 ;
+X		  }
+X		  else if (dist > (MISSILE_THRESH*MISSILE_THRESH))
+X		  {
+X		    d = v1.x * missile->Pointing.x +
+X			v1.y * missile->Pointing.y +
+X			v1.z * missile->Pointing.z ;
+X		    if(d < 0.0 || d*d < dist * 0.5)	/* cos(45)**2 */
+X		    {
+X		      missile->target = NULL ;		/* lost it */
+X		      missile->flags = 0 ;
+X		    }
+X		    else
+X		    {
+X  /* we've got a victim, find delta to take us there:
+X   *
+X   * transform vector to victim from world to ship coords, ignore z.
+X   * normalize (we already have distance), multiply by feedback gain.
+X   * limit to max turn rate.
+X   */
+X		      v2.x = v1.x*missile->Right.x +
+X			     v1.y*missile->Right.y +
+X			     v1.z*missile->Right.z ;
+X		      v2.y = v1.x*missile->Up.x +
+X			     v1.y*missile->Up.y +
+X			     v1.z*missile->Up.z ;
+X
+X		      dist = MISSILE_GAIN / sqrt(dist) ;
+X
+X		      v2.x *= dist ;
+X		      v2.y *= dist ;
+X
+X		      if(v2.x >  MISSILE_TURN) v2.x =  MISSILE_TURN ;
+X		      if(v2.x < -MISSILE_TURN) v2.x = -MISSILE_TURN ;
+X		      if(v2.y >  MISSILE_TURN) v2.y =  MISSILE_TURN ;
+X		      if(v2.y < -MISSILE_TURN) v2.y = -MISSILE_TURN ;
+X
+X		      set_delta(missile, &v2, MISSILE_SLEW) ;
+X		      adjust_vector(missile,&missile->Delta) ;
+X		    }
+X		  }
+X		  else					/* got it! */
+X		  {
+X		    net_blow_away(missile, missile->target) ;
+X		    free_missile(i) ;
+X		    missile = NULL ;
+X		  }
+X		}
+X	      }
+X	    if(missile != NULL)
+X	    {
+X	      adjust_vectors(missile) ;
+X	      send_status(missile) ;
+X	    }
+X	  }
+X	}
+X}
+SHAR_EOF
+len=`wc -c < missile_control.c`
+if test $len != 6425 ; then
+echo shar: missile_control.c was $len bytes long, should have been 6425
+fi
+fi # end of overwriting check
+
+if test -f robot_special.c ; then
+echo shar: will not over-write existing file robot_special.c
+else
+echo shar: extracting robot_special.c, 6066 characters
+sed 's/^X//' > robot_special.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)robot_special.c 1.2 92/05/28 SMI" ;
+X	/* from robot_special.c 1.3 88/10/19 SMI */
+X#endif
+X
+X/*
+X * this file contains stuff that varies between fighter, robot etc.
+X *
+X * It contains these routines:
+X *
+X *
+X * init_game_special(argc,argv)
+X *	initialize all graphics stuff (none for robot)
+X *
+X * init_communications()
+X *	sign on to the game.	Called once at startup.
+X *
+X * special_welcome()
+X *	set id & team from data sent by daemon
+X *
+X * dstar_main_loop()
+X *	Start the game, calls notify_start().  Called once at startup.
+X *
+X * terminate_game()
+X *	called from sigint handler (not interrupt time) to shut down.
+X *
+X * normal_action()
+X *	called from time function, once per slice
+X *
+X * blast_action()
+X *	called from time function, once per time slice while dead
+X *
+X * set_blast_state()
+X *	called from time function, once per state change while dead
+X *
+X * special_add_player(object)
+X *	called when a new object joins the game
+X *
+X * special_remove_player(object)
+X *	called when an object leaves the game
+X *
+X * special_new_status(object)
+X *	called when an object changes status
+X */
+X
+X
+X
+X
+X#include <stdio.h>
+X#include <sys/time.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X#ifndef XV
+X#include <sunwindow/notify.h>
+X#endif XV
+X
+Xextern	int	optind ;
+Xextern	char	*optarg ;
+X
+Xextern	int	status_display ;
+X
+Xstatic	int	Killflag ;
+Xstatic	int	Last_Kill, Kill_Interval ;
+X
+X
+X	void	timefunc() ;
+Xstatic	int	sigint() ;
+X
+X
+X#define	MAX_FIGHTERS	2
+X 
+Xstatic	int	fighters[MAX_FIGHTERS] ;
+X
+X
+X
+Xstatic	char	*help_info ="\
+X-k n		kill flag, 1=robots, 2=humans, 3=both\n\
+X-t n		time interval for above\n\
+X-free		free-for-all\n\
+X-teams		players divided into two teams\n\
+X-auto		robot is aggressive\n\
+X-help		this list\n\
+Xhostname	used to slave one local net to another\n" ;
+X
+X
+X
+X
+X
+Xinit_game_special(argc,argv)
+X	int	argc ;
+X	char	**argv ;
+X{
+X	char	*mastername = NULL ;
+X	int	c ;
+Xextern	fptr	fighter_vector[VECTOR_LENGTH] ;
+X
+X	auto_pilot = auto_fire = 0 ;
+X	Killflag = 0 ;
+X	Kill_Interval = 10 ;
+X	Last_Kill = -1 ;
+X
+X	status_display = 0 ;
+X
+X	while(--argc > 0)
+X	{
+X	  ++argv ;
+X	  if(strcmp(*argv,"-k")==0)
+X	  {
+X	    if(--argc > 0)
+X	      Killflag = atoi(*++argv) ;
+X	  }
+X
+X	  else if(strcmp(*argv,"-t")==0)
+X	  {
+X	    if(--argc > 0)
+X	      Kill_Interval = atoi(*++argv) ;
+X	  }
+X
+X	  else if(strcmp(*argv,"-free")==0)
+X	    game_type = GAME_FREE ;
+X
+X	  else if(strcmp(*argv,"-teams")==0)
+X	    game_type = GAME_TEAMS ;
+X
+X	  else if(strcmp(*argv,"-status")==0)
+X	    status_display = 1 ;
+X
+X	  else if(strcmp(*argv,"-auto")==0)
+X	    auto_fire = auto_pilot = 1 ;
+X
+X	  else if(strcmp(*argv,"-debug")==0)
+X	    debug_level = 1 ;
+X
+X	  else if(strcmp(*argv,"-help")==0)
+X	  {
+X	    printf(help_info) ;
+X	    exit(0) ;
+X	  }
+X
+X	  else if(**argv == '-')
+X	    printf("unknown option %s, '-help' for more info\n",*argv) ;
+X
+X	  else
+X	    mastername = *argv ;
+X	}
+X
+X
+X	fighters[0] = FIGHTER1_DESC ;
+X	fighters[1] = FIGHTER2_DESC ;
+X
+X	Me->id = -1 ;
+X	Me->team = 0 ;
+X	Me->score = 0 ;
+X	Me->class = OBJ_PLAYER ;
+X	Me->status = OBJ_ACTIVE ;
+X	Me->flags = (auto_pilot ? RADAR_FLAG : 0) | ROBOT_FLAG ;
+X	Me->Posn.x = (random() % 3000) - 1500 ;
+X	Me->Posn.y = (random() % 3000) - 1500 ;
+X	Me->Posn.z = (random() % 3000) - 1500 ;
+X	Me->Forward.x = 0.0 ;
+X	Me->Forward.y = 0.0 ;
+X	Me->Forward.z = 1.0 ;
+X	Me->Up.x = 0.0 ;
+X	Me->Up.y = 1.0 ;
+X	Me->Up.z = 0.0 ;
+X	Me->Right.x = 1.0 ;
+X	Me->Right.y = 0.0 ;
+X	Me->Right.z = 0.0 ;
+X	Me->Delta.x = 0.1 ;
+X	Me->Delta.y = 0.0 ;
+X	Me->Delta.z = 0.0 ;
+X	Me->Pointing = Me->Forward ;
+X	Me->Speed = DEFAULT_SPEED ;
+X	Me->description = FIGHTER1_DESC ;
+X	bcopy(fighter_vector, Me->f_vector, sizeof(fighter_vector)) ;
+X
+X	Main_Timer.it_interval.tv_usec = 500000 ;
+X
+X	init_netio("robot", mastername) ;
+X}
+X
+X
+X
+Xvoid
+Xspecial_welcome()
+X{
+X	set_ship_description() ;
+X}
+X
+X
+X
+Xvoid
+Xdstar_main_loop()
+X{
+X	notify_start() ;
+X}
+X
+X
+X
+Xint
+Xterminate_game()
+X{
+X	(void) notify_set_itimer_func(&Main_Timer, timefunc,
+X	    ITIMER_REAL, NULL, 0) ;
+X	net_remove_player(Me->id) ;
+X	net_flush() ;
+X	notify_stop() ;
+X}
+X
+X
+X
+Xvoid
+Xspecial_sleep_func()
+X{}
+X
+X
+Xvoid
+Xnormal_action()
+X{
+X	if(Me->flags & RADAR_FLAG)
+X	  do_radar() ;
+X	else
+X	  Me->target = NULL ;
+X	control_ship(Me) ;
+X	if(Me->flags & LASER_FLAG)
+X	  test_objects() ;
+X
+X
+X	if(Me->id != -1)
+X	{
+X	  net_start_message( NULL ) ;
+X	  send_status(Me) ;	/* tell everyone where I am */
+X
+X
+X	  if(Last_Kill == -1)
+X	    Last_Kill = Now.tv_sec ;
+X	  if(Killflag  &&  Now.tv_sec - Last_Kill > Kill_Interval)
+X	  {
+X	    Object *object = &objects[0] ;
+X	    int	i ;
+X
+X	    for(i=0; i<MAX_OBJECTS; ++i)
+X	    {
+X	      if(object->class == OBJ_PLAYER  &&
+X		 object->status == OBJ_ACTIVE  &&
+X		 object != Me)
+X		switch(Killflag)
+X		{
+X		  case 0:
+X		    break ;
+X
+X		  case 1:
+X		    if(strncmp(object->name, "robot",5) == 0)
+X		      net_blow_away(Me, object) ;
+X		    break ;
+X
+X		  case 2:
+X		    if(strncmp(object->name, "robot",5) != 0)
+X		      net_blow_away(Me, object) ;
+X		    break ;
+X
+X		  case 3:
+X		    net_blow_away(Me, object) ;
+X		    break ;
+X		}
+X	      object++ ;
+X	    }
+X	    Last_Kill = Now.tv_sec ;
+X	  }
+X	}
+X}
+X
+X
+X
+Xvoid
+Xblast_action()
+X{
+X}
+X
+X
+X/* this routine is called whenever the blast state changes */
+X
+X
+Xset_blast_state(state)
+X	Blast_State	state ;
+X{
+X	switch(state)
+X	{
+X	  case B_FLASH:
+X	    break ;
+X
+X	  case B_WAIT:
+X	    break ;
+X
+X	  case B_NIL:
+X	    Me->status = OBJ_ACTIVE ;
+X	    Me->flags = (auto_pilot ? RADAR_FLAG : 0) | ROBOT_FLAG ;
+X	    Me->Posn.x = (random() % 3000) - 1500 ;
+X	    Me->Posn.y = (random() % 3000) - 1500 ;
+X	    Me->Posn.z = (random() % 3000) - 1500 ;
+X	    Me->Delta.x = 0.1 ;
+X	    Me->Delta.y = 0.0 ;
+X	    Me->Delta.z = 0.0 ;
+X	    Me->Speed = DEFAULT_SPEED ;
+X	    set_ship_description() ;
+X	    break ;
+X	}
+X}
+X
+X
+X
+X
+X
+Xspecial_got_blasted(object)
+X	Object	*object ;
+X{}
+X
+X
+X
+X
+Xspecial_someone_got_blasted(object,victim)
+X	Object	*object, *victim ;
+X{}
+X
+X
+X
+X
+Xspecial_add_player(object)
+X	Object	*object ;
+X{}
+X
+X
+X
+X
+Xspecial_remove_player(object)
+X	Object	*object ;
+X{}
+X
+X
+X
+Xspecial_new_status(object)
+X	Object	*object ;
+X{}
+X
+X
+X
+X
+X
+X
+Xstatic
+Xset_ship_description()
+X{
+X	Me->description = fighters[Me->team % MAX_FIGHTERS] ;
+X}
+X
+X
+X
+Xmissile_armed(id)
+X	int	id ;
+X{
+X	puts("?just got Net_missile") ;
+X}
+X
+X
+X
+Xmissile_shot(id)
+X	int	id ;
+X{
+X	puts("?just got missile_shot") ;
+X}
+SHAR_EOF
+len=`wc -c < robot_special.c`
+if test $len != 6066 ; then
+echo shar: robot_special.c was $len bytes long, should have been 6066
+fi
+fi # end of overwriting check
+
+if test -f control_robot.c ; then
+echo shar: will not over-write existing file control_robot.c
+else
+echo shar: extracting control_robot.c, 616 characters
+sed 's/^X//' > control_robot.c <<'SHAR_EOF'
+X#ifndef lint
+Xstatic	char	sccsid[] = "@(#)control_robot.c 1.1 92/05/28 SMI" ;
+X	/* from control_robot.c 1.2 88/10/19 SMI */
+X#endif
+X
+X/*
+X * this file contains specific control stuff:
+X *
+X * control_ship()
+X *	read control inputs and act accordingly
+X *
+X */
+X
+X
+X#include <stdio.h>
+X#include <math.h>
+X#include "dstar.h"
+X#include "object_types.h"
+X
+X
+X
+Xextern	int	debug_level ;
+X
+X
+X
+X
+X/****
+X *
+X * read control inputs, update ship's position/velocity/"up" vectors
+X *
+X ****/
+X
+X
+Xcontrol_ship()
+X{
+X     
+X	if(!auto_pilot)
+X	  adjust_vector(Me, &Me->Delta) ;
+X	else
+X	  auto_control(Me, AUTO_RANGE, MAX_TURN, MAX_SLEW) ;
+X
+X	adjust_vectors(Me) ;
+X}
+SHAR_EOF
+len=`wc -c < control_robot.c`
+if test $len != 616 ; then
+echo shar: control_robot.c was $len bytes long, should have been 616
+fi
+fi # end of overwriting check
+
+exit 0
+#	End of part 2
+--
+		-ed falk, sun microsystems
+		 sun!falk, falk@sun.com
+To be loyal to rags, to shout for rags, to worship rags, to die for rags 
+-- that is a loyalty of unreason, it is pure animal (Mark Twain).

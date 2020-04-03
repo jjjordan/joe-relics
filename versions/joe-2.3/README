@@ -1,0 +1,176 @@
+
+This is Joe's Own Editor.  See the INFO file if you don't know what this is.
+
+A preformatted man page is in joe.man.  Joe.1 is an nroff formatted man
+page.
+
+=-=-=-=-=-=-=-=-=-=-=-=
+Installation proceedure
+=-=-=-=-=-=-=-=-=-=-=-=
+
+	Edit the Makefile to change the following options:
+
+	  Where joe's keymap initialization files will
+	  go if not /usr/local/lib.
+
+	  Where joe will be placed when you do 'make install'
+	  if not /usr/local/bin.
+
+	  Where joe's man page will be placed, if not /usr/man/man1.
+
+	  If you want to use the terminfo database instead of termcap.
+
+	  Some systems require a few other changes (notably Xenix).  Check
+	  out the comments in the Makefile.
+
+	Type 'make' to create joe.  You can then try it by typing ./joe.
+
+	Then type 'make install' to install joe.
+
+	Type 'make clean' eliminate the .o files
+
+	Copy termcap to .termcap in your home directory if you want to
+	use it instead of /etc/termcap (see below).
+
+	Set the baud rate properly (see below).
+
+USEAGE:	joe filenames
+
+	Optionally preceed each filename with +nnn to start at specified 
+line number.  
+
+  Options:
+
+ -mid		Cursor is recentered when scrolling is necessary
+ -marking	Text between ^KB and cursor is highlighted (use with -lightoff)
+ -asis		Characters 128 - 255 shown as-is
+ -force		Force final newline when files are saved
+ -nobackups	If you don't want backup files to be created
+ -lightoff	Turn off highlighting after block copy or move
+ -exask		^KX always confirms file name
+ -beep		Beep on errors and when cursor goes past extremes
+ -nosta		Disable top-most status line
+ -keepup	%k and %c status line escape sequences updated frequently
+ -pg nnn	No. lines to keep for PgUp/PgDn
+ -csmode	^KF after a pervious search does a ^L instead
+ -backpath path Directory to store backup files
+ -nonotice	Disable copyright notice
+ -noxon		Attempt to turn off ^S/^Q processing
+ -orphan	Put extra files given on command line in orphaned buffers
+		instead of in windows
+ -dopadding	Output pad characters (for when there is no tty handshaking)
+ -lines nnn	Set no. screen lines
+ -baud nnn	Set baud rate for terminal optimizations
+ -columns nnn	Set no. screen columns
+ -help		Start with help on
+ -skiptop nnn	Don't use top nnn lines of the screen
+
+
+  Options before each file name:
+
+ -wordwrap		Wordwrap
+ -autoindent		Auto indent
+ -overwrite		Overtype mode
+ -lmargin nnn		Left margin
+ -rmargin nnn		Right margin
+ -tab nnn		Tab width
+ -indentc nnn		Indentation character (32 for space, 9 for tab)
+ -istep nnn		Number of indentation columns
+ -french		One space after '.', '?' and '!' for wordwrap
+			and paragraph reformat instead of two.  Joe
+			does not change the spacing you give, but
+			sometimes it must put spacing in itself.  This
+			selects how much is inserted.
+ -spaces		TAB inserts spaces instead of tabs.
+ -linums		Enable line numbers on each line
+ -rdonly		File is read-only
+
+	These options can also be set in the joerc file.  The NOXON, LINES,
+COLUMNS, DOPADDING and BAUD options can also be set with environment
+variables.
+
+** IMPORTANT **
+
+The baud rate must be correctly set or either typeahead will not interrupt 
+the screen update and scrolling wont be used or there will be annoying 
+delays in the screen update.  If you can't set the baud rate correctly with 
+'stty', give a numeric value in the environment variable 'BAUD' or to the
+command line options '-baud'.
+
+The baud rate '38400' or 'extb' means infinite to joe.  Use it for X windows
+and hardware console ttys.  No delays will be generated and scrolling will
+not be used.
+
+Use the LINES and COLUMNS environment variables or the -lines and -columns
+command line options if you need the terminal size to be different than
+whatever the termcap entry or stty reports.
+
+Since most people use terminal emulators, JOE does not send out pad 
+characters.  If you're using a real terminal and the padding matters, set 
+the environment variable DOPADDING or give the command line option
+-dopadding.
+
+If you want joe to try to disable ^S/^Q processing, set the environment
+variable NOXON or command line option -noxon.
+
+A termcap file is included with JOE.  You might consider updating your own 
+termcap file with the entries in it, particularly if you use ANSI/VT100ish 
+terminals.  JOE understands some capabilities which are not usually supplied 
+in normal termcap (see below).
+
+                                 VARIATIONS
+                                 =-=-=-=-=-
+
+Termcap/Terminfo
+=-=-=-=-=-=-=-=-
+
+	JOE prefers to use the termcap terminal capability database.  You
+have if the file '/etc/termcap' exists.  If it doesn't you can use the
+'termcap' file supplied with joe by copying it to /etc.
+
+	Termcap is better than terminfo because it is a more open standard. 
+Programs can directly access the termcap database and future versions of
+terminfo may require programs to use curses.  The only argument in
+terminfo's favour is that it is faster than termcap.  To fix this problem,
+JOE will use a termcap index file if it exists and if it is up to date.
+
+	This is the proceedure to make the termcap index file:
+
+		make termidx
+		./termidx </etc/termcap >/etc/termcap.idx
+
+	The /etc/termcap.idx is a text file which you can look at if you're
+curious.
+
+	JOE supports the GNU extensions to the termcap language and also
+understands several new capabilities:
+
+		AL DL IC DC RI LE UP DO SF SR
+
+			Versions of the standard capabilities which accept
+			an argument.  For example, RI with and argument of
+			7 should move the cursor 7 positions to the right.
+
+		rr
+
+			Set this flag if the cursor is restricted to move
+			only within the scrolling regions.  This is an optional
+			mode on vt220s and several clones assume that this
+			mode is always on.
+
+		cV
+
+			Like the 'cv' capability, but the cursor goes to the
+			beginning of the specified line.  Like 'ESC [ n H' in
+			ansi/vt100.
+
+	But if you really must use the terminfo database, change the 
+'termcap.o' file in the OBJS list in the makefile to 'terminfo.o'.  You'll 
+also have to add '-ltinfo', '-ltermlib' or '-lcurses' to the appropriate 
+link line (lines beginning with $(CC)) in the make file.  
+
+VOID trouble
+=-=-=-=-=-=-
+
+	If you're using an old C compiler which doesn't like the 'void'
+type, uncomment the '#define void int' line from the config.h file.

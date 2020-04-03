@@ -1,0 +1,1581 @@
+Path: funic!fuug!mcsun!ukc!axion!uzi-9mm.fulcrum.bt.co.uk!cat.fulcrum.bt.co.uk!cnix!klaus
+From: klaus@cnix.uucp (klaus u schallhorn)
+Newsgroups: alt.sources
+Subject: psroff/troff/laserjet hpcl -> fax and others (3 of 4)
+Message-ID: <1991Aug29.132014.9050@cnix.uucp>
+Date: 29 Aug 91 13:20:14 GMT
+Sender: klaus@cnix.uucp (klaus u schallhorn)
+Organization: pionier publications
+Lines: 1571
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 4)."
+# Contents:  ./hpfntwrite.c
+# Wrapped by klaus@cnix on Thu Aug 29 14:00:47 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f './hpfntwrite.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'./hpfntwrite.c'\"
+else
+echo shar: Extracting \"'./hpfntwrite.c'\" \(29855 characters\)
+sed "s/^X//" >'./hpfntwrite.c' <<'END_OF_FILE'
+X/*
+X	hpfntwrite.c
+X
+X	converts hpcl output into a [series of] pbm file[s].
+X	based on faxpak's fntwrite for texttopbm, which was ripped off 
+X	from chart.c
+X
+X	version 1.0, Copyright (C) 1991, klaus schallhorn, <klaus@cnix.uucp>
+X
+X	Permission to use, copy, modify, and distribute this software and its
+X	documentation for any purpose and without fee is hereby granted, provided
+X	that the above copyright notice appear in all copies and that both that
+X	copyright notice and this permission notice appear in supporting
+X	documentation.  This software is provided "as is" without express or
+X	implied warranty.
+X*/
+X
+X#include "hptopbm.h"
+X
+X#ifdef	FAXPAK
+Xextern	struct FAXCONFIG fc;
+X#endif
+X
+X#ifndef	MAX_HITE
+X#define	MAX_HITE	4200	/* 14 in @ 300 dpi */
+X#endif
+X#ifndef	MAX_WIDTH
+X#define	MAX_WIDTH	2800
+X#endif
+X
+X#define	MAX_FONT	MAX_BUILTIN+MAX_DOWNLOAD
+X#define	MAX_MACRO	32
+X#define	MAX_PAT		14
+X
+X#define	ESC		'\033'
+X#define	setpix(y,x)	(block[y][x>>3] |= bit[x&7])
+X
+X#ifndef	min
+X#define	min(a,b)	((a<b)?a:b)
+X#define	max(a,b)	((a>b)?a:b)
+X#endif
+X
+X
+X#define	relative()	movetype
+X
+Xextern	int builtin, dotted, movetype, lastfontid;
+X
+Xstatic	uchar *block[MAX_HITE];
+X
+Xstatic struct	MCENV
+X{
+X	int	page_len,
+X		top_margin,
+X		left_margin,
+X		rite_margin,
+X		cur_fnt,
+X		cur_fID,
+X		cur_mac,
+X		pfont,
+X		cur_chr,
+X		underline,
+X		dpi,
+X		pID,
+X		top_dots,
+X		left_dots,
+X		text_len;
+X	double	hmi,
+X		lhite,
+X		Hlen, Vlen;
+X} McEnv, orgenv, *curenv;
+X
+Xstatic struct	OVLY
+X{
+X	struct	MCENV ovly_env;
+X	int	sfont;
+X	double	BMX, BMY, 		/* current abs xy */
+X		GRAPHX, GRAPHY; 	/* current graphics cursor */
+X	double	lpi;
+X} ovly, restore;
+X
+Xstruct	FONT_ATTS
+X{
+X	int	orient,
+X		symset,
+X		prop_spaced,
+X		style,
+X		stroke,
+X		typeface;
+X	double	pitch,
+X		points;
+X} lastspec;
+X
+Xstatic	int sfont,
+X	max_ln, max_col, 	/* max dimen abs pels */
+X	xmax_used, ymax_used, 	/* max abs used */
+X	bmx, bmy, 		/* current abs xy */
+X	see_thru, 		/* dont paint anything */
+X	new_topmargin, 		/* takes effect on next page unless <ESC>&a0R */
+X	env_saved,
+X	stackpos,
+X	auto_macro,
+X	try_select,
+X	virgin = TRUE,
+X	no_bitmap = TRUE;
+X
+Xstatic	int xscale[MAX_WIDTH], yscale[MAX_HITE];
+X
+Xstatic	double xdpi, ydpi, lpi, BMX, BMY, GRAPHX, GRAPHY;
+X
+Xstatic	uchar bit[] =
+X{
+X	0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01
+X};
+X
+Xstruct	CHAR_BITMAP
+X{
+X	short len, hite, clen, toffs, loffs;
+X	uchar **CH;
+X};
+X
+Xstruct	HPFONT
+X{
+X	int	fID,
+X		active,
+X		prop_spaced,
+X		real_spaced,
+X		permtype,
+X		primtype,
+X		builtin;
+X	double	space_len,
+X		real_space_len;		/* to restore reality */
+X	struct	FONT_ATTS font_atts;
+X	struct	CHAR_BITMAP chars[256];
+X} hpfonts[MAX_FONT], *cfn, *getcfn(), *findlstid();
+X
+Xstruct	MACRO
+X{
+X	int	active,
+X		permtype,
+X		magic,
+X		len;
+X	uchar	*macro;
+X} macros[MAX_MACRO], *cmc, *getcmc();
+X
+Xstruct	STACK
+X{
+X	double BMX, BMY;
+X} stack[MAX_PUSHNPOP];
+X
+Xstruct PAT
+X{
+X	uchar p;
+X	struct PAT *xnext, *ynext;
+X} pat[MAX_PAT][32][4];
+X
+Xchar	*BuiltinFonts[]=
+X{
+X/* 0*/	"lp.sfp",
+X/* 1*/	"",
+X/* 2*/	"",
+X/* 3*/	"cour.sfp",
+X/* 4*/	"",
+X/* 5*/	"",
+X/* 6*/	"",
+X/* 7*/	"",
+X	NULL
+X};
+X
+X#define	GRAY		2
+X#define	GRAY_BASE	0
+X#define	RULE		3
+X#define	RULE_BASE	7
+X#define	SOLID		7
+X
+Xchar	*BuiltinPats[]=
+X{
+X	"hprast1",
+X	"hprast2",
+X	"hprast3",
+X	"hprast4",
+X	"hprast5",
+X	"hprast6",
+X	"hprast7",
+X	"hprast8",
+X	"hppat1",
+X	"hppat2",
+X	"hppat3",
+X	"hppat4",
+X	"hppat5",
+X	"hppat6",
+X	NULL
+X};
+X
+X
+X/* STARTUP, automagically called from main ********************************* */
+Xrs_rastsize(x,y)
+Xdouble x,y;
+X{
+X	xdpi = x;
+X	ydpi = y;
+X	see_thru = 0;
+X	lpi = 6.0;
+X	orgenv.page_len = PAGE_LEN;
+X	orgenv.top_margin = new_topmargin = TOP_MARGIN;
+X	orgenv.left_margin = LEFT_MARGIN;
+X	orgenv.rite_margin = RITE_MARGIN;
+X	orgenv.text_len = PAGE_LEN - TOP_MARGIN;
+X	orgenv.text_len -= 3;
+X	orgenv.lhite = 50;
+X	orgenv.top_dots = orgenv.top_margin*orgenv.lhite;
+X	orgenv.left_dots = 47;	/* dots = .157 in */
+X	orgenv.dpi = 75;	/* hp 2686a */
+X	stackpos = 0;
+X	try_select = 0;
+X	builtin = -1;
+X	orgenv.cur_fID = orgenv.cur_chr = -1;
+X	orgenv.cur_mac = -1;
+X	curenv = &orgenv;
+X	auto_macro = -1;
+X	cfn = NULL;
+X	cmc = NULL;
+X	fontinit();
+X	xyinit();
+X	macinit();
+X	ovlyinit();
+X	builtin_fontinit();
+X	builtin_patinit();
+X}
+Xfontinit()
+X{
+X	int i, j, *Yptr;
+X	struct HPFONT *hf;
+X	struct CHAR_BITMAP *cf;
+X	double x;
+X
+X	for (j=0; j<MAX_FONT; j++)
+X	{
+X		hf = &hpfonts[j];
+X		hf->fID = hf->prop_spaced = hf->real_spaced = -1;
+X		hf->permtype = hf->primtype = -1;
+X		hf->space_len = -1.0;
+X		hf->real_space_len = -1.0;
+X		hf->active = hf->builtin = FALSE;
+X		for (i=0; i<256; i++)	/* just to be safe */
+X		{
+X			cf = &hf->chars[i];
+X			cf->CH = (uchar **)NULL;
+X			cf->len = cf->hite = cf->clen = cf->toffs = cf->loffs = 0;
+X		}
+X	}
+X	hf = &hpfonts[LINEPRINTER];
+X	hf->prop_spaced = hf->real_spaced = 0;
+X	hf->space_len = 18;
+X	hf->real_space_len = 18;
+X	hf->active = hf->builtin = TRUE;
+X
+X	hf = &hpfonts[COURIER];
+X	hf->prop_spaced = hf->real_spaced = 0;
+X	hf->space_len = 30;
+X	hf->real_space_len = 30;
+X	hf->active = hf->builtin = TRUE;
+X
+X	if (((int)xdpi == 300) && ((int)ydpi == 300))
+X	{
+X		Yptr = xscale;
+X		for (i=0; i<MAX_WIDTH; i++)
+X			*Yptr++ = i;
+X		Yptr = yscale;
+X		for (i=0; i<MAX_HITE; i++)
+X			*Yptr++ = i;
+X	}
+X	else
+X	{
+X		Yptr = &xscale[1];
+X		for (i=1; i<MAX_WIDTH; i++)
+X		{
+X			x = .5 + ((double)i * xdpi);
+X			x /= 300.0;
+X			*Yptr++ = (int)x;
+X		}
+X		Yptr = &yscale[1];
+X		for (i=1; i<MAX_HITE; i++)
+X		{
+X			x = .5 + ((double)i * ydpi);
+X			x /= 300.0;
+X			*Yptr++ = (int)x;
+X		}
+X	}
+X}
+Xxyinit()
+X{
+X	BMY = orgenv.top_dots;
+X	BMX = 0.0;
+X	GRAPHX = 0.0;
+X	GRAPHY = 0.0;
+X}
+Xovlyinit()
+X{
+X	ovly.ovly_env = orgenv;
+X	ovly.sfont = sfont;
+X	ovly.BMX = BMX;
+X	ovly.BMY = BMY;
+X	ovly.GRAPHX = GRAPHX;
+X	ovly.GRAPHY = GRAPHY;
+X	ovly.lpi = lpi;
+X}
+Xbuiltin_fontinit()
+X{
+X	int i;
+X
+X	for (i=0; i<MAX_BUILTIN; i++)
+X		if (BuiltinFonts[i] && *BuiltinFonts[i])
+X		{
+X			builtin = i;
+X			loadbuiltin(BuiltinFonts[i]);
+X		}
+X	builtin = -1;
+X	curenv->cur_fnt = COURIER;
+X}
+Xbuiltin_patinit()
+X{
+X	int i,j,k,x,y;
+X	FILE *fp;
+X	char buf[256], fname[256];
+X	struct PAT *ptr;
+X
+X	for (k=0; k<MAX_PAT; k++)
+X	{
+X#ifdef	FAXPAK
+X		sprintf(fname, "%s/hplib/%s", fc.faxlib, BuiltinPats[k]);
+X#else
+X		sprintf(fname, BUILTINDIR, LIBDIR, BuiltinPats[k]);
+X#endif
+X		if ((fp = fopen(fname, "r")) == NULL)
+X			die("can't open %s\n",fname);
+X		if (fgets(buf, 80, fp) == NULL || strncmp(buf, "P4", 2))
+X			die("%s doesn't look like a pbm file\n",fname);
+X		for (;;)
+X		{
+X			if (fgets(buf, 256, fp) == NULL)
+X				die("A: %s doesn't look like a pbm file\n",fname);
+X			if (buf[0] != '#')
+X			{
+X				if (sscanf(buf, "%d %d",&x,&y) != 2)
+X					die("B: %s doesn't look like a pbm file\n",fname);
+X				break;
+X			}
+X		}
+X		if (!(x % 8))
+X			x /= 8;
+X		else x = 1+(x/8);
+X		if (x < 4 || y < 32)
+X			die("%s is not a known pattern\n",fname);
+X
+X 		for (j=0; j<31; j++)
+X		{
+X			for (i=0; i<3; i++)
+X			{
+X				ptr = &pat[k][j][i];
+X				ptr->p = getc(fp);
+X				ptr->xnext = &pat[k][j][i+1];
+X				ptr->ynext = &pat[k][j+1][i];
+X			}
+X			ptr = &pat[k][j][3];
+X			ptr->p = getc(fp);
+X			ptr->xnext = &pat[k][j][0];
+X			ptr->ynext = &pat[k][j+1][3];
+X		}
+X		for (i=0; i<3; i++)
+X		{
+X			ptr = &pat[k][j][i];
+X			ptr->p = getc(fp);
+X			ptr->xnext = &pat[k][j][i+1];
+X			ptr->ynext = &pat[k][0][i];
+X		}
+X		ptr = &pat[k][j][3];
+X		ptr->p = getc(fp);
+X		ptr->xnext = &pat[k][j][0];
+X		ptr->ynext = &pat[k][0][3];
+X		fclose(fp);
+X	}
+X}
+Xmake_bitmap(x,y)
+Xint x,y;
+X{
+X	int i, orgx, xa, ya;
+X
+X	if (x > MAX_WIDTH || y > MAX_HITE)
+X		die("requested bitmap too large\n");
+X
+X	orgx = x;
+X	if (x%32)			/* set to 32bit/4byte boundary */
+X		x = x+32-(x%32);
+X	x /= 8;
+X
+X	xa = xscale[x];
+X	ya = yscale[y];
+X
+X	for (i=0; i<ya; i++)
+X		if ((block[i] = (uchar *)calloc(xa,sizeof(uchar))) == NULL)
+X			die("not enough memory\n");
+X	for (; i<MAX_HITE; i++)
+X		block[i] = NULL;
+X
+X	max_ln = y-1;
+X	max_col = (orgx)-1;
+X	no_bitmap = FALSE;
+X}
+X
+Xend_bitmap(tname)
+Xchar *tname;
+X{
+X	int i, j, xmax;
+X	FILE *fp;
+X
+X	if ((fp = fopen(tname, "w")) == NULL)
+X		die("cannot create pbm file %s\n",tname);
+X
+X#ifndef	TRIMPAGE
+X	ymax_used = yscale[max_ln-1];
+X	xmax = xscale[(max_col+8)/8];
+X#else
+X	ymax_used = min(ymax_used+4, MAX_HITE);
+X	xmax = (8+xmax_used)/8;
+X#endif
+X	if (fprintf(fp,"P4\n%d %d\n",xmax*8,ymax_used) == EOF)
+X		die("can't init pbmfile %s\n",tname);
+X
+X	for (i=0; i<ymax_used; i++)
+X	{
+X		if ((j = fwrite((char*)block[i], 1, xmax, fp)) != xmax)
+X			die("premature EOF after %d bytes of %d, line %d of %d\n",
+X				j,xmax,i,ymax_used);
+X		(void)memset((char*)block[i], '\0', xmax);
+X	}
+X	fclose(fp);
+X
+X	ymax_used = xmax_used = 0;
+X	orgenv.top_margin = new_topmargin;
+X	orgenv.top_dots = orgenv.top_margin*orgenv.lhite;
+X	curenv = &orgenv;
+X	dotted = FALSE;
+X	virgin = TRUE;
+X	stackpos = 0;
+X}
+X
+X/* FONT stuff ************************************************************** */
+Xstruct HPFONT *getcfn()
+X{
+X	struct HPFONT *hpf;
+X
+X	if (curenv->cur_fnt < 0 || curenv->cur_fnt >= MAX_FONT)
+X		die("don't know font %d\n",curenv->cur_fnt);
+X	hpf = &hpfonts[curenv->cur_fnt];
+X	if (!hpf->active)
+X		die("font %d not active\n",curenv->cur_fnt);
+X	curenv->cur_fID = hpf->fID;
+X	return(hpf);
+X}
+Xstruct HPFONT *findlstid()
+X{
+X	struct HPFONT *hpf;
+X	int i;
+X
+X	for (i=0; i<MAX_FONT; i++)
+X	{
+X		hpf = &hpfonts[i];
+X		if (hpf->active && hpf->fID == lastfontid)
+X			return(hpf);
+X	}
+X	return(NULL);
+X}
+X/* defaults are set from various places after various events, almost circular */
+Xtlen_default()
+X{
+X	curenv->text_len = curenv->page_len - curenv->top_margin;
+X	curenv->text_len -= (300/curenv->lhite)/2;
+X}
+Xmtop_default()
+X{
+X	curenv->top_margin = TOP_MARGIN;
+X	curenv->top_dots = curenv->top_margin*curenv->lhite;
+X}
+Xlr_default()
+X{
+X	curenv->left_margin = LEFT_MARGIN;
+X	curenv->left_dots = 47;
+X	curenv->rite_margin = RITE_MARGIN;
+X}
+Xhmi_default()
+X{
+X	cfn = getcfn();
+X	curenv->hmi = cfn->real_space_len;
+X	cfn->space_len = cfn->real_space_len;
+X}
+Xsetshift(n)
+Xint n;
+X{
+X	if (try_select)
+X		best_match();
+X
+X	cfn = getcfn();
+X	cfn->primtype = n;
+X	curenv->cur_fID = cfn->fID;
+X	hmi_default();
+X}
+X
+X/* clearing fonts or chars ************************************************* */
+Xclearchar(cptr)
+Xstruct CHAR_BITMAP *cptr;
+X{
+X	int i;
+X
+X	for (i=0 ;i<cptr->hite; i++)
+X		if (cptr->CH[i])
+X			free((char*)cptr->CH[i]);
+X	if (cptr->CH)
+X		free((char*)cptr->CH);
+X	cptr->CH = (uchar **)NULL;
+X	cptr->len = cptr->hite = cptr->clen = cptr->toffs = cptr->loffs = 0;
+X}
+Xclear1font(fptr)
+Xstruct HPFONT *fptr;
+X{
+X	int i;
+X
+X	for (i=32; i<256; i++)
+X		clearchar(&fptr->chars[i]);
+X	fptr->fID = fptr->prop_spaced = fptr->real_spaced = 
+X		fptr->permtype = fptr->primtype = -1;
+X	fptr->space_len = -1;
+X	fptr->real_space_len = -1;
+X	fptr->active = FALSE;
+X}
+Xclearallfonts()
+X{
+X	clearfonts(TEMPORARY);
+X	clearfonts(PERMANENT);
+X	orgenv.cur_fnt = COURIER;
+X	orgenv.cur_fID = -1;
+X	env_saved = FALSE;
+X	curenv = &orgenv;
+X}
+Xclearfonts(type)
+Xint type;
+X{
+X	int i;
+X	struct HPFONT *cf;
+X
+X	for (i=0; i<MAX_FONT; i++)
+X	{
+X		cf = &hpfonts[i];
+X		if ((!cf->builtin) && cf->active && cf->permtype == type)
+X		{
+X			if (curenv->cur_fnt == i && dotted)
+X			{
+X				pbmeject(TRUE);
+X				curenv = &orgenv;
+X				curenv->cur_fID = -1;
+X				curenv->cur_fnt = COURIER;
+X				env_saved = FALSE;
+X			}
+X			clear1font(&hpfonts[i]);
+X		}
+X	}
+X}
+Xclearcurfont()
+X{
+X	struct HPFONT *hp;
+X
+X	if ((hp = findlstid()) != (struct HPFONT*)NULL)
+X		if (!cfn->builtin)
+X		{
+X			if (hp == cfn)
+X				orgenv.cur_fnt = COURIER;
+X			clear1font(hp);
+X			curenv = &orgenv;
+X			curenv->cur_fID = -1;
+X			env_saved = FALSE;
+X			if (dotted)
+X				pbmeject(TRUE);
+X		}
+X}
+Xclearlastchar()
+X{
+X	cfn = getcfn();
+X	if ((!cfn->builtin) && cfn->chars[curenv->cur_chr].len)
+X		clearchar(&cfn->chars[curenv->cur_chr]);
+X}
+Xmakeftype(what)
+Xint what;
+X{
+X	int i;
+X	struct HPFONT *hpf;
+X
+X	if (lastfontid == -1)
+X		return;
+X	if ((hpf = findlstid()) != (struct HPFONT *)NULL)
+X		hpf->permtype = what;
+X	else
+X	{
+X		for (i=0; i<MAX_FONT; i++)
+X		{
+X			hpf = &hpfonts[i];
+X			if (!hpf->active)
+X			{
+X				hpf->active = TRUE;
+X				hpf->fID = lastfontid;
+X				hpf->permtype = what;
+X				break;
+X			}
+X		}
+X		if (i == MAX_FONT)
+X			die("too many fonts\n");
+X	}
+X}
+Xbest_match()
+X{
+X	int i, *ip, best, bestfnt, canuse[MAX_FONT];
+X	struct HPFONT *hf;
+X
+X	try_select = FALSE;
+X
+X	ip = canuse;
+X	for (i=0; i<MAX_FONT; i++)
+X		*ip++ = 0;
+X
+X	ip = canuse;
+X	for (i=0; i<MAX_FONT; i++, ip++)
+X	{
+X		hf = &hpfonts[i];
+X		if (hf->active)
+X		{
+X			if (hf->font_atts.orient == lastspec.orient)
+X				*ip = 8;
+X			if (hf->font_atts.symset == lastspec.symset)
+X				*ip += 7;
+X			if (hf->font_atts.prop_spaced == lastspec.prop_spaced)
+X				*ip += 6;
+X			if (hf->font_atts.pitch == lastspec.pitch)
+X				*ip += 5;
+X			if (hf->font_atts.points == lastspec.points)
+X				*ip += 4;
+X			if (hf->font_atts.style == lastspec.style)
+X				*ip += 3;
+X			if (hf->font_atts.stroke == lastspec.stroke)
+X				*ip += 2;
+X			if (hf->font_atts.typeface == lastspec.typeface)
+X				*ip += 1;
+X		}
+X	}
+X	ip = canuse;
+X	for (bestfnt = best = -1, i=0; i<MAX_FONT; i++, ip++)
+X		if (*ip > best)
+X		{
+X			best = *ip;
+X			bestfnt = i;
+X		}
+X	if (bestfnt > -1 && bestfnt < MAX_FONT)
+X	{
+X		curenv->cur_fnt = bestfnt;
+X		hf = getcfn();
+X	}
+X}
+X
+X/* mostly char/line based dimension defaults ******************************* */
+Xrs_plen(n)
+Xdouble n;
+X{
+X	if (n && curenv->lhite && curenv->lhite*n < 14*300)
+X	{
+X		curenv->page_len = (int)n;
+X		mtop_default();
+X		tlen_default();
+X		lr_default();
+X	}
+X	(void)rs_auto_enable(FALSE);
+X}
+Xrs_mtop(n)
+Xdouble n;
+X{
+X	if (curenv->lhite && curenv->lhite*n < curenv->lhite*curenv->page_len)
+X	{
+X		new_topmargin = (int)n;
+X		if (virgin)
+X		{
+X			curenv->top_margin = new_topmargin;
+X			curenv->top_dots = curenv->top_margin*curenv->lhite;
+X		}
+X		tlen_default();
+X	}
+X}
+Xrs_tlen(n)
+Xdouble n;
+X{
+X	if (n && (n <= (curenv->page_len - curenv->top_margin)))
+X		curenv->text_len = (int)n;
+X	else if (!n)
+X		tlen_default();
+X}
+Xrs_mleft(n)
+Xdouble n;
+X{
+X	cfn = getcfn();
+X	if (n < curenv->rite_margin)
+X	{
+X		curenv->left_margin = (int)n;
+X		curenv->left_dots = curenv->left_margin * cfn->space_len;
+X	}
+X}
+Xrs_mright(n)
+Xdouble n;
+X{
+X	if (n > curenv->left_margin)
+X		curenv->rite_margin = (int)n;
+X}
+Xrs_col(n)
+Xdouble n;
+X{
+X	cfn = getcfn();
+X	if (relative())
+X		BMX += n*cfn->space_len;
+X	else if (!(int)n)
+X		BMX = curenv->left_dots;
+X	else BMX = n*cfn->space_len;
+X	BMX = max(0.0, BMX);
+X	BMX = min(BMX, (double)((RITE_MARGIN-1)*30));	/* using 10cpi for max */
+X}
+Xrs_row(n)
+Xdouble n;
+X{
+X	double largest;
+X
+X	if (!(int)n)
+X	{
+X		curenv->top_margin = new_topmargin;
+X		curenv->top_dots = curenv->top_margin*curenv->lhite;
+X		BMY = (double)curenv->top_dots * curenv->lhite;
+X		return;
+X	}
+X	if (relative())
+X	{
+X		BMY += n*curenv->lhite;
+X		if (n > 0 && BMY > (curenv->top_margin+curenv->text_len)*curenv->lhite)
+X		{
+X			pbmeject(TRUE);
+X			rs_row(0.0);
+X			return;
+X		}
+X		else if (BMY < 0)
+X			BMY = curenv->top_dots * curenv->lhite;
+X	}
+X	else
+X		BMY = curenv->top_dots + n * curenv->lhite;
+X	BMY = max(0.0, BMY);
+X	largest = (double)(curenv->top_margin+curenv->text_len)*curenv->lhite;
+X	BMY = min(BMY, largest);
+X}
+Xhalf_linefeed()
+X{
+X	BMY += curenv->lhite/2.0;
+X}
+X/* dotty stuff ************************************************************* */
+Xrs_lpi(n)
+Xdouble n;
+X{
+X	int pels;
+X
+X	pels = (int)n;
+X	switch(pels)
+X	{
+X	case 1:		curenv->lhite = 300.0;	break;
+X	case 2:		curenv->lhite = 150.0;	break;
+X	case 3:		curenv->lhite = 100.0;	break;
+X	case 4:		curenv->lhite =  75.0;	break;
+X	case 6:		curenv->lhite =  50.0;	break;
+X	case 8:		curenv->lhite =  37.5;	break;
+X	case 12:	curenv->lhite =  25.0;	break;
+X	case 16:	curenv->lhite =  18.75;	break;
+X	case 24:	curenv->lhite =  12.5;	break;
+X	case 48:	curenv->lhite =   6.25;	break;
+X	default:	return;
+X	}
+X	lpi = n;
+X}
+Xrs_vmi(n)
+Xdouble n;
+X{
+X	if (n >= 0 && n < 126)
+X		curenv->lhite = n*300/48;
+X}
+Xrs_hmi(n)
+Xdouble n;
+X{
+X	cfn = getcfn();
+X	if (n >= 0 && n < 126 && cfn->active) {
+X		cfn->space_len = n*300/120;
+X		curenv->hmi = cfn->space_len;
+X	}
+X}
+Xrs_X(x)
+Xdouble x;
+X{
+X	if (relative())
+X		BMX += x;
+X	else BMX = x;
+X	BMX = max(0.0, BMX);
+X			/* max == rightmost legal pixel */
+X			/* would be pixel 29 if RIGHT_MARGIN == 0 */
+X	BMX = min(BMX, (double)((1+RITE_MARGIN)*30)-1);	
+X}
+Xrs_Y(y,decipt)
+Xdouble y;
+Xint decipt;
+X{
+X	if (relative())
+X		BMY += y;
+X	else BMY = curenv->top_dots+y;
+X	BMY = max(0.0, BMY);
+X	if (decipt)
+X		y = PAGE_LEN * 50;
+X	else y = (curenv->top_margin+curenv->text_len)*curenv->lhite;
+X	BMY = min(BMY, y);
+X}
+X/* font settings *********************************************************** */
+Xrs_symset(set)
+Xint set;
+X{
+X	lastspec.symset = set;
+X}
+Xrs_spacing(n)
+Xint n;
+X{
+X	cfn = getcfn();
+X	cfn->prop_spaced = n;
+X	if (cfn->real_spaced)
+X	{
+X		cfn->space_len = cfn->real_space_len;
+X		curenv->hmi = cfn->real_space_len;
+X	}
+X	lastspec.prop_spaced = n;
+X}
+Xrs_pitch(n)
+Xdouble n;
+X{
+X	lastspec.pitch = n;
+X	try_select = 1;
+X}
+Xrs_points(n)
+Xdouble n;
+X{
+X	lastspec.points = n;
+X	try_select = 1;
+X}
+Xrs_style(n)
+Xint n;
+X{
+X	lastspec.style = n;
+X	try_select = 1;
+X}
+Xrs_stroke(n)
+Xint n;
+X{
+X	lastspec.stroke = n;
+X	try_select = 1;
+X}
+Xrs_typeface(n)
+Xint n;
+X{
+X	lastspec.typeface = n;
+X	try_select = 1;
+X}
+Xrs_setpitch(n)
+Xdouble n;
+X{
+X	cfn = getcfn();
+X	if (!cfn->prop_spaced)
+X	{
+X		cfn->space_len = 300/n;
+X		curenv->hmi = cfn->space_len;
+X	}
+X}
+X/* unclassified ************************************************************ */
+Xrs_ul(n)
+Xdouble n;
+X{
+X	curenv->underline = (int)n;
+X}
+Xrs_thru(n)
+Xdouble n;
+X{
+X	see_thru = (int)n;
+X}
+Xrs_stack(n)
+Xdouble n;
+X{
+X	struct STACK *st;
+X
+X	if (n && stackpos > 0)
+X	{
+X		st = &stack[--stackpos];
+X		BMX = st->BMX;
+X		BMY = st->BMY;
+X	}
+X	else if ((!n) && stackpos < MAX_PUSHNPOP-1)
+X	{
+X		st = &stack[stackpos++];
+X		st->BMX = BMX;
+X		st->BMY = BMY;
+X	}
+X}
+X#ifdef	TRIMPAGE
+Xrs_ymax(n)	/* used to force full height 1st page, faxpak related */
+Xint n;
+X{
+X	ymax_used = yscale[n];
+X}
+X#endif
+X/* font work *************************************************************** */
+Xrs_font(n, ptype)
+Xint n, ptype;	/* secondary or primary, not yet used */
+X{
+X	int i;
+X	struct HPFONT *cf;
+X
+X	for (i=0; i<MAX_FONT; i++)
+X	{
+X		cf = &hpfonts[i];
+X		if (cf->active && cf->fID == n)
+X		{
+X			orgenv.cur_fnt = i;
+X			orgenv.cur_fID = n;
+X			break;
+X		}
+X	}
+X	if (i == MAX_FONT)
+X		die("font %d not found\n",n);
+X
+X	cfn = &hpfonts[orgenv.cur_fnt];
+X	cfn->space_len = cfn->real_space_len;
+X	curenv->hmi = cfn->space_len;
+X	curenv->cur_fID = n;
+X}
+Xrs_fc_ctl(n)
+Xdouble n;
+X{
+X	switch((int)n)
+X	{
+X	case 0:		clearallfonts();	break;
+X	case 1:		clearfonts(TEMPORARY);	break;
+X	case 2:		clearcurfont();		break;
+X	case 3:		clearlastchar();	break;
+X	case 4:		makeftype(TEMPORARY);	break;
+X	case 5:		makeftype(PERMANENT);	break;
+X	case 6:		cfn = getcfn();
+X			cfn->fID = curenv->cur_fID = lastfontid;
+X			if (!cfn->builtin)
+X				cfn->permtype = TEMPORARY;
+X			break;
+X	}
+X}
+Xcreate_fnthdr(orient,symset,prop,pitch,style,stroke,face,pt)
+Xint orient,symset,prop,pitch,style,stroke,face;
+Xdouble pt;
+X{
+X	static struct HPFONT *hpf;
+X	int i;
+X
+X	if (curenv->cur_fnt < 0 || curenv->cur_fnt >= MAX_FONT)
+X		die("don't know font %d\n",curenv->cur_fnt);
+X	if (builtin > -1 && builtin < MAX_FONT)
+X		hpf = &hpfonts[builtin];
+X	else
+X	{
+X		if ((hpf = findlstid()) == (struct HPFONT*)NULL)
+X		{
+X			for (i=0; i<MAX_FONT; i++)
+X			{
+X				hpf = &hpfonts[i];
+X				if (!hpf->active)
+X				{
+X					hpf->active = TRUE;
+X					hpf->fID = curenv->cur_fID = lastfontid;
+X					orgenv.cur_fnt = curenv->cur_fnt = i;
+X					break;
+X				}
+X			}
+X			if (i == MAX_FONT)
+X				die("too many fonts\n");
+X		}
+X	}
+X
+X	hpf->real_space_len = pitch/4;
+X	hpf->space_len = hpf->real_space_len;
+X	hpf->chars[' '].clen = hpf->space_len;
+X	curenv->hmi = hpf->space_len;
+X
+X	hpf->prop_spaced = hpf->real_spaced = prop;
+X	hpf->primtype = TEMPORARY;	/* hp users manual hp2686a, 4-49 */
+X	hpf->font_atts.orient = orient;
+X	hpf->font_atts.symset = symset;
+X	hpf->font_atts.prop_spaced = prop;
+X	hpf->font_atts.pitch = 4.0*300.0/(double)pitch;
+X	hpf->font_atts.points = pt;
+X	hpf->font_atts.style = style;
+X	hpf->font_atts.stroke = stroke;
+X	hpf->font_atts.typeface = face;
+X}
+Xchar_download(c,id,left,top,width,hite,delta,buf)
+Xint c,id,left,top,width,hite,delta;
+Xuchar *buf;
+X{
+X	struct CHAR_BITMAP *cbm;
+X	struct HPFONT *cf;
+X	int i;
+X
+X	if (builtin > -1 && builtin < MAX_FONT)
+X	{
+X		cf = &hpfonts[builtin];
+X		i = builtin;
+X	}
+X	else
+X	{
+X		for (i=0; i<MAX_FONT; i++)
+X		{
+X			cf = &hpfonts[i];
+X			if (cf->active && cf->fID == id)
+X				break;
+X		}
+X	}
+X	if (i == MAX_FONT)
+X		die("can't download a char without font header\n");
+X
+X	cbm = &cf->chars[c];
+X	curenv->cur_chr = c;
+X
+X	if (cbm->hite && cbm->CH)
+X		clearchar(cbm);
+X
+X	cbm->loffs = left;
+X	cbm->toffs = top;
+X	if (width%8)
+X		cbm->len = width/8 + 1;
+X	else cbm->len = width/8;
+X	cbm->hite = hite;
+X	if ((cbm->clen = delta/4) == 0)
+X		cbm->clen = 8*cbm->len;	/* yes, I do have some strange fonts */
+X
+X	if (!cf->prop_spaced && c == 'x' && (!cf->chars[' '].clen))
+X		cf->space_len = cbm->clen;
+X
+X	buf += sizeof(struct download);
+X	if ((cbm->CH = (uchar**)malloc(hite * sizeof(uchar *))) == (uchar **)NULL)
+X		die("not enough memory for bitmap array char %d\n",c);
+X
+X	for (i=0; i<cbm->hite; i++)
+X	{
+X		if ((cbm->CH[i] = (uchar *)malloc(cbm->len)) == (uchar *)NULL)
+X			die("not enough memory for bitmap at char %d\n",c);
+X		(void)memcpy((char*)cbm->CH[i], (char*)buf, cbm->len);
+X		buf += cbm->len;
+X	}
+X}
+X/* paintwork *************************************************************** */
+Xrs_dpi(n)
+Xdouble n;
+X{
+X	curenv->dpi = (int)n;
+X}
+Xrs_graphxy(n)
+Xdouble n;
+X{
+X	if ((int)n)
+X		GRAPHX = BMX;
+X	else GRAPHX = 0.0;
+X	GRAPHY = BMY;
+X}
+Xrs_pix(pels, len)
+Xuchar *pels;
+Xint len;
+X{
+X	int i, k, localy, inc, graphx, graphy;
+X
+X	if (see_thru)
+X		return;
+X	if (no_bitmap)
+X		die("no can do without a bitmap\n");
+X
+X	inc = 300/curenv->dpi;
+X
+X	graphy = (int)(GRAPHY + .5);
+X	graphx = (int)(GRAPHX + .5);
+X	if (graphy < 0 || inc+graphy >= max_ln)
+X		return;
+X	localy = yscale[graphy];
+X
+X	if (graphx + (inc*len*8) > max_col)
+X		len = ((max_col-graphx)/8)/inc;
+X
+X	switch(curenv->dpi)	/* hey, who says we're trying to be efficient? */
+X	{
+X	case 300:	for (i=0; i<len; i++, pels++)
+X				for (k=0; k<8; k++, graphx++)
+X					if (*pels & bit[k])
+X						setpix(localy, xscale[graphx]);
+X			break;
+X	case 150:	for (i=0; i<len; i++, pels++)
+X				for (k=0; k<8; k++, graphx += inc)
+X					if (*pels & bit[k])
+X					{
+X						setpix(localy, xscale[graphx]);
+X						setpix(localy, xscale[graphx+1]);
+X
+X						setpix(localy+1, xscale[graphx]);
+X						setpix(localy+1, xscale[graphx+1]);
+X					}
+X			break;
+X	case 100:	for (i=0; i<len; i++, pels++)
+X				for (k=0; k<8; k++, graphx += inc)
+X					if (*pels & bit[k])
+X					{
+X						setpix(localy, xscale[graphx]);
+X						setpix(localy, xscale[graphx+1]);
+X						setpix(localy, xscale[graphx+2]);
+X
+X						setpix(localy+1, xscale[graphx]);
+X						setpix(localy+1, xscale[graphx+1]);
+X						setpix(localy+1, xscale[graphx+2]);
+X
+X						setpix(localy+2, xscale[graphx]);
+X						setpix(localy+2, xscale[graphx+1]);
+X						setpix(localy+2, xscale[graphx+2]);
+X					}
+X			break;
+X	case 75:	for (i=0; i<len; i++, pels++)
+X				for (k=0; k<8; k++, graphx += inc)
+X					if (*pels & bit[k])
+X					{
+X						setpix(localy, xscale[graphx]);
+X						setpix(localy, xscale[graphx+1]);
+X						setpix(localy, xscale[graphx+2]);
+X						setpix(localy, xscale[graphx+3]);
+X
+X						setpix(localy+1, xscale[graphx]);
+X						setpix(localy+1, xscale[graphx+1]);
+X						setpix(localy+1, xscale[graphx+2]);
+X						setpix(localy+1, xscale[graphx+3]);
+X
+X						setpix(localy+2, xscale[graphx]);
+X						setpix(localy+2, xscale[graphx+1]);
+X						setpix(localy+2, xscale[graphx+2]);
+X						setpix(localy+2, xscale[graphx+3]);
+X
+X						setpix(localy+3, xscale[graphx]);
+X						setpix(localy+3, xscale[graphx+1]);
+X						setpix(localy+3, xscale[graphx+2]);
+X						setpix(localy+3, xscale[graphx+3]);
+X					}
+X			break;
+X	}
+X	graphy += inc;
+X	ymax_used = max(ymax_used,(localy-1)+inc);
+X	xmax_used = max(xmax_used,xscale[(graphx-1)+inc]);
+X	dotted = TRUE;
+X	virgin = FALSE;
+X}
+X/* build in rules, patterns, shades **************************************** */
+Xrs_hsize(n)
+Xdouble n;
+X{
+X	curenv->Hlen = n;
+X}
+Xrs_hdsize(n)
+Xdouble n;
+X{
+X	curenv->Hlen = n*300.0/720.0;
+X}
+Xrs_vsize(n)
+Xdouble n;
+X{
+X	curenv->Vlen = n;
+X}
+Xrs_vdsize(n)
+Xdouble n;
+X{
+X	curenv->Vlen = n*300.0/720.0;
+X}
+Xrs_pid(n)
+Xdouble n;
+X{
+X	curenv->pID = n;
+X}
+Xrs_prnpat(n)
+Xdouble n;
+X{
+X	struct PAT *ptr;
+X	int i,j,k,l,x,y,localy,localx, maxx, maxy, maxb, hlen, vlen;
+X
+X	switch((int)n)
+X	{
+X	case 0:		k = SOLID;			break;
+X	case RULE:	k = RULE_BASE + curenv->pID;	break;
+X	case GRAY:	k = GRAY_BASE;
+X			if (curenv->pID >= 3 && curenv->pID <= 10)
+X				k += 1;
+X			else if (curenv->pID >= 11 && curenv->pID <= 20)
+X				k += 2;
+X			else if (curenv->pID >= 21 && curenv->pID <= 35)
+X				k += 3;
+X			else if (curenv->pID >= 36 && curenv->pID <= 55)
+X				k += 4;
+X			else if (curenv->pID >= 66 && curenv->pID <= 80)
+X				k += 5;
+X			else if (curenv->pID >= 81 && curenv->pID <= 99)
+X				k += 6;
+X			else k += 7;
+X			break;
+X	}
+X	if (k < 0 || k >= MAX_PAT)
+X		k = SOLID;
+X
+X	bmx = (int)(BMX + .5);
+X	bmy = (int)(BMY + .5);
+X	hlen = (int)(curenv->Hlen + .5);
+X	vlen = (int)(curenv->Vlen + .5);
+X
+X	x = bmx % 32;
+X	y = bmy % 32;
+X	maxx = min(max_col-bmx, hlen);		/* max dist in pels */
+X	maxb = ((maxx%8)>0) + (maxx/8);		/* max bytes */
+X	maxx += bmx;				/* reset to last col */
+X	maxy = min(max_ln-bmy, vlen);		/* max rules */
+X
+X	ptr = &pat[k][y][x/8];
+X	for (j=0; j<maxy; j++, bmy++, ptr = ptr->ynext)
+X	{
+X		localy = yscale[bmy];
+X		localx = bmx;
+X		l = localx%8;
+X		for (i=0; localx<maxx; i++, ptr = ptr->xnext)
+X		{
+X			for (; l<8 && localx<maxx; l++, localx++)
+X			{
+X				if (ptr->p & bit[l])
+X					setpix(localy, xscale[localx]);
+X			}
+X			l = 0;
+X		}
+X		for (   ; i%4; i++, ptr = ptr->xnext)
+X			;	/* reset xnext to starting pt */
+X	}
+X	virgin = FALSE;
+X}	
+X/* prose ******************************************************************* */
+Xprt_hpchr(c)
+Xint c;
+X{
+X	struct CHAR_BITMAP *cbm, *ubm;
+X	int i, j, k, curx, cury, localy, clen, before;
+X
+X	if (see_thru)
+X		return;
+X
+X	if (try_select)
+X		best_match();	/* speculate */
+X
+X	switch(c)
+X	{
+X	case 0x0a:	rs_row(1.0);		return;
+X	case 0x0d:	rs_col((double)curenv->left_margin);	return;
+X	case 0x0e:	setshift(SECONDARY);	return;
+X	case 0x0f:	setshift(PRIMARY);	return;
+X	}
+X/* 
+X   now, we're thinking in terms of 300 dpi, but we're actually
+X   drawing at a possibly scaled resolution selected at startup,
+X*/
+X	cfn = getcfn();
+X	cbm = &cfn->chars[c];
+X
+X	if (cfn->prop_spaced && c > ' ')
+X		clen = cbm->clen;
+X	else clen = cfn->space_len;
+X	if ((!cbm->len) && c != ' ' && c != '\b')
+X		return;
+X
+X	bmx = (int)(BMX + .5);
+X	bmy = (int)(BMY + .5);
+X	if (bmx + clen + cbm->loffs >= max_col)
+X		return;
+X	cury = bmy - cbm->toffs;
+X	if (cury < 0)
+X		return;
+X
+X	if ((cury+cbm->hite) > max_ln)
+X		return;
+X
+X	before = curx = bmx + cbm->loffs;
+X	if (c != ' ' && c != '\b')
+X		for (i=0; i<cbm->hite; i++)
+X		{
+X			curx = before;
+X			localy = yscale[cury+i];
+X
+X			for (j=0; j<cbm->len; j++)
+X				for (k=0; k<8; k++,curx++)
+X					if (cbm->CH[i][j] & bit[k])
+X						setpix(localy, xscale[curx]);
+X		}
+X
+X	if (c > ' ')
+X	{
+X		BMX += (double)clen;
+X		ymax_used = max(ymax_used,yscale[cury + cbm->hite]);
+X		xmax_used = max(xmax_used,xscale[curx]);
+X	}
+X	else
+X	{
+X		if (c != '\b')
+X			BMX += (double)clen;
+X		else BMX -= (double)clen;
+X		xmax_used = max(xmax_used,xscale[bmx]);
+X	}
+X
+X	if (curenv->underline)
+X	{
+X		int after = curx;
+X
+X		ubm = &cfn->chars['_'];
+X		for (i=0; i<cbm->hite; i++)
+X		{
+X			curx = before;
+X			localy = yscale[cury+i];
+X
+X			for (j=0; curx<after; )
+X				for (k=0; k<8 && curx<after; k++,curx++)
+X					if (ubm->CH[i][j] & bit[k])
+X						setpix(localy,xscale[curx]);
+X		}
+X	}
+X	dotted = TRUE;
+X	virgin = FALSE;
+X}
+X
+X/* MACROS ****************************************************************** */
+Xstruct MACRO *getcmc()
+X{
+X	static struct MACRO *mac;
+X
+X	if (curenv->cur_mac < 0 || curenv->cur_mac >= MAX_MACRO)
+X		die("don't know macro %d\n",curenv->cur_mac);
+X	mac = &macros[curenv->cur_mac];
+X	if (!mac->active)
+X		die("macro %d not active\n",curenv->cur_mac);
+X	return(mac);
+X}
+Xuchar *rs_get_macro(into)
+Xint *into;
+X{
+X	cmc = getcmc();
+X	*into = cmc->len;
+X	return(cmc->macro);
+X}
+Xmacinit()
+X{
+X	struct MACRO *mptr;
+X	int i;
+X
+X	for (i=0; i<MAX_MACRO; i++)
+X	{
+X		mptr = &macros[i];
+X		mptr->active = mptr->len = mptr->permtype = mptr->magic = 0;
+X		mptr->macro = (uchar*)NULL;
+X	}
+X}
+Xmac_download(len,buf)
+Xint len;
+Xuchar *buf;
+X{
+X	uchar *ptr;
+X
+X	cmc = getcmc();
+X	if (!cmc->len)
+X	{
+X		if ((cmc->macro = (uchar*)malloc(len)) == NULL)
+X			die("not enough memory for macro %d\n",curenv->cur_mac);
+X		ptr = cmc->macro;
+X		cmc->len = len;
+X	}
+X	else
+X	{
+X		if ((cmc->macro = (uchar*)realloc(cmc->macro,
+X			cmc->len + len)) == NULL)
+X			die("not enough memory for macro %d\n",curenv->cur_mac);
+X		ptr = cmc->macro + cmc->len;
+X		cmc->len += len;
+X	}
+X	(void)memcpy((char*)ptr, (char*)buf, len);
+X}
+Xrs_macro_id(n)
+Xdouble n;
+X{
+X	curenv->cur_mac = (int)n;
+X}
+Xrs_mac_startdef()
+X{
+X	cmc = getcmc();
+X	cmc->active = TRUE;
+X	cmc->permtype = TEMPORARY;
+X	cmc->magic = FALSE;
+X}
+Xrs_mac_enddef()
+X{
+X	cmc = getcmc();
+X	cmc->active = TRUE;
+X}
+Xrs_call_macro(type)
+Xint type;
+X{
+X	cmc = getcmc();
+X	if (type == SAVE)
+X	{
+X		McEnv = orgenv;
+X		curenv = &McEnv;
+X		env_saved = TRUE;
+X	}
+X	else if (type == RESTORE && env_saved)
+X	{
+X		orgenv = McEnv;
+X		curenv = &orgenv;
+X	}
+X}
+Xrs_auto_enable(on)
+Xint on;
+X{
+X	int i;
+X
+X	if (on)
+X	{
+X		cmc = getcmc();
+X		cmc->magic = TRUE;
+X		auto_macro = curenv->cur_mac;
+X	}
+X	else
+X	{
+X		for (i=0; i<MAX_MACRO; i++)
+X			macros[i].magic = 0;
+X		auto_macro = -1;
+X	}
+X	return(auto_macro);
+X}
+Xrs_del_macros(t,p)
+Xint t,p;
+X{
+X	if (t)
+X		del_macros(t);
+X	if (p)
+X		del_macros(p);
+X}
+Xrs_del_macro()
+X{
+X	cmc = getcmc();
+X	curenv->cur_mac = -1;
+X	del_macro(cmc);
+X}
+Xrs_makemtype(what)
+Xint what;
+X{
+X	cmc = getcmc();
+X	cmc->permtype = what;
+X}
+Xdel_macros(type)
+Xint type;
+X{
+X	int i;
+X
+X	for (i=0; i<MAX_MACRO; i++)
+X		if (macros[i].active && macros[i].permtype == type)
+X		{
+X			if (curenv->cur_mac == i)
+X				curenv->cur_mac = -1;
+X			del_macro(&macros[i]);
+X		}
+X}
+Xdel_macro(mptr)
+Xstruct MACRO *mptr;
+X{
+X	mptr->active = mptr->len = mptr->permtype = mptr->magic = 0;
+X	if (mptr->macro)
+X	{
+X		free((char*)mptr->macro);
+X		mptr->macro = (uchar*)NULL;
+X	}
+X}
+Xrs_auto()
+X{
+X	restore.ovly_env = orgenv;	/* save current env && bits */
+X	restore.sfont = sfont;
+X	restore.BMX = BMX;
+X	restore.BMY = BMY;
+X	restore.GRAPHX = GRAPHX;
+X	restore.GRAPHY = GRAPHY;
+X	restore.lpi = lpi;
+X
+X	orgenv = ovly.ovly_env;		/* install virgin defaults */
+X	sfont = ovly.sfont;
+X	BMX = ovly.BMX;
+X	BMY = ovly.BMY;
+X	GRAPHX = ovly.GRAPHX;
+X	GRAPHY = ovly.GRAPHY;
+X	lpi = ovly.lpi;
+X
+X	curenv->cur_mac = auto_macro;	/* fetch auto_macro */
+X	cmc = getcmc();
+X
+X	hptoany();			/* action */
+X
+X	orgenv = restore.ovly_env;	/* restore real environment */
+X	sfont = restore.sfont;
+X	BMX = restore.BMX;
+X	BMY = restore.BMY;
+X	GRAPHX = restore.GRAPHX;
+X	GRAPHY = restore.GRAPHY;
+X	lpi = restore.lpi;
+X				/* mark page unused, as we only want to */
+X				/* flush it if anything else goes onto it */
+X	dotted = 0;
+X	cmc = getcmc();
+X}
+X/******** loose ends */
+Xrs_lterm(){}
+END_OF_FILE
+if test 29855 -ne `wc -c <'./hpfntwrite.c'`; then
+    echo shar: \"'./hpfntwrite.c'\" unpacked with wrong size!
+fi
+# end of './hpfntwrite.c'
+fi
+echo shar: End of archive 3 \(of 4\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 4 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 4 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0
+-- 
+George Orwell was an Optimist

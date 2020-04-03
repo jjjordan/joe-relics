@@ -1,0 +1,726 @@
+Xref: funic comp.lang.perl:6876 alt.sources:3043
+Path: funic!fuug!mcsun!uunet!munnari.oz.au!metro!usage!spectrum!cameron
+From: cameron@spectrum.cs.unsw.oz.au (Cameron Simpson)
+Newsgroups: comp.lang.perl,alt.sources
+Subject: my mail auto-filer ...
+Message-ID: <1992Jan23.072747.25847@usage.csd.unsw.OZ.AU>
+Date: 23 Jan 92 07:27:47 GMT
+Sender: news@usage.csd.unsw.OZ.AU
+Reply-To: cameron@spectrum.cs.unsw.oz.au (Cameron Simpson)
+Followup-To: comp.lang.perl
+Organization: CS&E Computing Facility, Uni Of NSW, Oz
+Lines: 712
+Nntp-Posting-Host: fuligin.spectrum.cs.unsw.oz.au
+
+[Followups directed to comp.lang.perl.]
+
+Several people requested my mail filing program, with takes a mail
+item on stdin and files, forwards, or discards it all via a small
+Perl hook in the mailbox directory. My apologies for the delay, I've
+been out of contact for a while. Here it is.
+
+Filemail should be invoked with the following environment:
+
+	INBOX_ANNOUNCE	Place to announce received mail etc.
+			Default /dev/tty.
+	USER		Your login. Default from getpwuid($<).
+	HOME		Your home directory. Default as above.
+	INBOX		Where incoming mail gets stashed.
+			Default $HOME/.mail.
+			If a file, uses ordinary mailbox format.
+			If a directory checks .file hook and refiles,
+			or drops it in as an uniquely named numeric
+			filename. The .file hooks can chain.
+
+I hope this is some help to people. It sure does a lot for me. See the
+comments at the top of .file for details on writing .file hooks.
+	- Cameron Simpson
+	  cameron@spectrum.cs.unsw.oz.au
+
+#!/bin/sh
+#
+# Shell archive containing the following:
+#	filemail	That which receives the mail on stdin.
+#	libcs.pl	Some miscellaneous routines; not all are used.
+#			It should live in the directory specified by $PERLLIB.
+#	.file		The hook which lives in my inbox directory, used to
+#			redirect some mail and keep the rest.
+#
+
+sed 's/^X//' > filemail <<'EOF-bin/filemail'
+X#!/usr/local/bin/perl
+X
+Xpush(@INC,$ENV{'PERLLIB'});
+X
+Xrequire 'libcs.pl';
+Xrequire 'errno.ph';
+X
+X$nofrom=0;
+Xif ($#ARGV >= $[ && $ARGV[$[] eq '-F')
+X	{ $nofrom=1;
+X	  shift @ARGV;
+X	}
+X
+X# snarf stdin first up
+X@INPUT=<STDIN>;
+Xclose(STDIN);
+X
+Xdie "$cmd: no input!\n" if $#INPUT < 0;
+X
+X&envdef('INBOX_ANNOUNCE',"/dev/tty");
+Xopen(STDOUT,">>$INBOX_ANNOUNCE") || die "can't open $INBOX_ANNOUNCE: $!\n";
+X
+X($name,$passwd,$uid,$gid,$quota,$comment,$gecos,$dir,$shell)=getpwuid($>);
+X&envdef('USER',$name);
+X&envdef('HOME',$dir);
+X
+X&envdef('INBOX',"$HOME/.mail");
+X
+X# $pid=fork;
+X# if (!defined($pid))
+X#	{ print "$cmd: fork fails: $!\n";
+X#	}
+X# elsif ($pid > 0)
+X#	# parent dies
+X#	{ exit 0;
+X#	}
+X
+Xundef $from, $From, $subject, %hdrs;
+X$from_=(($INPUT[0] =~ /^From\s(\S+)/i) ? $1 : 'unknown@unknownhost');
+Xfor (@INPUT)
+X      { last if (/^$/o);
+X
+X	# save header lines
+X	/^([^:]*):?\s*/;
+X	$hdr=$1; $body=$'; chop $body;
+X	$hdr =~ tr/A-Z/a-z/;
+X	$hdr{$hdr}.=$body;
+X
+X	if (!defined($from) && /^from:\s*/io)
+X	      { $From=$'; chop $From;
+X		if (/<([^>]*)>/)
+X		      { $from=$1;
+X		      }
+X		else
+X		{ $line=$_;
+X		  chop $line;
+X
+X		  # a weak hack at stripping comments
+X		  while ($line =~ /\([^\)]*\)/)
+X			{ $line=$`.$';
+X			}
+X
+X		  if (/^from:\s*(\S+)/io)
+X			{ $from=$1;
+X			}
+X		  else
+X		  { print "\t\tno address found on line\n";
+X		  }
+X		}
+X	      }
+X	elsif (/^subject:\s*/oi)
+X		{ $subject=$'; chop $subject;
+X		}
+X	else
+X	{ # print "\tskipping: $_";
+X	}
+X      }
+X
+X$legend=(defined($from) ? "From: $From" : "From_ $from_");
+X	defined($subject) && ($legend.="; $subject");
+X
+Xdefined($from) || ($from=$from_);
+X
+X($sec,$min,$hr,$mday,$mon,$yr,$wday,@etc)=gmtime(time);
+X
+X# `undo' From_: pseudo-header
+Xif ($nofrom) { $INPUT[$[] =~ s/^From_:/From/; }
+X
+Xif ($INPUT[$[] !~ /^From\s/)
+X	{ $nofrom || print "$cmd: warning: no From_ on input!\n";
+X	  $line=sprintf("From %s %3s %3s %2d %02d:%02d:%02d 19%02d\n",
+X			$from,$days[$wday],$Mon_names[$mon],$mday,
+X			$hr,$min,$sec,$yr);
+X	  $nofrom || print "$cmd: guessing a From_ line of $line";
+X	  unshift(@INPUT,$line);
+X	}
+X
+X$INPUT[$[] =~ /^From\s+(\S+)/ || ($"="\n\t", die "still no From_ line?\n\@INPUT=\t@INPUT\n");
+X$from_=$1;
+X
+Xif (defined($inbox=shift))
+X	{ $INBOX=$ENV{'INBOX'}=$inbox;
+X	}
+X
+Xundef $INNAME;
+X{ local($filed);
+X  while (-d $INBOX && -f "$INBOX/.file")
+X	{ $oINBOX=$INBOX;
+X	  undef $INNAME;
+X	  $filed=0;
+X	  do "$INBOX/.file";
+X	  exit 0 if $filed;
+X	  last if $oINBOX eq $INBOX;
+X	}
+X}
+X
+Xif (! -f $INBOX && !&mkdir($INBOX))
+X	{ print "$cmd: can't make directory $INBOX\b";
+X	  exit 1;
+X	}
+X
+Xif (-d $INBOX)
+X	{ local($filed);
+X
+X	  $filed=&fileitem($INBOX,"$INNAME",@INPUT);
+X	  if (defined($filed))
+X		{ $_=$INBOX;
+X		  if (length($INBOX) > length($HOME)
+X		   && substr($INBOX,$[,length($HOME)) eq $HOME)
+X			{ $_=substr($_,$[+length($HOME));
+X			  s,^/+,,;
+X			}
+X
+X		  s,^private/+,,;
+X		  s,^etc/mail/+,+,;
+X
+X		  printf("%s: %.80s\n",&datestr(time,1),"$_/$filed: $legend");
+X		}
+X	}
+Xelse
+X{ if (!open(INBOX,">>$INBOX"))
+X	{ print "$cmd: can't append to $INBOX: $!\n";
+X	  if (!open(INBOX,">>$INBOX.$$"))
+X		{ die "$cmd: can't append to $INBOX.$$: $!\n";
+X		}
+X	}
+X
+X  for (@INPUT)
+X	{ print INBOX $_;
+X	}
+X
+X  close(INBOX);
+X  printf("%s: new mail: %.100s\n",$legend);
+X}
+X
+Xexit $ok;
+X
+X# file an item in directory $INBOX, with prefix $INNAME.
+X#
+Xsub fileitem	# ($INBOX,$INNAME,@INPUT) -> basename-of-filed-item
+X	{ local($INBOX)=shift;
+X	  local($INNAME)=shift;
+X	  local($tmp);
+X
+X	  # snarf INPUT
+X	  $tmp="$INBOX/.$cmd-$$";
+X	  if (!open(TMP,">>$tmp"))
+X		{ print "$cmd: couldn't append to $tmp: $!\n";
+X		  return undef;
+X		}
+X
+X	  $_[0] =~ s/^From\s+/From_: /;
+X	  for (@_)
+X		{ print TMP $_;
+X		}
+X
+X	  close(TMP);
+X
+X	  local($filed);
+X
+X	  if (length($INNAME))
+X		# attempt link to unadorned INNAME
+X		{ if (link($tmp,"$INBOX/$INNAME"))
+X			{ $filed=$INNAME;
+X			}
+X		  else
+X		  { print "$cmd: link($tmp,$INBOX/$INNAME): $!\n";
+X		    $INNAME.='_';
+X		  }
+X		}
+X
+X	  if (!defined($filed))
+X		# not linked to simple name, try INNAME_n
+X		{ local($n)=1;
+X
+X		  # walk directory, picking $n > any already present
+X		  if (!opendir(INBOX,$INBOX))
+X			{ print "$cmd: warning: can't opendir($INBOX): $!\n";
+X			}
+X		  else
+X		  { local(@dir)=readdir(INBOX);
+X		    closedir(INBOX);
+X		    
+X		    local($ptn)=$INNAME;
+X
+X		    $ptn =~ s,\W,\\$&,g;
+X		    eval
+X		    ' for (grep(/^'.$ptn.'/,@dir))
+X			{ s/^'.$ptn.'//;
+X			  /^\d+$/ || next;
+X
+X			  if ($& >= $n)
+X				{ $n=$&+1;
+X				}
+X			}
+X		    ';
+X		  }
+X
+X	  	  local($ok)=1;
+X	  	  while (!link($tmp,"$INBOX/$INNAME$n"))
+X			{ print "$cmd: link($tmp,$INBOX/$INNAME$n): $!\n";
+X			  $ok=0;
+X			  last if $! != &EEXIST;
+X			  $ok=1;
+X			  $n++;
+X			}
+X		  
+X		  if ($ok)
+X			{ $filed=$INNAME.$n;
+X			  if (length($INNAME))
+X				{ print "$cmd: link($tmp,$INBOX/$filed) ok\n";
+X				}
+X			}
+X		}
+X
+X	  if (!unlink($tmp))
+X		{ print "$cmd: unlink($tmp): $!\n";
+X		}
+X
+X	  return defined($filed) ? $filed : undef;
+X	}
+X
+Xsub forward
+X	{ local($to,@INPUT)=@_;
+X	  local($shifted,@fields,@bodies,%ndx);
+X	  local($[)=1;
+X	  local($_);
+X	  local($i);
+X
+X	  die "$cmd: &forward($to): no input!\n" if $#INPUT < 1;
+X
+X	  $shifted=shift(@INPUT) if $INPUT[1] =~ '^From ';
+X
+X	  die "$cmd: &forward($to): short input!\n" if $#INPUT < 1;
+X	  die "$cmd: &forward($to): malformed input\n" if $INPUT[1] =~ /^\s/;
+X
+X	  while (defined($_=shift(@INPUT)))
+X		{ if (/^[ \t]/)
+X			{ @bodies[$#bodies].=$_;
+X			}
+X		  elsif (/^(\S*):[ \t]*/)
+X			{ local($hdr)=$1;
+X
+X			  push(@fields,$hdr);
+X			  push(@bodies,$');
+X			  $hdr =~ tr/A-Z/a-z/;
+X			  $ndx{$hdr}=$#fields;
+X			}
+X		  else
+X		  # not a header line
+X		  { last;
+X		  }
+X		}
+X
+X	  if (defined($_))
+X		{ unshift(@INPUT,$_);
+X		}
+X
+X	  # tidy up Sender: line
+X	  if (($i=$ndx{'sender'}) >= 1)
+X		{ $fields[$i]="Original-".$fields[$i];
+X		  delete $ndx{'sender'};
+X		  $ndx{'original-sender'}=$i;
+X		}
+X
+X	  push(@fields,'Sender');
+X	  push(@bodies,"$USER\n");
+X	  $ndx{'sender'}=$#fields;
+X
+X	  # create Reply-To: if missing
+X	  if (($i=$ndx{'reply-to'}) < 1
+X	   && ($j=$ndx{'from'}) >= 1)
+X		{ push(@fields,'Reply-To');
+X	  	  push(@bodies,$bodies[$j]);
+X	  	  $ndx{'reply-to'}=$#fields;
+X		}
+X
+X	  while (defined($_=pop(@fields)))
+X		{ unshift(@INPUT,$_.': '.pop(@bodies));
+X		}
+X
+X	  unshift(@INPUT,$shifted) if defined($shifted);
+X
+X	  &sendmail($to,@INPUT);
+X	}
+X
+Xsub sendmail	# ($to,@INPUT) -> success
+X	{ local($to)=shift;
+X
+X	  if (open(SENDMAIL,"|sendmail -v -oi $to"))
+X		{ if ($_[0] =~ /^From /)
+X			{ shift;
+X			}
+X
+X		  for (@_)
+X			{ print SENDMAIL $_;
+X			}
+X		  
+X		  close(SENDMAIL);
+X		  return 1;
+X		}
+X	  else
+X	  { print STDERR "$cmd: can't pipe to sendmail: $!\n";
+X	  }
+X
+X	  0;
+X	}
+EOF-bin/filemail
+
+sed 's/^X//' > libcs.pl <<'EOF-etc/pl/libcs.pl'
+X#!/usr/local/bin/perl
+X#
+X# This will be an autoload library at some stage.
+X#
+X
+X# numerical comparitor for sorts
+Xsub ncmp
+X	{ $a <=> $b;
+X	}
+X
+Xsub min	{ local($min)=shift;
+X	  for (@_) { ($_ < $min) && ($min=$_); }
+X	  $min;
+X	}
+X
+Xsub max	{ local($max)=shift;
+X	  for (@_) { ($_ > $max) && ($max=$_); }
+X	  $max;
+X	}
+X
+Xsub basename	# (@pathnames) -> @basenames
+X	{ local(@paths)=@_;
+X
+X	  for (@paths)
+X		{ s,/+$,,;
+X		  s,.*/,,;
+X		  length || ($_='.');
+X		}
+X
+X	  return @paths;
+X	}
+X
+Xsub dirname	# (@pathnames) -> @dirnames
+X	{ local(@paths)=@_;
+X	  local($pfx);
+X
+X	  for (@paths)
+X	  	{ m,^(/?/?)/*,; $pfx=$1; $_=$';	# collect leading slashes
+X	  	  s,/+$,,;			# strip trailing slashes
+X	  	  s,[^/]+$,,;			# strip basename
+X	  	  s,/+$,,;			# strip trailing slashes again
+X	  	  length($pfx) || ($pfx='./');	# no null paths
+X		  $_=$pfx.$_;			# prefix + tail
+X		}
+X
+X	  return @paths;
+X	}
+X
+Xsub eval	# string -> result
+X	{ print STDERR "eval($_[0])\n";
+X	  eval $_[0];
+X	}
+X
+Xsub prt	{ print STDERR $_[0];
+X	  1;
+X	}
+Xsub err	{ &prt($_[0]);
+X	  0;
+X	}
+X
+X# ensure a directory exists
+Xsub mkdir	# (dir) -> ok
+X	{ local($dir)=@_;
+X	
+X	  -d $dir
+X		|| (&mkdir(&dirname($dir))
+X		 && (-d $dir
+X		  || mkdir($dir,0777)
+X		    )
+X		   )
+X	  ;
+X	}
+X
+Xsub open	# (handle,filename,mode) -> ok
+X	{ local($handle,$file,$mode)=@_;
+X
+X	  &mkdir(&dirname($file)) && open($handle,"$mode$file");
+X	}
+X
+Xsub isatty
+X	{ local($_)=$_[0];
+X	  local($dev,$ino,$mode,@etc);
+X
+X	  if (/^\d+$/)
+X		{ if (!open(_FD_ISATTY,"<&$_"))
+X			{ print STDERR "isatty: can't open &$_ ($!)\n";
+X			  return undef;
+X			}
+X		  ($dev,$ino,$mode,@etc)=stat _FD_ISATTY;
+X		  # no close since it may eat the fd
+X		}
+X	  elsif (/^[A-Z_]+$/)
+X		{ ($dev,$ino,$mode,@etc)=eval "stat $_";
+X		}
+X	  else
+X	  { ($dev,$ino,$mode,@etc)=stat($_);
+X	  }
+X
+X	  return (defined($mode)
+X		? (($mode&(&S_IFMT)) == &S_IFCHR)
+X		: undef);
+X	}
+X
+Xsub catpath	# (dir,path) -> fullpath
+X	{ local($_,$path)=@_;
+X
+X	  if (length == 0)
+X		{ return $path;
+X		}
+X	  elsif (length($path) == 0)
+X		{ return $_;
+X		}
+X	  else
+X	  { return m,/$, ? "$_$path" : "$_/$path";
+X	  }
+X	}
+X
+X# set environment variable to defailt if not already set
+X# regardless, set $VAR to this as well
+Xsub envdef	# (VAR,default) -> void
+X	{ if (!defined($ENV{$_[0]}))
+X		{ $ENV{$_[0]}=$_[1];
+X		}
+X
+X	  eval "\$$_[0]=\$ENV{\$_[0]}";
+X	}
+X
+Xsub detab	# (tabbed,tabsize) -> untabbed
+X	{ local($_,$tabsize)=@_;
+X
+X	  defined($tabsize) || ($tabsize=8);
+X
+X	  s/\t/' ' x ($tabsize-(length($`)%$tabsize))/eg;
+X
+X	  # if (length)
+X	  #	{ local(@fields,$spaced);
+X	  #
+X	  #	  @fields=split(/\t/);
+X	  #	  $spaced=shift(@fields);
+X	  #	  for (@fields)
+X	  #		{ $spaced.=(' ' x ($tabsize-(length($spaced)%$tabsize))).$_;
+X	  #		}
+X	  #
+X	  #	  $_=$spaced;
+X	  #	}
+X
+X	  return $_;
+X	}
+X
+X# safe rename - doesn't tromp target file if present
+Xsub rename	# (from,to) -> success
+X	{ local($from,$to)=@_;
+X	  local($ok);
+X
+X	  $ok=0;
+X	  if (link($from,$to))
+X		{ $ok=1;
+X		  if (!unlink($from))
+X			{ print STDERR "$cmd: unlink($from): $!, $from still linked to $to\n";
+X			}
+X		}
+X	  elsif ($! == &EXDEV)
+X		# cross device link
+X		{ if (lstat($to))
+X			{ print STDERR "$cmd: $to exists\n";
+X			}
+X		  else
+X		  { if (!open(RENAME_FROM,"<$from"))
+X			{ print STDERR "$cmd: can't open $from for read: $!\n";
+X			}
+X		    else
+X		    { if (!open(RENAME_TO,">$to"))
+X			{ print STDERR "$cmd: can't open $to for write: $!\n";
+X			}
+X		      else
+X		      { while (<RENAME_FROM>)
+X				{ print RENAME_TO;
+X				}
+X
+X			close(RENAME_TO);
+X
+X			if (unlink($from))
+X				{ $ok=1;
+X				}
+X			else
+X			{ print STDERR "$cmd: can't unlink $from ($!), unlinking $to\n";
+X			  if (!unlink($to))
+X				{ print STDERR "$cmd: can't unlink $to: $!\n\tboth $from and $to now exist\n";
+X				}
+X			}
+X		      }
+X
+X		      close(RENAME_FROM);
+X		    }
+X		  }
+X		}
+X	  else
+X	  { print STDERR "$cmd: link($from,$to): $!\n";
+X	  }
+X
+X	  return $ok;
+X	}
+X
+X# weekday names
+X@wday_names=('sun','mon','tue','wed','thu','fri','sat');
+X@Wday_names=('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+X@Weekday_names=('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
+X
+X# month names
+X@mon_names=('jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec');
+X@Mon_names=('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec');
+X@Month_names=('January','February','March','April','May','June','July','August','September','October','November','December');
+X
+Xsub datestr	# (time,uselocaltime) -> "MMmonYY, hh:mm:ss"
+X	{ local($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)
+X		=($_[1] ? localtime($_[0]) : gmtime($_[0]));
+X
+X	  sprintf("%02d%s%02d, %02d:%02d:%02d",
+X		  $mday,$mon_names[$[+$mon],$year,$hour,$min,$sec);
+X	}
+X
+Xsub timestr	# (time) -> "[[[days, ]hours, ]minutes, ]seconds"
+X	{ local($time)=$_[0];
+X	  local($str,$slop);
+X	
+X	  $str="";
+X	  if ($time >= 86400)
+X		{ $slop=$time%86400;
+X		  $time-=$slop;
+X		  $str.=$time/86400." days, ";
+X		  $time=$slop;
+X		}
+X
+X	  if ($time >= 3600)
+X		{ $slop=$time%3600;
+X		  $time-=$slop;
+X		  $str.=$time/3600." hours, ";
+X		  $time=$slop;
+X		}
+X	  
+X	  if ($time >= 60)
+X		{ $slop=$time%60;
+X		  $time-=$slop;
+X		  $str.=$time/60." minutes, ";
+X		  $time=$slop;
+X		}
+X	  
+X	  $str.$time." seconds";
+X	}
+X
+X$cmd=&basename($0);
+X
+X($name,$passwd,$uid,$gid,$quota,$comment,$gecos,$dir,$shell)=getpwuid($>);
+X&envdef('USER',$name);
+X&envdef('HOME',$dir);
+X
+X1;	# make require happy
+EOF-etc/pl/libcs.pl
+
+sed 's/^X//' > .file <<'EOF-etc/mail/inbox/.file'
+X#!/usr/local/bin/perl
+X#
+X# Code to file incoming mail.
+X# When called we have
+X#	@INPUT	All the lines in the mail item.
+X#		We are guarrenteed a From_ line as $INPUT[0].
+X#	%hdr	Bodies of downcased header lines.
+X#	$legend	"From: who; subject"
+X#	$INBOX	The normal inbox directory.
+X#	$HOME	Home directory.
+X#	$USER	User name.
+X#
+X# If this message was successfully filed then $filed will
+X# be true at the end.
+X#
+X# It is possible to arrange that filemail files the mail
+X# in another place by changing $INBOX. If you wish a specific
+X# name for the filed item, set $INNAME; otherwise the
+X# pick-a-number method used for ordinary mail will be used.
+X#
+X
+X# forward a mail item
+Xsub forw	# (subj,who,@WHAT)
+X	{ local($subj)=shift;
+X	  local($who)=shift;
+X
+X	  $filed=&forward($who,@_);
+X	  $filed && print &datestr(time,1).": to $who: $subj\n";
+X	}
+X
+X{ local($s,$f,$to,$cc)=($hdr{'subject'},$hdr{'from'},$hdr{'to'},$hdr{'cc'});
+X  local($_)=$s;
+X
+X  if ($f =~ /^root(|@spinifex\.cs\.unsw\.oz\.au)\s+\([^)]*\)/)
+X	{ if ($_ eq 'monthly run output')
+X		{ &forw($_,'neilb',@INPUT);
+X		}
+X
+X	  if (length == 0		# jeez
+X	   || /^du_\w+$/		# disc report
+X	   || $_ eq 'acsq.spectrum'	# acsq
+X	   || $_ eq 'nightly.out'	# spectrum maintenance script
+X	   || $_ eq 'at.nightly'	# maintenance script
+X	   || /^(daily|weekly|monthly) run output$/	# spinifex maintenance script
+X	   || m,^/\S+$,			# backup omissions
+X	     )
+X		{ $INBOX.='/admin';
+X		}
+X	}
+X
+X  if (/^ACSnet badhandler/)
+X	{ &forw($_,'neilb',@INPUT);	# Forward to NeilB.
+X	}
+X
+X  # Stuff sent over ACSnet.
+X  if (/^(Files|".*") from \w+ at \S+$/)
+X	{ print &datestr(time,1).": $s\n";
+X	  $filed=1;
+X	}
+X
+X  if ($f eq 'cameron (Cameron Simpson)')
+X	{ if ($_ eq 'at.nightly')
+X		{ $INBOX.='/admin';
+X		}
+X	}
+X
+X  if ($to =~ /faces@Aus.Sun.COM/
+X   || $cc =~ /faces@Aus.Sun.COM/)
+X	{ $INBOX.='/faces';
+X	}
+X
+X  if ($f eq 'funny-request-daemon@clarinet.com (rec.humor.funny autoreply)')
+X	{ print &datestr(time,1)."joke received by rec.humour.funny: $s\n";
+X	  $filed=1;
+X	}
+X
+X  if ($f eq 'mailserver@somesite (Mail Server)'
+X   && m,^(\S+\.uu)\s+\(part\s+(\d+)/(\d+)\)$,)
+X	{ $INBOX="$HOME/private/incoming/mailserver@somesite";
+X	  $INNAME="$1.$3.$2";
+X	  $legend='';
+X	}
+X}
+EOF-etc/mail/inbox/.file
+
+exit 0

@@ -1,0 +1,2122 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: TIN newsreader v1.1 PL7 (Patch 09/10)
+Message-ID: <1992Nov15.155413.20456@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 PL7]
+Date: Sun, 15 Nov 1992 15:54:13 GMT
+Lines: 2109
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Archive-name: tin-1.17/part09
+
+#!/bin/sh
+# this is tin.shar.09 (part 9 of tin-1.17)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file tin-1.17.patch continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 9; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping tin-1.17.patch'
+else
+echo 'x - continuing file tin-1.17.patch'
+sed 's/^X//' << 'SHAR_EOF' >> 'tin-1.17.patch' &&
+X  Spooldir selection level, Group level, Thread level and Article level.
+X***************
+X*** 250,256 ****
+X  .ft P
+X  i.e.,
+X  .ft CW
+X! 1	+	3	Bnews sources?		iain@estevax.uucp
+X  2		1	This question has	ether@net
+X  .ti -.5i
+X  .ft P
+X--- 266,272 ----
+X  .ft P
+X  i.e.,
+X  .ft CW
+X! 1	+	3	Bnews sources?		iain@anl433.uucp
+X  2		1	This question has	ether@net
+X  .ti -.5i
+X  .ft P
+X***************
+X*** 311,317 ****
+X  .RE
+X  .SH "COMMON EDITING COMMANDS"
+X  An emacs style editing package allows the easy editing of input strings.
+X! An history list allows the easy re-use of previously entered strings.
+X  The following commands are available when editing a string:
+X  .PP
+X  .TP 10
+X--- 327,333 ----
+X  .RE
+X  .SH "COMMON EDITING COMMANDS"
+X  An emacs style editing package allows the easy editing of input strings.
+X! An history list allows the easy reuse of previously entered strings.
+X  The following commands are available when editing a string:
+X  .PP
+X  .TP 10
+X***************
+X*** 391,397 ****
+X  .TP
+X  \fBl\fP
+X  List and allow selection of the available spool directories.  This feature
+X! requires a special library to be linked with \fItin\fP to create \fIcdtin 
+X  which can then read news from an active news feed and also from multiple 
+X  CD-ROMs.
+X  .TP
+X--- 407,413 ----
+X  .TP
+X  \fBl\fP
+X  List and allow selection of the available spool directories.  This feature
+X! requires a special library to be linked with \fItin\fP to create \fIcdtin\fP 
+X  which can then read news from an active news feed and also from multiple 
+X  CD-ROMs.
+X  .TP
+X***************
+X*** 412,418 ****
+X  .TP
+X  \fBr\fP
+X  Toggle display of all subscribed to groups and just the subscribed to groups 
+X! containing unread articles.
+X  .TP
+X  \fBs\fP
+X  Subscribe to current group.
+X--- 428,435 ----
+X  .TP
+X  \fBr\fP
+X  Toggle display of all subscribed to groups and just the subscribed to groups 
+X! containing unread articles. Command has no effect if groups were read from
+X! the command line when \fItin\fP was started.
+X  .TP
+X  \fBs\fP
+X  Subscribe to current group.
+X***************
+X*** 486,492 ****
+X  Quit \fItin.
+X  .TP
+X  \fBv\fP
+X! Print \fItin version information.
+X  .SH "GROUP INDEX COMMANDS"
+X  .TP 10
+X  \fB4\fP
+X--- 503,509 ----
+X  Quit \fItin.
+X  .TP
+X  \fBv\fP
+X! Print \fItin\fP version information.
+X  .SH "GROUP INDEX COMMANDS"
+X  .TP 10
+X  \fB4\fP
+X***************
+X*** 589,595 ****
+X  Untag all articles that were tagged.
+X  .TP
+X  \fBv\fP
+X! Print \fItin version information.
+X  .TP
+X  \fBw\fP
+X  Post an article to current group.
+X--- 606,612 ----
+X  Untag all articles that were tagged.
+X  .TP
+X  \fBv\fP
+X! Print \fItin\fP version information.
+X  .TP
+X  \fBw\fP
+X  Post an article to current group.
+X***************
+X*** 682,691 ****
+X  \fBc\fP
+X  Mark thread as read after confirmation and return to previous level.
+X  .TP
+X- \fBC\fP
+X- Cancel current article.  It must have been posted by the same user.  The
+X- cancel message can be seen in the newsgroup 'control'.
+X- .TP
+X  \fBd\fP
+X  Toggle display to show just the subject or the subject and author.
+X  .TP
+X--- 699,704 ----
+X***************
+X*** 715,721 ****
+X  saving ('s') / crossposting ('x').
+X  .TP
+X  \fBv\fP
+X! Print \fItin version information.
+X  .TP
+X  \fBz\fP
+X  Mark current article in thread as unread.
+X--- 728,734 ----
+X  saving ('s') / crossposting ('x').
+X  .TP
+X  \fBv\fP
+X! Print \fItin\fP version information.
+X  .TP
+X  \fBz\fP
+X  Mark current article in thread as unread.
+X***************
+X*** 756,771 ****
+X  getting bugs fixed and features added/changed.
+X  .TP
+X  \fBc\fP
+X! Mark all articles as read with confirmation.
+X  .TP
+X  \fBd\fP
+X  Toggle rot-13 decoding for this article.
+X  .TP
+X  \fBf\fP
+X! Post a followup to current article.
+X  .TP
+X  \fBF\fP
+X! Post a followup with a copy of the current article included.
+X  .TP
+X  \fBh\fP
+X  Help screen of article page commands.
+X--- 769,793 ----
+X  getting bugs fixed and features added/changed.
+X  .TP
+X  \fBc\fP
+X! Mark all articles as read with confirmation and return to group selection 
+X! level.
+X  .TP
+X+ \fBC\fP
+X+ Mark current group as all read and goto next unread group in group
+X+ selection list.
+X+ .TP
+X  \fBd\fP
+X  Toggle rot-13 decoding for this article.
+X  .TP
+X+ \fBD\fP
+X+ Delete current article.  It must have been posted by the same user.  The
+X+ cancel message can be seen in the newsgroup 'control'.
+X+ .TP
+X  \fBf\fP
+X! Post a followup to the current article with a copy of the article included.
+X  .TP
+X  \fBF\fP
+X! Post a followup to the current article.
+X  .TP
+X  \fBh\fP
+X  Help screen of article page commands.
+X***************
+X*** 813,822 ****
+X  Quit \fItin.
+X  .TP
+X  \fBr\fP
+X! Reply through mail to author.
+X  .TP
+X  \fBR\fP
+X! Reply through mail to author with a copy of the current article included.
+X  .TP
+X  \fBs\fP
+X  Save current article / thread / auto selected (hot) articles / 
+X--- 835,845 ----
+X  Quit \fItin.
+X  .TP
+X  \fBr\fP
+X! Reply through mail to the author of the current article with a copy of the 
+X! article included.
+X  .TP
+X  \fBR\fP
+X! Reply through mail to the author of the current article.
+X  .TP
+X  \fBs\fP
+X  Save current article / thread / auto selected (hot) articles / 
+X***************
+X*** 834,840 ****
+X  saving ('s') / crossposting ('x').
+X  .TP
+X  \fBv\fP
+X! Print \fItin version information.
+X  .TP
+X  \fBw\fP
+X  Post an article to current group.
+X--- 857,863 ----
+X  saving ('s') / crossposting ('x').
+X  .TP
+X  \fBv\fP
+X! Print \fItin\fP version information.
+X  .TP
+X  \fBw\fP
+X  Post an article to current group.
+X***************
+X*** 924,930 ****
+X  \fBThread articles\fP
+X  If set ON articles will be threaded in all groups (default), otherwise
+X  articles will be shown unthreaded. Threading/unthreading is possible on
+X! a per group basis by setting the group attribute varaible 'thread_arts'
+X  to ON/OFF in the file \fI$HOME/.tin/attributes\fP.
+X  .TP
+X  \fBShow only unread\fP
+X--- 947,953 ----
+X  \fBThread articles\fP
+X  If set ON articles will be threaded in all groups (default), otherwise
+X  articles will be shown unthreaded. Threading/unthreading is possible on
+X! a per group basis by setting the group attribute variable 'thread_arts'
+X  to ON/OFF in the file \fI$HOME/.tin/attributes\fP.
+X  .TP
+X  \fBShow only unread\fP
+X***************
+X*** 952,962 ****
+X  .ti -\w'\(em'u
+X  \(emunpacking of multi-part uuencoded files.
+X  .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files that produce a *.zoo archive
+X  whose contents is listed.
+X  .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files that produce a *.zoo archive
+X  whose contents is extracted.
+X  .in -.5i
+X  .TP
+X  \fBSort articles by\fP
+X--- 975,997 ----
+X  .ti -\w'\(em'u
+X  \(emunpacking of multi-part uuencoded files.
+X  .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files, which produce a *.zoo archive
+X! whose contents is listed.
+X! .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files, which produce a *.zoo archive
+X! whose contents is extracted.
+X! .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files, which produce a *.zip archive
+X  whose contents is listed.
+X  .ti -\w'\(em'u
+X! \(emunpacking of multi-part uuencoded files, which produce a *.zip archive
+X  whose contents is extracted.
+X+ .ti -\w'\(em'u
+X+ \(emunpacking of multi-part uuencoded files, which produce a *.lha archive
+X+ whose contents is listed (AmigaDOS version only).
+X+ .ti -\w'\(em'u
+X+ \(emunpacking of multi-part uuencoded files, which produce a *.lha archive
+X+ whose contents is extracted (AmigaDOS version only).
+X  .in -.5i
+X  .TP
+X  \fBSort articles by\fP
+X***************
+X*** 986,991 ****
+X--- 1021,1095 ----
+X  \fBPrinter\fP
+X  The printer program with options that is to be used to print
+X  articles.  Default is lpr for BSD machines and lp for SysV machines.
+X+ .SH "TINRC CONFIGURABLE VARIABLES"
+X+ The following variables are user configurable by editing \fI$HOME/.tin/tinrc\fP
+X+ directly. It is hoped to eventually provide a menu to allow the setting of the
+X+ most common variables. 
+X+ .TP 4
+X+ \fBbatch_save\fP
+X+ If set ON articles/threads will be saved in batch mode when save -S
+X+ or mail -M is specified on the command line. Default is OFF.
+X+ .TP 4
+X+ \fBdisplay_reading_prompt\fP
+X+ The prompt ``Reading...'' will be displayed when reading an article from a 
+X+ NNTP server to provide feedback to the user. Default is ON.
+X+ .TP 4
+X+ \fBforce_screen_redraw\fP
+X+ Specifies whether a screen redraw should always be done after certain 
+X+ external commands. Default is OFF.
+X+ .TP 4
+X+ \fBgroupname_max_length\fP
+X+ Maximum length of the names of newsgroups to be displayed so that more of the 
+X+ newgroup description can be displayed. Default is 132.
+X+ .TP 4
+X+ \fBdefault_sigfile\fP
+X+ The path that specifies the signature file to use when posting, following upto
+X+ or replying to an article. If the path is a directory then the signature will
+X+ be randomly generated from files that are in the specified directory.
+X+ Default is \fI$HOME/.Sig\fP.
+X+ .TP 4
+X+ \fBhot_art_mark\fP
+X+ The character used to show that an article/thread is auto-selected (hot). 
+X+ Default is '*'.
+X+ .TP 4
+X+ \fBquote_chars\fP
+X+ The character used in quoting included text to article followups and mail 
+X+ replys. The '_' character represents a blank character and is replaced 
+X+ with ' ' when read. Default is ':_'.
+X+ .TP 4
+X+ \fBreread_active_file_secs\fP
+X+ The news active file is reread at regular intervals to show if any new news 
+X+ has arrived. Default is 300 seconds.
+X+ .TP 4
+X+ \fBreturn_art_mark\fP
+X+ The character used to show that an article will return. Default is '-'.
+X+ .TP 4
+X+ \fBsave_to_mmdf_mailbox\fP
+X+ Allows articles to be saved to a MMDF style mailbox instead of mbox format.
+X+ Default is OFF unless reading news on SCO Unix which uses MMDF by default. 
+X+ .TP 4
+X+ \fBshow_last_line_prev_page\fP
+X+ The last line of the previous page will be displayed as the first line of 
+X+ next page. Default is OFF.
+X+ .TP 4
+X+ \fBslow_speed_terminal\fP
+X+ Strips the blanks from the end of each line therefore speeding up the display
+X+ when reading on a slow terminal or via modem. Default is OFF.
+X+ .TP 4
+X+ \fBtab_after_X_selection\fP
+X+ If enabled will automatically goto the first unread article after having
+X+ selected all hot articles and threads with the 'X' command at group index
+X+ level. Default is OFF.
+X+ .TP 4
+X+ \fBunread_art_mark\fP
+X+ The character used to show that an article has not been read. Default is '+'.
+X+ .TP 4
+X+ \fBuse_builtin_inews\fP
+X+ Allows the builtin NNTP inews to be enabled/disabled. Default is ON (enabled).
+X+ .TP 4
+X+ \fBuse_keypad\fP
+X+ Allows the scroll keys on the keypad to be enabled/disabled on supported 
+X+ terminals. Default is OFF.
+X  .SH "GROUP ATTRIBUTES"
+X  \fITin\fP allows certain attributes to be set on a per group basis. These
+X  group attributes are read from the file \fI$HOME/.tin/attributes\fP.
+X***************
+X*** 1000,1010 ****
+X  maildir=/usr/iain/Mail/sources
+X  savedir=/usr/iain/News/alt.sources
+X  sigfile=/usr/iain/.funny_sig
+X  followup_to=alt.sources.d
+X  auto_save=ON
+X! batch_save=ON
+X  delete_tmp_files=ON
+X! show_only_unread=ON
+X  thread_arts=ON
+X  show_author=1
+X  sort_art_type=5
+X--- 1104,1116 ----
+X  maildir=/usr/iain/Mail/sources
+X  savedir=/usr/iain/News/alt.sources
+X  sigfile=/usr/iain/.funny_sig
+X+ organization=Wacky Bits Inc.
+X  followup_to=alt.sources.d
+X+ printer=/usr/local/bin/a2ps -nn | /bin/lpr
+X  auto_save=ON
+X! batch_save=OFF
+X  delete_tmp_files=ON
+X! show_only_unread=OFF
+X  thread_arts=ON
+X  show_author=1
+X  sort_art_type=5
+X***************
+X*** 1017,1023 ****
+X  before the attributes are specified for that group.
+X  .PP
+X  All attributes are set to a reasonable default so you only have to
+X! specify the attribute that you want to change (ie. savedir).
+X  .PP
+X  All toggle attributes are set by specifying ON/OFF. 
+X  .PP
+X--- 1123,1129 ----
+X  before the attributes are specified for that group.
+X  .PP
+X  All attributes are set to a reasonable default so you only have to
+X! specify the attribute that you want to change (i.e., savedir).
+X  .PP
+X  All toggle attributes are set by specifying ON/OFF. 
+X  .PP
+X***************
+X*** 1029,1036 ****
+X  4=from ascending, 5=date descending, 6=date ascending.
+X  .PP
+X  The post_proc_type attribute is specified by a number from the following 
+X! range: 0=none, 1=shar, 2=uudecode, 3=uudecode & list zoo, 4=uudecode & 
+X! extract zoo.
+X  .SH "AUTOMATIC KILL AND SELECTION"
+X  When there is a subject or an author which you are either very
+X  interested in, or find completely uninteresting, you can easily
+X--- 1135,1144 ----
+X  4=from ascending, 5=date descending, 6=date ascending.
+X  .PP
+X  The post_proc_type attribute is specified by a number from the following 
+X! range: 0=none, 1=unshar, 2=uudecode, 3=uudecode & list zoo archive, 
+X! 4=uudecode & extract zoo archive, 5=uudecode & list zip archive, 
+X! 6=uudecode & extract zip archive. (note: if running on AmigaDOS the zoo
+X! options are replaced by there corresponding lha archiver options).
+X  .SH "AUTOMATIC KILL AND SELECTION"
+X  When there is a subject or an author which you are either very
+X  interested in, or find completely uninteresting, you can easily
+X***************
+X*** 1071,1087 ****
+X  posted to and the articles subject line are displayed.
+X  .PP
+X  Use the 'f' / 'F' command to post a follow-up article to an already
+X! posted article.  The 'F' command will copy the text of the original
+X  article into the editor.  The editing procedure is the same as when
+X  posting an article with the 'w' command.
+X  .PP
+X  Use the 'r' / 'R' command to reply direct through mail to the author
+X! of an already posted article.  The 'R' command will copy the text of
+X  the original article into the editor.  The editing procedure is the
+X  same as when posting an article with the 'w' command.  After saving
+X  and exiting the editor you are asked if you wish to a)bort sending
+X  the article, e)dit the article again or s)end the article to the
+X  author.
+X  .SH "MAILING PIPING PRINTING REPOSTING AND SAVING ARTICLES"
+X  The command interface to mail ('m'), pipe ('|'), print ('o'),
+X  crosspost ('x') and save ('s') articles is the same for ease of use.
+X--- 1179,1232 ----
+X  posted to and the articles subject line are displayed.
+X  .PP
+X  Use the 'f' / 'F' command to post a follow-up article to an already
+X! posted article.  The 'f' command will copy the text of the original
+X  article into the editor.  The editing procedure is the same as when
+X  posting an article with the 'w' command.
+X  .PP
+X  Use the 'r' / 'R' command to reply direct through mail to the author
+X! of an already posted article.  The 'r' command will copy the text of
+X  the original article into the editor.  The editing procedure is the
+X  same as when posting an article with the 'w' command.  After saving
+X  and exiting the editor you are asked if you wish to a)bort sending
+X  the article, e)dit the article again or s)end the article to the
+X  author.
+X+ .SH "CUSTOMIZING THE ARTICLE QUOTE STRING"
+X+ When posting a followup to an article or replying direct to the author
+X+ of an article via email the text of the article can be quoted. The 
+X+ beginning of the quoted text can contain information about the quoted
+X+ article (i.e., Name and the Message Id of the article). To allow for
+X+ different situations certain information from the article can be used 
+X+ in the quoted string. The following variables are expanded if found in 
+X+ the tinrc variables 'mail_quote_format=' or 'news_quote_format=':
+X+ .RS
+X+ .nf
+X+ .ta \w'%A  'u +\w'Address'u
+X+ \fB%A\fP	Address (Email)
+X+ \fB%D\fP	Date 
+X+ \fB%F\fP	Full address (%N (%A))
+X+ \fB%G\fP	Groupname
+X+ \fB%M\fP	Message Id
+X+ \fB%N\fP	Name of user
+X+ .fi
+X+ .RE
+X+ i.e.,
+X+ .RS
+X+ .nf
+X+ .ft CW
+X+ mail_quote_format=On %D in %G you wrote:
+X+ news_quote_format=In %M, %F wrote:
+X+ .ft P
+X+ .fi
+X+ .RE
+X+ would expand when used to:
+X+ .RS
+X+ .nf
+X+ .ft CW
+X+ On 21 Jul 1992 09:45:51 -0400 in alt.sources you wrote:
+X+ In <abcINN123@anl433.uucp>, Iain Lea (iain@anl433.uucp) wrote:
+X+ .ft P
+X+ .fi
+X+ .RE
+X  .SH "MAILING PIPING PRINTING REPOSTING AND SAVING ARTICLES"
+X  The command interface to mail ('m'), pipe ('|'), print ('o'),
+X  crosspost ('x') and save ('s') articles is the same for ease of use.
+X***************
+X*** 1147,1159 ****
+X  .RS
+X  .nf
+X  .ft CW
+X! NAME   Iain Lea
+X! EMAIL  Iain.Lea%anl433.uucp@Germany.EU.net
+X  SNAIL  Bruecken Strasse 12, 8500 Nuernberg 90, Germany
+X  PHONE  +49-911-331963 (home)  +49-911-3089-407 (work)
+X  .ft P
+X  .fi
+X  .RE
+X  .SH "ENVIROMENT VARIABLES"
+X  .TP
+X  \fBTINRC\fP
+X--- 1292,1312 ----
+X  .RS
+X  .nf
+X  .ft CW
+X! NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+X  SNAIL  Bruecken Strasse 12, 8500 Nuernberg 90, Germany
+X  PHONE  +49-911-331963 (home)  +49-911-3089-407 (work)
+X  .ft P
+X  .fi
+X  .RE
+X+ \fITin\fP also has the capability to generate random signatures on a per
+X+ newsgroup basis if so desired. The way to accomplish this is to specify
+X+ the default signature or the group attribute sigfile as a directory.
+X+ If for example the sigfile path is \fI/usr/iain/.sigs\fP and \fI.sigs\fP is
+X+ a directory then \fItin\fP will select a random signature from any file that
+X+ is in the directory \fI.sigs\fP (note: one signature per numbered file). A 
+X+ random signature can also consist of a fixed part signature that can contain 
+X+ your name, address etc. followed by the random sig. The fixed part of the 
+X+ random sig is read from the file \fI$HOME/.sigfixed\fP.
+X  .SH "ENVIROMENT VARIABLES"
+X  .TP
+X  \fBTINRC\fP
+X***************
+X*** 1168,1173 ****
+X--- 1321,1331 ----
+X  \fI$HOME/.tin\fP. (i.e. if you want all tin's private files in \fI/tmp/.tin\fP
+X  you would set TINDIR to \fI/tmp\fP.
+X  .TP
+X+ \fBTIN_INDEX\fP
+X+ Define this variable if you do not want the .index directory in 
+X+ \fI$HOME/.tin/.index\fP. (i.e. if you want all tin's index files in
+X+ \fI/tmp/.index\fP you would set TIN_INDEX to \fI/tmp\fP.
+X+ .TP
+X  \fBNNTPSERVER\fP
+X  The default NNTP server to remotely read news from.  This variable only
+X  needs to be set if the -r command line option is specified and the file
+X***************
+X*** 1250,1257 ****
+X  contains user specified group attributes.
+X  .TP 2i
+X  \fI$HOME/.tin/.index\fP
+X! newsgroup index files directory.
+X  .TP 2i
+X  \fI$HOME/.tin/add_address\fP
+X  address to add to when replying through mail.
+X  .TP 2i
+X--- 1408,1427 ----
+X  contains user specified group attributes.
+X  .TP 2i
+X  \fI$HOME/.tin/.index\fP
+X! newsgroups index files directory.
+X! .TP 2i
+X! \fI$HOME/.tin/.mailidx\fP
+X! mailgroups index files directory.
+X! .TP 2i
+X! \fI$HOME/.tin/.saveidx\fP
+X! saved newsgroups index files directory.
+X! .TP 2i
+X! \fI$HOME/.tin/active.mail\fP
+X! active file of users mailgroups.
+X  .TP 2i
+X+ \fI$HOME/.tin/active.save\fP
+X+ active file of users saved newsgroups.
+X+ .TP 2i
+X  \fI$HOME/.tin/add_address\fP
+X  address to add to when replying through mail.
+X  .TP 2i
+X***************
+X*** 1259,1265 ****
+X  address to send bug reports to.
+X  .TP 2i
+X  \fI$HOME/.tin/kill\fP
+X! kill file.
+X  .TP 2i
+X  \fI$HOME/.tin/organization\fP
+X  string to replace default organization.
+X--- 1429,1435 ----
+X  address to send bug reports to.
+X  .TP 2i
+X  \fI$HOME/.tin/kill\fP
+X! article kill and auto-selection file.
+X  .TP 2i
+X  \fI$HOME/.tin/organization\fP
+X  string to replace default organization.
+X***************
+X*** 1275,1280 ****
+X--- 1445,1462 ----
+X  .TP 2i
+X  \fI$HOME/.Sig\fP
+X  signature.
+X+ .TP 2i
+X+ \fI$HOME/.sigfixed\fP
+X+ fixed part of a randomly generated signature.
+X+ .TP 2i
+X+ \fI/usr/lib/news/motd\fP
+X+ News message of the day file.
+X+ .TP 2i
+X+ \fI/usr/lib/news/newsgroups\fP
+X+ Short description of all newsgroups.
+X+ .TP 2i
+X+ \fI/usr/lib/news/subscriptions\fP
+X+ List of newsgroups to subscribe first time user to.
+X  .SH BUGS
+X  There are bugs somewhere among the creeping featurism.  Any bugs found
+X  should be reported by the 'B' (bug report) command.
+X***************
+X*** 1287,1292 ****
+X--- 1469,1476 ----
+X  .PP
+X  Coredumps when setting certain toggle options from the options menu at article
+X  viewer level.
+X+ .PP
+X+ Coredumps when killing last article in a thread at article viewer level.
+X  .SH HISTORY
+X  Based on the \fItass\fP newsreader that was developed by Rich Skrenta and 
+X  posted to alt.sources in March 1991.  Tass was itself heavily influenced by 
+X***************
+X*** 1322,1384 ****
+X  v1.1 PL5 (patch) was posted in 7 parts to alt.sources on 11 Aug 1992.
+X  .br
+X  v1.1 PL6 (full) was posted in 15 parts to alt.sources on 14 Sep 1992.
+X  .SH CREDITS
+X! .TP
+X  Rich Skrenta
+X  author of tass v3.2 which this newsreader used as its base.
+X! .TP
+X  Bill Davidsen
+X  author of envarg.c environment variable reading routine.
+X! .TP
+X  Rich Salz
+X  author of wildmat.c pattern matching and parsedate.y date parsing routines.
+X! .TP
+X  Dave Taylor
+X  author of curses.c from the elm mailreader.
+X! .TP
+X  Chris Thewalt
+X  author of getline.c emacs style editing routine.
+X! .TP
+X  Mark Tomlinson
+X! for porting \fItin\fP to the Commodore Amiga.
+X! .TP
+X  Dieter Becker
+X! for generously posting certain versions and patches for me when my net
+X  connection was removed by a group of very short sighted people.
+X  .PP
+X! I wish to thank the following people for supplying patchs:
+X  .PP
+X! Anton Aylward, Paul Bauwens, Dieter Becker, Dan Berry, Marc Boucher, 
+X! Leila Burrell-Davis, Peter Castro, Robert Claeson, Steven Cogswell, 
+X! Don Costello, Ned Danieley, Chris Davies, John Davis, Craig Durland, Kirk Edson,
+X! Rob Engle, Brent Ermlick, Olle Eriksson, Michael Faurot, Callum Gibson, Carl Hage,
+X! Paul Halsema, Ed Hanway, Scott Hauck, Daniel Hermans, Tom Hite, Torsten Homeyer,
+X! Steve Hunt, Robbin Johnson, Nelson Kading, Fritz Kleeman, Karl-Koenig Koenigsson,
+X! Martin Kraemer, Kris Kugel, Alex Lange, Hakan Lennestal, Clifford Luke, 
+X! David MacKenzie, Hugh Mahon, Sergio Morales, James Nugen, Jeb Palmer, Neil Parker,
+X! Tom Parry, Walter Pelissero, Bill Poitras, Wolfgang Prediger, Jim Robinson, 
+X! Stephen Roseman, Nickolay Saukh, Rich Salz, John Sauter, Bart Sears, 
+X  Karl-Olav Serrander, Doug Sewell, Steve Spearman, Cliff Stanford, Steve Starck, 
+X! Mark Tomlin, Michael Traub, Adri Verhoef, Paul Vickers, Cary Whitney, Greg Woods,
+X! Lloyd Wright
+X  .PP
+X  I wish to thank the following people for bug reports/comments:
+X  .PP
+X! Klaus Arzig, Scott Babb, Reiner Balling, Preston Bannister, Bill de Beabien,
+X! Volker Beyer, Etienne Bido, Roger Binns, Georg Biehler, Jean-Marc Bonnaudet,
+X! Eric Bowles, Sean Brady, Ian Brown, Andreas Brosig, Craig Bruce, Tom Czarnik, 
+X! Dave Datta, Mat Davis, David Donovan, Peter Dressler, Gerhard Ermer, Hugh Fader, 
+X! Joachim Feld, Paul Fox, Jay Geertsen, Bernhard Gmelch, Viet Hoang, Andy Jackson,
+X! Joe Johnson, Cyrill Jung, Kuo-Chein Kai, Hans-Juergen Knopp, Tom Kovar, 
+X! Bernhard Kroenung, Murray Laing, Marty Leisner, Per Lindqvist, Eric Litman, 
+X! Bob Lukas, Michael Marshall, Kazushi Marukawa, Phillip Molloy, Toni Metz, 
+X! Greg Miller, Deeptendu Majumder, Klaus Neuberger, Otto Niesser, Reiner Oelhaf,
+X! Alex Pakter, John Palkovic, Dave Pascoe, Wolf Paul, Andrew Phillips, Tim Pierce, 
+X! Stefan Rathmann, Ted Richards, David Ross, Jonas Rwgmyr, Daemon Schaefer, 
+X! John Schmitz, Dean Schrimpf, Klamer Schutte, Fredy Schwatz, Dave Schweisguth, 
+X! Bernd Schwerin, Don Sheythe, Chris Smith, Daniel Smith, Hironobu Takahashi, 
+X! Ken Taylor, Tony Travis, Paul Verket, Sven Werner, Paul Wood, Gregory Woodbury, 
+X! Orest Zboroski
+X  .SH AUTHOR
+X  .TP 1i
+X  Iain Lea
+X--- 1506,1581 ----
+X  v1.1 PL5 (patch) was posted in 7 parts to alt.sources on 11 Aug 1992.
+X  .br
+X  v1.1 PL6 (full) was posted in 15 parts to alt.sources on 14 Sep 1992.
+X+ .br
+X+ v1.1 PL7 (patch) was posted in 8 parts to alt.sources on ?? Oct 1992.
+X  .SH CREDITS
+X! .TP 1.5i
+X  Rich Skrenta
+X  author of tass v3.2 which this newsreader used as its base.
+X! .TP 1.5i
+X  Bill Davidsen
+X  author of envarg.c environment variable reading routine.
+X! .TP 1.5i
+X! Mike Gleason 
+X! author of sigfile.c random signature generation routines.
+X! .TP 1.5i
+X! Arnold Robbins
+X! author of strftime.c date formatting routine.
+X! .TP 1.5i
+X! Jim Robinson
+X! co-author of kill.c article kill and auto-selection routines.
+X! .TP 1.5i
+X  Rich Salz
+X  author of wildmat.c pattern matching and parsedate.y date parsing routines.
+X! .TP 1.5i
+X  Dave Taylor
+X  author of curses.c from the elm mailreader.
+X! .TP 1.5i
+X  Chris Thewalt
+X  author of getline.c emacs style editing routine.
+X! .TP 1.5i
+X  Mark Tomlinson
+X! for porting \fItin\fP to the Commodore AmigaDOS operating system.
+X! .TP 1.5i
+X  Dieter Becker
+X! for generously posting certain releases for me when my net
+X  connection was removed by a group of very short sighted people.
+X  .PP
+X! I wish to thank the following people for supplying patches:
+X  .PP
+X! Anton Aylward, Paul Bauwens, Dieter Becker, Dan Berry, Fokke de Boer, 
+X! Marc Boucher, Leila Burrell-Davis, Peter Castro, Robert Claeson, 
+X! Steven Cogswell, Don Costello, Ned Danieley, Chris Davies, John Davis, 
+X! Craig Durland, Kirk Edson, Rob Engle, Brent Ermlick, Olle Eriksson, 
+X! Michael Faurot, Werner Fleck, Callum Gibson, Carl Hage, Paul Halsema, Ed Hanway,
+X! Scott Hauck, Daniel Hermans, Tom Hite, Torsten Homeyer, Steve Hunt, Robbin Johnson,
+X! Nelson Kading, Fritz Kleeman, Karl-Koenig Koenigsson, Martin Kraemer, Kris Kugel, 
+X! Alex Lange, Hakan Lennestal, Clifford Luke, David MacKenzie, Hugh Mahon, 
+X! Sergio Morales, James Nugen, Jeb Palmer, Neil Parker, Tom Parry, Walter Pelissero, 
+X! Eric Peterson, Tim Pierce, Bill Poitras, Wolfgang Prediger, Jim Robinson, 
+X! Stephen Roseman, Nickolay Saukh, Rich Salz, John Sauter, John Schmitz, Bart Sears, 
+X  Karl-Olav Serrander, Doug Sewell, Steve Spearman, Cliff Stanford, Steve Starck, 
+X! Ed Sznyter, Andry Timonin, Mark Tomlin, Michael Traub, Adri Verhoef, 
+X! Paul Vickers, Cary Whitney, Greg Woods, Lloyd Wright
+X  .PP
+X  I wish to thank the following people for bug reports/comments:
+X  .PP
+X! Jack Applin, Klaus Arzig, Scott Babb, Reiner Balling, Preston Bannister, 
+X! Bill de Beabien, Volker Beyer, Etienne Bido, Roger Binns, Georg Biehler, 
+X! Jean-Marc Bonnaudet, Eric Bowles, Sean Brady, Ian Brown, Andreas Brosig, 
+X! Craig Bruce, Tom Czarnik, Dave Datta, Mat Davis, Klaus Dimmler, David Donovan,
+X! Peter Dressler, Gerhard Ermer, Hugh Fader, Miguel Farah, Joachim Feld, Paul Fox, 
+X! Jay Geertsen, Bernhard Gmelch, Jason Haar, Viet Hoang, Andy Jackson, Joe Johnson, 
+X! Cyrill Jung, Kuo-Chein Kai, Hans-Juergen Knopp, Tom Kovar, Bernhard Kroenung, 
+X! Murray Laing, Marty Leisner, Per Lindqvist, Eric Litman, Bob Lukas, Michael Marshall, 
+X! Kazushi Marukawa, Phillip Molloy, Toni Metz, Greg Miller, Deeptendu Majumder, 
+X! Klaus Neuberger, Otto Niesser, Reiner Oelhaf, Alex Pakter, John Palkovic, 
+X! Dave Pascoe, Wolf Paul, Andrew Phillips, Stefan Rathmann, Ted Richards, 
+X! David Ross, Jonas Rwgmyr, Daemon Schaefer, Dean Schrimpf, Klamer Schutte, Fredy Schwatz, 
+X! Dave Schweisguth, Bernd Schwerin, Don Sheythe, Chris Smith, Daniel Smith, 
+X! Hironobu Takahashi, Ken Taylor, Tony Travis, Paul Verket, Sven Werner, 
+X! Dick Wexelblat, Paul Wood, Gregory Woodbury, Blair Zajac, Orest Zboroski, 
+X! Thomas Ziegler
+X  .SH AUTHOR
+X  .TP 1i
+X  Iain Lea
+Xdiff -rcs ../1.16/tin.h ./tin.h
+X*** ../1.16/tin.h	Sun Nov 15 18:41:39 1992
+X--- ./tin.h	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,9 ****
+X   *  Module    : tin.h
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 06-09-92
+X   *  Notes     : #include files, #defines & struct's
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X--- 3,9 ----
+X   *  Module    : tin.h
+X   *  Author    : I.Lea & R.Skrenta
+X   *  Created   : 01-04-91
+X!  *  Updated   : 05-11-92
+X   *  Notes     : #include files, #defines & struct's
+X   *  Copyright : (c) Copyright 1991-92 by Iain Lea & Rich Skrenta
+X   *              You may  freely  copy or  redistribute  this software,
+X***************
+X*** 32,37 ****
+X--- 32,38 ----
+X  #	else
+X  #		include <sys/types.h>
+X  #		include	<sys/stat.h>
+X+ #		include	<sys/time.h>
+X  #		include	<time.h>
+X  #		ifdef HAVE_UNISTD_H
+X  #			include	<unistd.h>
+X***************
+X*** 38,43 ****
+X--- 39,45 ----
+X  #		endif
+X  #	endif
+X  #	include	<pwd.h>
+X+ #	include <sys/param.h>
+X  #endif
+X  
+X  #include	<ctype.h>
+X***************
+X*** 81,86 ****
+X--- 83,96 ----
+X  #endif
+X  
+X  /*
+X+  * Needed for timeout in user abort of indexing a group
+X+  */
+X+ 
+X+ #ifdef HAVE_SYS_WAIT_H
+X+ #	include	<sys/wait.h>
+X+ #endif
+X+ 
+X+ /*
+X   * Needed for resizing under an xterm
+X   */
+X  
+X***************
+X*** 100,106 ****
+X  #				include <sys/tty.h>
+X  #			endif
+X  #			ifdef HAVE_SYS_PTY_H
+X! #				ifndef _h_BSDTYPES
+X  #					include <sys/bsdtypes.h>
+X  #				endif
+X  #				include <sys/pty.h>
+X--- 110,116 ----
+X  #				include <sys/tty.h>
+X  #			endif
+X  #			ifdef HAVE_SYS_PTY_H
+X! #				if !defined(_h_BSDTYPES) && !defined(DONT_HAVE_SYS_BSDTYPES_H)
+X  #					include <sys/bsdtypes.h>
+X  #				endif
+X  #				include <sys/pty.h>
+X***************
+X*** 110,115 ****
+X--- 120,161 ----
+X  #endif
+X  
+X  /*
+X+  * Directory handling code - Hopefully one of these is right for you. 
+X+  */
+X+ 
+X+ #ifdef BSD
+X+ #	ifdef sinix
+X+ #		include <dir.h>
+X+ #	else
+X+ #		ifdef __arm
+X+ #			include <dirent.h>
+X+ #			define	DIR_BUF	struct dirent
+X+ #		else
+X+ #			include <sys/dir.h>
+X+ #		endif
+X+ #	endif
+X+ #	ifndef DIR_BUF
+X+ #		define	DIR_BUF		struct direct
+X+ #	endif
+X+ #	define		D_LENGTH	d_namlen
+X+ #endif
+X+ #ifdef M_XENIX
+X+ #	include <sys/ndir.h>
+X+ #	define		DIR_BUF		struct direct
+X+ #	define		D_LENGTH	d_namlen
+X+ #endif
+X+ #ifdef AMIGA
+X+ #	include	"amiga.h"
+X+ #	define		DIR_BUF		struct dirent
+X+ #	define		D_LENGTH	d_reclen
+X+ #endif
+X+ #ifndef DIR_BUF
+X+ #	include	<dirent.h>
+X+ #	define		DIR_BUF		struct dirent
+X+ #	define		D_LENGTH	d_reclen
+X+ #endif
+X+ 
+X+ /*
+X   * Setup support for reading from CD-ROM
+X   */
+X  
+X***************
+X*** 152,158 ****
+X   */
+X   
+X  #ifdef INDEX_DAEMON
+X! #	define	LOCK_FILE TMPDIR "tind.LCK"
+X  #	undef	NNTP_ABLE
+X  #	undef	NNTP_ONLY
+X  #	undef	NNTP_INEWS
+X--- 198,205 ----
+X   */
+X   
+X  #ifdef INDEX_DAEMON
+X! #	define	DONT_HAVE_SELECT
+X! #	define	LOCK_FILE "tind.LCK"
+X  #	undef	NNTP_ABLE
+X  #	undef	NNTP_ONLY
+X  #	undef	NNTP_INEWS
+X***************
+X*** 187,193 ****
+X  #	define		DEFAULT_SUM	"sum"
+X  #	ifdef DGUX
+X  #		define		DEFAULT_MAILBOX	"/usr/mail"
+X- #		define		POSIX_JOB_CONTROL
+X  #		define		USE_INVERSE_HACK
+X  #	endif
+X  #	ifdef pyr
+X--- 234,239 ----
+X***************
+X*** 205,211 ****
+X  #		define		DEFAULT_MAILER	"/usr/bin/mailx"
+X  #	endif
+X  #	ifdef AMIGA
+X- #		undef	POSIX_JOB_CONTROL
+X  #		define	DEFAULT_EDITOR	"c:ed"
+X  #		define	DEFAULT_MAILER	"uucp:c/sendmail"
+X  #		define	DEFAULT_MAILBOX	"uumail:"
+X--- 251,256 ----
+X***************
+X*** 218,228 ****
+X  #		define	DEFAULT_MAILBOX	"/usr/spool/mail"
+X  #	endif
+X  #	ifdef RS6000
+X! #		define	DEFAULT_MAILER	"/usr/bin/mail"
+X  #		define	DEFAULT_PRINTER	"/bin/lp"
+X  #	endif
+X  #	ifdef SCO_UNIX
+X! #		define	USE_MMDF_MAILER
+X  #	endif
+X  #	ifdef sinix
+X  #		define	DEFAULT_PRINTER	"/bin/lpr"
+X--- 263,273 ----
+X  #		define	DEFAULT_MAILBOX	"/usr/spool/mail"
+X  #	endif
+X  #	ifdef RS6000
+X! #		define	DEFAULT_MAILER	"/usr/lib/sendmail"
+X  #		define	DEFAULT_PRINTER	"/bin/lp"
+X  #	endif
+X  #	ifdef SCO_UNIX
+X! #		define	HAVE_MMDF_MAILER
+X  #	endif
+X  #	ifdef sinix
+X  #		define	DEFAULT_PRINTER	"/bin/lpr"
+X***************
+X*** 263,277 ****
+X   * Useful for logging user usage
+X   */
+X   
+X! #ifdef LOG_USER
+X! #	define		LOG_USER_FILE	TMPDIR ".tin_log" 
+X! #endif
+X  
+X  /*
+X   * Should active file be reread for new news & if so how often
+X   */
+X   
+X! #ifndef NO_REREAD_ACTIVE_FILE
+X  #	ifndef REREAD_ACTIVE_FILE_SECS
+X  #		define	REREAD_ACTIVE_FILE_SECS	300	/* seconds */
+X  #	endif
+X--- 308,322 ----
+X   * Useful for logging user usage
+X   */
+X   
+X! #define		LOG_USER_FILE	".tin_log" 
+X  
+X  /*
+X   * Should active file be reread for new news & if so how often
+X   */
+X   
+X! #ifdef DONT_REREAD_ACTIVE_FILE
+X! #	define	REREAD_ACTIVE_FILE_SECS	0
+X! #else
+X  #	ifndef REREAD_ACTIVE_FILE_SECS
+X  #		define	REREAD_ACTIVE_FILE_SECS	300	/* seconds */
+X  #	endif
+X***************
+X*** 299,310 ****
+X  
+X  #define		RCDIR			".tin"
+X  #define		RCFILE			"tinrc"
+X! #define		INDEXDIR		".index"
+X  #define		ACTIVE			"active"
+X  #define		ACTIVE_TIMES		"active.times"
+X  #define		KILLFILE		"kill"
+X  #define		POSTFILE		"posted"
+X  #define		DEFAULT_MAILDIR		"Mail"
+X  
+X  #ifdef TRUE
+X  #	undef TRUE
+X--- 344,360 ----
+X  
+X  #define		RCDIR			".tin"
+X  #define		RCFILE			"tinrc"
+X! #define		INDEX_MAILDIR		".mailidx"
+X! #define		INDEX_NEWSDIR		".index"
+X  #define		ACTIVE			"active"
+X+ #define		ACTIVE_MAIL		"active.mail"
+X+ #define		ACTIVE_SAVE		"active.save"
+X  #define		ACTIVE_TIMES		"active.times"
+X  #define		KILLFILE		"kill"
+X  #define		POSTFILE		"posted"
+X  #define		DEFAULT_MAILDIR		"Mail"
+X+ #define		DEFAULT_SAVEDIR		"News"
+X+ #define		MAILGROUPS_FILE		"mailgroups"
+X  
+X  #ifdef TRUE
+X  #	undef TRUE
+X***************
+X*** 320,329 ****
+X  #define		LEN			512
+X  #define		PATH_LEN		128
+X  #else
+X  #define		LEN			1024
+X! #define		PATH_LEN		256
+X  #endif
+X- #define		HEADER_LEN		1024
+X  #define		MODULO_COUNT_NUM	5
+X  #define		TABLE_SIZE		1409
+X  #define		MAX_PAGES		1000
+X--- 370,388 ----
+X  #define		LEN			512
+X  #define		PATH_LEN		128
+X  #else
+X+ #ifndef MAXPATHLEN
+X+ #   define MAXPATHLEN 256
+X+ #endif
+X+ #define		PATH_LEN		MAXPATHLEN
+X  #define		LEN			1024
+X! #endif
+X! #define		NEWSRC_LINE		8192
+X! 
+X! #ifdef HAVE_MAIL_HANDLER
+X! #	define	HEADER_LEN		8192
+X! #else
+X! #	define	HEADER_LEN		1024
+X  #endif
+X  #define		MODULO_COUNT_NUM	5
+X  #define		TABLE_SIZE		1409
+X  #define		MAX_PAGES		1000
+X***************
+X*** 356,362 ****
+X  #endif
+X  
+X  #define		SCREEN_READ_UNREAD		6		/* position for "  +" / "   " */
+X! #define		INDEX_TOP				2
+X  
+X  #ifdef NO_REGEX 
+X  #	define STR_MATCH(s1,s2)	(str_str (s1, s2, strlen (s2)) != 0)
+X--- 415,421 ----
+X  #endif
+X  
+X  #define		SCREEN_READ_UNREAD		6		/* position for "  +" / "   " */
+X! #define		INDEX_TOP			2
+X  
+X  #ifdef NO_REGEX 
+X  #	define STR_MATCH(s1,s2)	(str_str (s1, s2, strlen (s2)) != 0)
+X***************
+X*** 368,373 ****
+X--- 427,440 ----
+X  			 (arts[i].killed && kill_level > 0))
+X  
+X  /*
+X+  *  News/Mail group types 
+X+  */
+X+  
+X+ #define		GROUP_TYPE_MAIL			0
+X+ #define		GROUP_TYPE_NEWS			1
+X+ #define		GROUP_TYPE_SAVE			2
+X+ 
+X+ /*
+X   *  used by get_arrow_key()
+X   */
+X  
+X***************
+X*** 446,458 ****
+X   *  Assertion verifier
+X   */
+X  
+X! #if __STDC__ && !defined(apollo)
+X! #	define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, #p); else
+X  #else
+X  #	define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, "p"); else
+X  #endif
+X  
+X  #define	ESC	27
+X  #if defined(AMIGA) || defined(apollo) || defined(BSD) || defined(MINIX)
+X  #	define		CR		'\r'
+X  #else
+X--- 513,530 ----
+X   *  Assertion verifier
+X   */
+X  
+X! #if __STDC__ || defined(SVR4)
+X! #	ifndef apollo
+X! #		define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, #p); else
+X! #	else
+X! #		define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, "p"); else
+X! #	endif
+X  #else
+X  #	define	assert(p)	if(! (p)) asfail(__FILE__, __LINE__, "p"); else
+X  #endif
+X  
+X  #define	ESC	27
+X+ 
+X  #if defined(AMIGA) || defined(apollo) || defined(BSD) || defined(MINIX)
+X  #	define		CR		'\r'
+X  #else
+X***************
+X*** 481,486 ****
+X--- 553,560 ----
+X  #define		ART_UNREAD		1
+X  #define		ART_WILL_RETURN		2
+X  
+X+ #define		ART_UNAVAILABLE		-1
+X+ 
+X  /*
+X   * used by group_t & my_group[]
+X   */
+X***************
+X*** 497,509 ****
+X  #define KILL_BOTH	3
+X  
+X  /*
+X-  * usedin group.c & page.c
+X-  */
+X-  
+X- #define	ART_UNAVAILABLE	-1
+X- 
+X- 
+X- /*
+X   * used in feed.c & save.c
+X   */
+X   
+X--- 571,576 ----
+X***************
+X*** 510,517 ****
+X  #define POST_PROC_NONE			0
+X  #define POST_PROC_SHAR			1
+X  #define POST_PROC_UUDECODE		2
+X! #define POST_PROC_UUD_LST_ZOO	3
+X! #define POST_PROC_UUD_EXT_ZOO	4
+X  
+X  /*
+X   *  struct article_t - article header
+X--- 577,586 ----
+X  #define POST_PROC_NONE			0
+X  #define POST_PROC_SHAR			1
+X  #define POST_PROC_UUDECODE		2
+X! #define POST_PROC_UUD_LST_ZOO		3
+X! #define POST_PROC_UUD_EXT_ZOO		4
+X! #define POST_PROC_UUD_LST_ZIP		5
+X! #define POST_PROC_UUD_EXT_ZIP		6
+X  
+X  /*
+X   *  struct article_t - article header
+X***************
+X*** 570,578 ****
+X  	int tagged;		/* 0 = not tagged, >0 = tagged */
+X  	long date;		/* Date: line from header in seconds */
+X  	char *archive;		/* Archive-name: line from mail header */
+X! 	char *part;		/* part no. of archive */
+X  	char *patch;		/* patch no. of archive */
+X! 	char *xref;		/* cross reference line */
+X  };
+X  
+X  /*
+X--- 639,647 ----
+X  	int tagged;		/* 0 = not tagged, >0 = tagged */
+X  	long date;		/* Date: line from header in seconds */
+X  	char *archive;		/* Archive-name: line from mail header */
+X! 	char *part;		/* part  no. of archive */
+X  	char *patch;		/* patch no. of archive */
+X! 	char *xref;		/* Xref: cross posted article reference line */
+X  };
+X  
+X  /*
+X***************
+X*** 583,589 ****
+X--- 652,660 ----
+X  	char *maildir;				/* mail dir if other than ~/Mail */
+X  	char *savedir;				/* save dir if other than ~/News */
+X  	char *sigfile;				/* sig file if other than ~/.Sig */
+X+ 	char *organization;			/* organization name */
+X  	char *followup_to;			/* where posts should be redirected */
+X+ 	char *printer;				/* printer command & parameters */
+X  	unsigned int read_during_session:1;	/* marked TRUE if group entered during session */
+X  	unsigned int auto_save:1;		/* 0=none, 1=save */
+X  	unsigned int batch_save:1;		/* 0=none, 1=save -S/mail -M  */
+X***************
+X*** 603,613 ****
+X   */
+X  
+X  struct group_t {
+X! 	char *name;
+X  	char *description;		/* text from LIBDIR/newsgroups file */
+X! 	long max;
+X! 	long min;
+X! 	char moderated;
+X  	int next;			/* next active entry in hash chain */
+X  	int my_group;			/* subscribed/unsubscribed to group */
+X  	int unread;			/* unread articles in group */
+X--- 674,686 ----
+X   */
+X  
+X  struct group_t {
+X! 	char *name;			/* newsgroup / mailbox name */
+X  	char *description;		/* text from LIBDIR/newsgroups file */
+X! 	char *spooldir;			/* groups spool directory */
+X! 	char moderated;			/* state of group moderation */
+X! 	long max;			/* max. article number */
+X! 	long min;			/* min. article number */
+X! 	int type;			/* grouptype - newsgroup / mailbox */
+X  	int next;			/* next active entry in hash chain */
+X  	int my_group;			/* subscribed/unsubscribed to group */
+X  	int unread;			/* unread articles in group */
+X***************
+X*** 711,716 ****
+X--- 784,792 ----
+X  #ifdef HAVE_SIGTYPE_INT
+X  typedef int sigtype_t;
+X  #endif
+X+ 
+X+ #define MOTD_FILE		"motd"
+X+ #define SUBSCRIPTIONS_FILE	"subscriptions"
+X  
+X  #ifdef AMIGA
+X  #	define NEWSGROUPS_FILE		"newsdescrip"
+XBinary files ../1.16/tin.nrf and ./tin.nrf differ
+XOnly in .: tin.tar
+XFiles ../1.16/wildmat.3 and ./wildmat.3 are identical
+XFiles ../1.16/wildmat.c and ./wildmat.c are identical
+Xdiff -rcs ../1.16/xindex.c ./xindex.c
+X*** ../1.16/xindex.c	Sun Nov 15 18:41:38 1992
+X--- ./xindex.c	Sun Nov 15 16:02:48 1992
+X***************
+X*** 3,11 ****
+X   *  Module    : xindex.c
+X   *  Author    : I.Lea
+X   *  Created   : 07-03-92
+X!  *  Updated   : 13-08-92
+X   *  Notes     : Add a command to retieve index files from the
+X   *              NNTP server so as to save space on the client.
+X   *              Ideas borrowed from XTHREAD nntp extension code
+X   *              posted by Tim Iverson to alt.sources in mid'91.
+X   *  Copyright : (c) Copyright 1992 by Iain Lea
+X--- 3,13 ----
+X   *  Module    : xindex.c
+X   *  Author    : I.Lea
+X   *  Created   : 07-03-92
+X!  *  Updated   : 05-11-92
+X   *  Notes     : Add a command to retieve index files from the
+X   *              NNTP server so as to save space on the client.
+X+  *              If XOVERVIEW is defined then search for .overview
+X+  *              type files first in preference to tin index files.
+X   *              Ideas borrowed from XTHREAD nntp extension code
+X   *              posted by Tim Iverson to alt.sources in mid'91.
+X   *  Copyright : (c) Copyright 1992 by Iain Lea
+X***************
+X*** 22,28 ****
+X  #undef	DEBUG_XINDEX		/* set to define to turn on more debug info */
+X  #define HASH_VALUE 1409		/* mod value for hashing group name */
+X  
+X! #if __STDC__
+X  void xindex (int argc, char *argv[]);
+X  static void find_index_file (char *group, char *index_file);
+X  static long hash_groupname (char *group);
+X--- 24,34 ----
+X  #undef	DEBUG_XINDEX		/* set to define to turn on more debug info */
+X  #define HASH_VALUE 1409		/* mod value for hashing group name */
+X  
+X! #ifndef MAXPATHLEN
+X! #	define MAXPATHLEN 256
+X! #endif
+X! 
+X! #ifdef __STDC__
+X  void xindex (int argc, char *argv[]);
+X  static void find_index_file (char *group, char *index_file);
+X  static long hash_groupname (char *group);
+X***************
+X*** 32,41 ****
+X  static long hash_groupname ();
+X  #endif
+X  
+X  /*
+X!  *  Usage: XINDEX GROUP
+X   *
+X!  *  GROUP    Group for which to retrieve index file
+X   *
+X   *  This command is NOT documented in RFC977.
+X   */
+X--- 38,49 ----
+X  static long hash_groupname ();
+X  #endif
+X  
+X+ static int overview_index;
+X+ 
+X  /*
+X!  *  Usage: XINDEX groupname
+X   *
+X!  *  Retrieve an index file for the specified newsgroup (ie. alt.sources)
+X   *
+X   *  This command is NOT documented in RFC977.
+X   */
+X***************
+X*** 45,52 ****
+X  	char	*argv[];
+X  {
+X  	char	line[NNTP_STRLEN];
+X! 	char	group[256];
+X! 	char	index_file[256];
+X  	char	*cp;
+X  	FILE	*fp;
+X  	
+X--- 53,60 ----
+X  	char	*argv[];
+X  {
+X  	char	line[NNTP_STRLEN];
+X! 	char	group[MAXPATHLEN];
+X! 	char	index_file[MAXPATHLEN];
+X  	char	*cp;
+X  	FILE	*fp;
+X  	
+X***************
+X*** 76,82 ****
+X  			return;
+X  		}
+X  
+X! 		printf("%d XINDEX group in index format\r\n", OK_XINDEX);
+X  		(void) fflush(stdout);
+X  		
+X  		while (fgets(line, sizeof(line), fp) != NULL) {
+X--- 84,91 ----
+X  			return;
+X  		}
+X  
+X! 		printf("%d XINDEX group in %s index format\r\n", 
+X! 			OK_XINDEX, (overview_index ? ".overview" : "tin"));
+X  		(void) fflush(stdout);
+X  		
+X  		while (fgets(line, sizeof(line), fp) != NULL) {
+X***************
+X*** 92,101 ****
+X  }
+X  
+X  /*
+X!  *  Look in <SPOOLDIR>/.index directory for the index file for the
+X!  *  given group.  Hashing the group name gets a number. See if that
+X!  *  #.1 file exists; if so, read first line. Group we want? If not,
+X!  *  try #.2.  Repeat until no such file or we find the right file.
+X   */
+X  
+X  static void find_index_file (group, index_file)
+X--- 101,113 ----
+X  }
+X  
+X  /*
+X!  *  If XOVERVIEW is defined first look at SPOOLDIR/group/.overview
+X!  *  and set index_file  to this file  if found, otherwise  look in 
+X!  *  XINDEX_DIR directory (defined  in conf.h) for  the index  file 
+X!  *  for the given group. Hashing the group name gets a number. 
+X!  *  See if that #.1 file exists; if so, read first line. Is it the
+X!  *  Group we want? If not try #.2. Repeat until no such file or we 
+X!  *  find the right file.
+X   */
+X  
+X  static void find_index_file (group, index_file)
+X***************
+X*** 102,116 ****
+X  	char *group;
+X  	char *index_file;
+X  {
+X! 	char buf[256], *p;
+X  	FILE *fp;
+X  	int i = 1;
+X  	unsigned long hash;
+X  
+X  	hash = hash_groupname (group);
+X  
+X  	while (1) {
+X! 		sprintf (index_file, "%s/.index/%lu.%d", SPOOLDIR, hash, i);
+X  		
+X  		if ((fp = fopen (index_file, "r")) == NULL) {
+X  			return;
+X--- 114,147 ----
+X  	char *group;
+X  	char *index_file;
+X  {
+X! 	char buf[MAXPATHLEN], *p;
+X  	FILE *fp;
+X  	int i = 1;
+X  	unsigned long hash;
+X+ 	struct stat sb;
+X+ 	
+X+ #ifdef XOVERVIEW
+X+ 	strncpy (buf, group, sizeof (buf)-1);
+X+ 	p = buf;
+X+ 	while (*p) {
+X+ 		if (*p == '.') {
+X+ 			*p = '/';
+X+ 		}	
+X+ 		p++;
+X+ 	}
+X+ 	sprintf (index_file, "%s/%s/.overview", SPOOLDIR, buf);
+X  
+X+ 	if (stat (index_file, &sb) != -1) {
+X+ 		overview_index = 1;
+X+ 		return;
+X+ 	}
+X+ #endif
+X+ 
+X+ 	overview_index = 0;
+X  	hash = hash_groupname (group);
+X  
+X  	while (1) {
+X! 		sprintf (index_file, "%s/%lu.%d", XINDEX_DIR, hash, i);
+X  		
+X  		if ((fp = fopen (index_file, "r")) == NULL) {
+X  			return;
+X***************
+X*** 151,157 ****
+X  
+X  	return (hash_value);
+X  }
+X- 
+X  
+X  #endif /* XINDEX */
+X  
+X--- 182,187 ----
+XOnly in .: xmotd.c
+XFiles ../1.16/xuser.c and ./xuser.c are identical
+SHAR_EOF
+echo 'File tin-1.17.patch is complete' &&
+chmod 0644 tin-1.17.patch ||
+echo 'restore of tin-1.17.patch failed'
+Wc_c="`wc -c < 'tin-1.17.patch'`"
+test 508946 -eq "$Wc_c" ||
+	echo 'tin-1.17.patch: original size 508946, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= amiga.h ==============
+if test -f 'amiga.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping amiga.h (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting amiga.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'amiga.h' &&
+X/*
+X *  Project   : tin - a threaded Netnews reader
+X *  Module    : amiga.h
+X *  Author    : M.Tomlinson & I.Lea
+X *  Created   : 17-09-92
+X *  Updated   : 17-09-92
+X *  Notes     : Directory support for AmigaDOS
+X *  Copyright : (c) Copyright 1991-92 by Mark Tomlinson & Iain Lea
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#ifdef AMIGA
+X
+X#include <dos/dos.h>
+X
+X#define ST_DIRECT 0x10   /* Aztec's stat() doesn't give this information */
+X
+Xstruct dirent { 
+X	char *d_name; 
+X	long d_reclen;
+X};
+X
+Xtypedef struct
+X{
+X	BPTR	Lock;
+X	struct  FileInfoBlock fib;
+X	int	first;
+X} DIR;
+X
+XDIR *opendir ();
+Xstruct dirent *readdir ();
+X
+X#endif
+SHAR_EOF
+chmod 0644 amiga.h ||
+echo 'restore of amiga.h failed'
+Wc_c="`wc -c < 'amiga.h'`"
+test 859 -eq "$Wc_c" ||
+	echo 'amiga.h: original size 859, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= mail.c ==============
+if test -f 'mail.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping mail.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting mail.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'mail.c' &&
+X/*
+X *  Project   : tin - a threaded Netnews reader
+X *  Module    : mail.c
+X *  Author    : I.Lea
+X *  Created   : 02-10-92
+X *  Updated   : 11-10-92
+X *  Notes     : Mail handling routines for creating pseudo newsgroups
+X *  Copyright : (c) Copyright 1991-92 by Iain Lea
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X/*
+X *  Load the mail active file into active[]
+X */
+X
+Xvoid read_mail_active_file ()
+X{
+X#if !defined(INDEX_DAEMON) && defined(HAVE_MAIL_HANDLING)
+X	FILE *fp;
+X	char buf[LEN];
+X	char spooldir[PATH_LEN];
+X	int i;
+X	long h, min, max;
+X		
+X	if ((update && update_fork) || ! update) {
+X		wait_message (txt_reading_mail_active_file);
+X	}
+X
+X	/*
+X	 * Open the mail active file & if we can't create an empty one
+X	 */
+X	if ((fp = open_mail_active_fp ("r")) == (FILE *) 0) {
+X		if (cmd_line) {
+X			fputc ('\n', stderr);
+X		}
+X		error_message (txt_cannot_open, mail_active_file);
+X		write_mail_active_file ();
+X		return;	
+X	}
+X
+X	if (num_active == -1) {
+X		num_active = 0;
+X		for (i = 0; i < TABLE_SIZE; i++) {
+X			group_hash[i] = -1;
+X		}
+X	}
+X
+X	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X		if (! parse_active_line (buf, &max, &min, spooldir)) {
+X			continue;
+X		}
+X
+X		/*
+X		 * Load group into group hash table
+X		 */
+X		if (num_active >= max_active) {
+X			expand_active ();
+X		}
+X
+X		h = hash_groupname (buf);
+X
+X		if (group_hash[h] == -1) {
+X			group_hash[h] = num_active;
+X		} else {	/* hash linked list chaining */
+X			for (i=group_hash[h]; active[i].next >= 0; i=active[i].next) {
+X				if (strcmp (active[i].name, buf) == 0) {
+X					goto read_mail_active_continue;	/* kill dups */
+X				}
+X			}
+X			if (strcmp (active[i].name, buf) == 0)
+X				goto read_mail_active_continue;
+X			active[i].next = num_active;
+X		}
+X		/*
+X		 * Load group info.
+X		 */
+X		active[num_active].type = GROUP_TYPE_MAIL;
+X		active[num_active].name = str_dup (buf);
+X		active[num_active].spooldir = str_dup (spooldir);
+X		active[num_active].description = (char *) 0;
+X		active[num_active].max = max;
+X		active[num_active].min = min;
+X		active[num_active].moderated = 'y';
+X		active[num_active].next = -1;			/* hash chaining */
+X		active[num_active].my_group = UNSUBSCRIBED;	/* not in my_group[] yet */
+X		active[num_active].unread = 0;
+X		num_active++;
+X
+Xread_mail_active_continue:;
+X
+X	}
+X	fclose (fp);
+X
+X	if ((cmd_line && ! update && ! verbose) || (update && update_fork)) {
+X		wait_message ("\n");
+X	}
+X
+X#endif	/* INDEX_DAEMON	*/
+X}
+X
+X/*
+X *  Write the mail groups from active[] to ~/.tin/mactive
+X */
+X
+Xvoid write_mail_active_file ()
+X{
+X#if !defined(INDEX_DAEMON) && defined(HAVE_MAIL_HANDLING)
+X	FILE *fp;
+X	register int i;
+X		
+X	if ((fp = open_mail_active_fp ("w")) == (FILE *) 0) {
+X		return;
+X	}
+X
+X	/*
+X	 * Load group into group hash table
+X	 */
+X	fprintf (fp, "# Mail active file. Format is like news active file:\n");
+X	fprintf (fp, "#   groupname  max.artnum  min.artnum  /maildir\n#\n");
+X	for (i = 0 ; i < num_active ; i++) {
+X		if (active[i].type == GROUP_TYPE_MAIL) {
+X			fprintf (fp, "%s %08ld %08ld %s\n", 
+X				active[i].name, active[i].max,
+X				active[i].min, active[i].spooldir);
+X		}
+X	}
+X	fclose (fp);
+X
+X#endif	/* INDEX_DAEMON	*/
+X}
+X
+X/*
+X *  Load the text description from ~/.tin/mailgroups for each mail group into 
+X *  the active[] array.
+X */
+X
+Xvoid read_mailgroups_file ()
+X{
+X#ifndef INDEX_DAEMON
+X	FILE *fp;
+X	
+X	if (show_description == FALSE || save_news || catchup) {
+X		return;
+X	}
+X
+X	if ((fp = open_mailgroups_fp ()) != (FILE *) 0) {
+X		wait_message (txt_reading_mailgroups_file);
+X
+X		read_groups_descriptions (fp, (FILE *) 0);
+X		
+X		fclose (fp);
+X
+X		if (cmd_line && ! update && ! verbose) {
+X			wait_message ("\n");
+X		}
+X	}
+X	
+X#endif	/* INDEX_DAEMON */
+X}
+X
+X/*
+X *  Load the text description from LIBDIR/newsgroups for each group into the 
+X *  active[] array. Save a copy locally if reading via NNTP to save bandwidth.
+X */
+X
+Xvoid read_newsgroups_file ()
+X{
+X#ifndef INDEX_DAEMON
+X	FILE *fp;
+X	FILE *fp_save = (FILE *) 0;
+X	
+X	if (show_description == FALSE || save_news || catchup) {
+X		return;
+X	}
+X
+X	wait_message (txt_reading_newsgroups_file);
+X
+X	if ((fp = open_newsgroups_fp ()) != (FILE *) 0) {
+X		if (read_news_via_nntp && ! read_local_newsgroups_file) {
+X			fp_save = fopen (local_newsgroups_file, "w");
+X		}
+X	
+X		read_groups_descriptions (fp, fp_save);
+X
+X		fclose (fp);
+X
+X		if (fp_save) {
+X			fclose (fp_save);
+X			read_local_newsgroups_file = TRUE;
+X		}
+X	}
+X	
+X	if (cmd_line && ! update && ! verbose) {
+X		wait_message ("\n");
+X	}
+X#endif	/* INDEX_DAEMON */
+X}
+X
+X/*
+X *  Read groups descriptions from opened file & make local backup copy 
+X *  of all groups that don't have a 'x' in the active file moderated 
+X *  field & if reading groups of type GROUP_TYPE_NEWS.
+X */
+X
+Xvoid read_groups_descriptions (fp, fp_save)
+X	FILE *fp;
+X	FILE *fp_save;
+X{
+X	char buf[LEN];
+X	char group[PATH_LEN];
+X	char *p, *q;
+X	int i;
+X	
+X	while (fgets (buf, sizeof (buf), fp) != NULL) {
+X		if (buf[0] == '#' || buf[0] == '\n') {
+X			continue;
+X		}
+X		if (p = (char *) strchr (buf, '\n')) {
+X			*p = '\0';
+X		}
+X
+X		for (p = buf, q = group ; *p && *p != ' ' && *p != '\t' ; p++, q++) {
+X			*q = *p;
+X		}
+X		*q = '\0';
+X
+X		while (*p == '\t' || *p == ' ') {
+X			p++;
+X		}	
+X
+X		i = find_group_index (group);
+X		 
+X		if (i >= 0 && active[i].description == (char *) 0) {
+X			active[i].description = str_dup (p);
+X			if (active[i].type == GROUP_TYPE_NEWS) {
+X				if (fp_save && read_news_via_nntp && 
+X				    ! read_local_newsgroups_file) {
+X					fprintf (fp_save, "%s\n", buf);
+X				}
+X			}
+X		}
+X	}
+X}
+SHAR_EOF
+chmod 0644 mail.c ||
+echo 'restore of mail.c failed'
+Wc_c="`wc -c < 'mail.c'`"
+test 5571 -eq "$Wc_c" ||
+	echo 'mail.c: original size 5571, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= sigfile.c ==============
+if test -f 'sigfile.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping sigfile.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting sigfile.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'sigfile.c' &&
+X/*
+X *  Project   : tin - a threaded Netnews reader
+X *  Module    : sigfile.c
+X *  Author    : M.Gleason & I.Lea
+X *  Created   : 17-10-92
+X *  Updated   : 05-11-92
+X *  Notes     : Generate random signature for posting/mailing etc.
+X *  Copyright : (c) Copyright 1989-92 by Mike Gleason & Iain Lea 
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include	"tin.h"
+X
+X#define MAXLOOPS 1000
+X
+X#ifndef S_ISDIR
+X#   define S_ISDIR(m)   (((m) & S_IFMT) == S_IFDIR)
+X#endif
+X
+Xstatic char sigfile[PATH_LEN];
+X
+X
+Xvoid add_signature (fp, flag)
+X	FILE *fp;
+X	int flag;
+X{
+X	char path[PATH_LEN];
+X	FILE *fixfp;
+X	FILE *sigfp;
+X	int i;
+X	
+X#ifdef NNTP_INEWS
+X	if (read_news_via_nntp) {
+X		flag = TRUE;
+X	}
+X#endif
+X	i = my_group[cur_groupnum];
+X
+X	if (! strfpath (active[i].attribute.sigfile, path, sizeof (path), 
+X	    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X		if (! strfpath (default_sigfile, path, sizeof (path), 
+X		    homedir, (char *) 0, (char *) 0, active[i].name)) {
+X			joinpath (path, homedir, ".Sig");
+X		}
+X	}
+X	
+X	/*
+X	 *  Check to see if sigfile is a directory & if it is  generate a 
+X	 *  random signature from sigs in sigdir. If the file ~/.sigfixed
+X	 *  exists (fixed part of random sig) then  read it  in first and 
+X	 *  append the random sig part onto the end.
+X	 */
+X	if ((sigfp = open_random_sig (path)) != (FILE *) 0) {
+Xif (debug == 2) {
+X	error_message ("USING random sig=[%s]", sigfile);
+X}
+X		fprintf (fp, "\n--\n");
+X		sprintf (path, "%s/.sigfixed", homedir);
+X		if ((fixfp = fopen (path, "r")) != (FILE *) 0) {
+X			copy_fp (fixfp, fp, "");
+X			fclose (fixfp);	
+X		}
+X		copy_fp (sigfp, fp, "");
+X		fclose (sigfp);
+X		return;
+X	}
+X	
+X	/*
+X	 *  Use ~/.signature or ~/.Sig or custom .Sig files
+X	 */
+X	if ((sigfp = fopen (default_signature, "r")) != (FILE *) 0) {
+X		if (flag) {
+X			fprintf (fp, "\n--\n");
+X			copy_fp (sigfp, fp, "");
+X		}
+X		fclose (sigfp);
+X		return;
+X	}
+X
+X	if ((sigfp = fopen (path, "r")) != (FILE *) 0) {
+X		fprintf (fp, "\n--\n");
+X		copy_fp (sigfp, fp, "");
+X		fclose (sigfp);
+X	}
+X}
+X
+X
+XFILE *open_random_sig (sigdir)
+X	char *sigdir;
+X{
+X	long epoch;
+X	struct stat st;
+X
+X	if (stat (sigdir, &st) != -1) {
+X		if (S_ISDIR(st.st_mode)) {
+X			time (&epoch);
+X			srand ((unsigned int) epoch);
+X
+X			chdir (sigdir);
+X			if (thrashdir (sigdir) || ! sigfile[0]) { 
+Xif (debug == 2) {
+X	error_message ("NO sigfile=[%s]", sigfile);
+X}
+X				return (FILE *) 0;
+X			} else {
+Xif (debug == 2) {
+X	error_message ("sigfile=[%s]", sigfile);
+X}
+X				return fopen (sigfile, "r");
+X			}
+X		}
+X	}
+X	
+X	return (FILE *) 0;
+X}
+X
+X
+Xint thrashdir (sigdir)
+X	char *sigdir;
+X{
+X	char *cwd;
+X	int safeguard, recurse;
+X	register DIR *dirp;
+X	register DIR_BUF *dp;
+X	register int c, numentries, pick;
+X	struct stat st;
+X
+X	sigfile[0] = '\0';
+X
+X	if ((dirp = opendir (".")) == NULL) {
+X		return (1);
+X	}
+X
+X	numentries = 0;
+X	while ((dp = readdir (dirp)) != NULL) {
+X		numentries++;
+X	}
+X
+X	/* 
+X	 * consider "." and ".." non-entries 
+X	 */
+X	cwd = (char *) my_malloc (PATH_LEN + 1);
+X	if (numentries < 3 || cwd == (char *) 0) {
+X		closedir (dirp);
+X		return (-1);
+X	}
+X
+X	get_cwd (cwd);
+X	recurse = strcmp (cwd, sigdir);
+X
+X	/* If we are using the root sig directory, we don't want
+X	 * to recurse, or else we might use a custom sig intended
+X	 * for a specific newsgroup (and not this one). 
+X	 */
+X	for (safeguard=0, dp=NULL; safeguard<MAXLOOPS && dp==NULL; safeguard++) {
+Xif (debug == 2) {
+X	sprintf (msg, "sig loop=[%d] recurse=[%d]", safeguard, recurse);
+X	error_message (msg, "");
+X}
+X#ifdef HAVE_REWINDDIR
+X		rewinddir (dirp);
+X#else
+X		closedir (dirp);
+X		if ((dirp = opendir (".")) == NULL) {
+X			return (1);
+X		}
+X#endif
+X		pick = rand () % numentries + 1;
+X		while (--pick >= 0) {
+X			if ((dp = readdir (dirp)) == NULL) {
+X				break;
+X			}
+X		}
+X		if (dp != NULL) {	/* if we could open the dir entry */
+X			if (! strcmp (dp->d_name, ".") || 
+X			    ! strcmp(dp->d_name, "..")) {
+X				dp = NULL;
+X			} else {	/* if we have a non-dot entry */
+X				if (stat (dp->d_name, &st) == -1) {
+Xif (debug == 2) {
+X	error_message ("error: before GAK stat(%s)", dp->d_name);
+X}
+Xgak:
+X					closedir (dirp);
+Xif (debug == 2) {
+X	error_message ("error: after GAK stat(%s)", dp->d_name);
+X}
+X					return (1);
+X				}
+X				if (S_ISDIR(st.st_mode)) {
+Xif (debug == 2) {
+X	error_message ("Is a dir %s", dp->d_name);
+X}
+X					if (recurse) {
+X						/* 
+X						 * do subdirectories 
+X						 */
+X						if (chdir (dp->d_name) < 0) {
+X							goto gak;
+X						}
+X						if ((c = thrashdir (sigdir)) == 1) {
+X							goto gak;
+X						} else if (c == -1) {
+X							/* 
+X							 * the one we picked was an 
+X							 * empty dir so try again. 
+X							 */
+X							dp = NULL;
+X							chdir (cwd);
+X						}
+X					} else {
+X						dp = NULL;
+X					}
+X				} else {	/* end dir; we have a file */
+X					get_cwd (sigfile);
+X					strcat (sigfile, "/");
+X					strcat (sigfile, dp->d_name);
+Xif (debug == 2) {
+X	error_message ("Found a file=[%s]", sigfile);
+X}
+X				}
+X			}
+X		}
+X	}
+X	free (cwd);
+X
+Xif (debug == 2) {
+X	error_message ("return 0: sigfile=[%s]", sigfile);
+X}
+X
+X	return (0);
+X}
+SHAR_EOF
+chmod 0644 sigfile.c ||
+echo 'restore of sigfile.c failed'
+Wc_c="`wc -c < 'sigfile.c'`"
+test 5107 -eq "$Wc_c" ||
+	echo 'sigfile.c: original size 5107, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= strftime.c ==============
+if test -f 'strftime.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping strftime.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting strftime.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'strftime.c' &&
+X/*
+X *  Project   : tin - a threaded Netnews reader
+X *  Module    : strftime.c
+X *  Author    : A.Robbins & I.Lea
+X *  Created   : 01-02-91
+X *  Updated   : 29-09-92
+X *  Notes     : Relatively quick-and-dirty implemenation of ANSI library 
+X *              routine for System V Unix systems.
+X *              It's written in old-style C for maximal portability.
+X *  Example   : time (&secs);
+X *              tm = localtime (&secs);
+X *              num = strftime (buf, sizeof (buf), "%a %d-%m-%y %H:%M:%S", tm);
+X *  Copyright : (c) Copyright 1991-92 by Arnold Robbins & Iain Lea
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include "tin.h"
+X
+X#ifdef SYSV
+Xextern int daylight;
+X#endif
+X
+X#define SYSV_EXT	1	/* stuff in System V ascftime routine */
+X
+X/* 
+X * strftime --- produce formatted time 
+X */
+X
+X#ifndef __STDC__
+Xsize_t
+Xmy_strftime(s, maxsize, format, timeptr)
+Xchar *s;
+Xsize_t maxsize;
+Xchar *format;
+Xstruct tm *timeptr;
+X#else
+Xsize_t
+Xmy_strftime(char *s, size_t maxsize, char *format, struct tm *timeptr)
+X#endif
+X{
+X	char *endp = s + maxsize;
+X	char *start = s;
+X	char tbuf[100];
+X	int i;
+X
+X	/* 
+X	 * various tables, useful in North America 
+X	 */
+X	static char *days_a[] = {
+X		"Sun", "Mon", "Tue", "Wed",
+X		"Thu", "Fri", "Sat",
+X	};
+SHAR_EOF
+true || echo 'restore of strftime.c failed'
+fi
+echo 'End of tin-1.17 part 9'
+echo 'File strftime.c is continued in part 10'
+echo 10 > _shar_seq_.tmp
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

@@ -1,0 +1,48 @@
+Xref: funic comp.lang.tcl:1850 alt.sources:4965
+Newsgroups: comp.lang.tcl,alt.sources
+Path: funic!fuug!mcsun!uunet!psinntp!sugar!karl
+From: karl@NeoSoft.com (Karl Lehenbauer)
+Subject: aclock - analog clock Tcl/Tk toolkit script
+Organization: NeoSoft Communications Services -- (713) 684-5900
+Date: Tue, 24 Nov 1992 17:02:51 GMT
+Message-ID: <By8Cow.KJr@NeoSoft.com>
+Lines: 38
+
+#
+# Here's a little analog clock script using the Tk toolkit.
+#
+# wish -f aclock
+#
+
+#
+# update_time - regconfigure the angle of the arcs that constitute the
+# minute and second hands based on the current time.  Reschedule another
+# time update at the start of the next minute.
+#
+proc update_time {} {
+    set clock [getclock]
+    set time [fmtclock [getclock] "%I %M"]
+    .canvas itemconfigure hour -start [expr {90 - ([lindex $time 0] * 30)}]
+    .canvas itemconfigure minute -start [expr {90 - ([lindex $time 1] * 6)}]
+    after [expr {60 - ($clock % 60)}]000 update_time
+}
+
+proc analog_clock {} {
+    global tk_library
+    wm geometry . -0+0
+    wm minsize . 100 100
+
+    canvas .canvas -width 35m -height 35m
+    .canvas create oval 3m  3m 33m 33m -outline blue -width 2m
+    .canvas create arc  6m  6m 30m 30m -outline blue -width 3m -tag minute -extent 1
+    .canvas create arc  9m  9m 27m 27m -outline blue -width 3m -tag hour -extent 1
+    pack append . .canvas {expand fill}
+
+    update_time
+}
+
+if !$interactiveSession analog_clock
+
+-- 
+-- Email info@NeoSoft.com for info on getting interactive Internet access.
+"Turn on your hot tub by email now.  Ask me how."

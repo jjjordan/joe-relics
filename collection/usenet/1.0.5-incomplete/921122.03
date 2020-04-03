@@ -1,0 +1,123 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!uunet!snorkelwacker.mit.edu!bloom-picayune.mit.edu!news
+From: scs@adam.mit.edu (Steve Summit)
+Subject: two patches re: med -- expression evaluator and stream-based math processor
+Message-ID: <1992Nov20.160754.9553@athena.mit.edu>
+Followup-To: alt.sources.d
+Sender: news@athena.mit.edu (News system)
+Nntp-Posting-Host: adam.mit.edu
+Organization: none, at the moment
+References: <1992Nov16.160145.7707@athena.mit.edu>
+Date: Fri, 20 Nov 1992 16:07:54 GMT
+Lines: 110
+
+The malloc/realloc front-end included with the recently-posted
+med package assumed an ANSI-compatible realloc (able to handle
+null first arguments).  The main-line code initialized a global
+FILE * with stdin, which fails under VMS and is not strictly
+ANSI-compatible.  Thanks to Jeff sondeen@ISI.EDU and Jerry
+Leichter for pointing these out.
+
+A patch to med.c, and a new copy of alloc.c, are enclosed.
+
+					Steve Summit
+					scs@adam.mit.edu
+                   
+----8<-------8<----cut here for patch to med.c---8<-------8<-----
+*** med.old.c	Mon Jan 14 19:22:52 1991
+--- med.c	Wed Nov 18 19:22:42 1992
+***************
+*** 40,46 ****
+  enum {ZERO, PREV, GARBAGE} missingaction = GARBAGE;
+  				/* what to do when requested column missing */
+  
+! FILE *ofd = stdout;
+  
+  double consts[10];
+  int nconsts = 0;
+--- 40,46 ----
+  enum {ZERO, PREV, GARBAGE} missingaction = GARBAGE;
+  				/* what to do when requested column missing */
+  
+! FILE *ofd;
+  
+  double consts[10];
+  int nconsts = 0;
+***************
+*** 91,96 ****
+--- 91,98 ----
+  /* val filled in for each line */
+  
+  basenvars = nvars;
++ 
++ ofd = stdout;
+  
+  /*
+   *  Standard option file parse is rife with ambiguity:
+----8<-------8<-cut here for replacement alloc.c-8<-------8<-----
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
+#include "alloc.h"
+
+#ifdef __STDC__
+#define SIZE_T size_t
+#define SAFEREALLOC
+#else
+#define SIZE_T unsigned
+#endif
+
+static char nomem[] = "out of memory";
+
+extern char *progname;
+
+#ifndef __STDC__
+extern char *malloc();
+extern char *realloc();
+#endif
+
+char *
+alloc(size)
+int size;
+{
+char *ret;
+
+ret = malloc((SIZE_T)size);
+
+if(ret == NULL)
+	{
+	if(progname != NULL)
+		fprintf(stderr, "%s: ", progname);
+	fprintf(stderr, "%s\n", nomem);
+	exit(1);
+	}
+
+return(ret);
+}
+
+char *
+crealloc(oldptr, newsize)
+char *oldptr;
+int newsize;
+{
+char *newptr;
+
+#ifndef SAFEREALLOC
+if(oldptr == NULL)
+	newptr = malloc((SIZE_T)newsize);
+else
+#endif
+	newptr = realloc(oldptr, (SIZE_T)newsize);
+
+if(newptr == NULL)
+	{
+	if(progname != NULL)
+		fprintf(stderr, "%s: ", progname);
+	fprintf(stderr, "%s\n", nomem);
+	exit(1);
+	}
+
+return(newptr);
+}
+----8<-------8<-------8<-------8<-------8<-------8<-------8<-----

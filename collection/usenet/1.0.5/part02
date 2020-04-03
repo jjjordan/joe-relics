@@ -1,0 +1,2312 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!paladin.american.edu!darwin.sura.net!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 2 of 10
+Message-ID: <By2MFz.Krt@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:47:58 GMT
+Lines: 2303
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part2
+
+/* Fast block move/copy subroutines
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+X
+/* Take a look at the configuration information in types.h */
+/* This module requires that AUTOINC, ALIGNED, ISIZ, SHFT and BITS be defined
+X * correctly
+X */
+#include "blocks.h"
+X
+/* Set 'sz' 'int's beginning at 'd' to the value 'c' */
+/* Returns address of block.  Does nothing if 'sz' equals zero */
+X
+int *msetI(d,c,sz)
+register int *d, c;
+register int sz;
+{
+int *orgd=d;
+while(sz>=16)
+X {
+#ifdef AUTOINC
+X *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c;
+X *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c; *d++=c;
+#else
+X d[0]=c; d[1]=c; d[2]=c; d[3]=c; d[4]=c; d[5]=c; d[6]=c; d[7]=c;
+X d[8]=c; d[9]=c; d[10]=c; d[11]=c; d[12]=c; d[13]=c; d[14]=c; d[15]=c;
+X d+=16;
+#endif
+X sz-=16;
+X }
+switch(sz)
+X {
+#ifdef AUTOINC
+case 15: *d++=c;
+case 14: *d++=c;
+case 13: *d++=c;
+case 12: *d++=c;
+case 11: *d++=c;
+case 10: *d++=c;
+case 9: *d++=c;
+case 8: *d++=c;
+case 7: *d++=c;
+case 6: *d++=c;
+case 5: *d++=c;
+case 4: *d++=c;
+case 3: *d++=c;
+case 2: *d++=c;
+case 1: *d++=c;
+#else
+case 15: d[14]=c;
+case 14: d[13]=c;
+case 13: d[12]=c;
+case 12: d[11]=c;
+case 11: d[10]=c;
+case 10: d[9]=c;
+case 9: d[8]=c;
+case 8: d[7]=c;
+case 7: d[6]=c;
+case 6: d[5]=c;
+case 5: d[4]=c;
+case 4: d[3]=c;
+case 3: d[2]=c;
+case 2: d[1]=c;
+case 1: d[0]=c;
+#endif
+case 0:;
+X }
+return orgd;
+}
+X
+/* Set 'sz' 'char's beginning at 'd' to the value 'c' */
+/* Returns address of block.  Does nothing if 'sz' equals zero */
+X
+char *mset(d,c,sz)
+register char *d, c;
+register int sz;
+{
+char *orgd=d;
+if(sz<16)
+X switch(sz)
+X  {
+#ifdef AUTOINC
+X  case 15: *d++=c;
+X  case 14: *d++=c;
+X  case 13: *d++=c;
+X  case 12: *d++=c;
+X  case 11: *d++=c;
+X  case 10: *d++=c;
+X  case 9: *d++=c;
+X  case 8: *d++=c;
+X  case 7: *d++=c;
+X  case 6: *d++=c;
+X  case 5: *d++=c;
+X  case 4: *d++=c;
+X  case 3: *d++=c;
+X  case 2: *d++=c;
+X  case 1: *d++=c;
+#else
+X  case 15: d[14]=c;
+X  case 14: d[13]=c;
+X  case 13: d[12]=c;
+X  case 12: d[11]=c;
+X  case 11: d[10]=c;
+X  case 10: d[9]=c;
+X  case 9: d[8]=c;
+X  case 8: d[7]=c;
+X  case 7: d[6]=c;
+X  case 6: d[5]=c;
+X  case 5: d[4]=c;
+X  case 4: d[3]=c;
+X  case 3: d[2]=c;
+X  case 2: d[1]=c;
+X  case 1: d[0]=c;
+#endif
+X  case 0:;
+X  }
+else
+X {
+X int z=ISIZ-((int)d&(ISIZ-1));
+X if(z!=ISIZ)
+X  switch(z)
+X   {
+#ifdef AUTOINC
+X  case 7: *d++=c;
+X  case 6: *d++=c;
+X  case 5: *d++=c;
+X  case 4: *d++=c;
+X  case 3: *d++=c;
+X  case 2: *d++=c;
+X  case 1: *d++=c;
+X  case 0:;
+#else
+X  case 7: d[6]=c;
+X  case 6: d[5]=c;
+X  case 5: d[4]=c;
+X  case 4: d[3]=c;
+X  case 3: d[2]=c;
+X  case 2: d[1]=c;
+X  case 1: d[0]=c;
+X  case 0:;
+X          d+=z;
+#endif
+X   sz-=z;
+X   }
+X msetI(d,
+#if ISIZ>=8
+X (c<<(BITS*7))+(c<<(BITS*6))+(c<<(BITS*5))+(c<<(BITS*4))+
+#endif
+#if ISIZ>=4
+X (c<<(BITS*3))+(c<<(BITS*2))+
+#endif
+#if ISIZ>=2
+X (c<<BITS)+
+#endif
+X c,sz>>SHFT);
+X d+=sz&~(ISIZ-1);
+X switch(sz&(ISIZ-1))
+X  {
+#ifdef AUTOINC
+X case 7: *d++=c;
+X case 6: *d++=c;
+X case 5: *d++=c;
+X case 4: *d++=c;
+X case 3: *d++=c;
+X case 2: *d++=c;
+X case 1: *d++=c;
+#else
+X case 7: d[6]=c;
+X case 6: d[5]=c;
+X case 5: d[4]=c;
+X case 4: d[3]=c;
+X case 3: d[2]=c;
+X case 2: d[1]=c;
+X case 1: d[0]=c;
+#endif
+X case 0:;
+X  }
+X }
+return orgd;
+}
+X
+/* Copy a block of integers */
+/* Copy from highest address to lowest */
+X
+static int *mbkwdI(d,s,sz)
+register int *d, *s;
+register int sz;
+{
+if(d==s) return d;
+d+=sz; s+=sz;
+while(sz>=16)
+X {
+#ifdef AUTOINC
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; 
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s; 
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s;
+#else
+X d-=16; s-=16;
+X d[15]=s[15]; d[14]=s[14]; d[13]=s[13]; d[12]=s[12]; d[11]=s[11]; d[10]=s[10];
+X d[9]=s[9]; d[8]=s[8]; d[7]=s[7]; d[6]=s[6]; d[5]=s[5]; d[4]=s[4]; d[3]=s[3];
+X d[2]=s[2]; d[1]=s[1]; d[0]=s[0];
+#endif
+X sz-=16;
+X }
+#ifndef AUTOINC
+X d-=sz; s-=sz;
+#endif
+switch(sz)
+X {
+#ifdef AUTOINC
+X case 15: *--d= *--s;
+X case 14: *--d= *--s;
+X case 13: *--d= *--s;
+X case 12: *--d= *--s;
+X case 11: *--d= *--s;
+X case 10: *--d= *--s;
+X case 9: *--d= *--s;
+X case 8: *--d= *--s;
+X case 7: *--d= *--s;
+X case 6: *--d= *--s;
+X case 5: *--d= *--s;
+X case 4: *--d= *--s;
+X case 3: *--d= *--s;
+X case 2: *--d= *--s;
+X case 1: *--d= *--s;
+#else
+X case 15: d[14]=s[14];
+X case 14: d[13]=s[13];
+X case 13: d[12]=s[12];
+X case 12: d[11]=s[11];
+X case 11: d[10]=s[10];
+X case 10: d[9]=s[9];
+X case 9: d[8]=s[8];
+X case 8: d[7]=s[7];
+X case 7: d[6]=s[6];
+X case 6: d[5]=s[5];
+X case 5: d[4]=s[4];
+X case 4: d[3]=s[3];
+X case 3: d[2]=s[2];
+X case 2: d[1]=s[1];
+X case 1: d[0]=s[0];
+#endif
+X case 0:;
+X }
+return d;
+}
+X
+/* Copy a block of 'int's.  Copy from lowest address to highest */
+X
+static int *mfwrdI(d,s,sz)
+register int *d, *s;
+register int sz;
+{
+int *od=d;
+if(s==d) return d;
+while(sz>=16)
+X {
+#ifdef AUTOINC
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+#else
+X d[0]=s[0]; d[1]=s[1]; d[2]=s[2]; d[3]=s[3]; d[4]=s[4]; d[5]=s[5]; d[6]=s[6];
+X d[7]=s[7]; d[8]=s[8]; d[9]=s[9]; d[10]=s[10]; d[11]=s[11]; d[12]=s[12];
+X d[13]=s[13]; d[14]=s[14]; d[15]=s[15];
+X s+=16; d+=16;
+#endif
+X sz-=16;
+X }
+#ifndef AUTOINC
+s-=15-sz; d-=15-sz;
+#endif
+switch(sz)
+X {
+#ifdef AUTOINC
+X case 15: *d++= *s++;
+X case 14: *d++= *s++;
+X case 13: *d++= *s++;
+X case 12: *d++= *s++;
+X case 11: *d++= *s++;
+X case 10: *d++= *s++;
+X case 9: *d++= *s++;
+X case 8: *d++= *s++;
+X case 7: *d++= *s++;
+X case 6: *d++= *s++;
+X case 5: *d++= *s++;
+X case 4: *d++= *s++;
+X case 3: *d++= *s++;
+X case 2: *d++= *s++;
+X case 1: *d++= *s++;
+#else
+X case 15: d[0]=s[0];
+X case 14: d[1]=s[1];
+X case 13: d[2]=s[2];
+X case 12: d[3]=s[3];
+X case 11: d[4]=s[4];
+X case 10: d[5]=s[5];
+X case 9: d[6]=s[6];
+X case 8: d[7]=s[7];
+X case 7: d[8]=s[8];
+X case 6: d[9]=s[9];
+X case 5: d[10]=s[10];
+X case 4: d[11]=s[11];
+X case 3: d[12]=s[12];
+X case 2: d[13]=s[13];
+X case 1: d[14]=s[14];
+#endif
+X case 0:;
+X }
+return od;
+}
+X
+/* Copy the block of 'sz' bytes beginning at 's' to 'd'.  If 'sz' is zero or
+X * if 's'=='d', nothing happens.  The bytes at the highest address ('s'+'sz'-1)
+X * are copied before the ones at the lowest ('s') are.
+X */ 
+X
+char *mbkwd(d,s,sz)
+register char *d, *s;
+register int sz;
+{
+if(s==d) return d;
+s+=sz; d+=sz;
+#ifdef ALIGNED
+if( sz>=16 )
+#else
+if( ((int)s&(ISIZ-1))==((int)d&(ISIZ-1)) && sz>=16)
+#endif
+X {
+X int z=((int)s&(ISIZ-1));
+#ifndef AUTOINC
+X s-=z; d-=z;
+#endif
+X switch(z)
+X  {
+#ifdef AUTOINC
+X  case 7: *--d= *--s;
+X  case 6: *--d= *--s;
+X  case 5: *--d= *--s;
+X  case 4: *--d= *--s;
+X  case 3: *--d= *--s;
+X  case 2: *--d= *--s;
+X  case 1: *--d= *--s;
+#else
+X  case 7: d[6]=s[6];
+X  case 6: d[5]=s[5];
+X  case 5: d[4]=s[4];
+X  case 4: d[3]=s[3];
+X  case 3: d[2]=s[2];
+X  case 2: d[1]=s[1];
+X  case 1: d[0]=s[0];
+#endif
+X  case 0:;
+X  }
+X sz-=z;
+X mbkwdI(d-(sz&~(ISIZ-1)),s-(sz&~(ISIZ-1)),sz>>SHFT);
+#ifndef AUTOINC
+X d-=sz; s-=sz;
+#else
+X d-=(sz&~(ISIZ-1)); s-=(sz&~(ISIZ-1));
+#endif
+X switch(sz&(ISIZ-1))
+X  {
+#ifdef AUTOINC
+X  case 7: *--d= *--s;
+X  case 6: *--d= *--s;
+X  case 5: *--d= *--s;
+X  case 4: *--d= *--s;
+X  case 3: *--d= *--s;
+X  case 2: *--d= *--s;
+X  case 1: *--d= *--s;
+#else
+X  case 7: d[6]=s[6];
+X  case 6: d[5]=s[5];
+X  case 5: d[4]=s[4];
+X  case 4: d[3]=s[3];
+X  case 3: d[2]=s[2];
+X  case 2: d[1]=s[1];
+X  case 1: d[0]=s[0];
+#endif
+X  case 0:;
+X  }
+X }
+else
+X {
+X while(sz>=16)
+X  {
+#ifdef AUTOINC
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s;
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s;
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s;
+X *--d= *--s; *--d= *--s; *--d= *--s; *--d= *--s;
+#else
+X  d-=16; s-=16;
+X  d[15]=s[15]; d[14]=s[14]; d[13]=s[13]; d[12]=s[12]; d[11]=s[11]; d[10]=s[10];
+X  d[9]=s[9]; d[8]=s[8]; d[7]=s[7]; d[6]=s[6]; d[5]=s[5]; d[4]=s[4]; d[3]=s[3];
+X  d[2]=s[2]; d[1]=s[1]; d[0]=s[0];
+#endif
+X  sz-=16;
+X  }
+#ifndef AUTOINC
+X d-=sz; s-=sz;
+#endif
+X switch(sz)
+X  {
+#ifdef AUTOINC
+X  case 15: *--d= *--s;
+X  case 14: *--d= *--s;
+X  case 13: *--d= *--s;
+X  case 12: *--d= *--s;
+X  case 11: *--d= *--s;
+X  case 10: *--d= *--s;
+X  case 9: *--d= *--s;
+X  case 8: *--d= *--s;
+X  case 7: *--d= *--s;
+X  case 6: *--d= *--s;
+X  case 5: *--d= *--s;
+X  case 4: *--d= *--s;
+X  case 3: *--d= *--s;
+X  case 2: *--d= *--s;
+X  case 1: *--d= *--s;
+#else
+X  case 15: d[14]=s[14];
+X  case 14: d[13]=s[13];
+X  case 13: d[12]=s[12];
+X  case 12: d[11]=s[11];
+X  case 11: d[10]=s[10];
+X  case 10: d[9]=s[9];
+X  case 9: d[8]=s[8];
+X  case 8: d[7]=s[7];
+X  case 7: d[6]=s[6];
+X  case 6: d[5]=s[5];
+X  case 5: d[4]=s[4];
+X  case 4: d[3]=s[3];
+X  case 3: d[2]=s[2];
+X  case 2: d[1]=s[1];
+X  case 1: d[0]=s[0];
+#endif
+X  case 0:;
+X  }
+X }
+return d;
+}
+X
+char *mmove(d,s,sz)
+char *d, *s;
+int sz;
+{
+if(d>s) mbkwd(d,s,sz);
+else mfwrd(d,s,sz);
+}
+X
+/* Copy the block of 'sz' bytes beginning at 's' to 'd'.  If 'sz' is zero or
+X * if 's'=='d', nothing happens.  The bytes at the lowest address ('s')
+X * are copied before the ones at the highest ('s'+'sz'-1) are.
+X */ 
+X
+char *mfwrd(d,s,sz)
+register char *d, *s;
+register int sz;
+{
+char *od=d;
+if(d==s) return d;
+#ifdef ALIGNED
+if(sz>=16)
+#else
+if( ((int)d&(ISIZ-1))==((int)s&(ISIZ-1)) && sz>=16 )
+#endif
+X {
+X int z=((int)s&(ISIZ-1));
+X if(z)
+X  {
+#ifndef AUTOINC
+X  s-=z; d-=z;
+X  switch(ISIZ-z)
+X   {
+#if ISIZ==8
+X   case 7: d[1]=s[1];
+X   case 6: d[2]=s[2];
+X   case 5: d[3]=s[3];
+X   case 4: d[4]=s[4];
+X   case 3: d[5]=s[5];
+X   case 2: d[6]=s[6];
+X   case 1: d[7]=s[7];
+X   case 0:;
+#else
+#if ISIZ==4
+X   case 3: d[1]=s[1];
+X   case 2: d[2]=s[2];
+X   case 1: d[3]=s[3];
+X   case 0:;
+#else
+#if ISIZ==2
+X   case 1: d[1]=s[1];
+X   case 0:;
+#endif
+#endif
+#endif
+X   }
+X  s+=ISIZ; d+=ISIZ;
+#else
+X  switch(ISIZ-z)
+X   {
+X   case 7: *d++= *s++;
+X   case 6: *d++= *s++;
+X   case 5: *d++= *s++;
+X   case 4: *d++= *s++;
+X   case 3: *d++= *s++;
+X   case 2: *d++= *s++;
+X   case 1: *d++= *s++;
+X   case 0:;
+X   }
+#endif
+X  sz-=ISIZ-z;
+X  }
+X mfwrdI(d,s,sz>>SHFT);
+#ifdef AUTOINC
+X s+=(sz&~(ISIZ-1)); d+=(sz&~(ISIZ-1));
+X switch(sz&(ISIZ-1))
+X  {
+X  case 7: *d++= *s++;
+X  case 6: *d++= *s++;
+X  case 5: *d++= *s++;
+X  case 4: *d++= *s++;
+X  case 3: *d++= *s++;
+X  case 2: *d++= *s++;
+X  case 1: *d++= *s++;
+X  case 0:;
+X  }
+#else
+X s+=sz-(ISIZ-1); d+=sz-(ISIZ-1);
+X switch(sz&(ISIZ-1))
+X  {
+#if ISIZ==8
+X case 7: d[0]=s[0];
+X case 6: d[1]=s[1];
+X case 5: d[2]=s[2];
+X case 4: d[3]=s[3];
+X case 3: d[4]=s[4];
+X case 2: d[5]=s[5];
+X case 1: d[6]=s[6];
+X case 0:;
+#else
+#if ISIZ==4
+X  case 3: d[0]=s[0];
+X  case 2: d[1]=s[1];
+X  case 1: d[2]=s[2];
+X  case 0:;
+#else
+#if ISIZ==2
+X  case 1: d[0]=s[0];
+X  case 0:;
+#endif
+#endif
+#endif
+X  }
+#endif
+X }
+else
+X {
+X while(sz>=16)
+X  {
+#ifdef AUTOINC
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+X *d++= *s++; *d++= *s++; *d++= *s++; *d++= *s++;
+#else
+X  d[0]=s[0]; d[1]=s[1]; d[2]=s[2]; d[3]=s[3]; d[4]=s[4]; d[5]=s[5]; d[6]=s[6];
+X  d[7]=s[7]; d[8]=s[8]; d[9]=s[9]; d[10]=s[10]; d[11]=s[11]; d[12]=s[12];
+X  d[13]=s[13]; d[14]=s[14]; d[15]=s[15];
+X  s+=16; d+=16;
+#endif
+X  sz-=16;
+X  }
+#ifndef AUTOINC
+X s-=15-sz; d-=15-sz;
+#endif
+X switch(sz)
+X  {
+#ifdef AUTOINC
+X case 15: *d++= *s++;
+X case 14: *d++= *s++;
+X case 13: *d++= *s++;
+X case 12: *d++= *s++;
+X case 11: *d++= *s++;
+X case 10: *d++= *s++;
+X case 9: *d++= *s++;
+X case 8: *d++= *s++;
+X case 7: *d++= *s++;
+X case 6: *d++= *s++;
+X case 5: *d++= *s++;
+X case 4: *d++= *s++;
+X case 3: *d++= *s++;
+X case 2: *d++= *s++;
+X case 1: *d++= *s++;
+X case 0:;
+#else
+X  case 15: d[0]=s[0];
+X  case 14: d[1]=s[1];
+X  case 13: d[2]=s[2];
+X  case 12: d[3]=s[3];
+X  case 11: d[4]=s[4];
+X  case 10: d[5]=s[5];
+X  case 9: d[6]=s[6];
+X  case 8: d[7]=s[7];
+X  case 7: d[8]=s[8];
+X  case 6: d[9]=s[9];
+X  case 5: d[10]=s[10];
+X  case 4: d[11]=s[11];
+X  case 3: d[12]=s[12];
+X  case 2: d[13]=s[13];
+X  case 1: d[14]=s[14];
+X  case 0:;
+#endif
+X  }
+X }
+return od;
+}
+X
+/* Utility to count number of lines within a segment */
+X
+int mcnt(blk,c,size)
+char *blk,c;
+int size;
+{
+int nlines=0;
+while(size>=16)
+X {
+X if(blk[0]==c) ++nlines;
+X if(blk[1]==c) ++nlines;
+X if(blk[2]==c) ++nlines;
+X if(blk[3]==c) ++nlines;
+X if(blk[4]==c) ++nlines;
+X if(blk[5]==c) ++nlines;
+X if(blk[6]==c) ++nlines;
+X if(blk[7]==c) ++nlines;
+X if(blk[8]==c) ++nlines;
+X if(blk[9]==c) ++nlines;
+X if(blk[10]==c) ++nlines;
+X if(blk[11]==c) ++nlines;
+X if(blk[12]==c) ++nlines;
+X if(blk[13]==c) ++nlines;
+X if(blk[14]==c) ++nlines;
+X if(blk[15]==c) ++nlines;
+X blk+=16; size-=16;
+X }
+while(size--) if(*blk++=='\n') ++nlines;
+return nlines;
+}
+SHAR_EOF
+chmod 0600 blocks.c ||
+echo 'restore of blocks.c failed'
+Wc_c="`wc -c < 'blocks.c'`"
+test 12881 -eq "$Wc_c" ||
+	echo 'blocks.c: original size 12881, current size' "$Wc_c"
+fi
+# ============= blocks.h ==============
+if test -f 'blocks.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping blocks.h (File already exists)'
+else
+echo 'x - extracting blocks.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'blocks.h' &&
+/* Fast block move/copy subroutines
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+X
+#ifndef _Iblocks
+#define _Iblocks 1
+X
+#include "config.h"
+X
+/* Warning: Don't use mfwrd or mbkwd for filling an area.  Use them only
+X * for copying, inserting or deleting.  Since they copy ints at a time, they
+X * will not work for filling.
+X */
+X
+/* char *mfwrd(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.
+X   The copy occures in the forward direction (use for deletes)
+X   Nothing happens if 'd'=='s' or 'sz'==0
+X   Returns original value of 'd'
+X */
+char *mfwrd();
+X
+/* char *mbkwd(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.
+X   The copy occures in the backward direction (use for inserts)
+X   Nothing happens if 'd'=='s' or 'sz'==0
+X   Returns original value of 'd'
+X */
+char *mbkwd();
+X
+/* char *mmove(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.  Chooses
+X * either mbkwd or mfwrd to do this such that the data won't get clobbered.
+X */
+char *mmove();
+X
+/* Use this for non-overlapping copies */
+#define mcpy mbkwd
+X
+/* char *mset(char *d,char c,int sz); Set 'sz' bytes at 'd' to 'c'.
+X * If 'sz'==0 nothing happens
+X * Return original value of 'd'
+X */
+char *mset();
+X
+/* int *msetI(int *d,int c,int sz); Set 'sz' ints at 'd' to 'c'.
+X * If 'sz'==0 nothing happens
+X * Returns orininal value of 'd'
+X */
+X
+int *msetI();
+X
+/* int mcnt(char *blk,char c,int size);
+X *
+X * Count number of occurances a character appears in a block
+X */
+int mcnt();
+X
+#endif
+SHAR_EOF
+chmod 0600 blocks.h ||
+echo 'restore of blocks.h failed'
+Wc_c="`wc -c < 'blocks.h'`"
+test 2144 -eq "$Wc_c" ||
+	echo 'blocks.h: original size 2144, current size' "$Wc_c"
+fi
+# ============= bw.c ==============
+if test -f 'bw.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping bw.c (File already exists)'
+else
+echo 'x - extracting bw.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bw.c' &&
+/* Edit buffer window generation
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "tty.h"
+#include "vfile.h"
+#include "toomany.h"
+#include "termcap.h"
+#include "kbd.h"
+#include "b.h"
+#include "scrn.h"
+#include "w.h"
+#include "bw.h"
+X
+/* Display modes */
+int dspasis=0;
+extern int square;
+X
+P *getto(p,cur,top,line)
+P *p,*cur,*top;
+long line;
+{
+long dist=MAXLONG;
+long d;
+P *best;
+if(!p)
+X {
+X if(d=(line-cur->line>=0?line-cur->line:cur->line-line), d<dist)
+X  dist=d, best=cur;
+X if(d=(line-top->line>=0?line-top->line:top->line-line), d<dist)
+X  dist=d, best=top;
+X p=pdup(best);
+X pbol(p);
+X }
+while(line>p->line) if(!pnextl(p)) break;
+if(line<p->line)
+X {
+X while(line<p->line) pprevl(p);
+X pboln(p);
+X }
+return p;
+}
+X
+/* Scroll window to follow cursor */
+X
+int mid=0;
+X
+void bwfllw(w)
+BW *w;
+{
+P *newtop;
+if(w->cursor->line<w->top->line)
+X {
+X newtop=pdup(w->cursor);
+X pbol(newtop);
+X if(mid)
+X  if(newtop->line>=w->h/2) pline(newtop,newtop->line-w->h/2);
+X  else pset(newtop,newtop->b->bof);
+X if(w->top->line-newtop->line<w->h)
+X  {
+X  nscrldn(w->t->t,w->y,w->y+w->h,(int)(w->top->line-newtop->line));
+X  scrldn(w->t->t->updtab,w->y,w->y+w->h,(int)(w->top->line-newtop->line));
+X  }
+X else msetI(w->t->t->updtab+w->y,1,w->h);
+X pset(w->top,newtop);
+X prm(newtop);
+X }
+else if(w->cursor->line>=w->top->line+w->h)
+X {
+X newtop=pdup(w->top);
+X if(mid) newtop=getto(NULL,w->cursor,w->top,w->cursor->line-w->h/2);
+X else newtop=getto(NULL,w->cursor,w->top,w->cursor->line-(w->h-1));
+X if(newtop->line-w->top->line<w->h)
+X  {
+X  nscrlup(w->t->t,
+X            w->y,
+X            w->y+w->h,
+X            (int)(newtop->line-w->top->line));
+X  scrlup(w->t->t->updtab,w->y,w->y+w->h,(int)(newtop->line-w->top->line));
+X  }
+X else msetI(w->t->t->updtab+w->y,1,w->h);
+X pset(w->top,newtop);
+X prm(newtop);
+X }
+X
+/* Adjust column */
+if(w->cursor->xcol<w->offset)
+X {
+X w->offset=w->cursor->xcol;
+X msetI(w->t->t->updtab+w->y,1,w->h);
+X }
+else if(w->cursor->xcol>=w->offset+w->w)
+X {
+X w->offset=w->cursor->xcol-(w->w-1);
+X msetI(w->t->t->updtab+w->y,1,w->h);
+X }
+}
+X
+/* Scroll a buffer window after an insert occured.  'flg' is set to 1 if
+X * the first line was split
+X */
+X
+void bwins(w,l,n,flg)
+BW *w;
+long l,n;
+int flg;
+{
+if(l+flg+n<w->top->line+w->h && l+flg>=w->top->line && l+flg<=w->b->eof->line)
+X {
+X int y;
+X if(flg) w->t->t->sary[w->y+l-w->top->line]=w->t->t->li;
+X nscrldn(w->t->t,(int)(w->y+l+flg-w->top->line),w->y+w->h,(int)n);
+X scrldn(w->t->t->updtab,(int)(w->y+l+flg-w->top->line),w->y+w->h,(int)n);
+X }
+if(l<w->top->line+w->h && l>=w->top->line)
+X if(n>=w->h-(l-w->top->line))
+X  msetI(w->t->t->updtab+w->y+l-w->top->line,1,w->h-(int)(l-w->top->line));
+X else
+X  msetI(w->t->t->updtab+w->y+l-w->top->line,1,(int)n+1);
+}
+X
+/* Scroll current windows after a delete */
+X
+void bwdel(w,l,n,flg)
+BW *w;
+long l,n;
+int flg;
+{
+if(l<w->top->line+w->h && l>=w->top->line)
+X w->t->t->updtab[w->y+l-w->top->line]=1;
+if(l+n<w->top->line+w->h && l+n>=w->top->line)
+X w->t->t->updtab[w->y+l+n-w->top->line]=1;
+X
+if(l<w->top->line+w->h &&
+X   (l+n>=w->top->line+w->h || l+n==w->b->eof->line))
+X if(l>=w->top->line)
+X  scrlup(w->t->t->updtab,w->y+l-w->top->line,w->y+w->h,
+X         w->y+w->h-(w->y+l-w->top->line));
+X else
+X  scrlup(w->t->t->updtab,w->y,w->y+w->h,w->h);
+else if(l+n<w->top->line+w->h &&
+X        l+n>w->top->line &&
+X        l+n<w->b->eof->line)
+X if(l+flg>=w->top->line)
+X  {
+X  nscrlup(w->t->t,(int)(w->y+l+flg-w->top->line),w->y+w->h,(int)n);
+X  scrlup(w->t->t->updtab,(int)(w->y+l+flg-w->top->line),w->y+w->h,(int)n);
+X  }
+X else
+X  {
+X  nscrlup(w->t->t,w->y,w->y+w->h,(int)(l+n-w->top->line));
+X  scrlup(w->t->t->updtab,w->y,w->y+w->h,(int)(l+n-w->top->line));
+X  }
+}
+X
+/* Update a single line */
+X
+static int lgen(t,y,screen,x,w,p,scr,from,to)
+SCRN *t;
+int y;
+int *screen;	/* Screen line address */
+int w;		/* Window */
+P *p;		/* Buffer pointer */
+long scr;	/* Starting column to display */
+long from,to;	/* Range for marked block */
+{
+int done=1;
+long col=0;
+long byte=p->byte;
+char *bp;		/* Buffer pointer, 0 if not set */
+int amnt;		/* Amount left in this segment of the buffer */
+int c, ta;
+unsigned char bc;
+X
+/* Initialize bp and amnt from p */
+if(p->ofst>=p->hdr->hole)
+X {
+X bp=p->ptr+p->hdr->ehole+p->ofst-p->hdr->hole;
+X amnt=SEGSIZ-p->hdr->ehole-(p->ofst-p->hdr->hole);
+X }
+else
+X {
+X bp=p->ptr+p->ofst;
+X amnt=p->hdr->hole-p->ofst;
+X }
+X
+if(col==scr) goto loop;
+lp:		/* Display next character */
+if(amnt) do
+X {
+X bc= *bp++;
+X if(square)
+X  {
+X  if(col>=from && col<to) c=INVERSE;
+X  else c=0;
+X  }
+X else
+X  {
+X  if(byte>=from && byte<to) c=INVERSE;
+X  else c=0;
+X  }
+X ++byte;
+X if(bc=='\t')
+X  {
+X  ta=p->b->tab-col%p->b->tab;
+X  if(ta+col>scr)
+X   {
+X   ta-=scr-col;
+X   goto dota;
+X   }
+X  if((col+=ta)==scr) { --amnt; goto loop; }
+X  }
+X else if(bc=='\n') goto eobl;
+X else if(++col==scr) { --amnt; goto loop; }
+X }
+X while(--amnt);
+if(bp==p->ptr+SEGSIZ)
+X {
+X if(pnext(p))
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole;
+X  goto lp;
+X  }
+X else
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole+1;
+X  }
+X }
+else
+X {
+X bp=p->ptr+p->hdr->ehole;
+X amnt=SEGSIZ-p->hdr->ehole;
+X goto lp;
+X }
+goto eof;
+X
+loop:		/* Display next character */
+if(amnt) do
+X {
+X bc= *bp++;
+X if(square)
+X  if(col+x>=from && col+x<to) c=INVERSE;
+X  else c=0;
+X else
+X  if(byte>=from && byte<to) c=INVERSE;
+X  else c=0;
+X ++byte;
+X if(bc=='\t')
+X  {
+X  ta=p->b->tab-((x+scr)%p->b->tab);
+X  dota:
+X  do
+X   {
+X   if(screen[x]!=' '+c)
+X    {
+X    screen[x]=' '+c;
+X    if(t->ins) clrins(t);
+X    if(t->x!=x || t->y!=y) cpos(t,x,y);
+X    if(c!=t->attrib) attr(t,c);
+X    ttputc(' '); ++t->x;
+X    if(have) goto bye;
+X    }
+X   if(++x==w) goto eosl;
+X   }
+X   while(--ta);
+X  }
+X else if(bc=='\n') goto eobl;
+X else
+X  {
+X  if(!dspasis || bc<160 || bc>254)
+X   {
+X   if(bc&128) c^=INVERSE, bc&=127;
+X   if(bc==127) c|=UNDERLINE, bc='?';
+X   else if(bc<32) c|=UNDERLINE, bc+='@';
+X   }
+X  if(t->hz && bc=='~') bc='\\';
+X  if(screen[x]!=c+bc)
+X   {
+X   screen[x]=c+bc;
+X   if(t->ins) clrins(t);
+X   if(t->x!=x || t->y!=y) cpos(t,x,y);
+X   if(c!=t->attrib) attr(t,c);
+X   ttputc(bc); ++t->x;
+X   if(have) goto bye;
+X   }
+X  if(++x==w) goto eosl;
+X  }
+X }
+X while(--amnt);
+if(bp==p->ptr+SEGSIZ)
+X {
+X if(pnext(p))
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole;
+X  goto loop;
+X  }
+X else
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole+1;
+X  }
+X }
+else
+X {
+X bp=p->ptr+p->hdr->ehole;
+X amnt=SEGSIZ-p->hdr->ehole;
+X goto loop;
+X }
+goto eof;
+X
+eobl:		/* End of buffer line found.  Erase to end of screen line */
+++p->line;
+eof:
+if(x!=w) done=eraeol(t,x,y);
+else done=0;
+X
+/* Set p to bp/amnt */
+bye:
+if(bp-p->ptr<=p->hdr->hole) p->ofst=bp-p->ptr;
+else p->ofst=bp-p->ptr-(p->hdr->ehole-p->hdr->hole);
+p->byte=byte;
+return done;
+X
+eosl:
+if(bp-p->ptr<=p->hdr->hole) p->ofst=bp-p->ptr;
+else p->ofst=bp-p->ptr-(p->hdr->ehole-p->hdr->hole);
+p->byte=byte;
+pnextl(p);
+return 0;
+}
+X
+/* Generate line into an array */
+X
+static int lgena(t,y,screen,x,w,p,scr,from,to)
+SCRN *t;
+int y;
+int *screen;	/* Screen line address */
+int w;		/* Window */
+P *p;		/* Buffer pointer */
+long scr;	/* Starting column to display */
+long from,to;	/* Range for marked block */
+{
+int done=1;
+long col=0;
+long byte=p->byte;
+char *bp;		/* Buffer pointer, 0 if not set */
+int amnt;		/* Amount left in this segment of the buffer */
+int c, ta;
+unsigned char bc;
+X
+/* Initialize bp and amnt from p */
+if(p->ofst>=p->hdr->hole)
+X {
+X bp=p->ptr+p->hdr->ehole+p->ofst-p->hdr->hole;
+X amnt=SEGSIZ-p->hdr->ehole-(p->ofst-p->hdr->hole);
+X }
+else
+X {
+X bp=p->ptr+p->ofst;
+X amnt=p->hdr->hole-p->ofst;
+X }
+X
+if(col==scr) goto loop;
+lp:		/* Display next character */
+if(amnt) do
+X {
+X bc= *bp++;
+X if(square)
+X  {
+X  if(col>=from && col<to) c=INVERSE;
+X  else c=0;
+X  }
+X else
+X  {
+X  if(byte>=from && byte<to) c=INVERSE;
+X  else c=0;
+X  }
+X ++byte;
+X if(bc=='\t')
+X  {
+X  ta=p->b->tab-col%p->b->tab;
+X  if(ta+col>scr)
+X   {
+X   ta-=scr-col;
+X   goto dota;
+X   }
+X  if((col+=ta)==scr) { --amnt; goto loop; }
+X  }
+X else if(bc=='\n') goto eobl;
+X else if(++col==scr) { --amnt; goto loop; }
+X }
+X while(--amnt);
+if(bp==p->ptr+SEGSIZ)
+X {
+X if(pnext(p))
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole;
+X  goto lp;
+X  }
+X else
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole+1;
+X  }
+X }
+else
+X {
+X bp=p->ptr+p->hdr->ehole;
+X amnt=SEGSIZ-p->hdr->ehole;
+X goto lp;
+X }
+goto eobl;
+X
+loop:		/* Display next character */
+if(amnt) do
+X {
+X bc= *bp++;
+X if(square)
+X  if(col+x>=from && col+x<to) c=INVERSE;
+X  else c=0;
+X else
+X  if(byte>=from && byte<to) c=INVERSE;
+X  else c=0;
+X ++byte;
+X if(bc=='\t')
+X  {
+X  ta=p->b->tab-((x+scr)%p->b->tab);
+X  dota:
+X  do
+X   {
+X   screen[x]=' '+c;
+X   if(++x==w) goto eosl;
+X   }
+X   while(--ta);
+X  }
+X else if(bc=='\n') goto eobl;
+X else
+X  {
+X  if(!dspasis || bc<160 || bc>254)
+X   {
+X   if(bc&128) c^=INVERSE, bc&=127;
+X   if(bc==127) c|=UNDERLINE, bc='?';
+X   else if(bc<32) c|=UNDERLINE, bc+='@';
+X   }
+X  screen[x]=c+bc;
+X  if(++x==w) goto eosl;
+X  }
+X }
+X while(--amnt);
+if(bp==p->ptr+SEGSIZ)
+X {
+X if(pnext(p))
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole;
+X  goto loop;
+X  }
+X else
+X  {
+X  bp=p->ptr;
+X  amnt=p->hdr->hole+1;
+X  }
+X }
+else
+X {
+X bp=p->ptr+p->hdr->ehole;
+X amnt=SEGSIZ-p->hdr->ehole;
+X goto loop;
+X }
+goto eof;
+eobl:		/* End of buffer line found.  Erase to end of screen line */
+++p->line;
+eof:
+while(x!=w) screen[x++]=' ';
+done=0;
+X
+/* Set p to bp/amnt */
+bye:
+if(bp-p->ptr<=p->hdr->hole) p->ofst=bp-p->ptr;
+else p->ofst=bp-p->ptr-(p->hdr->ehole-p->hdr->hole);
+p->byte=byte;
+return done;
+X
+eosl:
+if(bp-p->ptr<=p->hdr->hole) p->ofst=bp-p->ptr;
+else p->ofst=bp-p->ptr-(p->hdr->ehole-p->hdr->hole);
+p->byte=byte;
+pnextl(p);
+return 0;
+}
+X
+void bwgen(w)
+BW *w;
+{
+int *screen;
+P *p=0;
+P *q=pdup(w->cursor);
+int bot=w->h+w->y;
+int y;
+int dosquare=0;
+long from,to;
+from=to=0;
+if(w->t->markb && w->t->markk && w->t->markb->b==w->t->markk->b &&
+X   w->t->markb->b==w->b)
+X if(square) from=w->t->markb->col, to=w->t->markk->col, dosquare=1;
+X else from=w->t->markb->byte, to=w->t->markk->byte;
+X
+y=w->cursor->line-w->top->line+w->y;
+for(screen=w->t->t->scrn+y*w->t->w;y!=bot; ++y, screen+=w->t->w)
+X {
+X if(have) break;
+X if(w->t->t->updtab[y])
+X  {
+X  p=getto(p,w->cursor,w->top,w->top->line+y-w->y);
+X  if(w->t->t->insdel && !w->x)
+X   {
+X   pset(q,p);
+X   if(dosquare)
+X    if(w->top->line+y-w->y>=w->t->markb->line &&
+X       w->top->line+y-w->y<=w->t->markk->line)
+X     lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,from,to);
+X    else
+X     lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,0L,0L);
+X   else
+X    lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,from,to);
+X   magic(w->t->t,y,screen,w->t->t->compose,
+X         (int)(w->cursor->xcol-w->offset+w->x));
+X   }
+X  if(dosquare)
+X   if(w->top->line+y-w->y>=w->t->markb->line &&
+X      w->top->line+y-w->y<=w->t->markk->line)
+X    w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                            from,to);
+X   else
+X    w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                            0L,0L);
+X  else
+X   w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                           from,to);
+X  }
+X }
+X 
+y=w->y;
+for(screen=w->t->t->scrn+w->y*w->t->w; y!=w->y+w->cursor->line-w->top->line;
+X    ++y, screen+=w->t->w)
+X {
+X if(have) break;
+X if(w->t->t->updtab[y])
+X  {
+X  p=getto(p,w->cursor,w->top,w->top->line+y-w->y);
+X  if(w->t->t->insdel && !w->x)
+X   {
+X   pset(q,p);
+X   if(dosquare)
+X    if(w->top->line+y-w->y>=w->t->markb->line &&
+X       w->top->line+y-w->y<=w->t->markk->line)
+X     lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,from,to);
+X    else
+X     lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,0L,0L);
+X   else
+X    lgena(w->t->t,y,w->t->t->compose,w->x,w->x+w->w,q,w->offset,from,to);
+X   magic(w->t->t,y,screen,w->t->t->compose,
+X         (int)(w->cursor->xcol-w->offset+w->x));
+X   }
+X  if(dosquare)
+X   if(w->top->line+y-w->y>=w->t->markb->line &&
+X      w->top->line+y-w->y<=w->t->markk->line)
+X    w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                            from,to);
+X   else
+X    w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                            0L,0L);
+X  else
+X   w->t->t->updtab[y]=lgen(w->t->t,y,screen,w->x,w->x+w->w,p,w->offset,
+X                           from,to);
+X  }
+X }
+prm(q);
+if(p) prm(p);
+}
+X
+void bwmove(w,x,y)
+BW *w;
+int x,y;
+{
+w->x=x;
+w->y=y;
+}
+X
+void bwresz(w,wi,he)
+BW *w;
+int wi, he;
+{
+if(he>w->h && w->y!= -1) msetI(w->t->t->updtab+w->y+w->h,1,he-w->h);
+w->w=wi;
+w->h=he;
+}
+X
+BW *bwmk(t,b,x,y,wi,h)
+SCREEN *t;
+B *b;
+int x,y,wi,h;
+{
+BW *w=(BW *)malloc(sizeof(BW));
+w->b=b;
+w->x=x;
+w->y=y;
+w->w=wi;
+w->h=h;
+X
+w->lmargin=0;
+w->rmargin=76;
+w->autoindent=0;
+w->wordwrap=0;
+w->overtype=0;
+w->indentc=' ';
+w->istep=1;
+X
+w->top=pdup(b->bof);
+w->cursor=pdup(w->top);
+w->t=t; 
+w->object=NULL;
+w->offset=0;
+return w;
+}
+X
+void bwrm(w)
+BW *w;
+{
+prm(w->top);
+prm(w->cursor);
+brm(w->b);
+free(w);
+}
+X
+void ustat(w)
+W *w;
+{
+BW *bw=(BW *)w->object;
+static char buf[80];
+unsigned c=brc(bw->cursor);
+if(c==MAXINT)
+X sprintf(buf,"** ROW=%ld COL=%ld BYTE=%ld/0x%X **",
+X         bw->cursor->line+1,bw->cursor->col+1,bw->cursor->byte,
+X         bw->cursor->byte,bw->b->eof->line+1,bw->b->eof->byte+1);
+else
+X sprintf(buf,"** ROW=%ld COL=%ld BYTE=%ld/0x%X CHAR=%d/0%o/0x%X **",
+X         bw->cursor->line+1,bw->cursor->col+1,bw->cursor->byte,
+X         bw->cursor->byte,c,c,c);
+msgnw(w,buf);
+}
+SHAR_EOF
+chmod 0600 bw.c ||
+echo 'restore of bw.c failed'
+Wc_c="`wc -c < 'bw.c'`"
+test 13764 -eq "$Wc_c" ||
+	echo 'bw.c: original size 13764, current size' "$Wc_c"
+fi
+# ============= bw.h ==============
+if test -f 'bw.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping bw.h (File already exists)'
+else
+echo 'x - extracting bw.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bw.h' &&
+/* Edit buffer window generation
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Ibw
+#define _Ibw 1
+X
+#include "config.h"
+#include "b.h"
+#include "w.h"
+X
+extern int dspasis;
+X
+typedef struct bw BW;
+X
+struct bw
+X {
+X B *b;
+X P *top;
+X P *cursor;
+X long offset;
+X SCREEN *t;
+X int h,w,x,y;
+X 
+X long lmargin;
+X long rmargin;
+X int autoindent;
+X int wordwrap;
+X int overtype;
+X long istep;
+X int indentc;
+X 
+X void *object;
+X };
+X
+extern int mid;
+void bwfllw();
+void bwins();
+void bwdel();
+void bwgen();
+BW *bwmk();
+void bwmove();
+void bwresz();
+void bwrm();
+void ustat();
+X
+#endif
+SHAR_EOF
+chmod 0600 bw.h ||
+echo 'restore of bw.h failed'
+Wc_c="`wc -c < 'bw.h'`"
+test 1252 -eq "$Wc_c" ||
+	echo 'bw.h: original size 1252, current size' "$Wc_c"
+fi
+# ============= config.h ==============
+if test -f 'config.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping config.h (File already exists)'
+else
+echo 'x - extracting config.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'config.h' &&
+/* Configuration file for 32-bit systems */
+X
+#ifndef _Iconfig
+#define _Iconfig 1
+X
+/* Integer size quantities
+X * MAXINT Maximum signed integer
+X * ISIZ   Number of chars in an int
+X * SHFT   LOG2 of ISIZ
+X */
+X
+#define MAXINT 0x7FFFFFFF
+#define ISIZ 4
+#define SHFT 2
+X
+/* Support for segmented systems
+X * physical(addr)   Return a linear address given a pointer
+X * normalize(addr)  Normalize a pointer so that the offset part is minimized
+X */
+X
+#define physical(a) ((long)(a))
+#define normalize(a) (a)
+X
+#define BITS 8			/* Number of bits in a char */
+#define MAXLONG 0x7FFFFFFF
+X
+/* Uncomment the following line if your compiler has trouble with void */
+/* #define void int */
+X
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+X
+/* These are for optimizing blocks.c */
+/* #define AUTOINC */	/* Define this if CPU can autoincrement faster than
+X			   it can do [reg+offset] addressing */
+/* #define ALIGNED */	/* Define this if CPU can access unaligned ints */
+X			/* (tries to align ints even if defined) */
+X
+/* System calls we use */
+char *getenv();
+long time();
+/*
+int chdir();
+int creat();
+int open();
+int close();
+int read();
+int write();
+int lseek();
+*/
+X
+#endif
+SHAR_EOF
+chmod 0600 config.h ||
+echo 'restore of config.h failed'
+Wc_c="`wc -c < 'config.h'`"
+test 1152 -eq "$Wc_c" ||
+	echo 'config.h: original size 1152, current size' "$Wc_c"
+fi
+# ============= config16.h ==============
+if test -f 'config16.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping config16.h (File already exists)'
+else
+echo 'x - extracting config16.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'config16.h' &&
+/* Configuration file for 16-bit systems */
+X
+#ifndef _Iconfig
+#define _Iconfig 1
+X
+/* Integer size quantities
+X * MAXINT Maximum signed integer
+X * ISIZ   Number of chars in an int
+X * SHFT   LOG2 of ISIZ
+X */
+X
+#define MAXINT 0x7FFF
+#define ISIZ 2
+#define SHFT 1
+X
+/* Support for segmented systems
+X * physical(addr)   Return a linear address given a pointer
+X * normalize(addr)  Normalize a pointer so that the offset part is minimized
+X */
+X
+#define physical(a) ((long)(a))
+#define normalize(a) (a)
+X
+#define BITS 8			/* Number of bits in a char */
+#define MAXLONG 0x7FFFFFFF
+X
+/* Uncomment the following line if your compiler has trouble with void */
+/* #define void int */
+X
+/* NULL should only be used for data-pointers, not function pointers,
+X * (because of medium model MSDOS)
+X */
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+X
+/* These are for optimizing blocks.c */
+/* #define AUTOINC */	/* Define this if CPU can autoincrement faster than
+X			   it can do [reg+offset] addressing */
+/* #define ALIGNED */	/* Define this if CPU can access unaligned ints */
+X			/* (tries to align ints even if defined) */
+X
+/* System calls we use */
+char *getenv();
+char *getcwd();
+long time();
+/*
+int chdir();
+int creat();
+int open();
+int close();
+int read();
+int write();
+int lseek();
+*/
+X
+#endif
+SHAR_EOF
+chmod 0600 config16.h ||
+echo 'restore of config16.h failed'
+Wc_c="`wc -c < 'config16.h'`"
+test 1273 -eq "$Wc_c" ||
+	echo 'config16.h: original size 1273, current size' "$Wc_c"
+fi
+# ============= config32.h ==============
+if test -f 'config32.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping config32.h (File already exists)'
+else
+echo 'x - extracting config32.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'config32.h' &&
+/* Configuration file for 32-bit systems */
+X
+#ifndef _Iconfig
+#define _Iconfig 1
+X
+/* Integer size quantities
+X * MAXINT Maximum signed integer
+X * ISIZ   Number of chars in an int
+X * SHFT   LOG2 of ISIZ
+X */
+X
+#define MAXINT 0x7FFFFFFF
+#define ISIZ 4
+#define SHFT 2
+X
+/* Support for segmented systems
+X * physical(addr)   Return a linear address given a pointer
+X * normalize(addr)  Normalize a pointer so that the offset part is minimized
+X */
+X
+#define physical(a) ((long)(a))
+#define normalize(a) (a)
+X
+#define BITS 8			/* Number of bits in a char */
+#define MAXLONG 0x7FFFFFFF
+X
+/* Uncomment the following line if your compiler has trouble with void */
+/* #define void int */
+X
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+X
+/* These are for optimizing blocks.c */
+/* #define AUTOINC */	/* Define this if CPU can autoincrement faster than
+X			   it can do [reg+offset] addressing */
+/* #define ALIGNED */	/* Define this if CPU can access unaligned ints */
+X			/* (tries to align ints even if defined) */
+X
+/* System calls we use */
+char *getenv();
+long time();
+/*
+int chdir();
+int creat();
+int open();
+int close();
+int read();
+int write();
+int lseek();
+*/
+X
+#endif
+SHAR_EOF
+chmod 0600 config32.h ||
+echo 'restore of config32.h failed'
+Wc_c="`wc -c < 'config32.h'`"
+test 1152 -eq "$Wc_c" ||
+	echo 'config32.h: original size 1152, current size' "$Wc_c"
+fi
+# ============= config86.h ==============
+if test -f 'config86.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping config86.h (File already exists)'
+else
+echo 'x - extracting config86.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'config86.h' &&
+/* Configuration file for 8086 segmented systems */
+X
+#ifndef _Iconfig
+#define _Iconfig 1
+X
+/* Integer size quantities
+X * MAXINT Maximum signed integer
+X * ISIZ   Number of chars in an int
+X * SHFT   LOG2 of ISIZ
+X */
+X
+#define MAXINT 0x7FFF
+#define ISIZ 2
+#define SHFT 1
+X
+/* Support for segmented systems
+X * physical(addr)   Return a linear address given a pointer
+X * normalize(addr)  Normalize a pointer so that the offset part is minimized
+X */
+X
+#define physical(a) (((long)(a)&0xFFFF)+(((unsigned long)(a)&0xFFFF0000)>>12))
+#define normalize(a) \
+X ((void *)(((long)(a)&0xFFFF000F)+(((long)(a)&0x0000FFF0)<<12)))
+X
+#define BITS 8			/* Number of bits in a char */
+#define MAXLONG 0x7FFFFFFF
+X
+/* Uncomment the following line if your compiler has trouble with void */
+/* #define void int */
+X
+/* NULL should only be used for data-pointers, not function pointers,
+X * (because of medium model MSDOS)
+X */
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+X
+/* These are for optimizing blocks.c */
+/* #define AUTOINC */	/* Define this if CPU can autoincrement faster than
+X			   it can do [reg+offset] addressing */
+/* #define ALIGNED */	/* Define this if CPU can access unaligned ints */
+X			/* (tries to align ints even if defined) */
+X
+/* System calls we use */
+char *getenv();
+char *getcwd();
+long time();
+/*
+int chdir();
+int creat();
+int open();
+int close();
+int read();
+int write();
+int lseek();
+*/
+X
+#endif
+SHAR_EOF
+chmod 0600 config86.h ||
+echo 'restore of config86.h failed'
+Wc_c="`wc -c < 'config86.h'`"
+test 1391 -eq "$Wc_c" ||
+	echo 'config86.h: original size 1391, current size' "$Wc_c"
+fi
+# ============= copying ==============
+if test -f 'copying' -a X"$1" != X"-c"; then
+	echo 'x - skipping copying (File already exists)'
+else
+echo 'x - extracting copying (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'copying' &&
+X
+X		    GNU GENERAL PUBLIC LICENSE
+X		     Version 1, February 1989
+X
+X Copyright (C) 1989 Free Software Foundation, Inc.
+X                    675 Mass Ave, Cambridge, MA 02139, USA
+X Everyone is permitted to copy and distribute verbatim copies
+X of this license document, but changing it is not allowed.
+X
+X			    Preamble
+X
+X  The license agreements of most software companies try to keep users
+at the mercy of those companies.  By contrast, our General Public
+License is intended to guarantee your freedom to share and change free
+software--to make sure the software is free for all its users.  The
+General Public License applies to the Free Software Foundation's
+software and to any other program whose authors commit to using it.
+You can use it for your programs, too.
+X
+X  When we speak of free software, we are referring to freedom, not
+price.  Specifically, the General Public License is designed to make
+sure that you have the freedom to give away or sell copies of free
+software, that you receive source code or can get it if you want it,
+that you can change the software or use pieces of it in new free
+programs; and that you know you can do these things.
+X
+X  To protect your rights, we need to make restrictions that forbid
+anyone to deny you these rights or to ask you to surrender the rights.
+These restrictions translate to certain responsibilities for you if you
+distribute copies of the software, or if you modify it.
+X
+X  For example, if you distribute copies of a such a program, whether
+gratis or for a fee, you must give the recipients all the rights that
+you have.  You must make sure that they, too, receive or can get the
+source code.  And you must tell them their rights.
+X
+X  We protect your rights with two steps: (1) copyright the software, and
+(2) offer you this license which gives you legal permission to copy,
+distribute and/or modify the software.
+X
+X  Also, for each author's protection and ours, we want to make certain
+that everyone understands that there is no warranty for this free
+software.  If the software is modified by someone else and passed on, we
+want its recipients to know that what they have is not the original, so
+that any problems introduced by others will not reflect on the original
+authors' reputations.
+X
+X  The precise terms and conditions for copying, distribution and
+modification follow.
+X
+X		    GNU GENERAL PUBLIC LICENSE
+X   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+X
+X  0. This License Agreement applies to any program or other work which
+contains a notice placed by the copyright holder saying it may be
+distributed under the terms of this General Public License.  The
+"Program", below, refers to any such program or work, and a "work based
+on the Program" means either the Program or any work containing the
+Program or a portion of it, either verbatim or with modifications.  Each
+licensee is addressed as "you".
+X
+X  1. You may copy and distribute verbatim copies of the Program's source
+code as you receive it, in any medium, provided that you conspicuously and
+appropriately publish on each copy an appropriate copyright notice and
+disclaimer of warranty; keep intact all the notices that refer to this
+General Public License and to the absence of any warranty; and give any
+other recipients of the Program a copy of this General Public License
+along with the Program.  You may charge a fee for the physical act of
+transferring a copy.
+X
+X  2. You may modify your copy or copies of the Program or any portion of
+it, and copy and distribute such modifications under the terms of Paragraph
+1 above, provided that you also do the following:
+X
+X    a) cause the modified files to carry prominent notices stating that
+X    you changed the files and the date of any change; and
+X
+X    b) cause the whole of any work that you distribute or publish, that
+X    in whole or in part contains the Program or any part thereof, either
+X    with or without modifications, to be licensed at no charge to all
+X    third parties under the terms of this General Public License (except
+X    that you may choose to grant warranty protection to some or all
+X    third parties, at your option).
+X
+X    c) If the modified program normally reads commands interactively when
+X    run, you must cause it, when started running for such interactive use
+X    in the simplest and most usual way, to print or display an
+X    announcement including an appropriate copyright notice and a notice
+X    that there is no warranty (or else, saying that you provide a
+X    warranty) and that users may redistribute the program under these
+X    conditions, and telling the user how to view a copy of this General
+X    Public License.
+X
+X    d) You may charge a fee for the physical act of transferring a
+X    copy, and you may at your option offer warranty protection in
+X    exchange for a fee.
+X
+Mere aggregation of another independent work with the Program (or its
+derivative) on a volume of a storage or distribution medium does not bring
+the other work under the scope of these terms.
+X
+X  3. You may copy and distribute the Program (or a portion or derivative of
+it, under Paragraph 2) in object code or executable form under the terms of
+Paragraphs 1 and 2 above provided that you also do one of the following:
+X
+X    a) accompany it with the complete corresponding machine-readable
+X    source code, which must be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    b) accompany it with a written offer, valid for at least three
+X    years, to give any third party free (except for a nominal charge
+X    for the cost of distribution) a complete machine-readable copy of the
+X    corresponding source code, to be distributed under the terms of
+X    Paragraphs 1 and 2 above; or,
+X
+X    c) accompany it with the information you received as to where the
+X    corresponding source code may be obtained.  (This alternative is
+X    allowed only for noncommercial distribution and only if you
+X    received the program in object code or executable form alone.)
+X
+Source code for a work means the preferred form of the work for making
+modifications to it.  For an executable file, complete source code means
+all the source code for all modules it contains; but, as a special
+exception, it need not include source code for modules which are standard
+libraries that accompany the operating system on which the executable
+file runs, or for standard header files or definitions files that
+accompany that operating system.
+X
+X  4. You may not copy, modify, sublicense, distribute or transfer the
+Program except as expressly provided under this General Public License.
+Any attempt otherwise to copy, modify, sublicense, distribute or transfer
+the Program is void, and will automatically terminate your rights to use
+the Program under this License.  However, parties who have received
+copies, or rights to use copies, from you under this General Public
+License will not have their licenses terminated so long as such parties
+remain in full compliance.
+X
+X  5. By copying, distributing or modifying the Program (or any work based
+on the Program) you indicate your acceptance of this license to do so,
+and all its terms and conditions.
+X
+X  6. Each time you redistribute the Program (or any work based on the
+Program), the recipient automatically receives a license from the original
+licensor to copy, distribute or modify the Program subject to these
+terms and conditions.  You may not impose any further restrictions on the
+recipients' exercise of the rights granted herein.
+X
+X  7. The Free Software Foundation may publish revised and/or new versions
+of the General Public License from time to time.  Such new versions will
+be similar in spirit to the present version, but may differ in detail to
+address new problems or concerns.
+X
+Each version is given a distinguishing version number.  If the Program
+specifies a version number of the license which applies to it and "any
+later version", you have the option of following the terms and conditions
+either of that version or of any later version published by the Free
+Software Foundation.  If the Program does not specify a version number of
+the license, you may choose any version ever published by the Free Software
+Foundation.
+X
+X  8. If you wish to incorporate parts of the Program into other free
+programs whose distribution conditions are different, write to the author
+to ask for permission.  For software which is copyrighted by the Free
+Software Foundation, write to the Free Software Foundation; we sometimes
+make exceptions for this.  Our decision will be guided by the two goals
+of preserving the free status of all derivatives of our free software and
+of promoting the sharing and reuse of software generally.
+X
+X			    NO WARRANTY
+X
+X  9. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
+OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
+TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
+REPAIR OR CORRECTION.
+X
+X  10. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
+INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING
+OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED
+TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+X
+X		     END OF TERMS AND CONDITIONS
+X
+X	Appendix: How to Apply These Terms to Your New Programs
+X
+X  If you develop a new program, and you want it to be of the greatest
+possible use to humanity, the best way to achieve this is to make it
+free software which everyone can redistribute and change under these
+terms.
+X
+X  To do so, attach the following notices to the program.  It is safest to
+attach them to the start of each source file to most effectively convey
+the exclusion of warranty; and each file should have at least the
+"copyright" line and a pointer to where the full notice is found.
+X
+X    <one line to give the program's name and a brief idea of what it does.>
+X    Copyright (C) 19yy  <name of author>
+X
+X    This program is free software; you can redistribute it and/or modify
+X    it under the terms of the GNU General Public License as published by
+X    the Free Software Foundation; either version 1, or (at your option)
+X    any later version.
+X
+X    This program is distributed in the hope that it will be useful,
+X    but WITHOUT ANY WARRANTY; without even the implied warranty of
+X    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+X    GNU General Public License for more details.
+X
+X    You should have received a copy of the GNU General Public License
+X    along with this program; if not, write to the Free Software
+X    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+X
+Also add information on how to contact you by electronic and paper mail.
+X
+If the program is interactive, make it output a short notice like this
+when it starts in an interactive mode:
+X
+X    Gnomovision version 69, Copyright (C) 19xx name of author
+X    Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+X    This is free software, and you are welcome to redistribute it
+X    under certain conditions; type `show c' for details.
+X
+The hypothetical commands `show w' and `show c' should show the
+appropriate parts of the General Public License.  Of course, the
+commands you use may be called something other than `show w' and `show
+c'; they could even be mouse-clicks or menu items--whatever suits your
+program.
+X
+You should also get your employer (if you work as a programmer) or your
+school, if any, to sign a "copyright disclaimer" for the program, if
+necessary.  Here a sample; alter the names:
+X
+X  Yoyodyne, Inc., hereby disclaims all copyright interest in the
+X  program `Gnomovision' (a program to direct compilers to make passes
+X  at assemblers) written by James Hacker.
+X
+X  <signature of Ty Coon>, 1 April 1989
+X  Ty Coon, President of Vice
+X
+That's all there is to it!
+SHAR_EOF
+chmod 0600 copying ||
+echo 'restore of copying failed'
+Wc_c="`wc -c < 'copying'`"
+test 12488 -eq "$Wc_c" ||
+	echo 'copying: original size 12488, current size' "$Wc_c"
+fi
+# ============= edfuncs.c ==============
+if test -f 'edfuncs.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping edfuncs.c (File already exists)'
+else
+echo 'x - extracting edfuncs.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'edfuncs.c' &&
+/* User edit functions
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include <stdio.h>
+#include "config.h"
+#include "tty.h"
+#include "b.h"
+#include "w.h"
+#include "termcap.h"
+#include "vfile.h"
+#include "toomany.h"
+#include "scrn.h"
+#include "vs.h"
+#include "bw.h"
+#include "pw.h"
+#include "tw.h"
+#include "zstr.h"
+#include "main.h"
+#include "edfuncs.h"
+X
+int square=0;		/* Rectangle mode */
+X
+B *filehist=0;
+B *filthist=0;
+B *linehist=0;
+B *taghist=0;
+X
+char *msgs[]=
+{
+"Error writing file",
+"Error opening file",
+"Error seeking file",
+"Error reading file",
+"New File"
+};
+X
+/****************/
+/* Window stuff */
+/****************/
+X
+void uprevw(w)
+W *w;
+{
+wprev(w->t);
+}
+X
+void unextw(w)
+W *w;
+{
+wnext(w->t);
+}
+X
+void ugroww(w)
+W *w;
+{
+wgrow(w);
+}
+X
+void ushrnk(w)
+W *w;
+{
+wshrink(w);
+}
+X
+void uexpld(w)
+W *w;
+{
+if(w->t->h-w->t->wind==getgrouph(w)) wshowall(w->t);
+else wshowone(w);
+}
+X
+/******************************/
+/* Rectangle mode subroutines */
+/******************************/
+X
+void pfill(p,to,usetabs)
+P *p;
+long to;
+{
+if(usetabs)
+X while(p->col<to)
+X  if(p->col+p->b->tab-p->col%p->b->tab<=to) binsc(p,'\t'), pgetc(p);
+X  else binsc(p,' '), pgetc(p);
+else while(p->col<to) binsc(p,' '), pgetc(p);
+}
+X
+/* Insert rectangle into buffer
+X * returns width of inserted matter
+X */
+X
+long pinsrect(cur,tmp)
+P *cur;
+B *tmp;
+{
+P *p=pdup(cur);
+P *q=pdup(tmp->bof);
+P *r=pdup(q);
+int usetabs=0;
+long width=0;
+do
+X {
+X long wid=cur->col;
+X while(!piseol(q))
+X  if(pgetc(q)=='\t') wid+=cur->b->tab-wid%cur->b->tab, usetabs=1;
+X  else ++wid;
+X if(wid-cur->col>width) width=wid-cur->col;
+X } while(pgetc(q)!=MAXINT);
+if(width)
+X {
+X pset(q,tmp->bof);
+X while(pset(r,q), peol(q), (q->line!=tmp->eof->line || q->col))
+X  {
+X  pcol(p,cur->col);
+X  if(p->col<cur->col) pfill(p,cur->col,usetabs);
+X  binsb(p,r,q); pfwrd(p,q->byte-r->byte);
+X  if(p->col<cur->col+width) pfill(p,cur->col+width,usetabs);
+X  if(!pnextl(p)) binsc(p,'\n'), pgetc(p);
+X  if(pgetc(q)==MAXINT) break;
+X  }
+X }
+prm(p); prm(q); prm(r);
+return width;
+}
+X
+/* Overwrite version of above */
+X
+long povrrect(cur,tmp)
+P *cur;
+B *tmp;
+{
+P *p=pdup(cur);
+P *q=pdup(tmp->bof);
+P *r=pdup(q);
+P *z=pdup(cur);
+int usetabs=0;
+long width=0;
+long curcol=cur->col;
+do
+X {
+X long wid=curcol;
+X while(!piseol(q))
+X  if(pgetc(q)=='\t') wid+=cur->b->tab-wid%cur->b->tab, usetabs=1;
+X  else ++wid;
+X if(wid-curcol>width) width=wid-curcol;
+X } while(pgetc(q)!=MAXINT);
+if(width)
+X {
+X pset(q,tmp->bof);
+X while(pset(r,q), peol(q), (q->line!=tmp->eof->line || q->col))
+X  {
+X  pcol(p,curcol);
+X  if(p->col<curcol) pfill(p,curcol,usetabs);
+X  pset(z,p); pcol(z,curcol+width); bdel(p,z);
+X  binsb(p,r,q); pfwrd(p,q->byte-r->byte);
+X  if(p->col<curcol+width) pfill(p,curcol+width,usetabs);
+X  if(!pnextl(p)) binsc(p,'\n'), pgetc(p);
+X  if(pgetc(q)==MAXINT) break;
+X  }
+X }
+prm(p); prm(q); prm(r); prm(z);
+return width;
+}
+X
+/* Extract rectangle into a buffer */
+X
+B *pextrect(up,down,left,right)
+P *up, *down;
+long left,right;
+{
+P *p=pdup(up);
+P *q=pdup(p);
+B *tmp=bmk();
+P *z=pdup(tmp->eof);
+pbol(p);
+do
+X {
+X pcol(p,left);
+X pset(q,p);
+X pcol(q,right);
+X pset(z,tmp->eof); binsb(z,p,q);
+X pset(z,tmp->eof); binsc(z,'\n');
+X } while(pnextl(p) && p->line<=down->line);
+prm(p); prm(q); prm(z);
+return tmp;
+}
+X
+/* Delete rectangle.  Returns true if tabs were used */
+X
+int pdelrect(up,down,left,right,overtype)
+P *up, *down;
+long left,right;
+{
+P *p=pdup(up);
+P *q=pdup(p);
+int usetabs=0;
+if(overtype)
+X {
+X int c;
+X pbol(p);
+X do
+X  {
+X  pcol(p,left);
+X  pset(q,p);
+X  pcol(q,right);
+X  while(p->byte<q->byte) if(pgetc(p)=='\t') { usetabs=1; break; }
+X  if(usetabs) break;
+X  } while(pnextl(p) && p->line<=down->line);
+X pset(p,up);
+X }
+pbol(p);
+do
+X {
+X pcol(p,left);
+X pset(q,p);
+X pcol(q,right);
+X bdel(p,q);
+X if(overtype) pfill(p,right,usetabs);
+X } while(pnextl(p) && p->line<=down->line);
+prm(p); prm(q);
+return usetabs;
+}
+X
+/***************/
+/* Block stuff */
+/***************/
+X
+void umarkb(w)
+W *w;
+{

@@ -1,0 +1,698 @@
+Newsgroups: alt.sources
+Path: funic!fuug!mcsun!Germany.EU.net!anl433!Iain.Lea
+From: Iain.Lea%anl433.uucp@Germany.EU.net (Iain Lea)
+Subject: plan - execute a command if a FIFO is opened
+Message-ID: <1992Nov14.191553.9284@anl433.uucp>
+Followup-To: alt.sources.d
+Sender: news@anl433.uucp (Netnews Administrator)
+Reply-To: Iain.Lea%anl433.uucp@Germany.EU.net
+Organization: ANL A433, Siemens AG., Germany.
+X-Newsreader: TIN [version 1.1 Beta PL7]
+Date: Sat, 14 Nov 1992 19:15:53 GMT
+Lines: 685
+
+Submitted-by: Iain.Lea%anl433.uucp@Germany.EU.net
+Archive-name: plan/part01
+
+I found this package posted to one of the comp.unix.* groups a few
+days ago. Its yet another  "If I'm fingered send output of program
+X back to the fingeree (?)". Your system needs to support FIFO's. 
+
+I've cleaned up the code, made better use of getopt() and  added a 
+more informative user message.
+
+Enjoy
+
+Iain
+
+#!/bin/sh
+# This is plan, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/14/1992 21:13 UTC by Iain.Lea%anl433.uucp@Germany.EU.net
+# Source directory /tmp/test
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+#                                                                          
+#                                                                          
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#    233 -rw-r--r-- MANIFEST
+#   1441 -rw-r--r-- Makefile
+#   5668 -rw-r--r-- README
+#    605 -rwxr-xr-x logfinger
+#   5898 -rw-r--r-- plan.c
+#   1736 -rw-r--r-- plan.nr
+#
+if test -r _shar_seq_.tmp; then
+	echo 'Must unpack archives in sequence!'
+	echo Please unpack part `cat _shar_seq_.tmp` next
+	exit 1
+fi
+# ============= MANIFEST ==============
+if test -f 'MANIFEST' -a X"$1" != X"-c"; then
+	echo 'x - skipping MANIFEST (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting MANIFEST (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'MANIFEST' &&
+XMANIFEST - This file
+XMakefile - The makefile
+XREADME   - Original notes, notes for first set of changes, and notes
+X	   for my changes
+Xplan.c   - The program
+Xplan.nr  - A man page
+Xlogfinger - a perl script included with the shar I got
+SHAR_EOF
+chmod 0644 MANIFEST ||
+echo 'restore of MANIFEST failed'
+Wc_c="`wc -c < 'MANIFEST'`"
+test 233 -eq "$Wc_c" ||
+	echo 'MANIFEST: original size 233, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+XDEST	      = /home/napalm/bin/fifo
+X
+XEXTHDRS	      = /usr/include/fcntl.h \
+X		/usr/include/signal.h \
+X		/usr/include/stdio.h \
+X		/usr/include/sys/fcntl.h \
+X		/usr/include/sys/file.h \
+X		/usr/include/sys/stat.h \
+X		/usr/include/sys/sysmacros.h \
+X		/usr/include/sys/sysmacros.h \
+X		/usr/include/sys/types.h \
+X		/usr/include/sys/types.h
+X
+XHDRS	      =
+X
+XLDFLAGS	      =
+X
+XLIBS	      =
+X
+XCC            = cc
+X
+XCFLAGS        = -O
+X
+XLINKER	      = cc
+X
+XMAKEFILE      = Makefile
+X
+XOBJS	      = plan.o
+X
+XPRINT	      = pr
+X
+XPROGRAM	      = plan
+X
+XSRCS	      = plan.c
+X
+Xall:		$(PROGRAM)
+X
+X$(PROGRAM):     $(OBJS) $(LIBS)
+X		@echo -n "Loading $(PROGRAM) ... "
+X		@$(LINKER) $(LDFLAGS) $(OBJS) $(LIBS) -o $(PROGRAM)
+X		@echo "done"
+X
+Xclean:;		@rm -f $(OBJS)
+X
+Xdepend:;	@mkmf -f $(MAKEFILE) PROGRAM=$(PROGRAM) DEST=$(DEST)
+X
+Xindex:;		@ctags -wx $(HDRS) $(SRCS)
+X
+Xinstall:	$(PROGRAM)
+X		@echo Installing $(PROGRAM) in $(DEST)
+X		@install -s $(PROGRAM) $(DEST)
+X
+Xprint:;		@$(PRINT) $(HDRS) $(SRCS)
+X
+Xprogram:        $(PROGRAM)
+X
+Xtags:           $(HDRS) $(SRCS); @ctags $(HDRS) $(SRCS)
+X
+Xupdate:		$(DEST)/$(PROGRAM)
+X
+X$(DEST)/$(PROGRAM): $(SRCS) $(LIBS) $(HDRS) $(EXTHDRS)
+X		@make -f $(MAKEFILE) DEST=$(DEST) install
+X###
+Xplan.o: /usr/include/sys/types.h /usr/include/sys/sysmacros.h \
+X	/usr/include/sys/sysmacros.h /usr/include/sys/file.h \
+X	/usr/include/sys/fcntl.h /usr/include/sys/types.h \
+X	/usr/include/fcntl.h /usr/include/stdio.h /usr/include/sys/stat.h \
+X	/usr/include/signal.h
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 1441 -eq "$Wc_c" ||
+	echo 'Makefile: original size 1441, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+XAll I did was to put in a function that keeps track of the PID for
+Xplan by writing it to a file called ".planpid" in your home directory.
+XNow you run plan in your .login, and, to kill the process when you log
+Xout, put something like this in your .logout:
+X
+X	kill `cat /home/mine/.planpid`
+X	rm -f /home/mine/.planpid
+X
+XYou have to remove the .planpid (or modify the code), because the 
+Xprogram will not run if a plan is already running, which it assumes
+Xwhen it finds a .planpid file already there.
+X
+XIf someone wanted to run multiple plans, maybe one for a .signature
+Xand another for a .plan, the save name for the PID could be changed,
+Xand the program compiled twice (the binary is not that big, ~40K on
+Xthe HP 425's I used), or, if someone is really motivated, they could
+Xadd a command line argument for the save name.
+X
+XSure, my modification isn't very complex, but it does what I needed
+Xit to do, and maybe someone else can use it.
+X
+XKaren	(napalm@ugcs.caltech.edu)
+X
+X****  Additions by Geoff Loker ****
+X
+XI have modified Tony Rems' code for plan a bit to get rid of the
+Xnecessity for hard-coding in the file name to be set up as a FIFO.
+XThe program will now accept an optional argument that specifies the
+Xname of the FIFO to be used.  If that argument is not set, the default
+XFIFO is $HOME/.plan.
+X
+XIn order to use this program, your O/S needs to support named pipes.
+XYou also need to link in getopt for the changes to work.
+X
+XAny executable program can be set up to run when the specified FIFO is
+Xopened, but don't forget that the program you specify to run is being
+Xrun under your userid.
+X
+X****  Original README ****
+X
+XDate: Thu, 11 Apr 91 14:09:10 MST
+XFrom: Jim Armstrong <armstron@cs.arizona.edu>
+XSubject: RE: fingeree ...
+X
+X> >About a month ago there was a sample program posted to this newsgroup that
+X> >set up a FIFO named pipe as your .plan file.  I modified the code to set up
+X> >a simple (perhaps naive) finger monitor for users on my machine.  The process
+X> do you still have the source for it? would you send it to me?
+X
+XHere is the article which appeared in comp.unix.questions a while back.  It
+Xcontains generic code that will run any program you want whenever a certain
+Xfile is accessed (i.e. the .plan file in this case).  All you have to do is
+Xcompile it (it creates an executable called 'plan') and then to get it
+Xrunning say 'plan a.out &' where a.out is some program you have written.
+XI don't have my program any more, but basically what I did was a ps au
+Xwithin that program.  It used egrep to search for someone currently fingering
+Xme and appended the output to a file.  To get really fancy you could then
+Xread from that file to find out exactly who it is (all in the same program)
+Xand print out a nice personal message to whoever is fingering you as part
+Xof what looks to be your .plan file.  A couple of things to watch out for:
+XIf the finger is remote, the ps au won't find anything.  Also, if two people
+Xfinger you at the same time you may run into trouble, but I didn't try
+Xexperimenting with this too much.  I also found it helpful to timestamp a
+Xdate to the file, too (I used localtime() for efficiency).  This makes it
+Xeasier to look back later at the file and see who's been fingering you and
+Xwhen while you were not logged on.  It also helpful in debugging your program.
+X
+XSo set up this code and experiment with different programs.  Just be creative
+Xand see what else you can do with it.  One idea I used for a while is making
+Xit print a different quote each time.  The possibilites are endless.  Enjoy.
+X
+XJim
+X
+X
+XArticle 31270 of comp.unix.questions:
+XFrom: rembo@unisoft.UUCP (Tony Rems)
+XNewsgroups: comp.unix.questions
+XSubject: Re: Finger
+XDate: 22 Feb 91 02:44:17 GMT
+XReply-To: rembo@unisoft.UUCP (Tony Rems)
+XOrganization: UniSoft Corporation -- UNIX R Us.
+X
+XIn article <37675@netnews.upenn.edu> minzhi@eniac.seas.upenn.edu (Min-Zhi Shao) writes:
+X>
+X>    When I fingered our system administrator, I got the following result:
+X>
+X>_________________________________________________________________________
+X>Login name: gardella  			In real life: Ed Gardella [CETS]
+X>Directory: /home/cets/gardella      	Shell: /usr/local/bin/bash
+X>On since Feb 15 19:49:04 on ttyp1 from TSTEST.SEAS.UPEN
+X>14 minutes Idle Time
+X>No unread mail
+X>Project: System Administrator eniac.seas.upenn.edu
+X>Plan:
+X>         Meander about until something interesting comes along.
+X>
+X>Office: 154 Moore Building           Work Phone: 898-2491
+X>                                     Home Phone: 387-4104
+X>
+X>I have been fingered 3 times today
+X>_________________________________________________________________________
+X>
+X>the .plan file in his home directory looks like:
+X>
+X>prw-r--r--  1 gardella        0 Feb 15 23:48 /home/cets/gardella/.plan
+X>^
+X
+XAs you have found out by now, I'm sure, the p means that this is 
+Xa named pipe aka a FIFO.  If you'd like to do this yourself, here
+Xis a little program I wrote to do it (see the comments at the
+Xthe beginning of the plan.c file for usage info):  
+X
+XHere's the shar of my plan program, just cut up until it says
+X"cut here", and then type 'sh filename' using whatever filename
+Xyou save it as.  If you use 'plan' it will get overwritten.
+X
+XThe code here should compile w/o any problems on any BSD machine,
+XI have tried it on a Sun, Vax 750, and Pyramid 90x.  It should
+Xalso work properly on any SVR4.0 machine.  
+X
+XThe code is pretty heavily commented so it should be self
+Xexplanatory.  
+X
+XNote that you should put a -DFILENAME="your_home_dir/.plan"
+Xto get it to put your path in, or you can just edit the 
+Xsource and change the value of FILENAME permanently.  
+X
+XIf you have any problems getting it compiled, just send me mail.
+X
+XEnjoy.  
+X
+X-Tony
+X
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 5668 -eq "$Wc_c" ||
+	echo 'README: original size 5668, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= logfinger ==============
+if test -f 'logfinger' -a X"$1" != X"-c"; then
+	echo 'x - skipping logfinger (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting logfinger (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'logfinger' &&
+X#!/usr/gnu/bin/perl -- # -*-Perl-*-
+X
+X$me = "geoff";
+X$logfile = "/usr/home/admin/iain/.fingerees";
+X# $pscommand = "ps -auw";
+X$pscommand = "ps -a";
+X
+Xopen(PS, "$pscommand |");
+X@fingers = grep(/(f\s+$me)|(finger\s+$me)/, <PS>);
+Xclose(PS);
+X
+X($num) = unpack("A9", `wc -l $logfile`); # =~ s/^\s*(\d+).*\n/\1/;
+Xprintf "I have been fingered %d time", $num;
+Xprint "s" if ($num - 1);
+Xprint " today\n";
+Xclose(STDOUT);
+X
+Xopen(LOG, ">>$logfile");
+Xforeach $line (@fingers) {
+X    ($user) = $line =~ /^\s*(\S+)/;
+X    print LOG "$user, at ", `date`;
+X}
+X
+Xprint(LOG "somebody, at ", `date`) if (! ($#fingers + 1));
+Xclose(LOG);
+SHAR_EOF
+chmod 0755 logfinger ||
+echo 'restore of logfinger failed'
+Wc_c="`wc -c < 'logfinger'`"
+test 605 -eq "$Wc_c" ||
+	echo 'logfinger: original size 605, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= plan.c ==============
+if test -f 'plan.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping plan.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting plan.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'plan.c' &&
+X/*
+X *  Project   : plan - FIFO 
+X *  Module    : plan.c
+X *  Author    : T.Rems / G.Loker / K.Bruner / I.Lea
+X *  Created   : 01-10-91
+X *  Updated   : 14-11-92
+X *  Notes     : Sep 1991  Geoff Loker (geoff@mdms.moore.com)
+X *              Modified the program so that the path to the .plan file is not
+X *              hardcoded in.  Now any number of users can use the program at 
+X *              the same time.  I also modified the program to use an optional
+X *              argument to specify which file to use.  The default file used 
+X *              is still the user's .plan, but this can now also be used to 
+X *              set up .signatures or any other file the user wants.
+X *
+X *              Jan 1992  Karen Bruner (napalm@ugcs.caltech.edu)
+X *              Added pid_deal function, so people can stick the program in 
+X *              their .login, and then have it killed by their .logout.  
+X *              Program will not run if a .planpid file, the file with the 
+X *              PID for plan, already exists in the user's home directory.
+X *
+X *              Nov 1992  Iain Lea (Iain.Lea%anl433.uucp@germany.EU.net)
+X *              Cleaned up cruft and added better usage message with
+X *              version & patchlevel.
+X *  Copyright : (c) Copyright 1991-92 by Tony Rems, Geoff Loker, Karen Bruner  
+X *              You may  freely  copy or  redistribute  this software,
+X *              so  long as there is no profit made from its use, sale
+X *              trade or  reproduction.  You may not change this copy-
+X *              right notice, and it must be included in any copy made
+X */
+X
+X#include <stdio.h>
+X#include <sys/types.h>
+X#include <sys/file.h>
+X#include <sys/stat.h>
+X#include <fcntl.h>
+X#include <signal.h>
+X#include <string.h>
+X
+X/* 
+X * Defines 
+X */
+X
+X#define VERSION		"1.0"
+X#define PATCHLEVEL	1 
+X#define PERMS		0666
+X
+X#define TRUE		1
+X#define FALSE		0
+X
+X#ifndef MAXPATHLEN
+X#	define MAXPATHLEN 256
+X#endif
+X
+X/* 
+X * Function prototypes 
+X */
+X
+Xextern char *getenv ();
+Xextern char *strcat ();
+Xextern char *strcpy ();
+X 
+Xvoid	sig_handler ();
+Xint	pid_deal ();	
+Xvoid	usage ();
+X
+X/*
+X * Global variables
+X */
+X 
+Xchar *homedir;
+Xchar planpid_file[MAXPATHLEN];
+X
+X
+Xmain (argc, argv)
+X	int argc;
+X	char *argv[];
+X{
+X        extern char *optarg;
+X	extern int optind;
+X	char *file;
+X	char plan[MAXPATHLEN];
+X	FILE *fp;
+X        int c = 0;
+X        int fflg = FALSE;
+X	int fd;
+X	int pid;
+X	int status;
+X	int write_planpid = TRUE;
+X	int pid_check = TRUE;
+X
+X	homedir = getenv ("HOME");
+X	sprintf (planpid_file, "%s/.planpid", homedir);
+X
+X	if (argc == 1) {
+X		usage (argv[0]);
+X		exit (1);
+X	}
+X		
+X	while ((c = getopt (argc, argv, "hf:n")) != EOF) {
+X		switch (c) {
+X			case 'f':
+X				file = optarg;
+X				fflg = TRUE;
+X				break;
+X			case 'n':
+X				write_planpid = FALSE;
+X				break;
+X			case 'h':
+X			default:
+X				usage (argv[0]);
+X				exit(1);
+X				break;
+X		}
+X	}
+X
+X	/* 
+X	 * Catch interrupts for cleanup 
+X	 */
+X	signal (SIGQUIT, sig_handler);
+X	signal (SIGTERM, sig_handler);
+X	signal (SIGINT, sig_handler);
+X	signal (SIGHUP, sig_handler);
+X
+X	/* 
+X	 * check for .planpid, if none, write .planpid 
+X	 */
+X	if (write_planpid) {
+X		pid_check = pid_deal ();
+X	}
+X
+X	/* 
+X	 * execute remaining part of program if .planpid does not 
+X	 * exist, i.e., no other plan process is running 
+X	 */
+X	if (pid_check) {	 
+X		if (fflg) {
+X			strcpy (plan, file);
+X		} else {
+X			sprintf (plan, "%s/.plan", homedir);
+X		}
+X		
+X		unlink (plan);
+X
+X		/* 
+X		 * Make the fifo 
+X		 */	 
+X		if ((mknod (plan, S_IFIFO | PERMS, 0)) < 0 ) {
+X			perror ("mknod");
+X			exit (2);
+X		}
+X
+X		while (1) {
+X			if ((fd = open (plan, O_WRONLY)) < 0 ) {
+X				perror ("open");
+X				exit (3);
+X			}
+X
+X			/* 
+X			 * Once our open completes we know that someone else has
+X			 * opened the FIFO for reading, so we can know run our 
+X			 * program on it.  So, we fork, exec our program and
+X			 * wait for the child to complete.
+X			 */
+X			switch (pid = fork ()) {
+X				case -1:
+X					perror ("fork");
+X					exit (4);
+X					break;
+X				case 0:
+X					/* 
+X					 * If we're in the child, we copy our fifo 
+X					 * to stdout and exec the program given 
+X					 */
+X					dup2 (fd, 1);
+X					execlp (argv[optind], argv[optind], (void *)NULL);
+X					perror ("child returned");
+X					exit (5);
+X					break;
+X				default:
+X					/* 
+X					 * If we're in the parent, we close the pipe 
+X					 * and wait 
+X					 */
+X					close (fd);
+X					while (wait (&status) != pid) {
+X						;
+X					}	
+X					break;
+X			}
+X			sleep (2);
+X			close (fd);
+X		}
+X	} else {
+X		if ((fp = fopen (planpid_file, "r")) != (FILE *) 0) {
+X			if (fgets (plan, sizeof (plan), fp) != NULL) {
+X				fprintf (stderr, "%s already started. pid=%s",
+X					 argv[0], plan);
+X			}
+X			fclose (fp);
+X		} else {
+X			fprintf (stderr, "%s already running\n", argv[0]);
+X		}
+X	}
+X}
+X
+X/* 
+X * cleanup 
+X */
+X
+Xvoid sig_handler ()  
+X{
+X	unlink (planpid_file);
+X	
+X	exit (0);
+X}
+X
+X/* 
+X * function for recording pid and making sure process isn't already running 
+X */
+X
+Xint pid_deal ()
+X{
+X	FILE *fp;
+X	int exists = FALSE;
+X	struct stat sb;
+X	
+X	/* 
+X	 * test for existence of .planpid
+X	 */
+X	if (stat (planpid_file, &sb) == -1) {
+X		if ((fp = fopen (planpid_file, "w")) != (FILE *) 0) {
+X			fprintf (fp, "%d\n", getpid ());
+X			fclose (fp);
+X			exists = TRUE;
+X		}
+X	}
+X
+X	return exists;
+X} 
+X
+X/*
+X * Print out copyright & usage message
+X */
+X
+Xvoid usage (progname)
+X	char *progname;
+X{
+X	fprintf (stderr, "%s %s PL%d (c) Copyright 1991-92 T.Rems, G.Loker, K.Bruner, I.Lea.\n\n",
+X		progname, VERSION, PATCHLEVEL);
+X	fprintf (stderr, "Usage: %s [options] program\n", progname);
+X	fprintf (stderr, "  -f file  file to use as FIFO [default=%s/.plan]\n", homedir);
+X	fprintf (stderr, "  -h       help\n");
+X	fprintf (stderr, "  -n       don't write .planpid file\n\n");
+X	fprintf (stderr, "This  program  takes the full  pathname of  an executable  and runs\n");
+X	fprintf (stderr, "it  on a fifo in the user's home  directory  named .plan.  This way,\n"); 
+X	fprintf (stderr, "when finger is executed, the output of the program goes to the fifo.\n");
+X	fflush (stderr);
+X}
+SHAR_EOF
+chmod 0644 plan.c ||
+echo 'restore of plan.c failed'
+Wc_c="`wc -c < 'plan.c'`"
+test 5898 -eq "$Wc_c" ||
+	echo 'plan.c: original size 5898, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= plan.nr ==============
+if test -f 'plan.nr' -a X"$1" != X"-c"; then
+	echo 'x - skipping plan.nr (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting plan.nr (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'plan.nr' &&
+X.TH PLAN L "\*(V)" "4BSD"
+X.SH NAME
+Xplan - run an executable when a specified FIFO is opened
+X.SH SYNOPSIS
+X.B plan
+X[options]
+X.B executable
+X.SH DESCRIPTION
+X.I plan
+Xtakes the name of an executable program and runs it on a FIFO that
+Xis specified on the command line or on a FIFO in the user's home directory
+Xnamed .plan.  Whenever the FIFO is accessed, the output of the executable
+Xprogram goes to the FIFO.  It also writes the PID of plan to a file, so
+Xthe process can be killed during logout, and it checks for the existence
+Xof this file to make sure plan isn't already running.
+X.SH OPTIONS
+X.TP
+X.B \-f file_name
+XThe \fB\-f flag causes \fIplan\fR to set up the specified \fBfile_name\fR
+Xas a FIFO rather than the default \fB$HOME/.plan\fR.
+X.TP
+X.B \-n
+XThe \fB\-n flag causes \fIplan\fR to not create the file \fB$HOME/.planpid\fR.
+X.TP
+X.B \-h
+XThe \fB\-h flag causes \fIplan\fR to display a short usage message.
+X.PP
+XSome sample uses of \fIplan\fR would be:
+X.TP
+X.B plan /usr/games/fortune &
+XThis will display a randomly selected fortune as the contents of
+Xyour .plan file whenever you are fingered.
+X.TP
+X.B plan -f ~/.signature ~/bin/gensig &
+XThis will run the program gensig whenever your .signature file is accessed,
+Xallowing you to change your .signature whenever you post.
+X.TP
+X.B plan ~/bin/logfinger &
+XThis will run the program logfinger whenever your .plan file is accessed,
+Xand you can log all instances of people fingering you.
+X.SH AUTHORS
+XTony Rems (rembo@unisoft.com)
+X.br
+XModifications by Geoff Loker (geoff@mdms.moore.com)
+X.br
+XMore modifications by Karen Bruner (napalm@ugcs.caltech.edu)
+X.br
+XAnd even more mods by Iain Lea (Iain.Lea%anl433.uucp@Germany.EU.net)
+X.SH BUGS
+XYour system must support named pipes in order for this to work.
+SHAR_EOF
+chmod 0644 plan.nr ||
+echo 'restore of plan.nr failed'
+Wc_c="`wc -c < 'plan.nr'`"
+test 1736 -eq "$Wc_c" ||
+	echo 'plan.nr: original size 1736, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+exit 0
+
+--
+NAMES  Iain Lea    Iain.Lea%anl433.uucp@Germany.EU.net
+SNAIL  Siemens AG, ANL A433SZ, Gruendlacher Str. 248, 8510 Fuerth, Germany.
+PHONE  +49-911-3089-407 (work) +49-911-331963 (home) +49-911-3089-290 (FAX)  

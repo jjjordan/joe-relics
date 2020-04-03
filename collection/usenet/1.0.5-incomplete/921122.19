@@ -1,0 +1,1792 @@
+Newsgroups: alt.sources
+Path: funic!news.funet.fi!sunic!mcsun!uunet!zaphod.mps.ohio-state.edu!darwin.sura.net!sgiblab!munnari.oz.au!manuel.anu.edu.au!csc.canberra.edu.au!pandonia!jan
+From: jan@pandonia.canberra.edu.au (Jan Newmarch)
+Subject: X11/Motif file manager - part 05 of 17
+Message-ID: <1992Nov19.052248.25676@csc.canberra.edu.au>
+Sender: news@csc.canberra.edu.au
+Organization: University of Canberra
+Date: Thu, 19 Nov 92 05:22:48 GMT
+Lines: 1782
+
+
+
+#!/bin/sh
+# this is part.05 (part 5 of a multipart archive)
+# do not concatenate these parts, unpack them in order with /bin/sh
+# file xmfm/file_act.c continued
+#
+if test ! -r _shar_seq_.tmp; then
+	echo 'Please unpack part 1 first!'
+	exit 1
+fi
+(read Scheck
+ if test "$Scheck" != 5; then
+	echo Please unpack part "$Scheck" next!
+	exit 1
+ else
+	exit 0
+ fi
+) < _shar_seq_.tmp || exit 1
+if test ! -f _shar_wnt_.tmp; then
+	echo 'x - still skipping xmfm/file_act.c'
+else
+echo 'x - continuing file xmfm/file_act.c'
+sed 's/^X//' << 'SHAR_EOF' >> 'xmfm/file_act.c' &&
+X ************************************************************************/ 
+extern file_action * LoadFileActions (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern int fatal (
+#ifdef UseFunctionPrototypes
+X	char *s
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+#define BUF_SIZE 2048
+X
+static char buf[BUF_SIZE];
+X
+static int line_number = 1;
+X
+#define IS_TYPE(s)	(strcmp ((s), "type") == 0)
+#define IS_PATTERN(s)	(strcmp ((s), "pattern") == 0)
+#define IS_PIXMAP(s)	(strcmp ((s), "pixmap") == 0)
+#define IS_DESCRIPTION(s)	(strcmp ((s), "description") == 0)
+#define IS_LABEL(s)	(strcmp ((s), "label") == 0)
+#define IS_RUN_IN_XTERM(s)	(strcmp ((s), "run_in_xterm") == 0)
+#define IS_PAUSE_AFTER_EXEC(s)	(strcmp ((s), "pause_after_exec") == 0)
+#define IS_ACTION(s)	(strcmp ((s), "action") == 0)
+#define IS_PROMPT(s)	(strcmp ((s), "prompt") == 0)
+#define IS_L_BRACE(s)	(strcmp ((s), "{") == 0)
+#define IS_R_BRACE(s)	(strcmp ((s), "}") == 0)
+#define IS_FILE_FILTER(s)	(strcmp ((s), "file_filter") == 0)
+#define IS_DIR_FILTER(s)	(strcmp ((s), "dir_filter") == 0)
+#define IS_EXECUTABLE_FILTER(s)	(strcmp ((s), "executable_filter") == 0)
+#define IS_ALL_FILTER(s)	(strcmp ((s), "all_filter") == 0)
+X
+#define IS_WHITE_SPACE(ch)	((ch) == ' ' || \
+X				 (ch) == '\t' || (ch) == '\n')
+X
+#define DEFAULT_FILE_FILTER        "[^.]*"
+#define DEFAULT_DIR_FILTER         "*"
+#define DEFAULT_EXECUTABLE_FILTER  "*"
+X
+static Bool token_put_back = False;
+X
+/*************************************************************************
+X * Function: syntax_error ()
+X * Purpose: complain about input errors
+X * In parameters: 
+X * Function returns: 
+X * Side effects: 
+X * Precondition: 
+X * Postcondition: false 
+X ************************************************************************/ 
+static void
+syntax_error 
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{
+X	fprintf (stderr, "syntax error in xmfmrc near line %d\n",
+X			 line_number);
+}
+X
+/*************************************************************************
+X * Function: GetC ()
+X * Purpose: interface to getc () that increments line count
+X * In parameters: fp
+X * Function returns: char read in
+X * Side effects: increments line_number on '\n'
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+static char
+GetC 
+#ifdef UseFunctionPrototypes
+X	(FILE *fp)
+#else
+X	(fp)
+X	FILE *fp;
+X
+#endif
+{	char ch;
+X
+X	ch = getc (fp);
+X	if (ch == '\n')
+X		line_number++;
+X	return ch;
+}
+X
+/*************************************************************************
+X * Function: unget_next_token ()
+X * Purpose: push token back onto input queue (actually, just leaves it
+X *	there, and sets a flag to reuse it. Only allows one token push back
+X * In parameters: fp
+X * Function returns:
+X * Side effects: sets token_put_back
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+static void
+unget_next_token 
+#ifdef UseFunctionPrototypes
+X	(void)
+#else
+X	()
+X
+#endif
+{
+X	token_put_back = True;
+}
+X
+/*************************************************************************
+X * Function: next_token ()
+X * Purpose: read the next token from fp. token is all non-white, or in ""
+X * In parameters: fp
+X * Function returns: pointer to token or NULL on EOF
+X * Side effects: 
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+static char *
+next_token 
+#ifdef UseFunctionPrototypes
+X	(FILE *fp)
+#else
+X	(fp)
+X	FILE *fp;
+X
+#endif
+{	char ch;
+X	char *p = buf;
+X
+X	if (token_put_back)
+X	{	token_put_back = False;
+X		return buf;
+X	}
+X
+X	while ((ch = GetC (fp)) != EOF &&
+X		 IS_WHITE_SPACE (ch))
+X		/* empty */;
+X	if (ch == EOF)
+X		return NULL;
+X	if (ch == '"')
+X	 	while ((ch = GetC (fp)) != EOF && ch != '"')
+X			*p++ = ch;
+X	else
+X	{	*p++ = ch;
+X		while ((ch = GetC (fp)) != EOF &&
+X			! IS_WHITE_SPACE (ch))
+X			*p++ = ch;
+X	}
+X	*p = '\0';
+#ifdef DEBUG
+X	fprintf (stderr, "token: %s\n", buf);
+#endif
+X	return buf;
+}
+X
+/*************************************************************************
+X * Function: ParseFileAction ()
+X * Purpose: parse a line into its actions
+X * In parameters: 
+X * Function returns: a list of actions for a file pattern
+X * Side effects: 
+X * Precondition: 
+X * Postcondition: 
+X ************************************************************************/ 
+static file_action *
+ParseFileAction 
+#ifdef UseFunctionPrototypes
+X	(FILE *fp)
+#else
+X	(fp)
+X	FILE *fp;
+X
+#endif
+{
+X	file_action *pfa;
+X	action_pair *pap;
+X	char regexp[FSM_LENGTH];
+X	char *token, *token2;
+X
+X	pfa = (file_action *) XtMalloc (sizeof (file_action));
+X	pfa -> actions = NULL;
+X
+X	/* upto 4 fields: type, pattern, pixmap, description */
+X	/* some defaults in case no entry */
+X	pfa -> file_type = '\0';
+X	pfa -> name_pattern = " ";  /* make non-null to force Label size */
+X	pfa -> pixmap = "xlogo32";  /* reasonable default */
+X	pfa -> description = "";
+X
+X	while ( ! IS_L_BRACE(token = next_token (fp)))
+X	{	
+X		if (IS_TYPE (token))
+X		{	token2 = next_token (fp);
+X			pfa -> file_type = *token2;
+X			continue;
+X		}
+X		if (IS_PATTERN (token))
+X		{	token2 = next_token (fp);
+X		 	pfa -> name_pattern =
+X				(char *) XtMalloc (strlen (token2) + 1);
+X			strcpy (pfa -> name_pattern, token2);
+X			continue;
+X		}
+X		if (IS_PIXMAP (token))
+X		{	token2 = next_token (fp);
+X			pfa -> pixmap = (char *) XtMalloc (strlen (token2) + 1);
+X			strcpy (pfa -> pixmap, token2);
+X			continue;
+X		}
+X		if (IS_DESCRIPTION (token))
+X		{	token2 = next_token (fp);
+X			pfa -> description = (char *) XtMalloc (strlen (token2) + 1);
+X			strcpy (pfa -> description, token2);
+X			continue;
+X		}
+X		syntax_error ();
+X	}
+X	/* this will have swallowed up the left brace for the first file
+X	   action. put it back for later use */
+X	unget_next_token ();
+X
+X	/* each action is { ... } delimited */
+X	while (IS_L_BRACE (next_token (fp)))   /* stops on closing R_BRACE */
+X	{	
+X		if (pfa -> actions == NULL)
+X			pfa -> actions = 
+X			pap = (action_pair *) XtMalloc (sizeof (action_pair));
+X		else
+X		{ 	pap -> next = (action_pair *) XtMalloc (sizeof (action_pair));
+X			pap = pap -> next;
+X		}
+X		/* set default values */
+X		pap -> run_in_xterm = False;
+X		pap -> pause_after_exec = False;
+X		pap -> has_prompt = False;
+X
+X		/* now the fields for the action */
+X		while ( (token = next_token (fp)) &&
+X				!IS_R_BRACE (token))
+X		{	if (IS_LABEL (token))
+X			{	token2 = next_token (fp);
+X				pap -> action_label = 
+X					(char *) XtMalloc (strlen (token2) + 1);
+X				strcpy (pap -> action_label, token2);
+X				continue;
+X			}
+X			if (IS_RUN_IN_XTERM (token))
+X			{ 	pap -> run_in_xterm = True;
+X				continue;
+X			}
+X			if (IS_PAUSE_AFTER_EXEC (token))
+X			{ 	pap -> pause_after_exec = True;
+X				continue;
+X			}
+X			if (IS_ACTION (token))
+X			{	token2 = next_token (fp);
+X			 	pap -> action =
+X					(char *) XtMalloc (strlen (token2) + 1);
+X				strcpy (pap -> action, token2);
+X				continue;
+X			}
+X			if (IS_PROMPT (token))
+X			{	token2 = next_token (fp);
+X			 	pap -> prompt =
+X					(char *) XtMalloc (strlen (token2) + 1);
+X				strcpy (pap -> prompt, token2);
+X				pap -> has_prompt = True;
+X				continue;
+X			}
+X			syntax_error ();
+X		}
+X	}
+X	pap -> next = NULL;
+X
+X	/* set the regexp filter pattern */
+X	RegExpPatternToRegExp (pfa -> name_pattern, regexp);
+X	RegExpCompile (regexp, (pfa -> fsm_ptr), FSM_LENGTH);
+X
+X	return pfa;
+}
+X
+X
+/*************************************************************************
+X * Function: DumpActions ()
+X * Purpose: debugging tool to show acctions set to screen
+X * In parameters: actions
+X * Out parameters:
+X * Precondition: valid list of actions
+X * Postcondition: actions displayed to stdout
+X ************************************************************************/ 
+void
+DumpActions 
+#ifdef UseFunctionPrototypes
+X	(file_action *actions)
+#else
+X	(actions)
+X	file_action *actions;
+X
+#endif
+{	action_pair *ap;
+X
+X	while (actions != NULL)
+X	{
+X		fprintf (stderr, "%c %s %s\n",
+X					actions -> file_type,
+X					actions -> name_pattern,
+X					actions -> pixmap);
+X		ap = actions -> actions;
+X		while (ap != NULL)
+X		{
+X			fprintf (stderr, "  %s %s\n",
+X					ap -> action_label,
+X					ap -> action);
+X			ap = ap -> next;
+X		}
+X		actions = actions -> next;
+X	}
+}
+X
+X
+/*************************************************************************
+X * Function: OpenXmfmrc ()
+X * Purpose: open the xmfmrc file from HOME or app-defaults
+X * In parameters:
+X * Function returns: file pointer to xmfmrc file
+X * Precondition: $HOME/.xmfmrc or app-defaults/xmfmrc exist
+X * Postcondition: file is parsed and files + actions lists built
+X ************************************************************************/ 
+FILE *
+OpenXmfmrc 
+#ifdef UseFunctionPrototypes
+X	(Display *display)
+#else
+X	(display)
+X	Display *display;
+X
+#endif
+{	FILE *fp;
+X	char *path;
+X
+X	char *home_dir;
+X	char xmfmrc[MAXPATHLEN];
+X
+X	if ((home_dir = getenv ("HOME")) != NULL)
+X	{	strcpy (xmfmrc, home_dir);
+X		strcat (xmfmrc, "/.xmfmrc");
+X		if ((fp = fopen (xmfmrc, "r")) != NULL)
+X			return fp;
+X	}
+X
+X	/* is XAPPLRESDIR set? (expect it to end in /) */
+X	if ((path = getenv ("XAPPLRESDIR")) != NULL)
+X	{	
+X		strcpy (xmfmrc, path);
+X		strcat (xmfmrc, "xmfmrc");
+X		if ((fp = fopen (xmfmrc, "r")) != NULL)
+X			return fp;
+X	}
+X	if ((fp = fopen (XtResolvePathname (display,
+X				"app-defaults", "xmfmrc",
+X				NULL, NULL, NULL, 0, NULL),
+X			 "r"))
+X			!= NULL)
+X		return fp;
+X
+X	/* cant find anything useful anywhere so give up*/
+X	fatal ("Can't find xmfmrc file");
+X        /* keep lint happy */
+X        return NULL;
+}
+X
+/*************************************************************************
+X * Function: LoadFileActions ()
+X * Purpose: to read in the set of actions from $HOME/.xmfmrc
+X * In parameters:
+X * Function returns: a list of file patterns with associated actions
+X * Precondition: $HOME/.xmfmrc exists and contains a valid set of action
+X *               strings
+X * Postcondition: file is parsed and files + actions lists built
+X ************************************************************************/ 
+file_action *
+LoadFileActions 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi)
+#else
+X	(dpi)
+X	dir_pane_info *dpi;
+X
+#endif
+{	FILE *fp;
+X	file_action	*actions = NULL,
+X			*end_actions = NULL;
+X	char *token;
+X	char regexp[FSM_LENGTH];
+X
+X	fp = OpenXmfmrc (XtDisplay (dpi -> toplevel));
+X
+X	/* load the preamble - upto a first opening brace. set defaults:*/
+X        dpi -> file_filter = DEFAULT_FILE_FILTER;
+X	dpi -> dir_filter = DEFAULT_DIR_FILTER;
+X	dpi -> executable_filter = DEFAULT_EXECUTABLE_FILTER;
+X
+X	while ( ! IS_L_BRACE(token = next_token (fp)))
+X	{	if (IS_FILE_FILTER (token))
+X		{	token = next_token (fp);
+X			dpi -> file_filter = XtMalloc (strlen (token) + 1);
+X			strcpy (dpi -> file_filter, token);
+X			continue;
+X		}
+X		if (IS_DIR_FILTER (token))
+X		{	token = next_token (fp);
+X			dpi -> dir_filter = XtMalloc (strlen (token) + 1);
+X			strcpy (dpi -> dir_filter, token);
+X			continue;
+X		}
+X		if (IS_EXECUTABLE_FILTER (token))
+X		{	token = next_token (fp);
+X			dpi -> executable_filter = XtMalloc (strlen (token) + 1);
+X			strcpy (dpi -> executable_filter, token);
+X			continue;
+X		}
+X		syntax_error ();
+X	}
+X
+X	/* this will have swallowed up the left brace for the first file
+X	   action. put it back for later use */
+X	unget_next_token ();
+X
+X	/* now compile to reg exps */
+X	RegExpPatternToRegExp (dpi -> file_filter, regexp);
+X	RegExpCompile (regexp, dpi -> file_filter_regexp, FSM_LENGTH);
+X
+X	RegExpPatternToRegExp (dpi -> dir_filter, regexp);
+X	RegExpCompile (regexp, dpi -> dir_filter_regexp, FSM_LENGTH);
+X
+X	RegExpPatternToRegExp (dpi -> executable_filter, regexp);
+X	RegExpCompile (regexp, dpi -> executable_filter_regexp, FSM_LENGTH);
+X
+X	/* and the set of file types and their actions */
+X	while (next_token(fp) != NULL)	/* actually, is L_BRACE */
+X	{
+X		if (end_actions == NULL)
+X		{	end_actions = ParseFileAction (fp);
+X			actions = end_actions;
+X		}  else
+X		{	end_actions->next = ParseFileAction (fp);
+X			end_actions = end_actions->next;
+X		}
+X	}
+X	end_actions->next = NULL;
+X
+#ifdef DEBUG
+X	DumpActions (actions);
+#endif
+X
+X	return actions;
+}
+SHAR_EOF
+echo 'File xmfm/file_act.c is complete' &&
+chmod 0644 xmfm/file_act.c ||
+echo 'restore of xmfm/file_act.c failed'
+Wc_c="`wc -c < 'xmfm/file_act.c'`"
+test 13971 -eq "$Wc_c" ||
+	echo 'xmfm/file_act.c: original size 13971, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/filecb.c ==============
+if test -f 'xmfm/filecb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/filecb.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/filecb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/filecb.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/filecb.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:29 $
+X * Version: $Revision: 1.6 $
+X * Purpose: This file handles the file operations as callbacks from the
+X *	File menu buttons
+X *
+X * Revision history:
+X *	5 Aug 92	fixed failure to clear Toolbar on copy, move, new
+X *      25 Aug 92       removed : from dialog names for resource manager
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X 
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdio.h> 
+#include <sys/param.h>
+X
+#include <Xm/CascadeB.h>     
+#include <Xm/FileSB.h>      
+#include <Xm/Label.h>
+#include <Xm/PushB.h>    
+#include <Xm/RowColumn.h>    
+#include <Xm/SelectioB.h>    
+#include <Xm/ScrolledW.h>
+#include <Xm/ScrollBar.h>
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "filecb.h"
+#include "const.h"
+#include "xmvararg.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void FileNewFileCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileNewDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileCopyCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileMoveCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileCloseCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FileExitCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+extern void ResetFilesInPanes (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void WarningDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, int *answer
+#endif
+);
+extern void DestroyDialogCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer c1, XtPointer c2
+#endif
+);
+extern DirectoryMgr *GetFilesInDir (
+#ifdef UseFunctionPrototypes
+X	void
+#endif
+);
+extern void invert_colours (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern void ClearToolbar (
+#ifdef UseFunctionPrototypes
+X	Widget *toolbar
+#endif
+);
+extern void FileButtonPressedCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+int pane_count = 1;	/* mumber of window panes open */
+X
+/*************************************************************************
+X * Function: FileExitCB ()
+X * Purpose: terminate the entire application
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: Exit button pressed in file menu
+X * Postcondition:
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void FileExitCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{ 
+X	int answer;
+X
+X	/*	Terminate the application. 
+X	*/ 
+X	WarningDialog(w, "This will exit xmfm", True, &answer);
+X	if (answer == OK_ANSWER)
+X		exit (0);
+} 
+X 
+X
+/*************************************************************************
+X * Function: FindFileInPane()
+X * Purpose: given file name, find the widget button with that name
+X * In parameters: file_name, files
+X * Out parameters: button
+X * Precondition:
+X * Postcondition: button points to widget with file_name
+X ************************************************************************/ 
+static void FindFileInPane 
+#ifdef UseFunctionPrototypes
+X	(char *file_name, aWidgetList *files, Widget *button)
+#else
+X	(file_name, files, button)
+X	char *file_name;
+X	aWidgetList *files;
+X	Widget *button;
+X
+#endif
+{	pane_button_info *pbi;
+X
+X	/* traverse current list. list ends on NULL
+X	   or when we hit an unmanaged widget
+X	*/
+X	while (files != NULL && XtIsManaged (files -> widget))
+X	{	XtVaGetValues (files -> widget, 
+X				XmNuserData, &pbi,
+X				NULL);
+X		if (strcmp (file_name, pbi -> name) == 0)
+X		{	/* found button */
+X			*button = files -> widget;
+X			return;
+X		}
+X		files = files -> next;
+X	}
+X	*button = NULL;
+}
+X
+/*************************************************************************
+X * Function: MoveScrolledWindowToFile ()
+X * Purpose: set the scrolled window so that this file shows selected in it
+X * In parameters: fle_name, dpi
+X * Out parameters:
+X * Precondition:
+X * Postcondition:
+X ************************************************************************/ 
+static void 
+MoveScrolledWindowToFile 
+#ifdef UseFunctionPrototypes
+X	(char *file_name, dir_pane_info *dpi)
+#else
+X	(file_name, dpi)
+X	char *file_name;
+X	dir_pane_info *dpi;
+X
+#endif
+{
+X	Widget file_button;
+X	Widget vert_sb;
+X	Widget w;
+X	Position x, y;
+X	Dimension width, height;
+X	int max, min, value;
+X	int slider, incr, page;
+X
+X	if (file_name == NULL)
+X		return;
+X
+X	/* deselect old file */
+X	if (dpi -> file_selected != NULL)
+X	{
+X		invert_colours (dpi -> file_button_selected);
+X		ClearToolbar (dpi -> files_toolbar);
+X	}
+X	/* find the file_name in one of the three panes */
+X	file_button = NULL;
+X	FindFileInPane (file_name, dpi -> dirs_buttons, &file_button);
+X	if (file_button == NULL)
+X		FindFileInPane (file_name, dpi -> files_buttons, &file_button);
+X	if (file_button == NULL)
+X		FindFileInPane (file_name, dpi -> executables_buttons, &file_button);
+X	if (file_button == NULL)
+X		/* couldn't find it anywhere */
+X		return;
+X	
+X	/* select button, and set actions (a bit kludgy) */
+X	FileButtonPressedCB (file_button, NULL, NULL);
+X
+X	/* where is it in row col? */
+X	XtVaGetValues (file_button,
+X		XmNx, &x, XmNy, &y, NULL);
+X	XtVaGetValues (XtParent (file_button),
+X		XmNwidth, &width,
+X		XmNheight, &height,
+X		NULL);
+X
+X	/* find the vertical slider */
+X	w = XtParent (file_button);
+X	while ( !XtIsSubclass (w, xmScrolledWindowWidgetClass))
+X		w = XtParent (w);
+X	XtVaGetValues (w,
+X			XmNverticalScrollBar, &vert_sb,
+X			NULL);
+X	/* set the vertical slider to proportion of rowcol*/
+X	if (vert_sb == NULL)
+X		return;
+X	XtVaGetValues (vert_sb,
+X		XmNminimum, &min,
+X		XmNmaximum, &max,
+X		NULL);
+X	XmScrollBarGetValues (vert_sb, &value, &slider,
+X		&incr, &page);
+X	value = min + ((max - min) * y) / height;
+X
+X	/* make sure we leave space for slider */
+X	if (value > max - slider)
+X		value = max - slider;
+X
+X	XmScrollBarSetValues (vert_sb, value, slider,
+X		incr, page, True);
+}
+X
+/*************************************************************************
+X * Function: ResetPanesAndSelectFile ()
+X * Purpose: update pane (if needed) to show file changes, and
+X * 	select new file (if possible)
+X * In parameters: file_name, dpi
+X * Out parameters:
+X * Precondition:
+X * Postcondition:
+X ************************************************************************/ 
+void
+ResetPanesAndSelectFile 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi, char *file_name)
+#else
+X	(dpi, file_name)
+X	dir_pane_info *dpi;
+X	char *file_name;
+X
+#endif
+{	DirectoryMgr *dm;
+X
+X	/* now reset panes and select this file ... */
+X	/* should only do this if (a) new worked, and (b) in current dir */
+X
+X	if (dpi -> file_selected != NULL)
+X	{	invert_colours (dpi -> file_button_selected);
+X		dpi -> file_selected = NULL;
+X		ClearToolbar (dpi -> files_toolbar);
+X	}
+X
+X        DirectoryMgrClose (dpi -> directory_manager);
+X        dm = GetFilesInDir ();
+X        dpi -> directory_manager = dm;
+X	ResetFilesInPanes (dpi);
+X	MoveScrolledWindowToFile (file_name, dpi);
+}
+X
+/*************************************************************************
+X * Function: NewFileOkCB ()
+X * Purpose: create a new file in curent directory
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: Ok Button pressed in New File dialog
+X * Postcondition: new file created, or user informed of error
+X ************************************************************************/
+X
+/* ARGSUSED */ 
+static void 
+NewFileOkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	XmString xmstr;
+X	char *file_name;
+X	char command[MAXPATHLEN];
+X	dir_pane_info *dpi;
+X
+X	XtVaGetValues (w, 
+X			XmNtextString, (XtArgVal) &xmstr,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	XtChdir (DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)));
+X
+X	XmStringGetLtoR (xmstr, XmSTRING_DEFAULT_CHARSET, &file_name);
+X	strcpy (command, "sh -c echo >");
+X	strcat (command, file_name);
+X	system (command);
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+X
+X	ResetPanesAndSelectFile (dpi, file_name);
+}
+X
+X
+/*************************************************************************
+X * Function: NewDirOkCB ()
+X * Purpose: create a new dir in current directory
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: OK button pressed in New Dir dialog
+X * Postcondition: new dir created, or user informed of error
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void 
+NewDirOkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	XmString xmstr;
+X	char *dir_name;
+X	char command[MAXPATHLEN];
+X	dir_pane_info *dpi;
+X
+X	XtVaGetValues (w, 
+X			XmNtextString, &xmstr,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	XtChdir (DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)));
+X
+X	XmStringGetLtoR (xmstr, XmSTRING_DEFAULT_CHARSET, &dir_name);
+X	strcpy (command, "mkdir ");
+X	strcat (command, dir_name);
+X	system (command);
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+X
+X	/* now reset panes and select this directory ... */
+X	ResetPanesAndSelectFile (dpi, dir_name);
+}
+X
+X
+/*************************************************************************
+X * Function: MoveFileOkCB ()
+X * Purpose: 
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: OK button pressed in Move File dialog
+X * Postcondition: file moved to new file, which is got from a prompt
+X ************************************************************************/
+X
+/* ARGSUSED */ 
+static void 
+MoveFileOkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	XmString xmstr;
+X	char *new_file;
+X	char command[MAXPATHLEN];
+X	dir_pane_info *dpi;
+X
+X	XtVaGetValues (w, 
+X			XmNtextString, &xmstr,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	XtChdir (DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)));
+X
+X	XmStringGetLtoR (xmstr, XmSTRING_DEFAULT_CHARSET, &new_file);
+X	strcpy (command, "mv ");
+X	strcat (command, dpi -> file_selected);
+X	strcat (command, " ");
+X	strcat (command, new_file);
+X	strcat (command, " < /dev/null");
+X	system (command);
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+X
+X	/* now reset panes and select this file ... */
+X	ResetPanesAndSelectFile (dpi, new_file);
+}
+X
+/*************************************************************************
+X * Function: CopyFileOkCB
+X * Purpose: 
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: OK button pressed in Copy File dialog
+X * Postcondition: file copied to new file, which is got from a prompt
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+static void 
+CopyFileOkCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	XmString xmstr;
+X	char *new_file;
+X	char command[MAXPATHLEN];
+X	dir_pane_info *dpi;
+X
+X	XtVaGetValues (w, 
+X			XmNtextString, (XtArgVal) &xmstr,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	XtChdir (DirectoryPath (DirectoryMgrDir (dpi -> directory_manager)));
+X
+X	XmStringGetLtoR (xmstr, XmSTRING_DEFAULT_CHARSET, &new_file);
+X
+X	/* -r option allows us to copy directories as well as files: */
+X	strcpy (command, "cp -r ");
+X	
+X	strcat (command, dpi -> file_selected);
+X	strcat (command, " ");
+X	strcat (command, new_file);
+X	strcat (command, " < /dev/null");
+X	system (command);
+X
+X	/* now reset panes and select this file ... */
+X	ResetPanesAndSelectFile (dpi, new_file);
+X
+X	XtUnmanageChild (w);
+X	XtDestroyWidget (XtParent (w));
+}
+X
+/*************************************************************************
+X * Function: FileNewFileCB ()
+X * Purpose: create a dialog to ask for new file name
+X *	with callbacks to handle OK (create file), Cancel
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: New file button pressed in File menu
+X * Postcondition: New File.. dialog showing
+X ************************************************************************/
+X
+/* ARGSUSED */ 
+void
+FileNewFileCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	Widget new_file;
+X	XtArgVal user_data;
+X	Widget help_button;
+X
+X	XtVaGetValues (w, XmNuserData, &user_data, NULL);
+X	new_file = XmVaCreatePromptDialog (w, "new file name",
+X				XmNuserData, user_data, NULL);
+X	XtAddCallback (new_file, XmNokCallback, NewFileOkCB, NULL);
+X	XtAddCallback (new_file, XmNcancelCallback, DestroyDialogCB, NULL);
+X
+X	help_button = XmSelectionBoxGetChild (new_file,
+X				XmDIALOG_HELP_BUTTON);
+X	XtUnmanageChild (help_button);
+X
+X	XtManageChild(new_file);
+}
+X
+X
+X
+/*************************************************************************
+X * Function: FileNewDirCB ()
+X * Purpose: create a dialog to ask for a new directory name
+X *	with callbacks to handle OK (create dir), Cancel
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: New Dir button pressed in File menu
+X * Postcondition: dialog showing
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileNewDirCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	Widget new_dir;
+X	Widget help_button;
+X	XtArgVal user_data;
+X
+X	XtVaGetValues (w, XmNuserData, &user_data, NULL);
+X	new_dir = XmVaCreatePromptDialog (w, "new dir name",
+X			XmNuserData, user_data,
+X			NULL);
+X	XtAddCallback (new_dir, XmNokCallback, NewDirOkCB, NULL);
+X	XtAddCallback (new_dir, XmNcancelCallback, DestroyDialogCB, NULL);
+X
+X	help_button = XmSelectionBoxGetChild (new_dir,
+X				XmDIALOG_HELP_BUTTON);
+X        XtUnmanageChild (help_button);
+X
+X	XtManageChild(new_dir);
+}
+X
+X
+X
+X
+/*************************************************************************
+X * Function: FileMoveCB ()
+X * Purpose: move a file to new prompted name
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: Move button pressed in file menu
+X * Postcondition: dialog showing asking for new file name
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileMoveCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	Widget new_file;
+X	dir_pane_info *dpi;
+X	int dummy;
+X
+X	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X	if (dpi -> file_selected == NULL)
+X	{
+X		WarningDialog (w, "Must select a file to move",
+X				True, &dummy);
+X		return;
+X	}
+X
+X	new_file = XmVaCreatePromptDialog (w, "Move to what file?",
+X				XmNuserData, dpi, NULL);
+X	XtAddCallback (new_file, XmNokCallback, MoveFileOkCB, NULL);
+X	XtAddCallback (new_file, XmNcancelCallback, DestroyDialogCB, NULL);
+X	XtManageChild(new_file);
+}
+X
+X
+/*************************************************************************
+X * Function: FileCopyCB ()
+X * Purpose: copy a file to new name
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition: Copy button pressed in File menu
+X * Postcondition: dialog showing asking for new file name
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileCopyCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	Widget new_file;
+X	dir_pane_info *dpi;
+X	int dummy;
+X
+X	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X	if (dpi -> file_selected == NULL)
+X	{
+X		WarningDialog (w, "Must select a file to copy",
+X				True, &dummy);
+X		return;
+X	}
+X
+X	new_file = XmVaCreatePromptDialog (w, "Copy to what file?",
+X				XmNuserData, dpi, NULL);
+X	XtAddCallback (new_file, XmNokCallback, CopyFileOkCB, NULL);
+X	XtAddCallback (new_file, XmNcancelCallback, DestroyDialogCB, NULL);
+X	XtManageChild(new_file);
+}
+X
+X
+/*************************************************************************
+X * Function: FileCloseCB ()
+X * Purpose: close a pane on a directory
+X *	if last pane, application exits after user confirmation
+X * In parameters: w, client_data, call_data
+X * Out parameters: 
+X * Precondition: Close button pressed in File menu
+X * Postcondition: current pane destroyed
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FileCloseCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X	Widget		w;		/*  widget id		*/ 
+X	XtPointer		client_data;	/*  data from applicaiton   */ 
+X	XtPointer		call_data;
+X
+#endif
+{	int answer;
+X
+X	if (pane_count == 1)
+X	{
+X		WarningDialog(w, "This will exit xmfm", True, &answer);
+X		if (answer == OK_ANSWER)
+X			exit (0);
+X		return;
+X	}
+X	
+X	/* hop up to dropdown shell */
+X	while ( !XtIsShell (w))
+X		w = XtParent (w);
+X	/* and to the main window */
+X	w = XtParent (w);
+X	/* hop up to toplevel shell */
+X	while ( !XtIsShell (w))
+X		w = XtParent (w);
+X	XtDestroyWidget (w);
+X
+X	/* memory leaks in here - should reclaim
+X	   dpi stuff, DirMgr, etc
+X	*/
+X	
+X	pane_count--;
+}
+X
+X
+SHAR_EOF
+chmod 0644 xmfm/filecb.c ||
+echo 'restore of xmfm/filecb.c failed'
+Wc_c="`wc -c < 'xmfm/filecb.c'`"
+test 19813 -eq "$Wc_c" ||
+	echo 'xmfm/filecb.c: original size 19813, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/filtercb.c ==============
+if test -f 'xmfm/filtercb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/filtercb.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/filtercb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/filtercb.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/filtercb.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:31 $
+X * Version: $Revision: 1.2 $
+X * Purpose: This file handles the directory goto requests from the Goto
+X *	menu, through callbacks attached to each button
+X *
+X * Revision history:
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdlib.h>
+#include <stdio.h> 
+X
+#include <Xm/CascadeB.h>     
+#include <Xm/FileSB.h>      
+#include <Xm/Label.h>
+#include <Xm/PushB.h>    
+#include <Xm/RowColumn.h>    
+#include <Xm/SelectioB.h>    
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "filecb.h"
+#include "types.h"
+#include "RegExp.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void FilterFileCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FilterDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void FilterExecutableCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void SetFiltersInLabels (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void GotoCurrentDir (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern void ResetFilesInPanes (
+#ifdef UseFunctionPrototypes
+X	dir_pane_info *dpi
+#endif
+);
+extern void PromptDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, char **answer
+#endif
+);
+extern void invert_colours (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern void ClearToolbar (
+#ifdef UseFunctionPrototypes
+X	Widget *toolbar
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+/*************************************************************************
+X * Function: SetFiltersInLabels ()
+X * Purpose: set the filters in the three labels
+X * In parameters:
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+void
+SetFiltersInLabels 
+#ifdef UseFunctionPrototypes
+X	(dir_pane_info *dpi)
+#else
+X	(dpi)
+X        dir_pane_info *dpi;
+X
+#endif
+{       char filter[2048];
+X        XmString xmfilter;
+X
+X        strcpy (filter, "Files - filter is ");
+X        strcat (filter, dpi -> file_filter);
+X        xmfilter = XmStringCreateSimple (filter);
+X        XtVaSetValues (dpi -> file_filter_label,
+X                        XmNlabelString, xmfilter,
+X                        NULL);
+X        XmStringFree (xmfilter);
+X
+X        strcpy (filter, "Executables - filter is ");
+X        strcat (filter, dpi -> executable_filter);
+X        xmfilter = XmStringCreateSimple (filter);
+X        XtVaSetValues (dpi -> executable_filter_label,
+X                        XmNlabelString, xmfilter,
+X                        NULL);
+X        XmStringFree (xmfilter);
+X
+X        strcpy (filter, "Directories - filter is ");
+X        strcat (filter, dpi -> dir_filter);
+X        xmfilter = XmStringCreateSimple (filter);
+X        XtVaSetValues (dpi -> dir_filter_label,
+X                        XmNlabelString, xmfilter,
+X                        NULL);
+X        XmStringFree (xmfilter);
+}
+/*************************************************************************
+X * Function: FilterFileCB ()
+X * Purpose: set the filter for ordinary files
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition;
+X * Postcondition:
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FilterFileCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{	dir_pane_info *dpi;
+X        char regexp[FSM_LENGTH]; 
+X
+X	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X
+/*
+X	XtFree (dpi -> file_filter);
+X	XtFree (dpi -> file_filter_regexp);
+*/
+X
+X	PromptDialog (w, "File filter", True, &(dpi -> file_filter));
+X
+X	RegExpPatternToRegExp (dpi -> file_filter, regexp);
+X	RegExpCompile (regexp, dpi -> file_filter_regexp, FSM_LENGTH);
+X
+X	/* empty out current selection, in case it is no longer visible */
+X	if (dpi -> file_selected != NULL)
+X	{	invert_colours (dpi -> file_button_selected);
+X		dpi -> file_selected = NULL;
+X		ClearToolbar (dpi -> files_toolbar);
+X	}
+X        SetFiltersInLabels (dpi);
+X        ResetFilesInPanes (dpi);
+}
+X 
+/*************************************************************************
+X * Function: FilterDirCB ()
+X * Purpose: set the filter on ditectory names
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition;
+X * Postcondition: 
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FilterDirCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;
+X
+#endif
+{	dir_pane_info *dpi;
+X        char regexp[FSM_LENGTH]; 
+X
+X
+X	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X
+/*
+X	XtFree (dpi -> dir_filter);
+X	XtFree (dpi -> dir_filter_regexp);
+*/
+X
+X	PromptDialog (w, "Directory filter", True, &(dpi -> dir_filter));
+X
+X	RegExpPatternToRegExp (dpi -> dir_filter, regexp);
+X	RegExpCompile (regexp, dpi -> dir_filter_regexp, FSM_LENGTH);
+X
+X	/* empty out current selection, in case it is no longer visible */
+X	if (dpi -> file_selected != NULL)
+X	{	invert_colours (dpi -> file_button_selected);
+X		dpi -> file_selected = NULL;
+X		ClearToolbar (dpi -> files_toolbar);
+X	}        SetFiltersInLabels (dpi);
+X
+X        SetFiltersInLabels (dpi);
+X
+X        ResetFilesInPanes (dpi);
+}
+X
+/*************************************************************************
+X * Function: FilterExecutbaleCb ()
+X * Purpose: set file filter on executbale files
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; 
+X * Postcondition: 
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+FilterExecutableCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{	dir_pane_info *dpi;
+X        char regexp[FSM_LENGTH]; 
+X
+X	XtVaGetValues (w, XmNuserData, &dpi, NULL);
+X
+X	/* memory leak? clean up old data? 
+X	XtFree (dpi -> executable_filter);
+X	XtFree (dpi -> executable_filter_regexp);
+X        */
+X
+X	PromptDialog (w, "Executable filter", True,
+X			&(dpi -> executable_filter));
+X
+X	RegExpPatternToRegExp (dpi -> executable_filter, regexp);
+X	RegExpCompile (regexp, dpi -> executable_filter_regexp, FSM_LENGTH);
+X
+X	/* empty out current selection, in case it is no longer visible */
+X	if (dpi -> file_selected != NULL)
+X	{	invert_colours (dpi -> file_button_selected);
+X		dpi -> file_selected = NULL;
+X		ClearToolbar (dpi -> files_toolbar);
+X	}
+X
+X        SetFiltersInLabels (dpi);
+X
+X        ResetFilesInPanes (dpi);
+}
+SHAR_EOF
+chmod 0644 xmfm/filtercb.c ||
+echo 'restore of xmfm/filtercb.c failed'
+Wc_c="`wc -c < 'xmfm/filtercb.c'`"
+test 8489 -eq "$Wc_c" ||
+	echo 'xmfm/filtercb.c: original size 8489, current size' "$Wc_c"
+rm -f _shar_wnt_.tmp
+fi
+# ============= xmfm/gotocb.c ==============
+if test -f 'xmfm/gotocb.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping xmfm/gotocb.c (File already exists)'
+	rm -f _shar_wnt_.tmp
+else
+> _shar_wnt_.tmp
+echo 'x - extracting xmfm/gotocb.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'xmfm/gotocb.c' &&
+/*************************************************************************
+X * File: $Source: /usr/usrs/xsource/xmfm/RCS/gotocb.c,v $
+X * Author: Jan Newmarch
+X * Last modified: $Date: 1992/11/10 05:12:32 $
+X * Version: $Revision: 1.5 $
+X * Purpose: This file handles the directory goto requests from the Goto
+X *	menu, through callbacks attached to each button
+X *
+X * Revision history:
+X *	16 Oct 92	caddr_t changed to XtPointer
+X *       3 Nov 92       lint-ed
+X ************************************************************************/ 
+X
+#include "copyright.h"
+X
+/*************************************************************************
+X * System includes
+X ************************************************************************/ 
+#include <stdlib.h>
+#include <stdio.h> 
+X
+#include <Xm/CascadeB.h>     
+#include <Xm/FileSB.h>      
+#include <Xm/Label.h>
+#include <Xm/PushB.h>    
+#include <Xm/RowColumn.h>    
+#include <Xm/SelectioB.h>    
+X
+/*************************************************************************
+X * Local includes
+X ************************************************************************/ 
+#include "filecb.h"
+#include "types.h"
+X
+/*************************************************************************
+X * Functions exported
+X ************************************************************************/ 
+extern void GotoHomeCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoOpenHomeCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+extern void GotoOpenDirCB (
+#ifdef UseFunctionPrototypes
+X	Widget w, XtPointer client_data, XtPointer call_data
+#endif
+);
+X
+/*************************************************************************
+X * Variables exported
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Extern functions
+X ************************************************************************/ 
+extern void GotoCurrentDir (
+#ifdef UseFunctionPrototypes
+X	Widget w
+#endif
+);
+extern void builtin_chdir (
+#ifdef UseFunctionPrototypes
+X	char *dir, dir_pane_info *dpi
+#endif
+);
+extern void PromptDialog (
+#ifdef UseFunctionPrototypes
+X	Widget parent, char *prompt, int modal, char **answer
+#endif
+);
+X
+/*************************************************************************
+X * Forward functions
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Local variables
+X ************************************************************************/ 
+X
+/*************************************************************************
+X * Function: GotoHomeCb ()
+X * Purpose: change current pane to home directory
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Goto Home button pressed
+X * Postcondition: Home dir showing in panes
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+GotoHomeCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+X   Widget		w;		/*  widget id		*/ 
+X   XtPointer		client_data;	/*  data from applicaiton   */ 
+X   XtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{ 
+X	char *home_dir;
+X	dir_pane_info *dpi;
+X
+X	home_dir = getenv ("HOME");
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	builtin_chdir (home_dir, dpi);
+X	XtFree (home_dir);
+}
+X 
+/*************************************************************************
+X * Function: GotoDirCB ()
+X * Purpose: handle a Goto Dir... request to reset pane to new dir
+X *	prompts for new dir name
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Got Dir button pressed from Goto menu
+X * Postcondition: new prompted dir showing in panes
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void GotoDirCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;
+X
+#endif
+{
+X	char *goto_dir;
+X	dir_pane_info *dpi;
+X
+X	GotoCurrentDir (w);
+X
+X	PromptDialog (w, "Goto what directory?", True, &goto_dir);
+X	if (goto_dir == NULL)
+X		return;
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	builtin_chdir (goto_dir, dpi);
+X	XtFree (goto_dir);
+}
+X
+/*************************************************************************
+X * Function: GotoOpenHomeCb ()
+X * Purpose: create a new pane on the Home directory
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Opne Home button pressed in Goto menu
+X * Postcondition: new pane showing Home dir
+X ************************************************************************/ 
+X
+/* ARGSUSED */
+void
+GotoOpenHomeCB 
+#ifdef UseFunctionPrototypes
+X	(Widget w, XtPointer client_data, XtPointer call_data)
+#else
+X	(w, client_data, call_data)  
+Widget		w;		/*  widget id		*/ 
+XXtPointer		client_data;	/*  data from applicaiton   */ 
+XXtPointer		call_data;	/*  data from widget class  */ 
+X
+#endif
+{ 
+X	char *home_dir;
+X	dir_pane_info *dpi;
+X
+X	home_dir = getenv ("HOME");
+X	XtVaGetValues (w,
+X			XmNuserData, (XtArgVal) &dpi,
+X			NULL);
+X	builtin_opendir (home_dir, dpi);
+X	XtFree (home_dir);
+}
+X 
+/*************************************************************************
+X * Function: GotoOpenDirCB()
+X * Purpose: create a new pane on a prompted directory
+X * In parameters: w, client_data, call_data
+X * Out parameters:
+X * Precondition; Open Dir button pressed in Goto menu
+X * Postcondition: new pane showing asked for directory
+X ************************************************************************/ 
+SHAR_EOF
+true || echo 'restore of xmfm/gotocb.c failed'
+fi
+echo 'End of  part 5'
+echo 'File xmfm/gotocb.c is continued in part 6'
+echo 6 > _shar_seq_.tmp
+exit 0
+--
++----------------------+---+
+  Jan Newmarch, Information Science and Engineering,
+  University of Canberra, PO Box 1, Belconnen, Act 2616
+  Australia. Tel: (Aust) 6-2012422. Fax: (Aust) 6-2015041

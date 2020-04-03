@@ -1,0 +1,1057 @@
+Path: funic!fuug!mcsun!Germany.EU.net!rrz.uni-koeln.de!unidui!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!jvnc.net!darwin.sura.net!zaphod.mps.ohio-state.edu!caen!umeecs!umn.edu!csus.edu!netcom.com!netcomsv!spud.Hyperion.COM!spud.Hyperion.COM!not-for-mail
+From: koreth@spud.Hyperion.COM (Steven Grimm)
+Newsgroups: alt.sources
+Subject: WorkMan (X CD player program for Suns) beta 3.0 part05/06
+Date: 15 Nov 1992 14:37:15 -0800
+Organization: Hyperion, Mountain View, CA, USA
+Lines: 1047
+Message-ID: <1e6jerINNitf@spud.Hyperion.COM>
+NNTP-Posting-Host: spud.hyperion.com
+
+Archive-name: workman-b3.0/part05
+Submitted-by: koreth@hyperion.com
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 5 (of 6)."
+# Contents:  setup.c
+# Wrapped by koreth@gerbilmeister on Sun Nov 15 14:20:20 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'setup.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'setup.c'\"
+else
+echo shar: Extracting \"'setup.c'\" \(29337 characters\)
+sed "s/^X//" >'setup.c' <<'END_OF_FILE'
+X#include <xview/xview.h>
+X#include <xview/panel.h>
+X#include <xview/svrimage.h>
+X#include "workman_ui.h"
+X
+Xstatic char *ident = "@(#)setup.c	1.5 11/15/92";
+X
+X/*
+X * Define a few macros to make relative positioning easier.
+X */
+X#define top(item) ((int) xv_get(item, XV_Y))
+X#define hei(item) ((int) xv_get(item, XV_HEIGHT))
+X#define bot(item) (top(item) + hei(item))
+X#define lef(item) ((int) xv_get(item, XV_X))
+X#define wid(item) ((int) xv_get(item, XV_WIDTH))
+X#define rig(item) (lef(item) + wid(item))
+X
+X#define put_down(t, s, off) xv_set(t, XV_Y, bot(s) + off, NULL)
+X#define put_right(t, s, off) xv_set(t, XV_X, rig(s) + off, NULL)
+X#define center_x(t, s) xv_set(t, XV_X, (lef(s) + rig(s) - wid(t)) / 2, NULL)
+X#define center_y(t, s) xv_set(t, XV_Y, (top(s) + bot(s) - hei(t)) / 2, NULL)
+X
+Xextern void change_track(),
+X	window1_button2_notify_callback(),
+X	window1_button3_notify_callback(),
+X	window1_button4_notify_callback(),
+X	popup1_buttonpl_notify_callback(),
+X	popup1_button1_notify_callback(),
+X	goodies_playnewcds_notify_callback(),
+X	goodies_abrepeat_notify_callback(),
+X	plpopup_button7_notify_callback(),
+X	change_mode(), delete_from_playlist(), playlist_notify(),
+X	delete_playlist(), rename_playlist(), switch_playlists(),
+X	slide_balance(), section_start(), section_end(), change_pos(),
+X	next_stopmode(), set_volume(), next_playmode_default(),
+X	update_title(), update_trackname(), name_entered(),
+X	set_which_volume(), set_default_volume(), save_config(),
+X	cdinfo_reset(), split_track(), delete_track(), index_scan();
+X
+Xint	basic_spacing = 0;
+X
+X/*
+X * Create the main window and its contents.
+X */
+Xwindow1_objects *
+Xwindow1_objects_init(ip, owner)
+X	window1_objects	*ip;
+X	Xv_opaque		owner;
+X{
+X	Xv_opaque	image, image_mask, speaker_image, mode_image0,
+X			mode_image1, mode_image2, mode_image3, mode_image4,
+X			mode_image5;
+X	Panel_item	item;
+X	int		space;
+X	static unsigned short bits[] = {
+X#include "bitmaps/icon"
+X	}, mask_bits[] = {
+X#include "bitmaps/iconmask"
+X	}, speaker_bits[] = {
+X#include "bitmaps/loud.icon"
+X	}, mode_bits0[] = {
+X#include "bitmaps/rew.button"
+X	}, mode_bits1[] = {
+X#include "bitmaps/play.button"
+X	}, mode_bits2[] = {
+X#include "bitmaps/ff.button"
+X	}, mode_bits3[] = {
+X#include "bitmaps/pause.button"
+X	}, mode_bits4[] = {
+X#include "bitmaps/stop.button"
+X	}, mode_bits5[] = {
+X#include "bitmaps/eject.button"
+X	};
+X
+X	if ((ip = (window1_objects *) calloc(1,
+X				sizeof(window1_objects))) == NULL)
+X		return (NULL);
+X
+X	image = xv_create(NULL, SERVER_IMAGE, SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, bits, XV_WIDTH, 64, XV_HEIGHT, 64,
+X		NULL);
+X	image_mask = xv_create(NULL, SERVER_IMAGE, SERVER_IMAGE_DEPTH,
+X		1, SERVER_IMAGE_BITS, mask_bits, XV_WIDTH, 64,
+X		XV_HEIGHT, 64, NULL);
+X	ip->window1 = xv_create(owner, FRAME, XV_KEY_DATA, INSTANCE,
+X		ip, XV_LABEL, "WorkMan", FRAME_SHOW_FOOTER, FALSE,
+X		FRAME_SHOW_RESIZE_CORNER, FALSE, FRAME_ICON,
+X		xv_create(NULL, ICON, ICON_IMAGE, image,
+X		ICON_MASK_IMAGE, image_mask, XV_LABEL, "Wait...",
+X		NULL), NULL);
+X
+X	ip->controls1 = xv_create(ip->window1, PANEL, XV_KEY_DATA,
+X		INSTANCE, ip, XV_HELP_DATA, "workman:controls1",
+X		XV_WIDTH, 1000, XV_HEIGHT, 1000, WIN_BORDER,
+X		FALSE, NULL);
+X
+X	ip->artist_display = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:artist_display",
+X		XV_X, 10, XV_Y, 10, PANEL_LABEL_STRING, " ",
+X		PANEL_LABEL_BOLD, TRUE, NULL);
+X
+X	if (! basic_spacing)
+X		basic_spacing = hei(ip->artist_display) / 2;
+X
+X	ip->cdname_display = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:cdname_display",
+X		PANEL_LABEL_STRING, " ", PANEL_LABEL_BOLD, TRUE, XV_X,
+X		lef(ip->artist_display), NULL);
+X	put_down(ip->cdname_display, ip->artist_display, basic_spacing);
+X
+X	ip->tracks = xv_create(ip->controls1, PANEL_CHOICE,
+X		XV_HELP_DATA, "workman:tracks",
+X		XV_X, lef(ip->cdname_display), /* PANEL_CHOICE_NCOLS, 8, */
+X		PANEL_LAYOUT, PANEL_HORIZONTAL, PANEL_CHOOSE_NONE, FALSE,
+X		PANEL_NOTIFY_PROC, change_track, NULL);
+X	put_down(ip->tracks, ip->cdname_display, basic_spacing * 2);
+X
+X	ip->tracktimer = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:tracktimer",
+X		XV_X, 6, PANEL_LABEL_STRING, "00:00", PANEL_LABEL_BOLD,
+X		FALSE, NULL);
+X	put_down(ip->tracktimer, ip->tracks, basic_spacing * 2);
+X
+X	ip->songpos = xv_create(ip->controls1, PANEL_SLIDER,
+X		XV_HELP_DATA, "workman:songpos",
+X		PANEL_TICKS, 0,
+X		PANEL_DIRECTION, PANEL_HORIZONTAL,
+X		PANEL_SLIDER_END_BOXES, FALSE,
+X		PANEL_SHOW_RANGE, FALSE,
+X		PANEL_SHOW_VALUE, FALSE,
+X		PANEL_MIN_VALUE, 0,
+X		PANEL_MAX_VALUE, 100,
+X		PANEL_VALUE, 0,
+X		PANEL_INACTIVE, TRUE,
+X		PANEL_NOTIFY_PROC, change_pos,
+X		NULL);
+X	xv_set(ip->songpos, XV_Y, top(ip->tracktimer), NULL);
+X	put_right(ip->songpos, ip->tracktimer, 10);
+X
+X	ip->tracklen = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:tracklen",
+X		XV_Y, top(ip->tracktimer),
+X		PANEL_LABEL_STRING, "00:00",
+X		PANEL_LABEL_BOLD, FALSE,
+X		NULL);
+X
+X	speaker_image = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, speaker_bits,
+X		XV_WIDTH, 16,
+X		XV_HEIGHT, 15,
+X		NULL);
+X	ip->speaker = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:speaker",
+X		XV_X, 12,
+X		PANEL_LABEL_IMAGE, speaker_image,
+X		PANEL_LABEL_BOLD, TRUE,
+X		NULL);
+X	put_down(ip->speaker, ip->tracktimer, basic_spacing);
+X
+X	ip->volume = xv_create(ip->controls1, PANEL_SLIDER,
+X		XV_HELP_DATA, "workman:volume",
+X		XV_X, lef(ip->cdname_display),
+X		PANEL_TICKS, 0, PANEL_DIRECTION, PANEL_VERTICAL,
+X		PANEL_SLIDER_END_BOXES, FALSE, PANEL_SHOW_RANGE, FALSE,
+X		PANEL_SHOW_VALUE, FALSE, PANEL_MIN_VALUE, 0,
+X		PANEL_MAX_VALUE, 32, PANEL_VALUE, 0,
+X		PANEL_NOTIFY_PROC, set_volume, NULL);
+X	put_down(ip->volume, ip->speaker, 3);
+X
+X	mode_image0 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits0,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	mode_image1 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits1,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	mode_image2 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits2,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	mode_image3 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits3,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	mode_image4 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits4,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	mode_image5 = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, mode_bits5,
+X		XV_WIDTH, 32,
+X		XV_HEIGHT, 16,
+X		NULL);
+X	ip->mode = xv_create(ip->controls1, PANEL_CHOICE,
+X		XV_HELP_DATA, "workman:mode",
+X		PANEL_CHOICE_NROWS, 2,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_CHOOSE_NONE, FALSE,
+X		PANEL_NOTIFY_PROC, change_mode,
+X		PANEL_CHOICE_IMAGES,
+X			mode_image0,
+X			mode_image1,
+X			mode_image2,
+X			mode_image3,
+X			mode_image4,
+X			mode_image5,
+X			NULL,
+X		PANEL_VALUE, 4,
+X		NULL);
+X	put_right(ip->mode, ip->speaker, 8);
+X	xv_set(ip->mode, XV_Y, (bot(ip->speaker) + top(ip->speaker)) / 2, NULL);
+X
+X	/* Align the volume slider with the mode selector. */
+X	xv_set(ip->volume, PANEL_SLIDER_WIDTH, bot(ip->mode) - top(ip->volume) -
+X		10, NULL);
+X
+X	ip->repeat = xv_create(ip->controls1, PANEL_CHOICE,
+X		PANEL_DISPLAY_LEVEL, PANEL_CURRENT,
+X		XV_HELP_DATA, "workman:repeat",
+X		XV_Y, top(ip->mode),
+X		PANEL_CHOICE_NCOLS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_NOTIFY_PROC, next_stopmode,
+X		PANEL_CHOICE_STRINGS,
+X			"Stop",
+X			"Repeat",
+X			"Eject",
+X			NULL,
+X		PANEL_DEFAULT_VALUE, 1,
+X		PANEL_VALUE, 0,
+X		NULL);
+X	put_right(ip->repeat, ip->mode, 8);
+X
+X	ip->shuffle = xv_create(ip->controls1, PANEL_CHOICE,
+X		PANEL_DISPLAY_LEVEL, PANEL_CURRENT,
+X		XV_HELP_DATA, "workman:shuffle",
+X		XV_X, lef(ip->repeat),
+X		PANEL_CHOICE_NCOLS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_NOTIFY_PROC, next_playmode_default,
+X		PANEL_CHOICE_STRINGS,
+X			"Normal",
+X			"Shuffle",
+X			NULL,
+X		PANEL_DEFAULT_VALUE, 0,
+X		NULL);
+X	put_down(ip->shuffle, ip->repeat, 0);
+X
+X	ip->button3 = xv_create(ip->controls1, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button3",
+X		PANEL_LABEL_STRING, "About...",
+X		PANEL_NOTIFY_PROC, window1_button3_notify_callback,
+X		NULL);
+X
+X	ip->button2 = xv_create(ip->controls1, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button2",
+X		PANEL_LABEL_STRING, "CD Info...",
+X		PANEL_NOTIFY_PROC, window1_button2_notify_callback,
+X		NULL);
+X	
+X	ip->button4 = xv_create(ip->controls1, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button4",
+X		PANEL_LABEL_STRING, "Goodies...",
+X		PANEL_NOTIFY_PROC, window1_button4_notify_callback,
+X		NULL);
+X
+X	/* Now we can figure out how wide the window should be. */
+X	space = wid(ip->button2) + wid(ip->button3) + wid(ip->button4);
+X	if (rig(ip->shuffle) > space)
+X		xv_set(ip->controls1, XV_WIDTH, rig(ip->shuffle) + 7, NULL);
+X	else
+X	{
+X		xv_set(ip->controls1, XV_WIDTH, space + 10, NULL);
+X		xv_set(ip->shuffle, XV_X, space - wid(ip->shuffle) + 10, NULL);
+X		xv_set(ip->repeat, XV_X, lef(ip->shuffle), NULL);
+X		xv_set(ip->mode, XV_X, (lef(ip->shuffle) - rig(ip->volume) -
+X			wid(ip->mode)) / 2 + rig(ip->volume), NULL);
+X	}
+X
+X	/* And knowing that, we can position the songpos slider. */
+X	xv_set(ip->tracklen, XV_X, wid(ip->controls1) - wid(ip->tracklen) -
+X		10, NULL);
+X	xv_set(ip->songpos, PANEL_SLIDER_WIDTH, lef(ip->tracklen) -
+X		lef(ip->songpos) - 20, NULL);
+X
+X	ip->cdtimer = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:cdtimer",
+X		PANEL_LABEL_STRING, "00:00",
+X		XV_X, lef(ip->tracktimer), PANEL_LABEL_BOLD, FALSE, NULL);
+X	put_down(ip->cdtimer, ip->volume, basic_spacing / 2 + 1);
+X
+X	ip->cdlen = xv_create(ip->controls1, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:cdlen",
+X		XV_Y, top(ip->cdtimer), XV_X, lef(ip->tracklen),
+X		PANEL_LABEL_BOLD, FALSE,
+X		NULL);
+X
+X	ip->cdgauge = xv_create(ip->controls1, PANEL_GAUGE,
+X		XV_HELP_DATA, "workman:cdgauge",
+X		XV_X, lef(ip->songpos) - 2, XV_Y, top(ip->cdtimer) + 2,
+X		PANEL_GAUGE_WIDTH, xv_get(ip->songpos, PANEL_SLIDER_WIDTH) - 5,
+X		PANEL_TICKS, 0,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_DIRECTION, PANEL_HORIZONTAL,
+X		PANEL_SHOW_RANGE, FALSE,
+X		PANEL_MIN_VALUE, 0,
+X		PANEL_MAX_VALUE, 100,
+X		PANEL_VALUE, 0,
+X		PANEL_INACTIVE, TRUE,
+X		NULL);
+X
+X	space = (wid(ip->controls1) - space) / 4;
+X	xv_set(ip->button3, XV_X, space, XV_Y, bot(ip->cdtimer) +
+X		basic_spacing, NULL);
+X	xv_set(ip->button2, XV_X, rig(ip->button3) + space, XV_Y,
+X		top(ip->button3), NULL);
+X	xv_set(ip->button4, XV_X, rig(ip->button2) + space, XV_Y,
+X		top(ip->button3), NULL);
+X
+X	xv_set(ip->controls1, XV_HEIGHT, bot(ip->button2) + 5, NULL);
+X	window_fit(ip->window1);
+X
+X	PANEL_EACH_ITEM(ip->controls1, item)
+X		xv_set(item, XV_KEY_DATA, INSTANCE, ip, NULL);
+X	PANEL_END_EACH;
+X
+X	return (ip);
+X}
+X
+X/*
+X * Set up the CD Info popup.
+X */
+Xpopup1_objects *
+Xpopup1_objects_init(ip, owner)
+X	popup1_objects	*ip;
+X	Xv_opaque		owner;
+X{
+X	int	space, totwid;
+X	Panel_item item;
+X
+X	if ((ip = (popup1_objects *) calloc(1,
+X				sizeof(window1_objects))) == NULL)
+X		return (NULL);
+X
+X	ip->popup1 = xv_create(owner, FRAME_CMD,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_LABEL, "CD Information",
+X		XV_SHOW, FALSE,
+X		FRAME_SHOW_FOOTER, FALSE,
+X		FRAME_SHOW_RESIZE_CORNER, FALSE,
+X		FRAME_CMD_PUSHPIN_IN, TRUE,
+X		NULL);
+X	xv_set(xv_get(ip->popup1, FRAME_CMD_PANEL), WIN_SHOW, FALSE, NULL);
+X
+X	ip->controls2 = xv_create(ip->popup1, PANEL,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_HELP_DATA, "workman:controls2",
+X		XV_X, 0,
+X		XV_Y, 0,
+X		XV_WIDTH, 10000,
+X		XV_HEIGHT, 10000,
+X		WIN_BORDER, FALSE,
+X		NULL);
+X
+X	ip->artist = xv_create(ip->controls2, PANEL_TEXT,
+X		XV_HELP_DATA, "workman:artist",
+X		XV_Y, 8,
+X		PANEL_VALUE_DISPLAY_LENGTH, 30,
+X		PANEL_VALUE_STORED_LENGTH, 80,
+X		PANEL_LABEL_STRING, "Artist:",
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_READ_ONLY, FALSE,
+X		PANEL_NOTIFY_PROC, update_title,
+X		NULL);
+X
+X	ip->cdname = xv_create(ip->controls2, PANEL_TEXT,
+X		XV_HELP_DATA, "workman:cdname",
+X		XV_X, 10,
+X		PANEL_VALUE_DISPLAY_LENGTH, 30,
+X		PANEL_VALUE_STORED_LENGTH, 80,
+X		PANEL_LABEL_STRING, "Disc Title:",
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_READ_ONLY, FALSE,
+X		PANEL_NOTIFY_PROC, update_title,
+X		NULL);
+X	put_down(ip->cdname, ip->artist, basic_spacing);
+X
+X	xv_set(ip->artist, PANEL_VALUE_X, (int) xv_get(ip->cdname,
+X		PANEL_VALUE_X), NULL);
+X
+X	ip->tracklist = xv_create(ip->controls2, PANEL_LIST,
+X		XV_HELP_DATA, "workman:tracklist",
+X		XV_X, 4,
+X		PANEL_LIST_DISPLAY_ROWS, 6,
+X		PANEL_LIST_TITLE, "Tracks",
+X		PANEL_LAYOUT, PANEL_VERTICAL,
+X		PANEL_READ_ONLY, TRUE,
+X		PANEL_CHOOSE_ONE, TRUE,
+X		PANEL_CHOOSE_NONE, TRUE,
+X		PANEL_INACTIVE, TRUE,
+X		PANEL_NOTIFY_PROC, update_trackname,
+X		NULL);
+X	put_down(ip->tracklist, ip->cdname, basic_spacing);
+X
+X	ip->trackname = xv_create(ip->controls2, PANEL_TEXT,
+X		XV_HELP_DATA, "workman:trackname",
+X		XV_X, 5,
+X		PANEL_VALUE_DISPLAY_LENGTH, 35,
+X		PANEL_VALUE_STORED_LENGTH, 500,
+X		PANEL_LABEL_STRING, "Name:",
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_INACTIVE, TRUE,
+X		PANEL_READ_ONLY, FALSE,
+X		PANEL_NOTIFY_PROC, name_entered,
+X		NULL);
+X	put_down(ip->trackname, ip->tracklist, basic_spacing);
+X
+X	xv_set(ip->tracklist, PANEL_LIST_WIDTH, wid(ip->trackname) + 10, NULL);
+X
+X	ip->trackoptions = xv_create(ip->controls2, PANEL_TOGGLE,
+X		XV_HELP_DATA, "workman:trackoptions",
+X		PANEL_CHOICE_NCOLS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_CHOICE_STRINGS,
+X			"Continuation of previous track",
+X			"Don't play this track",
+X			NULL,
+X		PANEL_VALUE, 0,
+X		PANEL_INACTIVE, TRUE,
+X		NULL);
+X	put_down(ip->trackoptions, ip->trackname, 5);
+X
+X	ip->whichvolume = xv_create(ip->controls2, PANEL_CHOICE,
+X		PANEL_DISPLAY_LEVEL, PANEL_CURRENT,
+X		XV_HELP_DATA, "workman:whichvolume",
+X		PANEL_CHOICE_NROWS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_LABEL_STRING, "Default Volume for this",
+X		PANEL_NOTIFY_PROC, set_which_volume,
+X		PANEL_CHOICE_STRINGS,
+X			"Disc",
+X			"Track",
+X			NULL,
+X		PANEL_DEFAULT_VALUE, 0,
+X		NULL);
+X	put_down(ip->whichvolume, ip->trackoptions, 5);
+X
+X	ip->defaultvolume = xv_create(ip->controls2, PANEL_SLIDER,
+X		XV_HELP_DATA, "workman:defaultvolume",
+X		PANEL_SLIDER_WIDTH, 2,
+X		PANEL_TICKS, 0,
+X		PANEL_DIRECTION, PANEL_HORIZONTAL,
+X		PANEL_SLIDER_END_BOXES, FALSE,
+X		PANEL_SHOW_RANGE, FALSE,
+X		PANEL_SHOW_VALUE, FALSE,
+X		PANEL_MIN_VALUE, 0,
+X		PANEL_MAX_VALUE, 32,
+X		PANEL_VALUE, 0,
+X		PANEL_NOTIFY_PROC, set_default_volume,
+X		NULL);
+X
+X	ip->defaultspeaker = xv_create(ip->controls2, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:defaultspeaker",
+X		PANEL_LABEL_STRING, "None",
+X		PANEL_LABEL_BOLD, FALSE,
+X		NULL);
+X
+X	space = wid(ip->whichvolume) + wid(ip->defaultspeaker) * 2 +
+X		wid(ip->defaultvolume) + 20;
+X	if (space > wid(ip->tracklist))
+X	{
+X		xv_set(ip->controls2, XV_WIDTH, space + 10, NULL);
+X		xv_set(ip->tracklist, PANEL_LIST_WIDTH, space + 3 -
+X			wid(ip->tracklist) + (int) xv_get(ip->tracklist,
+X			PANEL_LIST_WIDTH), NULL);
+X	}
+X	else
+X	{
+X		xv_set(ip->controls2, XV_WIDTH, wid(ip->tracklist) + 7, NULL);
+X		space += 20;
+X	}
+X
+X	center_x(ip->trackoptions, ip->controls2);
+X
+X	space = (wid(ip->controls2) - space) / 2;
+X	xv_set(ip->whichvolume, XV_X, space, NULL);
+X	xv_set(ip->defaultvolume, XV_X, rig(ip->whichvolume),
+X		PANEL_SLIDER_WIDTH, wid(ip->defaultspeaker) * 2 - 15,
+X		XV_Y, (top(ip->whichvolume) + bot(ip->whichvolume) -
+X		hei(ip->defaultvolume)) / 2 + 2, NULL);
+X	xv_set(ip->defaultspeaker, XV_X, rig(ip->defaultvolume) + 5,
+X		XV_Y, top(ip->defaultspeaker) + hei(ip->defaultvolume) / 6,
+X		NULL);
+X
+X	ip->playmode = xv_create(ip->controls2, PANEL_CHOICE,
+X		XV_HELP_DATA, "workman:playmode",
+X		XV_X, lef(ip->whichvolume),
+X		PANEL_CHOICE_NROWS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_CHOOSE_NONE, FALSE,
+X		PANEL_LABEL_STRING, "Default Play Mode",
+X		PANEL_CHOICE_STRINGS,
+X			"Normal",
+X			"Shuffle",
+X			"From List",
+X			NULL,
+X		NULL);
+X	put_down(ip->playmode, ip->defaultvolume, basic_spacing / 2);
+X
+X	ip->autoplay = xv_create(ip->controls2, PANEL_TOGGLE,
+X		XV_HELP_DATA, "workman:autoplay",
+X		PANEL_CHOICE_NCOLS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_CHOICE_STRING, 0, "Play this CD automatically",
+X		PANEL_VALUE, 0,
+X		NULL);
+X	put_down(ip->autoplay, ip->playmode, basic_spacing / 2);
+X	center_x(ip->autoplay, ip->controls2);
+X
+X	ip->button1 = xv_create(ip->controls2, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button1",
+X		PANEL_LABEL_STRING, "Apply",
+X		PANEL_NOTIFY_PROC, save_config,
+X		NULL);
+X	put_down(ip->button1, ip->autoplay, (basic_spacing * 3) / 2);
+X	xv_set(ip->button1, XV_X, wid(ip->controls2) / 2 - wid(ip->button1) - 5,
+X		NULL);
+X
+X	ip->button8 = xv_create(ip->controls2, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button8",
+X		XV_X, rig(ip->button1) + 10,
+X		XV_Y, top(ip->button1),
+X		PANEL_LABEL_STRING, "Reset",
+X		PANEL_NOTIFY_PROC, cdinfo_reset,
+X		NULL);
+X
+X	ip->buttonpl = xv_create(ip->controls2, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:buttonpl",
+X		XV_Y, top(ip->button1),
+X		PANEL_LABEL_STRING, "Playlists...",
+X		PANEL_NOTIFY_PROC, popup1_buttonpl_notify_callback,
+X		NULL);
+X	xv_set(ip->buttonpl, XV_X, wid(ip->controls2) - wid(ip->buttonpl) - 10,
+X		NULL);
+X
+X	xv_set(ip->controls2, XV_HEIGHT, bot(ip->button1) + 5, NULL);
+X	window_fit(ip->popup1);
+X
+X	PANEL_EACH_ITEM(ip->controls2, item)
+X		xv_set(item, XV_KEY_DATA, INSTANCE, ip, NULL);
+X	PANEL_END_EACH;
+X
+X	return (ip);
+X}
+X
+X/*
+X * Create the About window and its contents.
+X */
+Xabout_objects *
+Xabout_objects_init(ip, owner)
+X	about_objects	*ip;
+X	Xv_opaque		owner;
+X{
+X	Panel_item	item;
+X	int		space;
+X	Xv_opaque               sink_image, message7_image;
+X	static unsigned short   sink_bits[] = {
+X#include "bitmaps/sink0"
+X	}, message7_bits[] = {
+X#include "bitmaps/icon"
+X	};
+X
+X	if ((ip = (about_objects *) calloc(1,
+X				sizeof(about_objects))) == NULL)
+X		return (NULL);
+X
+X	ip->about = xv_create(owner, FRAME_CMD,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_LABEL, "About WorkMan",
+X		XV_SHOW, FALSE,
+X		FRAME_SHOW_FOOTER, FALSE,
+X		FRAME_SHOW_RESIZE_CORNER, FALSE,
+X		FRAME_CMD_PUSHPIN_IN, TRUE,
+X		NULL);
+X	xv_set(xv_get(ip->about, FRAME_CMD_PANEL), WIN_SHOW, FALSE, NULL);
+X
+X	ip->controls3 = xv_create(ip->about, PANEL,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_HELP_DATA, "workman:controls3",
+X		XV_X, 0,
+X		XV_Y, 0,
+X		WIN_BORDER, FALSE,
+X		NULL);
+X
+X	ip->message1 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		XV_Y, 8,
+X		PANEL_LABEL_STRING, "WorkMan (Beta 3.0)",
+X		PANEL_LABEL_BOLD, TRUE, NULL);
+X	ip->message2 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		PANEL_LABEL_STRING, "\"The Civilized CD Player\"",
+X		PANEL_LABEL_BOLD, FALSE, NULL);
+X
+X	message7_image = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, message7_bits,
+X		XV_WIDTH, 64,
+X		XV_HEIGHT, 64,
+X		NULL);
+X	ip->message7 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		PANEL_LABEL_IMAGE, message7_image,
+X		PANEL_LABEL_BOLD, TRUE,
+X		NULL);
+X
+X	sink_image = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, sink_bits,
+X		XV_WIDTH, 64,
+X		XV_HEIGHT, 64,
+X		NULL);
+X	ip->sink = xv_create(ip->controls3, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:sink",
+X		PANEL_LABEL_IMAGE, sink_image,
+X		PANEL_LABEL_BOLD, TRUE,
+X		NULL);
+X
+X	ip->message3 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		PANEL_LABEL_STRING, "Written by Steven Grimm",
+X		PANEL_LABEL_BOLD, TRUE, NULL);
+X	ip->message4 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		PANEL_LABEL_STRING, "koreth@Hyperion.COM",
+X		PANEL_LABEL_BOLD, FALSE, NULL);
+X	ip->message5 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		PANEL_LABEL_STRING, "Send mail if you'd like to be",
+X		PANEL_LABEL_BOLD, FALSE, NULL);
+X	ip->message6 = xv_create(ip->controls3, PANEL_MESSAGE,
+X		PANEL_LABEL_STRING, "notified of future revisions!",
+X		PANEL_LABEL_BOLD, FALSE, NULL);
+X
+X	space = 0;
+X	PANEL_EACH_ITEM(ip->controls3, item)
+X		xv_set(item, XV_KEY_DATA, INSTANCE, ip, NULL);
+X		if (wid(item) > space)
+X			space = wid(item);
+X	PANEL_END_EACH;
+X
+X	space += 10;
+X	xv_set(ip->controls3, XV_WIDTH, space, NULL);
+X	center_x(ip->message1, ip->controls3);
+X	center_x(ip->message2, ip->controls3);
+X	center_x(ip->message3, ip->controls3);
+X	center_x(ip->message4, ip->controls3);
+X	center_x(ip->message5, ip->controls3);
+X	center_x(ip->message6, ip->controls3);
+X	xv_set(ip->message7, XV_X, space / 2 - wid(ip->message7) - 5, NULL);
+X
+X	put_down(ip->message2, ip->message1, basic_spacing);
+X	put_down(ip->message7, ip->message2, basic_spacing);
+X	xv_set(ip->sink, XV_X, space / 2 + 5, XV_Y, top(ip->message7), NULL);
+X	put_down(ip->message3, ip->sink, basic_spacing);
+X	put_down(ip->message4, ip->message3, basic_spacing);
+X	put_down(ip->message5, ip->message4, basic_spacing * 2);
+X	put_down(ip->message6, ip->message5, basic_spacing);
+X
+X	xv_set(ip->controls3, XV_HEIGHT, bot(ip->message6) + 5, NULL);
+X	window_fit(ip->about);
+X
+X	return (ip);
+X}
+X
+X/*
+X * Create the Goodies window and its contents.
+X */
+Xgoodies_objects *
+Xgoodies_objects_init(ip, owner)
+X	goodies_objects	*ip;
+X	Xv_opaque		owner;
+X{
+X	Panel_item	item;
+X	Xv_opaque	phones_image;
+X	static unsigned short phones_bits[] = {
+X#include "bitmaps/phones0"
+X	};
+X	int		space;
+X
+X	if ((ip = (goodies_objects *) calloc(1,
+X				sizeof(goodies_objects))) == NULL)
+X		return (NULL);
+X
+X	ip->goodies = xv_create(owner, FRAME_CMD,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_LABEL, "Goodies",
+X		XV_SHOW, FALSE,
+X		FRAME_SHOW_FOOTER, FALSE,
+X		FRAME_SHOW_RESIZE_CORNER, FALSE,
+X		FRAME_CMD_PUSHPIN_IN, TRUE,
+X		NULL);
+X	xv_set(xv_get(ip->goodies, FRAME_CMD_PANEL), WIN_SHOW, FALSE, NULL);
+X
+X	ip->controls4 = xv_create(ip->goodies, PANEL,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_HELP_DATA, "workman:controls4",
+X		XV_X, 0,
+X		XV_Y, 0,
+X		WIN_BORDER, FALSE,
+X		NULL);
+X
+X	ip->balance = xv_create(ip->controls4, PANEL_SLIDER,
+X		XV_HELP_DATA, "workman:balance",
+X		XV_Y, 6,
+X		PANEL_SLIDER_WIDTH, basic_spacing * 5,
+X		PANEL_TICKS, 3,
+X		PANEL_LABEL_STRING, "Balance:",
+X		PANEL_DIRECTION, PANEL_HORIZONTAL,
+X		PANEL_SLIDER_END_BOXES, FALSE,
+X		PANEL_SHOW_RANGE, FALSE,
+X		PANEL_SHOW_VALUE, FALSE,
+X		PANEL_MIN_VALUE, 0,
+X		PANEL_MAX_VALUE, 20,
+X		PANEL_VALUE, 10,
+X		PANEL_NOTIFY_PROC, slide_balance,
+X		NULL);
+X
+X	phones_image = xv_create(XV_NULL, SERVER_IMAGE,
+X		SERVER_IMAGE_DEPTH, 1,
+X		SERVER_IMAGE_BITS, phones_bits,
+X		XV_WIDTH, 16,
+X		XV_HEIGHT, 22,
+X		NULL);
+X	ip->phones = xv_create(ip->controls4, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:phones",
+X		XV_Y, 6,
+X		PANEL_LABEL_IMAGE, phones_image,
+X		PANEL_LABEL_BOLD, TRUE,
+X		NULL);
+X
+X	ip->timemode = xv_create(ip->controls4, PANEL_CHOICE,
+X		XV_HELP_DATA, "workman:timemode",
+X		PANEL_CHOICE_NROWS, 1,
+X		PANEL_LAYOUT, PANEL_VERTICAL,
+X		PANEL_CHOOSE_NONE, FALSE,
+X		PANEL_LABEL_STRING, "Time display:",
+X		PANEL_CHOICE_STRINGS,
+X			"Elapsed",
+X			"Remaining",
+X			NULL,
+X		PANEL_VALUE, 0,
+X		NULL);
+X	put_down(ip->timemode, ip->balance, basic_spacing);
+X
+X	ip->playnewcds = xv_create(ip->controls4, PANEL_TOGGLE,
+X		XV_HELP_DATA, "workman:playnewcds",
+X		PANEL_CHOICE_NROWS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_NOTIFY_PROC, goodies_playnewcds_notify_callback,
+X		PANEL_CHOICE_STRING, 0, "Auto-play unknown CDs",
+X		PANEL_VALUE, 0,
+X		NULL);
+X	put_down(ip->playnewcds, ip->timemode, basic_spacing * 2);
+X
+X	ip->abrepeat = xv_create(ip->controls4, PANEL_TOGGLE,
+X		XV_HELP_DATA, "workman:abrepeat",
+X		PANEL_CHOICE_NCOLS, 1,
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_NOTIFY_PROC, goodies_abrepeat_notify_callback,
+X		PANEL_CHOICE_STRING, 0, "Repeat section of CD:",
+X		PANEL_VALUE, 0,
+X		NULL);
+X	put_down(ip->abrepeat, ip->playnewcds, basic_spacing * 2);
+X
+X	ip->a = xv_create(ip->controls4, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:a",
+X		PANEL_LABEL_STRING, "Start",
+X		PANEL_NOTIFY_PROC, section_start,
+X		NULL);
+X	put_down(ip->a, ip->abrepeat, basic_spacing);
+X
+X	ip->alabel = xv_create(ip->controls4, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:alabel",
+X		PANEL_LABEL_STRING, "Track: 00 Time: 00:00",
+X		PANEL_LABEL_BOLD, FALSE,
+X		PANEL_INACTIVE, TRUE,
+X		NULL);
+X	center_y(ip->alabel, ip->a);
+X
+X	ip->b = xv_create(ip->controls4, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:b",
+X		PANEL_LABEL_STRING, "End",
+X		PANEL_NOTIFY_PROC, section_end,
+X		NULL);
+X	put_down(ip->b, ip->a, basic_spacing / 2);
+X
+X	ip->blabel = xv_create(ip->controls4, PANEL_MESSAGE,
+X		XV_HELP_DATA, "workman:alabel", 
+X		PANEL_LABEL_STRING, "Track: 00 Time: 00:00",
+X		PANEL_LABEL_BOLD, FALSE, 
+X		PANEL_INACTIVE, TRUE, 
+X		NULL); 
+X	center_y(ip->blabel, ip->b);
+X
+X	ip->split = xv_create(ip->controls4, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:splittrk",
+X		PANEL_LABEL_STRING, "Split",
+X		PANEL_NOTIFY_PROC, split_track,
+X		NULL);
+X	put_down(ip->split, ip->b, basic_spacing);
+X
+X	ip->delete = xv_create(ip->controls4, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:deletetrk",
+X		PANEL_LABEL_STRING, "Delete",
+X		PANEL_NOTIFY_PROC, delete_track,
+X		PANEL_INACTIVE, TRUE,
+X		NULL);
+X	put_down(ip->delete, ip->b, basic_spacing);
+X
+X	ip->indexscan = xv_create(ip->controls4, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:indexscan",
+X		PANEL_LABEL_STRING, "Scan for index marks",
+X		PANEL_NOTIFY_PROC, index_scan,
+X		NULL);
+X	put_down(ip->indexscan, ip->split, basic_spacing);
+X
+X	space = wid(ip->a) + wid(ip->alabel) + basic_spacing;
+X	PANEL_EACH_ITEM(ip->controls4, item)
+X		xv_set(item, XV_KEY_DATA, INSTANCE, ip, NULL);
+X		if (wid(item) > space)
+X			space = wid(item);
+X	PANEL_END_EACH;
+X
+X	space += 10;
+X	xv_set(ip->controls4, XV_WIDTH, space, XV_HEIGHT,
+X		bot(ip->indexscan) + 5, NULL);
+X	window_fit(ip->goodies);
+X
+X	center_x(ip->timemode, ip->controls4);
+X	center_x(ip->playnewcds, ip->controls4);
+X	center_x(ip->abrepeat, ip->controls4);
+X	xv_set(ip->balance, XV_X, space / 2 - (wid(ip->balance) +
+X		wid(ip->phones) + basic_spacing) / 2, NULL);
+X	put_right(ip->phones, ip->balance, basic_spacing);
+X	xv_set(ip->a, XV_X, space / 2 - (wid(ip->a) + wid(ip->alabel) +
+X		basic_spacing) / 2, NULL);
+X	put_right(ip->alabel, ip->a, basic_spacing);
+X	center_x(ip->b, ip->a);
+X	xv_set(ip->blabel, XV_X, lef(ip->alabel), NULL);
+X
+X	space = wid(ip->split) + wid(ip->delete) + basic_spacing * 3;
+X	space = (wid(ip->controls4) - space) / 2;
+X	xv_set(ip->split, XV_X, space, NULL);
+X	put_right(ip->delete, ip->split, basic_spacing * 2);
+X
+X	center_x(ip->indexscan, ip->controls4);
+X
+X	return (ip);
+X}
+X
+X/*
+X * Create the menu for the Playlists popup.
+X */
+XXv_opaque
+Xtrackmenu_create(ip, owner)
+X	caddr_t         ip;
+X	Xv_opaque       owner;
+X{
+X	Xv_opaque       obj;
+X
+X	obj = xv_create(XV_NULL, MENU_COMMAND_MENU,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		MENU_TITLE_ITEM, owner ? "" : "Tracks",
+X		MENU_GEN_PIN_WINDOW, owner, "Tracks",
+X		NULL);
+X	return obj;
+X}
+X
+X/*
+X * Create the Playlists window and its contents.
+X */
+Xplpopup_objects *
+Xplpopup_objects_init(ip, owner)
+X	plpopup_objects	*ip;
+X	Xv_opaque		owner;
+X{
+X	Panel_item	item;
+X	int		space;
+X
+X	if ((ip = (plpopup_objects *) calloc(1,
+X				sizeof(plpopup_objects))) == NULL)
+X		return (NULL);
+X
+X	ip->plpopup = xv_create(owner, FRAME_CMD,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_LABEL, "Playlists",
+X		XV_SHOW, FALSE,
+X		FRAME_SHOW_FOOTER, FALSE,
+X		FRAME_SHOW_RESIZE_CORNER, FALSE,
+X		FRAME_CMD_PUSHPIN_IN, FALSE,
+X		NULL);
+X	xv_set(xv_get(ip->plpopup, FRAME_CMD_PANEL), WIN_SHOW, FALSE, NULL);
+X
+X	ip->controls5 = xv_create(ip->plpopup, PANEL,
+X		XV_KEY_DATA, INSTANCE, ip,
+X		XV_HELP_DATA, "workman:controls5",
+X		XV_X, 0,
+X		XV_Y, 0,
+X		WIN_BORDER, FALSE,
+X		NULL);
+X
+X	ip->playlists = xv_create(ip->controls5, PANEL_LIST,
+X		XV_HELP_DATA, "workman:playlists",
+X		XV_X, 6,
+X		XV_Y, 8,
+X		PANEL_LIST_WIDTH, basic_spacing * 22,
+X		PANEL_LIST_DISPLAY_ROWS, 4,
+X		PANEL_LIST_TITLE, "Playlists",
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_READ_ONLY, TRUE,
+X		PANEL_CHOOSE_ONE, TRUE,
+X		PANEL_CHOOSE_NONE, FALSE,
+X		PANEL_NOTIFY_PROC, switch_playlists,
+X		NULL);
+X
+X	ip->listname = xv_create(ip->controls5, PANEL_TEXT,
+X		XV_HELP_DATA, "workman:listname",
+X		XV_Y, 8 + basic_spacing * 2,
+X		PANEL_VALUE_DISPLAY_LENGTH, 12,
+X		PANEL_VALUE_STORED_LENGTH, 20,
+X		PANEL_LABEL_STRING, "Name:",
+X		PANEL_LAYOUT, PANEL_HORIZONTAL,
+X		PANEL_READ_ONLY, FALSE,
+X		NULL);
+X	put_right(ip->listname, ip->playlists, basic_spacing);
+X
+X	ip->button7 = xv_create(ip->controls5, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button7",
+X		PANEL_LABEL_STRING, "Create new list",
+X		PANEL_NOTIFY_PROC, plpopup_button7_notify_callback,
+X		NULL);
+X	put_down(ip->button7, ip->listname, basic_spacing);
+X	center_x(ip->button7, ip->listname);
+X
+X	ip->button6 = xv_create(ip->controls5, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button6",
+X		PANEL_LABEL_STRING, "Rename this list",
+X		PANEL_NOTIFY_PROC, rename_playlist,
+X		NULL);
+X	put_down(ip->button6, ip->button7, basic_spacing);
+X	center_x(ip->button6, ip->listname);
+X
+X	ip->button5 = xv_create(ip->controls5, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:button5",
+X		PANEL_LABEL_STRING, "Delete this list",
+X		PANEL_NOTIFY_PROC, delete_playlist,
+X		NULL);
+X	xv_set(ip->button5, XV_Y, bot(ip->playlists) - hei(ip->button5), NULL);
+X	center_x(ip->button5, ip->listname);
+X
+X	ip->playlist = xv_create(ip->controls5, PANEL_LIST,
+X		XV_HELP_DATA, "workman:playlist",
+X		XV_X, lef(ip->playlists),
+X		PANEL_LIST_WIDTH, rig(ip->listname) - lef(ip->playlists),
+X		PANEL_LIST_DISPLAY_ROWS, 5,
+X		PANEL_LIST_TITLE, "Playlist (add tracks from popup menu)",
+X		PANEL_LAYOUT, PANEL_VERTICAL,
+X		PANEL_READ_ONLY, TRUE,
+X		PANEL_CHOOSE_ONE, TRUE,
+X		PANEL_CHOOSE_NONE, TRUE,
+X		PANEL_INACTIVE, TRUE,
+X		PANEL_ITEM_MENU,
+X			trackmenu_create((caddr_t) ip, ip->plpopup),
+X		PANEL_NOTIFY_PROC, playlist_notify,
+X		NULL);
+X	put_down(ip->playlist, ip->playlists, basic_spacing);
+X
+X	xv_set(ip->controls5, XV_WIDTH, rig(ip->playlist) + 2, NULL);
+X
+X	ip->delete = xv_create(ip->controls5, PANEL_BUTTON,
+X		XV_HELP_DATA, "workman:delete",
+X		PANEL_LABEL_STRING, "Delete track",
+X		PANEL_INACTIVE, TRUE,
+X		PANEL_NOTIFY_PROC, delete_from_playlist,
+X		NULL);
+X	put_down(ip->delete, ip->playlist, basic_spacing);
+X	center_x(ip->delete, ip->controls5);
+X
+X	xv_set(ip->controls5, XV_HEIGHT, bot(ip->delete) + 5, NULL);
+X	window_fit(ip->plpopup);
+X
+X	PANEL_EACH_ITEM(ip->controls5, item)
+X		xv_set(item, XV_KEY_DATA, INSTANCE, ip, NULL);
+X	PANEL_END_EACH;
+X
+X	return (ip);
+X}
+END_OF_FILE
+if test 29337 -ne `wc -c <'setup.c'`; then
+    echo shar: \"'setup.c'\" unpacked with wrong size!
+fi
+# end of 'setup.c'
+fi
+echo shar: End of archive 5 \(of 6\).
+cp /dev/null ark5isdone
+MISSING=""
+for I in 1 2 3 4 5 6 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 6 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

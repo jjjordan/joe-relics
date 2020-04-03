@@ -1,0 +1,2254 @@
+Path: funic!fuug!mcsun!Germany.EU.net!news.netmbx.de!mailgzrz.TU-Berlin.DE!math.fu-berlin.de!news.belwue.de!ira.uka.de!yale.edu!jvnc.net!darwin.sura.net!wupost!csus.edu!netcom.com!netcomsv!spud.Hyperion.COM!spud.Hyperion.COM!not-for-mail
+From: koreth@spud.Hyperion.COM (Steven Grimm)
+Newsgroups: alt.sources
+Subject: WorkMan (X CD player program for Suns) beta 3.0 part06/06
+Date: 15 Nov 1992 14:37:56 -0800
+Organization: Hyperion, Mountain View, CA, USA
+Lines: 2244
+Message-ID: <1e6jg4INNiu8@spud.Hyperion.COM>
+NNTP-Posting-Host: spud.hyperion.com
+
+Archive-name: workman-b3.0/part06
+Submitted-by: koreth@hyperion.com
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 6 (of 6)."
+# Contents:  workman_stubs.c
+# Wrapped by koreth@gerbilmeister on Sun Nov 15 14:20:20 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'workman_stubs.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'workman_stubs.c'\"
+else
+echo shar: Extracting \"'workman_stubs.c'\" \(51771 characters\)
+sed "s/^X//" >'workman_stubs.c' <<'END_OF_FILE'
+X/*
+X * @(#)workman_stubs.c	1.111 11/15/92
+X *
+X * workman_stubs.c - Notify and event callback function stubs.
+X */
+X
+Xstatic char *ident = "@(#)workman_stubs.c	1.111 11/15/92";
+X
+X#include <stdio.h>
+X#include <sys/param.h>
+X#include <sys/types.h>
+X#include <signal.h>
+X#include <xview/xview.h>
+X#include <xview/panel.h>
+X#include <xview/textsw.h>
+X#include <xview/xv_xrect.h>
+X#include <xview/screen.h>
+X#include <xview/notice.h>
+X#include "workman_ui.h"
+X#include "struct.h"
+X
+Xvoid	quit();
+Xvoid	continued();
+Xvoid	setup_itimer();
+Xvoid	init_stats();
+Xvoid	avoid_track();
+Xvoid	keep_settings();
+Xvoid	cd_volume();
+Xvoid	keep_cd_open();
+Xvoid	figure_volume();
+Xvoid	set_default_volume();
+Xvoid	text_event_p();
+Xvoid	next_stopmode();
+Xchar *	listentry();
+Xchar *	trackname();
+Xint *	get_playlist();
+Xvoid	make_initial_playlist();
+Xvoid	kill_stats();
+Xvoid	start_repeating();
+Xvoid	add_playlist();
+Xint	switch_playlists();
+Xvoid	stop_repeating();
+XNotify_value check_open(), byebye(), sigusr1(), sigusr2();
+Xvoid	window1_button2_notify_callback(),
+X	popup1_buttonpl_notify_callback(),
+X	window1_button4_notify_callback(),
+X	window1_button3_notify_callback();
+XPanel_item	quitbutton;
+X
+Xchar	*pidfile = "/tmp/.wm_pid";
+Xchar *	empty = "";
+Xextern char *cd_device;
+X#ifndef SYSV
+Xextern char *optarg;
+X#endif
+X
+XRect	*track_rect = NULL;
+XXv_Notice wannasave, mountedfs;
+Xint	confirmsave;
+Xint	add_height, small_height;
+Xint	min_lines = -1;
+Xint	dont_retry = 0;
+Xvoid	(*text_event_handler)();
+X
+Xwindow1_objects	*Workman_window1;
+Xpopup1_objects	*Workman_popup1;
+Xabout_objects	*Workman_about;
+Xgoodies_objects	*Workman_goodies;
+Xplpopup_objects	*Workman_plpopup;
+X
+Xextern int cur_track, cur_pos_abs, cur_pos_rel, cur_tracklen, cur_cdlen,
+X	cur_cdmode, cur_ntracks, cur_lasttrack, cur_firsttrack, cur_listno;
+Xextern int cur_frame;
+Xextern int cd_fd;
+Xextern int exit_on_eject, suppress_locking;
+Xextern int found_in_db, found_in_rc;
+Xextern char *cur_cdname, *cur_artist, cur_contd, cur_avoid;
+Xint cur_playnew = -1;
+Xint displayed_track = -1;		/* Track whose info is onscreen */
+Xint pop_track = 0;			/* Track being edited in popup */
+Xint *pop_list = NULL;			/* Our notion of the playlist */
+Xint pop_listsize = 0;			/* List size, including 0 */
+Xint pl_item = -1;			/* Playlist item selected */
+Xint pl_listnum = -1;			/* Number of current playlist */
+Xint my_artist = 0, my_cdname = 0;
+Xint num_names = 0, num_nalloc = 0;
+Xint cur_balance = 10;
+Xint manual_volume = 0;		/* Has the user changed the volume by hand? */
+Xint cur_stopmode = -1;
+Xint mark_a = 0, mark_b = 0;
+Xint window_is_open;
+Xint was_repeating = 0;
+Xint info_modified = 0;
+Xint dismiss_button = 0;
+X
+XAttr_attribute	INSTANCE;
+X
+Xmain(argc, argv)
+X	int	argc;
+X	char	**argv;
+X{
+X	int		c, keep_open = 1;
+X	Panel_item	item;
+X	FILE		*fp;
+X
+X	/*
+X	 * Initialize XView.
+X	 */
+X	xv_init(XV_INIT_ARGC_PTR_ARGV, &argc, argv, NULL);
+X	INSTANCE = xv_unique_key();
+X	
+X	/*
+X	 * Initialize user interface components.
+X	 * Do NOT edit the object initializations by hand.
+X	 */
+X	Workman_window1 = window1_objects_init(NULL, NULL);
+X	Workman_popup1 = popup1_objects_init(NULL, Workman_window1->window1);
+X	Workman_about = about_objects_init(NULL, Workman_window1->window1);
+X	Workman_goodies = goodies_objects_init(NULL, Workman_window1->window1);
+X	Workman_plpopup = plpopup_objects_init(NULL, Workman_window1->window1);
+X	
+X	while ((c = getopt(argc, argv, "p:dc:ol:eXnb")) != EOF)
+X		switch (c) {
+X		case 'p':
+X			pidfile = optarg;
+X			break;
+X		case 'b':
+X			dismiss_button = 1;
+X			break;
+X		case 'd':
+X			xv_set(Workman_window1->artist_display, XV_SHOW,
+X				FALSE, NULL);
+X			xv_set(Workman_window1->cdname_display, XV_SHOW,
+X				FALSE, PANEL_LABEL_STRING, "X", NULL);
+X			track_rect = (Rect *) xv_get(
+X				Workman_window1->cdname_display,
+X				PANEL_ITEM_RECT);
+X			xv_set(Workman_window1->cdname_display, XV_SHOW,
+X				FALSE, NULL);
+X			PANEL_EACH_ITEM(Workman_window1->controls1, item)
+X				if (xv_get(item, XV_SHOW) == TRUE)
+X					xv_set(item, PANEL_ITEM_Y,
+X						xv_get(item, PANEL_ITEM_Y) -
+X						track_rect->r_top -
+X						track_rect->r_height, NULL);
+X			PANEL_END_EACH
+X			xv_set(Workman_window1->window1, XV_HEIGHT,
+X				xv_get(Workman_window1->window1, XV_HEIGHT) -
+X				track_rect->r_top - track_rect->r_height, NULL);
+X			break;
+X		case 'e':
+X			if (dont_retry == 0)
+X				dont_retry = 2;
+X			else
+X				dont_retry = 1;
+X			break;
+X		case 'c':
+X			cd_device = optarg;
+X			break;
+X		case 'o':
+X			keep_open = 0;
+X			break;
+X		case 'l':
+X			min_lines = atoi(optarg);
+X			break;
+X		case 'X':
+X			exit_on_eject = 1;
+X			break;
+X		case 'n':
+X			suppress_locking = 1;
+X			break;
+X		default:
+X			fprintf(stderr,
+X"usage: %s [-p file] [-d] [-c device] [-o] [-l N] [-e] [-X] [-n] [-b]\n\
+X\t-c\tuse alternate device (default = %s)\n\
+X\t-d\tdon't display title information\n\
+X\t-e\tdon't check for CD insertion when no CD is present\n\
+X\t-l\tleave room for at least N lines of track title\n\
+X\t-X\texit when CD is ejected\n\
+X\t-n\tdon't use file locking when updating database (dangerous)\n\
+X\t-o\tdon't run background job to keep device open (SVr4 only)\n\
+X\t-p\twrite process ID to another file (default = %s)\n\
+X\t-b\tput dismiss buttons on windows\n",
+Xargv[0], cd_device, pidfile);
+X			exit(1);
+X		}
+X
+X#ifdef SYSV
+X	if (keep_open)
+X		if (fork() == 0)
+X			keep_cd_open();
+X		else
+X			wait(NULL);
+X#endif
+X
+X	/*
+X	 * Fill up the PID-file.
+X	 */
+X	fp = fopen(pidfile, "w");
+X	if (fp != NULL)
+X	{
+X		fprintf(fp, "%d\n", getpid());
+X		fflush(fp);
+X		fchmod(fileno(fp), 0666);
+X		fclose(fp);
+X	}
+X	else
+X	{
+X		fprintf(stderr, "Warning: ");
+X		perror(pidfile);
+X	}
+X
+X	if (dismiss_button)
+X	{
+X		Panel_item	button;
+X		int		spacing;
+X
+X		xv_create(Workman_plpopup->controls5, PANEL_BUTTON,
+X			XV_X, 10, XV_Y, (int) xv_get(Workman_plpopup->delete,
+X			XV_Y), PANEL_LABEL_STRING, "Dismiss", PANEL_NOTIFY_PROC,
+X			popup1_buttonpl_notify_callback, NULL);
+X		xv_create(Workman_popup1->controls2, PANEL_BUTTON,
+X			XV_X, 10, XV_Y, (int) xv_get(Workman_popup1->buttonpl,
+X			XV_Y), PANEL_LABEL_STRING, "Dismiss", PANEL_NOTIFY_PROC,
+X			window1_button2_notify_callback, NULL);
+X#define ip Workman_window1
+X		/* Squish the main window buttons down some. */
+X		quitbutton = xv_create(ip->controls1, PANEL_BUTTON,
+X			PANEL_LABEL_STRING, "Quit", PANEL_NOTIFY_PROC,
+X			quit, NULL);
+X		xv_set(ip->button3, PANEL_LABEL_STRING, "About", NULL);
+X		xv_set(ip->button2, PANEL_LABEL_STRING, "CD Info", NULL);
+X		xv_set(ip->button4, PANEL_LABEL_STRING, "Goodies", NULL);
+X		spacing = ((int) xv_get(ip->controls1, XV_WIDTH) - (
+X			(int) xv_get(ip->button2, XV_WIDTH) +
+X			(int) xv_get(ip->button3, XV_WIDTH) +
+X			(int) xv_get(ip->button4, XV_WIDTH) +
+X			(int) xv_get(quitbutton, XV_WIDTH))) / 5;
+X		xv_set(ip->button3, XV_X, spacing, NULL);
+X		xv_set(ip->button2, XV_X, (int) xv_get(ip->button3, XV_WIDTH) +
+X			(int) xv_get(ip->button3, XV_X) + spacing, NULL);
+X		xv_set(ip->button4, XV_X, (int) xv_get(ip->button2, XV_WIDTH) +
+X			(int) xv_get(ip->button2, XV_X) + spacing, NULL);
+X		xv_set(quitbutton, XV_Y, (int) xv_get(Workman_window1->button2,
+X			XV_Y), XV_X, (int) xv_get(ip->controls1, XV_WIDTH) -
+X			(int) xv_get(quitbutton, XV_WIDTH) - spacing, NULL);
+X#undef ip
+X		button = xv_create(Workman_about->controls3, PANEL_BUTTON,
+X			PANEL_LABEL_STRING, "Dismiss", PANEL_NOTIFY_PROC,
+X			window1_button3_notify_callback, NULL);
+X		xv_set(Workman_about->about, XV_HEIGHT,
+X			(int) xv_get(button, XV_HEIGHT) + 5 +
+X			(int) xv_get(Workman_about->about, XV_HEIGHT),
+X			NULL);
+X		xv_set(button, XV_X, ((int) xv_get(Workman_about->about,
+X			XV_WIDTH) - (int) xv_get(button, XV_WIDTH)) / 2,
+X			XV_Y, (int) xv_get(Workman_about->message6, XV_Y) +
+X			(int) xv_get(Workman_about->message6, XV_HEIGHT) + 5,
+X			NULL);
+X		button = xv_create(Workman_goodies->controls4, PANEL_BUTTON,
+X			PANEL_LABEL_STRING, "Dismiss", PANEL_NOTIFY_PROC,
+X			window1_button4_notify_callback, NULL);
+X		xv_set(Workman_goodies->goodies, XV_HEIGHT,
+X			(int) xv_get(button, XV_HEIGHT) +
+X			(int) xv_get(Workman_goodies->goodies, XV_HEIGHT),
+X			NULL);
+X		xv_set(button, XV_X, ((int) xv_get(Workman_goodies->goodies,
+X			XV_WIDTH) - (int) xv_get(button, XV_WIDTH)) / 2,
+X			XV_Y, (int) xv_get(Workman_goodies->indexscan, XV_Y) +
+X			(int) xv_get(Workman_goodies->indexscan, XV_HEIGHT) + 5,
+X			NULL);
+X	}
+X
+X	srand(getpid());
+X	kill_stats(Workman_window1);
+X	track_rect = (Rect *)xv_get(Workman_window1->tracks, PANEL_ITEM_RECT);
+X
+X	xv_set(Workman_goodies->abrepeat, PANEL_INACTIVE, TRUE, NULL);
+X
+X	/* Initialize some stuff Guide won't do. */
+X	xv_set(Workman_window1->volume, PANEL_VALUE, xv_get(Workman_window1->
+X		volume, PANEL_MAX_VALUE), PANEL_NOTIFY_LEVEL, PANEL_ALL, NULL);
+X	xv_set(Workman_goodies->balance, PANEL_NOTIFY_LEVEL, PANEL_ALL, NULL);
+X	xv_set(Workman_popup1->defaultvolume, PANEL_NOTIFY_LEVEL, PANEL_ALL,
+X		NULL);
+X	xv_set(Workman_window1->songpos, PANEL_NOTIFY_LEVEL, PANEL_ALL,
+X		PANEL_JUMP_DELTA, 5, NULL);
+X	cd_volume(254);
+X	xv_set(Workman_about->about, FRAME_CMD_PUSHPIN_IN, FALSE, NULL);
+X	xv_set(Workman_popup1->popup1, FRAME_CMD_PUSHPIN_IN, FALSE, NULL);
+X	xv_set(Workman_goodies->goodies, FRAME_CMD_PUSHPIN_IN, FALSE, NULL);
+X	xv_set(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN, FALSE,
+X		XV_KEY_DATA, FRAME_CMD_PUSHPIN_IN, FALSE, NULL);
+X	xv_set(Workman_popup1->whichvolume, PANEL_DEFAULT_VALUE, 1, NULL);
+X	text_event_handler = (void (*)())xv_get(Workman_popup1->artist,
+X		PANEL_EVENT_PROC);
+X	xv_set(Workman_popup1->cdname, PANEL_EVENT_PROC, text_event_p, NULL);
+X	xv_set(Workman_popup1->artist, PANEL_EVENT_PROC, text_event_p, NULL);
+X	xv_set(Workman_popup1->trackname, PANEL_EVENT_PROC, text_event_p, NULL);
+X	small_height = track_rect->r_height;
+X	next_stopmode(Workman_window1->repeat, cur_stopmode, NULL);
+X	setup_itimer(Workman_window1, 5);
+X
+X	/*
+X	 * Attempt to lay out the popups somewhat decently.  About goes at
+X	 * the upper left, goodies to its right.
+X	 * CD Info is positioned the first time it appears.
+X	 */
+X	xv_set(Workman_goodies->goodies, XV_X,
+X		c = ((int) xv_get(Workman_about->about, XV_WIDTH) + 15), NULL);
+X	xv_set(Workman_plpopup->plpopup, XV_X,
+X		(int) xv_get(Workman_goodies->goodies, XV_WIDTH) + c + 15,
+X		NULL);
+X
+X	window_is_open = ! xv_get(Workman_window1->window1, FRAME_CLOSED);
+X	notify_interpose_event_func(Workman_window1->window1, check_open,
+X		NOTIFY_SAFE);
+X	notify_interpose_destroy_func(Workman_window1->window1, byebye);
+X	notify_set_signal_func(Workman_window1->window1, sigusr1, SIGUSR1,
+X		NOTIFY_SYNC);
+X	notify_set_signal_func(Workman_window1->window1, sigusr2, SIGUSR2,
+X		NOTIFY_SYNC);
+X
+X	wannasave = xv_create(Workman_window1->window1, NOTICE,
+X		NOTICE_MESSAGE_STRINGS, "WorkMan alert!", "",
+X		"You have changed this CD's information,",
+X		"but you didn't save your changes.", NULL, NOTICE_BUTTON_YES,
+X		"Save changes", NOTICE_BUTTON_NO, "Discard changes",
+X		NOTICE_STATUS, &confirmsave, NULL);
+X	mountedfs = xv_create(Workman_window1->window1, NOTICE,
+X		NOTICE_MESSAGE_STRINGS, "WorkMan alert!", "",
+X		"This CD contains a mounted filesystem.",
+X		"Please run 'umount' before ejecting",
+X		"or nasty things may happen.", NULL, NOTICE_BUTTON,
+X		"Okay", 0, NULL);
+X
+X	/*
+X	 * Turn control over to XView.
+X	 */
+X	xv_main_loop(Workman_window1->window1);
+X
+X	unlink(pidfile);
+X	exit(0);
+X}
+X
+X/*
+X * Callback function for Apply button.
+X */
+Xvoid
+Xsave_config(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	keep_settings(Workman_window1);
+X	save();
+X	info_modified = 0;
+X}
+X
+Xstatic int time_wanted = -1;
+X
+Xstatic unsigned short sink_bits[8][64 * 16] = { {
+X#include "bitmaps/sink0"
+X}, {
+X#include "bitmaps/sink1"
+X}, {
+X#include "bitmaps/sink2"
+X}, {
+X#include "bitmaps/sink3"
+X}, {
+X#include "bitmaps/sink4"
+X}, {
+X#include "bitmaps/sink5"
+X}, {
+X#include "bitmaps/sink6"
+X}, {
+X#include "bitmaps/sink7"
+X} };
+X
+X/*
+X * Timer handler.  This is called twice a second and updates the clocks and
+X * gauges and such.
+X */
+XNotify_value
+Xhandle_timer(c, w)
+XNotify_client	c;
+Xint		w;
+X{
+X	window1_objects *ip = Workman_window1;
+X	static int old_cdmode, new_image = 0;
+X	Xv_opaque old_image;
+X
+X	if (xv_get(ip->mode, PANEL_VALUE) != 5 || ! dont_retry)
+X		switch (cd_status()) {
+X		case 0:		/* No CD in drive */
+X			cur_cdmode = 5;
+X			if (old_cdmode != 5)
+X			{
+X				if (!xv_get(ip->cdname_display, PANEL_INACTIVE))
+X				{
+X					keep_settings(ip);
+X					kill_stats(ip);
+X				}
+X				xv_set(ip->mode, PANEL_VALUE, 5, NULL);
+X			}
+X			break;
+X		case 1:		/* CD in drive, what state is it in? */
+X			if (cur_cdmode == 0)		/* Done with track... */
+X			{
+Xdonewithcd:
+X				if (xv_get(Workman_goodies->abrepeat,
+X								PANEL_VALUE))
+X				{
+X					play_chunk(mark_a, mark_b);
+X					return (handle_timer(c, w));
+X				}
+X				if (was_repeating)
+X				{
+X					was_repeating = 0;
+X					play_chunk(mark_b, cur_lasttrack >=
+X						cur_ntracks ?
+X						(cd->length - 1) * 75 :
+X						cd->trk[cur_lasttrack].start-1);
+X					return (handle_timer(c, w));
+X				}
+X
+X				play_next_entry();
+X				if (cd_status() != 1)
+X					return (handle_timer(c, w));
+X				if (cur_cdmode == 4)	/* Done with CD */
+X				{
+X					xv_set(Workman_goodies->abrepeat,
+X						PANEL_VALUE, FALSE, NULL);
+X					switch (xv_get(ip->repeat, PANEL_VALUE))
+X					{
+X					case 1:
+X						make_playlist(xv_get(
+X							ip->shuffle,
+X							PANEL_VALUE), 0);
+X						play_next_entry();
+X						break;
+X					case 2:
+X						keep_settings(ip);
+X						if (info_modified)
+X						{
+X						/*one more tab and we're dead*/
+X							xv_set(wannasave,
+X								XV_SHOW, TRUE,
+X								NULL);
+X							if (confirmsave)
+X								save_config(
+X									NULL,
+X									NULL);
+X							info_modified = 0;
+X						}
+X						if (eject_cd() == 0)
+X						{
+X							setup_itimer(ip, 5);
+X							kill_stats(ip);
+X						}
+X						break;
+X					default:
+X						icon_label("Stop");
+X						xv_set(ip->tracks, PANEL_VALUE,
+X							-1, NULL);
+X						xv_set(ip->tracklen,
+X							PANEL_LABEL_STRING,
+X							"0:00", NULL);
+X						cur_pos_abs = cur_pos_rel = 0;
+X						cur_tracklen = 0;
+X						new_trackname_display("", 0);
+X						xv_set(Workman_goodies->delete,
+X							PANEL_INACTIVE, TRUE,
+X							NULL);
+X						xv_set(Workman_goodies->split,
+X							PANEL_INACTIVE, TRUE,
+X							NULL);
+X						reset_cdlen(ip);
+X						displayed_track = -1;
+X						cur_track = -1;
+X					}
+X				}
+X			}
+X
+X			/* We're at the end of the previous track. */
+X			if (cur_firsttrack != -1 && cur_track < cur_firsttrack)
+X				cur_track = cur_firsttrack;
+X
+X			/* The slider has been moved... */
+X			if (time_wanted > -1 && cur_cdmode == 1)
+X			{
+X				play_from_pos(time_wanted);
+X				time_wanted = -2;
+X				return (handle_timer(c, w));
+X			}
+X			if (time_wanted == -2)
+X			{
+X				time_wanted = -1;
+X				xv_set(ip->cdgauge, PANEL_VALUE, cur_pos_abs,
+X					NULL);
+X			}
+X
+X			/* We've hit the start of a track we don't want. */
+X			if (cur_lasttrack != -1 && cur_track > cur_lasttrack)
+X				goto donewithcd;
+X
+X			if (cur_cdmode != 4 && cur_cdmode != 3 || old_cdmode !=
+X								cur_cdmode)
+X				show_stats(ip);
+X			break;
+X
+X		case 2:		/* CD has just been inserted. */
+X			info_modified = 0;
+X			if (dont_retry > 1)
+X				dont_retry = 0;
+X			setup_itimer(ip, 0);
+X			init_stats(ip);
+X			xv_set(ip->repeat, PANEL_VALUE, cur_stopmode, NULL);
+X			xv_set(Workman_goodies->playnewcds, PANEL_VALUE,
+X				cur_playnew, NULL);
+X			show_stats(ip);
+X			cd_status();
+X			if ((cur_playnew && !found_in_rc) || get_autoplay() ||
+X								cur_cdmode == 1)
+X				make_initial_playlist(get_playmode());
+X			break;
+X		}
+X
+X	old_cdmode = cur_cdmode;
+X
+X	if (window_is_open && xv_get(Workman_about->about, XV_SHOW))
+X	{
+X		old_image = xv_get(Workman_about->sink, PANEL_LABEL_IMAGE);
+X		xv_set(Workman_about->sink, PANEL_LABEL_IMAGE,
+X			xv_create(XV_NULL, SERVER_IMAGE, SERVER_IMAGE_DEPTH, 1,
+X				XV_WIDTH, 64, XV_HEIGHT, 64, SERVER_IMAGE_BITS,
+X				sink_bits[new_image], NULL), NULL);
+X		xv_destroy(old_image);
+X		new_image = (new_image + 1) & 7;
+X	}
+X
+X	return (NOTIFY_DONE);
+X}
+X
+X/*
+X * Make an initial playlist.  If the CD was already playing, skip forward in
+X * the list to an entry where the current track would be playing (except in
+X * Shuffle mode; in that case, start a new random list beginning with
+X * the current track.)
+X */
+Xvoid
+Xmake_initial_playlist(playmode)
+X	int	playmode;
+X{
+X	if (cur_cdmode == 1)
+X	{
+X		if (playmode == 1)
+X		{
+X			make_playlist(1, cur_track);
+X			cur_listno = 1;
+X		}
+X		else
+X		{
+X			make_playlist(playmode, 0);
+X			pl_find_track(cur_track);
+X		}
+X	}
+X	else
+X	{
+X		make_playlist(get_playmode(), 0);
+X		play_next_entry();
+X	}
+X}
+X
+X/*
+X * Set up the interval timers.
+X */
+Xvoid
+Xsetup_itimer(ip, interval)
+X	window1_objects *ip;
+X	int		interval;
+X{
+X	static struct itimerval it;
+X
+X	it.it_value.tv_sec = 0;
+X	it.it_value.tv_usec = 500000;
+X	it.it_interval.tv_sec = interval;
+X	it.it_interval.tv_usec = interval ? 0 : 500000;
+X	notify_set_itimer_func(ip->window1, handle_timer, ITIMER_REAL,
+X		&it, NULL);
+X}
+X
+X/*
+X * Stash the current settings away in memory (in preparation for changing
+X * tracks, for instance, or before a save.)
+X */
+Xvoid
+Xkeep_settings(ip)
+X	window1_objects	*ip;
+X{
+X	popup1_objects	*pu = Workman_popup1;
+X
+X	stash_cdinfo(xv_get(pu->artist, PANEL_VALUE),
+X		xv_get(pu->cdname, PANEL_VALUE),
+X		xv_get(pu->autoplay, PANEL_VALUE),
+X		xv_get(pu->playmode, PANEL_VALUE), NULL);
+X	if (pop_track > 0)
+X		stash_trkinfo(pop_track, xv_get(pu->trackname, PANEL_VALUE),
+X			xv_get(pu->trackoptions, PANEL_VALUE) & 1,
+X			xv_get(pu->trackoptions, PANEL_VALUE) & 2);
+X}
+X
+X/*
+X * Notify callback function for `mode'.
+X */
+Xvoid
+Xchange_mode(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	int	track, playmode;
+X
+X	if (cur_cdmode == 5)
+X		return;
+X
+X	switch (value) {
+X	case 0:		/* back a track */
+X		if (cur_cdmode == 4)
+X			if (cur_track > 0)
+X				cur_track = cur_track == 1 ? cur_ntracks :
+X					cur_track - 1;
+X			else
+X				cur_track = cur_ntracks;
+X		if (cur_cdmode == 1)
+X		{
+X			play_prev_track();
+X			cd_status();
+X		}
+X		if (cur_cdmode == 1 || cur_cdmode == 4)
+X			xv_set(ip->mode, PANEL_VALUE, cur_cdmode, NULL);
+X
+X		if (xv_get(Workman_goodies->abrepeat, PANEL_VALUE))
+X			xv_set(Workman_goodies->abrepeat, PANEL_VALUE, FALSE,
+X				NULL);
+X		displayed_track = -1;
+X		if (cur_track < cur_firsttrack)
+X			cur_track = cur_firsttrack;
+X		show_stats(ip);
+X		break;
+X
+X	case 1:		/* play */
+X		if (cur_cdmode == 3)
+X		{
+X			pause_cd();
+X			show_stats(ip);
+X			break;
+X		}
+X		if (cur_cdmode == 4)
+X		{
+X			/* XXX should call make_initial_playlist() */
+X			track = xv_get(ip->tracks, PANEL_VALUE) + 1;
+X			playmode = xv_get(ip->shuffle, PANEL_VALUE);
+X			if (playmode == 1)
+X				make_playlist(1, track);
+X			else
+X			{
+X				make_playlist(playmode, 0);
+X				if (track)
+X				{
+X					pl_find_track(track);
+X					cur_track = track;
+X					cur_cdmode = 1;
+X					play_from_pos(0);
+X					displayed_track = -1;
+X				}
+X			}
+X		}
+X		if (cur_cdmode != 1)
+X			play_next_entry();
+X		cd_status();
+X
+X		/* We're at the end of the previous track. */
+X		if (cur_track < cur_firsttrack)
+X			cur_track = cur_firsttrack;
+X
+X		if (displayed_track == -1)
+X			new_track(ip);
+X		break;
+X
+X	case 2:		/* forward a track */
+X		if (cur_cdmode == 4)
+X			if (cur_track > 0)
+X				cur_track = cur_track == cur_ntracks ? 1 :
+X					cur_track + 1;
+X			else
+X				cur_track = 1;
+X		if (cur_cdmode == 1)
+X		{
+X			play_next_track();
+X			if (cur_cdmode == 4)
+X				goto stopped;
+X			cd_status();
+X		}
+X		if (cur_cdmode == 1 || cur_cdmode == 4)
+X			xv_set(ip->mode, PANEL_VALUE, cur_cdmode, NULL);
+X
+X		if (xv_get(Workman_goodies->abrepeat, PANEL_VALUE))
+X			xv_set(Workman_goodies->abrepeat, PANEL_VALUE, FALSE,
+X				NULL);
+X		if (cur_track < cur_firsttrack)
+X			cur_track = cur_firsttrack;
+X		show_stats(ip);
+X		break;
+X
+X	case 3:		/* pause */
+X		pause_cd();
+X		show_stats(ip);
+X		break;
+X	case 4:		/* stop */
+X		stop_cd();
+X		cd_status();
+Xstopped:
+X		new_trackname_display("", 0);
+X		reset_cdlen(ip);
+X		icon_label("Stop");
+X		xv_set(ip->tracks, PANEL_VALUE, -1, NULL);
+X		xv_set(Workman_goodies->abrepeat, PANEL_VALUE, FALSE, NULL);
+X		xv_set(Workman_goodies->split, PANEL_INACTIVE, TRUE, NULL);
+X		xv_set(Workman_goodies->delete, PANEL_INACTIVE, TRUE, NULL);
+X		displayed_track = -1;
+X		cur_track = -1;
+X		break;
+X	case 5:		/* eject */
+X		keep_settings(ip);
+X
+X		if (info_modified)
+X		{
+X			xv_set(wannasave, XV_SHOW, TRUE, NULL);
+X			if (confirmsave)
+X				save_config(NULL, NULL);
+X			info_modified = 0;
+X		}
+X
+X		switch (eject_cd()) {
+X		case 0:
+X			setup_itimer(ip, 5);
+X			kill_stats(ip);
+X			break;
+X		case 1:
+X			xv_set(ip->mode, PANEL_VALUE, 4, NULL);
+X			break;	/* XXX - should display an error popup */
+X		case 2:
+X			xv_set(ip->mode, PANEL_VALUE, 4, NULL);
+X			xv_set(mountedfs, XV_SHOW, TRUE, NULL);
+X			break;
+X		}
+X
+X		break;
+X	}
+X}
+X
+X/*
+X * Notify callback function for `button2'.  Show the CD Info popup.
+X */
+Xvoid
+Xwindow1_button2_notify_callback(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	int		cdi_width, cdi_height, wm_width, wm_x, c;
+X	static int	positioned = 0;
+X	Xv_Screen	screen;
+X	Display		*dpy;
+X
+X	/*
+X	 * CD Info is positioned (badly) at this point.  It goes to the right
+X	 * of the main window if it'll fit, to the left if not, aligned with
+X	 * the top of the main window as closely as possible.  This is not
+X	 * as nice as it could be, but is probably as nice as it's gonna get.
+X	 *
+X	 * XXX We make (BAD BAD BAD) assumptions about the size of the window
+X	 *	decorations so things line up right under olwm.
+X	 */
+X	if (! positioned)
+X	{
+X		positioned = 1;
+X		dpy = (Display *) xv_get(ip->window1, XV_DISPLAY);
+X		screen = (Xv_Screen) xv_get(ip->window1, XV_SCREEN);
+X		c = (int) xv_get(screen, SCREEN_NUMBER);
+X		cdi_width = (int) xv_get(Workman_popup1->popup1, XV_WIDTH);
+X		cdi_height = (int) xv_get(Workman_popup1->popup1, XV_HEIGHT);
+X		wm_width = (int) xv_get(ip->window1, XV_WIDTH);
+X		wm_x = (int) xv_get(ip->window1, XV_X);
+X		if (wm_width + cdi_width + 10 + (int) xv_get(ip->window1,
+X				XV_X) > DisplayWidth(dpy, c))
+X			xv_set(Workman_popup1->popup1, XV_X, wm_x - cdi_width -
+X				20 < 0 ? 0 : wm_x - cdi_width - 20, NULL);
+X		else
+X			xv_set(Workman_popup1->popup1, XV_X, wm_x + wm_width +
+X				10, NULL);
+X		if ((int) xv_get(ip->window1, XV_Y) + cdi_height >
+X							DisplayHeight(dpy, c))
+X			xv_set(Workman_popup1->popup1, XV_Y,
+X				DisplayHeight(dpy, c) - cdi_height - 28, NULL);
+X		else
+X			xv_set(Workman_popup1->popup1, XV_Y, xv_get(ip->
+X				window1, XV_Y) - 25, NULL);
+X	}
+X	
+X	if (dismiss_button && item == ip->button2 ||
+X		xv_get(Workman_popup1->popup1, FRAME_CMD_PUSHPIN_IN) == FALSE)
+X	{
+X		xv_set(Workman_popup1->popup1, FRAME_CMD_PUSHPIN_IN, TRUE,
+X			NULL);
+X		xv_set(Workman_popup1->popup1, XV_SHOW, TRUE, NULL);
+X		if (xv_get(Workman_plpopup->plpopup, XV_KEY_DATA,
+X							FRAME_CMD_PUSHPIN_IN))
+X			xv_set(Workman_plpopup->plpopup, XV_SHOW, TRUE,
+X				FRAME_CMD_PUSHPIN_IN, TRUE, XV_KEY_DATA,
+X				FRAME_CMD_PUSHPIN_IN, FALSE, NULL);
+X	}
+X	else
+X	{
+X		xv_set(Workman_popup1->popup1, FRAME_CMD_PUSHPIN_IN, FALSE,
+X			XV_SHOW, FALSE, NULL);
+X		xv_set(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN, FALSE,
+X			XV_KEY_DATA, FRAME_CMD_PUSHPIN_IN,
+X			xv_get(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN),
+X			XV_SHOW, FALSE, NULL);
+X	}
+X}
+X
+X/*
+X * Notify callback function for `delete'.
+X */
+Xvoid
+Xdelete_from_playlist(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	int i;
+X	
+X	info_modified = 1;
+X
+X	if (pl_item >= 0)
+X	{
+X		xv_set(ip->playlist, PANEL_LIST_SELECT, pl_item, FALSE,
+X			PANEL_LIST_DELETE, pl_item, NULL);
+X		for (i = pl_item; i < pop_listsize; i++)
+X			pop_list[i] = pop_list[i + 1];
+X		if (--pop_listsize)
+X		{
+X			if (pl_item == pop_listsize)
+X				pl_item--;
+X			xv_set(ip->playlist, PANEL_LIST_SELECT, pl_item,
+X				TRUE, NULL);
+X			cd->lists[pl_listnum].list = pop_list;
+X		}
+X		else
+X		{
+X			pl_item = -1;
+X			xv_set(ip->delete, PANEL_INACTIVE, TRUE, NULL);
+X			free(pop_list);
+X			pop_list = NULL;
+X			cd->lists[pl_listnum].list = pop_list;
+X		}
+X	}
+X}
+X
+X/*
+X * Notify callback function for `tracks'.
+X */
+Xvoid
+Xchange_track(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	
+X	if (cur_cdlen > 0 && cur_cdmode != 5)
+X	{
+X		if (value == -1)
+X		{
+X			if (cur_cdmode == 1 || cur_cdmode == 3)
+X				xv_set(item, PANEL_VALUE, cur_track - 1, NULL);
+X			else
+X			{
+X				xv_set(Workman_goodies->split, PANEL_INACTIVE,
+X					TRUE, NULL);
+X				xv_set(Workman_goodies->delete, PANEL_INACTIVE,
+X					TRUE, NULL);
+X				cur_track = -1;
+X			}
+X		}
+X		else
+X			cur_track = value + 1;
+X
+X		if (cur_cdmode == 1)
+X		{
+X			pl_find_track(cur_track);
+X			play_from_pos(0);
+X			cd_status();
+X			if (cur_track < cur_firsttrack)
+X				cur_track = cur_firsttrack;
+X		}
+X		new_track(ip);
+X	}
+X}
+X
+X/*
+X * Notify callback function for `songpos'.
+X */
+Xvoid
+Xchange_pos(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	char	time[6];
+X	int	value_left;
+X	
+X	time_wanted = value;
+X
+X	if (cur_cdmode == 4 && cur_track > 0)
+X	{
+X		if (! xv_get(Workman_goodies->timemode, PANEL_VALUE))
+X			sprintf(time, "%02d:%02d", value / 60, value % 60);
+X		else
+X		{
+X			value_left = tracklen(cur_track - 1) - value;
+X			if (value < 0)
+X				value = 0;
+X			sprintf(time, "%02d:%02d", value_left / 60,
+X							value_left % 60);
+X		}
+X
+X		xv_set(Workman_window1->tracktimer, PANEL_LABEL_STRING, time,
+X			NULL);
+X		cur_pos_rel = time_wanted;
+X		cur_frame = cd->trk[cur_track - 1].start + time_wanted * 75;
+X		cur_pos_abs = cur_frame / 75;
+X	}
+X
+X	if (xv_get(Workman_goodies->abrepeat, PANEL_VALUE))
+X		xv_set(Workman_goodies->abrepeat, PANEL_VALUE, FALSE, NULL);
+X}
+X
+X/*
+X * Notify callback function for `artist'.
+X */
+XPanel_setting
+Xupdate_title(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	char *title;
+X
+X	if (! my_cdname)
+X	{
+X		title = (char *) xv_get(ip->cdname, PANEL_VALUE);
+X		if (title == NULL || title[0] == '\0')
+X			title = "Unknown CD name";
+X		xv_set(Workman_window1->cdname_display, PANEL_LABEL_STRING,
+X			title, NULL);
+X
+X		center_titles();
+X	}
+X
+X	if (! my_artist)
+X	{
+X		title = (char *) xv_get(ip->artist, PANEL_VALUE);
+X		if (title == NULL || title[0] == '\0')
+X			title = "Unknown artist";
+X		xv_set(Workman_window1->artist_display, PANEL_LABEL_STRING,
+X			title, NULL);
+X
+X		center_titles();
+X	}
+X
+X	if (event == NULL)
+X		return (NULL);
+X	return panel_text_notify(item, event);
+X}
+X
+X/*
+X * Notify callback function for `tracklist'.
+X */
+Xint
+Xupdate_trackname(item, string, client_data, op, event, row)
+X	Panel_item	item;
+X	char		*string;
+X	Xv_opaque	client_data;
+X	Panel_list_op	op;
+X	Event		*event;
+X	int		row;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	int	options;
+X	char	*name;
+X
+X	switch(op) {
+X	case PANEL_LIST_OP_DESELECT:
+X	case PANEL_LIST_OP_VALIDATE:
+X		if (! pop_track)	/* workaround for bug 1090204 */
+X			break;
+X		options = xv_get(ip->trackoptions, PANEL_VALUE);
+X		name = (char *) xv_get(ip->trackname, PANEL_VALUE);
+X		stash_trkinfo(row + 1, name, options & 1, (options & 2) >> 1);
+X		xv_set(ip->tracklist, PANEL_LIST_STRING, row, listentry(row),
+X			NULL);
+X		if (cur_track - 1 == row)
+X			new_trackname_display(name, cur_track);
+X		if (op == PANEL_LIST_OP_DESELECT)
+X		{
+X			xv_set(ip->trackname, PANEL_VALUE, empty, NULL);
+X			pop_track = 0;
+X		}
+X		break;
+X
+X	case PANEL_LIST_OP_SELECT:
+X		xv_set(ip->trackname, PANEL_VALUE, trackname(row), NULL);
+X		xv_set(ip->trackoptions, PANEL_VALUE, (get_avoid(row) ? 2 : 0) |
+X			(get_contd(row) ? 1 : 0), NULL);
+X		pop_track = row + 1;
+X		if (xv_get(ip->whichvolume, PANEL_VALUE))
+X		{
+X			xv_set(ip->defaultvolume, PANEL_VALUE,
+X				get_default_volume(row + 1), NULL);
+X			set_default_volume(ip->defaultvolume,
+X				get_default_volume(row + 1), NULL);
+X		}
+X		break;
+X
+X	case PANEL_LIST_OP_DELETE:
+X		break;
+X	}
+X
+X	return XV_OK;
+X}
+X
+X/*
+X * Notify callback function for `trackname'.
+X */
+XPanel_setting
+Xname_entered(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	char *	value = (char *) xv_get(item, PANEL_VALUE);
+X	int	next_track = 0;
+X	Panel_setting	retval;
+X	
+X	switch (event_action(event))
+X	{
+X		case '\n':
+X		case '\r':
+X		case '\033':
+X			retval = PANEL_NONE;
+X			next_track = 1;
+X			break;
+X		case '\t':
+X			retval = PANEL_NEXT;
+X			break;
+X		default:
+X			retval = panel_text_notify(item, event);
+X	}
+X
+X/* If a track was selected, save the current settings and go to the next. */
+X	if (pop_track)
+X	{
+X		if (next_track)
+X		{
+X			next_track = pop_track;
+X			if (next_track == cur_ntracks)
+X				next_track = 0;
+X			xv_set(ip->tracklist, PANEL_LIST_SELECT, pop_track - 1,
+X				FALSE, NULL);
+X			update_trackname(ip->tracklist, listentry(pop_track -
+X				1), NULL, PANEL_LIST_OP_DESELECT, event,
+X				pop_track - 1);
+X			xv_set(ip->tracklist, PANEL_LIST_SELECT, next_track,
+X				TRUE, NULL);
+X			update_trackname(ip->tracklist, listentry(next_track),
+X				NULL, PANEL_LIST_OP_SELECT, event, next_track);
+X		}
+X		else
+X			update_trackname(ip->tracklist, listentry(pop_track -
+X				1), NULL, PANEL_LIST_OP_VALIDATE, event,
+X				pop_track - 1);
+X	}
+X
+X	return (retval);
+X}
+X
+X/*
+X * Notify callback function for `shuffle'.
+X */
+Xvoid
+Xnext_playmode_default(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	int	newdefault;
+X	
+X	if (value == 0)
+X		newdefault = 1;
+X	else
+X		if (cd->lists == NULL || cd->lists[value - 1].name == NULL)
+X			newdefault = 0;
+X		else
+X			newdefault = value + 1;
+X
+X	xv_set(item, PANEL_DEFAULT_VALUE, newdefault, NULL);
+X}
+X
+X/*
+X * Notify callback function for `playlist'.
+X */
+Xint
+Xplaylist_notify(item, string, client_data, op, event, row)
+X	Panel_item	item;
+X	char		*string;
+X	Xv_opaque	client_data;
+X	Panel_list_op	op;
+X	Event		*event;
+X	int		row;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	
+X	switch(op) {
+X	case PANEL_LIST_OP_DESELECT:
+X		pl_item = -1;
+X		xv_set(ip->delete, PANEL_INACTIVE, TRUE, NULL);
+X		break;
+X
+X	case PANEL_LIST_OP_SELECT:
+X		pl_item = row;
+X		xv_set(ip->delete, PANEL_INACTIVE, FALSE, NULL);
+X		break;
+X
+X	case PANEL_LIST_OP_VALIDATE:
+X	case PANEL_LIST_OP_DELETE:
+X		break;
+X	}
+X	return XV_OK;
+X}
+X
+Xstatic unsigned short speaker_bits[8][15] = { {
+X#include "bitmaps/loud0.icon"
+X}, {
+X#include "bitmaps/loud1.icon"
+X}, {
+X#include "bitmaps/loud2.icon"
+X}, {
+X#include "bitmaps/loud3.icon"
+X}, {
+X#include "bitmaps/loud4.icon"
+X}, {
+X#include "bitmaps/loud5.icon"
+X}, {
+X#include "bitmaps/loud6.icon"
+X}, {
+X#include "bitmaps/loud.icon"
+X} };
+X
+X/*
+X * Notify callback function for `volume'.
+X */
+Xvoid
+Xset_volume(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	static int	old_image = 7;
+X	Xv_opaque	old_serverimage;
+X	int		max = xv_get(item, PANEL_MAX_VALUE);
+X	int		new_image;
+X	int		leftval, rightval;
+X
+X	manual_volume = 1;
+X
+X	/* we want this to look sort of logarithmic */
+X	new_image = value / (max / 8);
+X
+X	if (cur_balance < 9)
+X		rightval = value - (9 - cur_balance) * 2;
+X	else
+X		rightval = value;
+X
+X	if (cur_balance > 11)
+X		leftval = value - (cur_balance - 11) * 2;
+X	else
+X		leftval = value;
+X
+X	leftval = ((max * max) - ((max - leftval) * (max - leftval))) * 127 /
+X		(max * max) + 128;
+X	rightval = ((max * max) - ((max - rightval) * (max - rightval))) * 127 /
+X		(max * max) + 128;
+X
+X	/* volumes 128 or lower seem useless */
+X	cd_volume(leftval, rightval);
+X
+X	/* maybe show a new icon... */
+X	if (new_image > 7)
+X		new_image = 7;
+X	if (new_image != old_image)
+X	{
+X		old_serverimage = xv_get(ip->speaker, PANEL_LABEL_IMAGE);
+X		xv_set(ip->speaker, PANEL_LABEL_IMAGE, xv_create(XV_NULL,
+X			SERVER_IMAGE, SERVER_IMAGE_DEPTH, 1, XV_WIDTH, 16,
+X			XV_HEIGHT, 15, SERVER_IMAGE_BITS,
+X			speaker_bits[new_image], NULL), NULL);
+X		xv_destroy(old_serverimage);
+X		old_image = new_image;
+X	}
+X}
+X
+X/*
+X * Figure out the proper volume for this track and set it.  If the user has
+X * touched the manual volume knob, use that setting instead of any default.
+X *
+X * XXX defaults should still affect the volume depending on how much the
+X * user changed it manually.
+X */
+Xvoid
+Xfigure_volume(ip)
+X	window1_objects *ip;
+X{
+X	int volume = 0, old_manual = manual_volume;
+X
+X	if (! manual_volume)
+X	{
+X		if (cur_track)
+X			volume = get_default_volume(cur_track);
+X		if (! volume)
+X			volume = get_default_volume(0);
+X	}
+X	if (! volume)
+X		volume = xv_get(ip->volume, PANEL_VALUE);
+X	xv_set(ip->volume, PANEL_VALUE, volume, NULL);
+X	set_volume(ip->volume, volume, NULL);
+X	manual_volume = old_manual;
+X}
+X
+X/*
+X * Notify callback function for `button3'.
+X */
+Xvoid
+Xwindow1_button3_notify_callback(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	
+X	if (dismiss_button && item == ip->button3 ||
+X		xv_get(Workman_about->about, FRAME_CMD_PUSHPIN_IN) == FALSE)
+X	{
+X		xv_set(Workman_about->about, FRAME_CMD_PUSHPIN_IN, TRUE, NULL);
+X		xv_set(Workman_about->about, XV_SHOW, TRUE, NULL);
+X	}
+X	else
+X		xv_set(Workman_about->about, FRAME_CMD_PUSHPIN_IN, FALSE,
+X			XV_SHOW, FALSE, NULL);
+X}
+X
+X/*
+X * Notify callback function for `defaultvolume'.
+X */
+Xvoid
+Xset_default_volume(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	static int	old_image = -1;
+X	Xv_opaque	old_serverimage;
+X	int		max = xv_get(item, PANEL_MAX_VALUE);
+X	int		new_image;
+X	static int	old_manual, old_volume = -1;
+X
+X	/*
+X	 * Make the real volume track the default volume while the user is
+X	 * sliding the default slider.
+X	 */
+X	if (event != NULL)
+X	{
+X		info_modified = 1;
+X
+X		if (event_is_up(event))
+X		{
+X			if (old_volume != -1)
+X				xv_set(Workman_window1->volume, PANEL_VALUE,
+X					old_volume, NULL);
+X			old_volume = -1;
+X		}
+X		else
+X		{
+X			if (old_volume == -1)
+X				old_volume = xv_get(Workman_window1->volume,
+X					PANEL_VALUE);
+X			if (value)
+X				xv_set(Workman_window1->volume, PANEL_VALUE,
+X					value - 1, NULL);
+X		}
+X		figure_volume(Workman_window1);
+X	}
+X
+X	/* we want this to look sort of logarithmic */
+X	if (value)
+X	{
+X		default_volume(xv_get(ip->whichvolume, PANEL_VALUE) * pop_track,
+X			value);
+X		new_image = value / (max / 8);
+X		value = (max * max) - ((max - value) * (max - value));
+X	}
+X	else
+X	{
+X		new_image = -1;
+X		default_volume(xv_get(ip->whichvolume, PANEL_VALUE) * pop_track,
+X			0);
+X	}
+X
+X	/* maybe show a new icon... */
+X	if (new_image > 7)
+X		new_image = 7;
+X	if (old_image > -1)
+X		old_serverimage = xv_get(ip->defaultspeaker, PANEL_LABEL_IMAGE);
+X	if (new_image != old_image && new_image > -1)
+X	{
+X		xv_set(ip->defaultspeaker, PANEL_LABEL_IMAGE,
+X			xv_create(XV_NULL, SERVER_IMAGE, SERVER_IMAGE_DEPTH, 1,
+X			XV_WIDTH, 16, XV_HEIGHT, 15, SERVER_IMAGE_BITS,
+X			speaker_bits[new_image], NULL), NULL);
+X		if (old_image > 0)
+X			xv_destroy(old_serverimage);
+X		old_image = new_image;
+X	}
+X	if (new_image != old_image && new_image == -1)
+X	{
+X		xv_destroy(old_serverimage);
+X		xv_set(ip->defaultspeaker, PANEL_LABEL_STRING, "None", NULL);
+X		old_image = -1;
+X	}
+X}
+X
+X/*
+X * Notify callback function for `whichvolume'.
+X */
+Xvoid
+Xset_which_volume(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	int	vol;
+X
+X	if (value == 1 && ! pop_track)
+X	{
+X		xv_set(item, PANEL_VALUE, 0, NULL);
+X		value = 0;
+X	}
+X
+X	xv_set(item, PANEL_DEFAULT_VALUE, (value + 1) % 2, NULL);
+X	xv_set(ip->defaultvolume, PANEL_VALUE, vol = get_default_volume(value ?
+X		pop_track : 0), NULL);
+X	set_default_volume(ip->defaultvolume, vol, NULL);
+X}
+X
+X/*
+X * Notify callback function for `button4'.
+X */
+Xvoid
+Xwindow1_button4_notify_callback(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X	
+X	if (dismiss_button && item == ip->button4 ||
+X		xv_get(Workman_goodies->goodies, FRAME_CMD_PUSHPIN_IN) == FALSE)
+X	{
+X		xv_set(Workman_goodies->goodies, FRAME_CMD_PUSHPIN_IN, TRUE,
+X			NULL);
+X		xv_set(Workman_goodies->goodies, XV_SHOW, TRUE, NULL);
+X	}
+X	else
+X		xv_set(Workman_goodies->goodies, FRAME_CMD_PUSHPIN_IN, FALSE,
+X			XV_SHOW, FALSE, NULL);
+X}
+X
+Xstatic unsigned short phone_bits[7][22] = { {
+X#include "bitmaps/phonesl3"
+X}, {
+X#include "bitmaps/phonesl2"
+X}, {
+X#include "bitmaps/phonesl1"
+X}, {
+X#include "bitmaps/phones0"
+X}, {
+X#include "bitmaps/phonesr1"
+X}, {
+X#include "bitmaps/phonesr2"
+X}, {
+X#include "bitmaps/phonesr3"
+X} };
+X
+X/*
+X * Notify callback function for `balance'.
+X */
+Xvoid
+Xslide_balance(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X	static int	old_image = 3;
+X	Xv_opaque	old_serverimage;
+X	int		max = xv_get(item, PANEL_MAX_VALUE);
+X	int		new_image;
+X
+X	new_image = value / (max / 6);
+X
+X	/* maybe show a new icon... */
+X	if (new_image > 6)
+X		new_image = 6;
+X	if (new_image != old_image)
+X	{
+X		old_serverimage = xv_get(ip->phones, PANEL_LABEL_IMAGE);
+X		xv_set(ip->phones, PANEL_LABEL_IMAGE, xv_create(XV_NULL,
+X			SERVER_IMAGE, SERVER_IMAGE_DEPTH, 1, XV_WIDTH, 16,
+X			XV_HEIGHT, 22, SERVER_IMAGE_BITS,
+X			phone_bits[new_image], NULL), NULL);
+X		xv_destroy(old_serverimage);
+X		old_image = new_image;
+X	}
+X
+X	cur_balance = value;
+X	figure_volume(Workman_window1);
+X}
+X
+X/*
+X * Notify callback function for `repeat'.
+X * Change the current stopmode; then select a new default value for the
+X * choice item.  Wrap around when we hit the end of the playlists.
+X */
+Xvoid
+Xnext_stopmode(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	window1_objects *ip = Workman_window1;
+X
+X	cur_stopmode = value;
+X	xv_set(item, PANEL_DEFAULT_VALUE, (value + 1) % 3, NULL);
+X}
+X
+X/*
+X * Event notify procedure for text fields, so the PANEL_NOTIFY_PROC gets
+X * called when the user clicks on another field.
+X */
+Xvoid
+Xtext_event_p(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	Panel_setting   (*fp)();
+X	int               e;
+X	char             *pns;
+X	Panel_setting     level;
+X	static Panel_item last_item = NULL;
+X	Xv_opaque         parent;
+X	Xv_pkg           *pack;
+X
+X	e = event_id(event);
+X
+X/* call last_item's PANEL_NOTIFY_PROC if user mouse clicks off it
+X   but don't do this if PANEL_NOTIFY_PROC already gets triggered via kbd */
+X	if ( (item != last_item) && (event_action(event) == ACTION_SELECT) &&
+X		(last_item != NULL) )
+X	{
+X		level = (Panel_setting) xv_get(last_item, PANEL_NOTIFY_LEVEL);
+X		switch (level)
+X		{
+X		case PANEL_NONE:
+X			break;
+X		case PANEL_NON_PRINTABLE:
+X			break;
+X		case PANEL_SPECIFIED:
+X			pns = (char *)xv_get(last_item, PANEL_NOTIFY_STRING);
+X			if ( strchr( pns, (char)e ) != NULL)
+X				break;
+X		case PANEL_ALL:
+X		default:
+X			fp = (Panel_setting (*)())
+X				xv_get(last_item, PANEL_NOTIFY_PROC);
+X			(*fp)(last_item, event);
+X			break;
+X		}
+X	}
+X
+X	/* save last item in static var */
+X	last_item = item;
+X
+X	(text_event_handler)(item, event);
+X}
+X
+X/*
+X * Notify callback function for `abrepeat'.
+X */
+Xvoid
+Xgoodies_abrepeat_notify_callback(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X	short	i;
+X	
+X	for (i = 0; i < 1; i++) {
+X		if (i == 0 && (value & 01))
+X		{
+X			start_repeating(item, value, event);
+X		}
+X		
+X		if (i == 0 && !(value & 01))
+X		{
+X			stop_repeating(item, value, event);
+X		}
+X		value >>= 1;
+X	}
+X}
+X
+X/*
+X * User-defined action for `abrepeat'.
+X */
+Xvoid
+Xstart_repeating(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	cur_firsttrack = cur_lasttrack = -1;
+X	play_chunk(mark_a, mark_b);
+X}
+X
+X/*
+X * Set one of the A-B repeat time messages.  "which" should be 0 for the A
+X * timer and 1 for the B timer.
+X */
+Xvoid
+Xset_abtimer(which, frame)
+X	int		which;
+X	int		frame;
+X{
+X	char	buf[30];
+X	int	tnum, relpos;
+X
+X	if (frame < cd->trk[0].start || frame > cd->length * 75)
+X		return;
+X
+X	for (tnum = 1; tnum < cur_ntracks; tnum++)
+X		if (frame < cd->trk[tnum].start)
+X			break;
+X	tnum--;
+X	relpos = (frame - cd->trk[tnum].start) / 75;
+X
+X	sprintf(buf, "Track: %02d Time: %02d:%02d", cd->trk[tnum].track,
+X		relpos / 60, relpos % 60);
+X
+X	if (which)
+X	{
+X		if (mark_a && frame <= mark_a)
+X			return;
+X
+X		mark_b = frame;
+X		xv_set(Workman_goodies->blabel, PANEL_LABEL_STRING, buf, NULL);
+X	}
+X	else
+X	{
+X		if (mark_b && frame >= mark_b)
+X		{
+X			mark_b = 0;
+X			return;
+X		}
+X
+X		mark_a = frame;
+X		xv_set(Workman_goodies->alabel, PANEL_INACTIVE, FALSE,
+X			PANEL_LABEL_STRING, buf, NULL);
+X	}
+X
+X	if (mark_a && mark_b && mark_a < mark_b)
+X	{
+X		xv_set(Workman_goodies->abrepeat, PANEL_INACTIVE, FALSE, NULL);
+X		xv_set(Workman_goodies->blabel, PANEL_INACTIVE, FALSE, NULL);
+X	}
+X}
+X
+X/*
+X * Notify callback function for `a'.
+X */
+Xvoid
+Xsection_start(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X	
+X	set_abtimer(0, cur_frame);
+X	xv_set(ip->blabel, PANEL_INACTIVE, TRUE, NULL);
+X	mark_b = 0;
+X	xv_set(ip->abrepeat, PANEL_VALUE, FALSE, PANEL_INACTIVE, TRUE, NULL);
+X}
+X
+X/*
+X * Notify callback function for `b'.
+X */
+Xvoid
+Xsection_end(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X	char buf[30];
+X	
+X	set_abtimer(1, cur_frame);
+X}
+X
+X/*
+X * Notify callback function for `button6'.
+X */
+Xvoid
+Xrename_playlist(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	char	*name = (char *) xv_get(ip->listname, PANEL_VALUE);
+X	int	i;
+X
+X	info_modified = 1;
+X
+X	if (name[0] == '\0' || pl_listnum == -1)
+X		return;
+X
+X	for (i = 0; cd->lists[i].name != NULL; i++)
+X		if (i != pl_listnum && ! strcmp(name, cd->lists[i].name))
+X			break;
+X
+X	if (cd->lists[i].name != NULL)
+X	{
+X		notice_prompt(ip->plpopup, event, NOTICE_FOCUS_XY,
+X			event_x(event), event_y(event), NOTICE_MESSAGE_STRINGS,
+X			"The name", name, "is already being used",
+X			NULL, NOTICE_BUTTON, "Comprendo", 101, NULL);
+X		return;
+X	}
+X
+X	strmcpy(&cd->lists[pl_listnum].name, name);
+X	xv_set(ip->playlists, PANEL_LIST_STRING, pl_listnum, name, NULL);
+X	xv_set(Workman_window1->shuffle, PANEL_CHOICE_STRING, pl_listnum + 2,
+X		name, NULL);
+X}
+X
+X/*
+X * User-defined action for `button7'.
+X * Add a new playlist to the system.  If the user has specified a name, use
+X * it; otherwise make up a lettered name ("List X") based on the list's
+X * position in the list of lists.
+X */
+Xvoid
+Xadd_playlist(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	char	*name = (char *) xv_get(ip->listname, PANEL_VALUE), *tmp = NULL;
+X	char	fakename[sizeof("List XXX")];
+X	int	i;
+X	char	c;
+X
+X	info_modified = 1;
+X
+X	if (name[0] == '\0')
+X	{
+X		name = fakename;
+X		strcpy(name, "List A");
+X		if (cd->lists != NULL && cd->lists[0].name != NULL)
+X			for (c = 'A'; c < 'z'; c++)
+X			{
+X				name[sizeof("List")] = c;
+X				for (i = 0; cd->lists[i].name != NULL; i++)
+X					if (! strcmp(name, cd->lists[i].name))
+X						break;
+X				if (! cd->lists[i].name)
+X					break;
+X				if (c == 'Z')
+X					c = 'a' - 1;
+X			}
+X	}
+X	else if (cd->lists != NULL)
+X		for (i = 0; cd->lists[i].name != NULL; i++)
+X			if (! strcmp(name, cd->lists[i].name))
+X				break;
+X
+X	if (cd->lists != NULL && cd->lists[i].name != NULL)
+X	{
+X		notice_prompt(ip->plpopup, event, NOTICE_FOCUS_XY,
+X			event_x(event), event_y(event), NOTICE_MESSAGE_STRINGS,
+X			"The name", name, "is already being used",
+X			NULL, NOTICE_BUTTON, "Comprendo", 101, NULL);
+X		return;
+X	}
+X
+X	/* Make the list itself internally. */
+X	if (new_list(cd, name) == NULL)
+X	{
+X		perror("new_list");
+X		exit(1);
+X	}
+X
+X	/* Add the list to the scrolling list of playlists. */
+X	i = (int) xv_get(ip->playlists, PANEL_LIST_NROWS);
+X	xv_set(ip->playlists, PANEL_LIST_INSERT, i, PANEL_LIST_STRING,
+X		i, name, PANEL_LIST_SELECT, i, TRUE, NULL);
+X	switch_playlists(ip->playlists, NULL, NULL, PANEL_LIST_OP_SELECT,
+X		NULL, i);
+X
+X	/* ...And to the play mode choice item on the main window. */
+X	xv_set(Workman_window1->shuffle, PANEL_CHOICE_STRING, i + 2, name,
+X		NULL);
+X	if (xv_get(Workman_window1->shuffle, PANEL_DEFAULT_VALUE) == 0)
+X		xv_set(Workman_window1->shuffle, PANEL_DEFAULT_VALUE, i + 2,
+X			NULL);
+X}
+X
+X/*
+X * Notify callback function for `button5'.
+X */
+Xvoid
+Xdelete_playlist(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	int	nlists = xv_get(ip->playlists, PANEL_LIST_NROWS);
+X	int	shuf, i;
+X	
+X	info_modified = 1;
+X
+X	if (pl_listnum >= 0)
+X	{
+X		xv_set(ip->playlists, PANEL_LIST_DELETE, pl_listnum, NULL);
+X		free(cd->lists[pl_listnum].name);
+X		if (cd->lists[pl_listnum].list != NULL)
+X			free(cd->lists[pl_listnum].list);
+X
+X		for (i = pl_listnum; i < nlists; i++)
+X			cd->lists[i] = cd->lists[i + 1];
+X
+X		shuf = xv_get(Workman_window1->shuffle, PANEL_VALUE);
+X		if (--nlists)
+X		{
+X			if (pl_listnum == nlists)
+X				pl_listnum--;
+X			xv_set(ip->playlists, PANEL_LIST_SELECT, pl_listnum,
+X				TRUE, NULL);
+X			switch_playlists(ip->playlists, NULL, NULL,
+X				PANEL_LIST_OP_SELECT, NULL, pl_listnum);
+X		}
+X		else
+X		{
+X			pl_listnum = -1;
+X			free(cd->lists);
+X			cd->lists = NULL;
+X			switch_playlists(ip->playlists, NULL, NULL,
+X				PANEL_LIST_OP_DESELECT, NULL, 0);
+X		}
+X		xv_set(Workman_window1->shuffle, XV_SHOW, FALSE,
+X			PANEL_CHOICE_STRINGS, "Normal", "Shuffle", NULL, NULL);
+X		for (i = 0; i < nlists; i++)
+X			xv_set(Workman_window1->shuffle, PANEL_CHOICE_STRING,
+X				i + 2, cd->lists[i].name, NULL);
+X
+X		if (shuf > pl_listnum + 1)
+X			shuf--;
+X		xv_set(Workman_window1->shuffle, PANEL_VALUE, shuf, XV_SHOW,
+X			TRUE, NULL);
+X		next_playmode_default(Workman_window1->shuffle, shuf, NULL);
+X	}
+X}
+X
+X/*
+X * Notify callback function for `buttonpl'.
+X */
+Xvoid
+Xpopup1_buttonpl_notify_callback(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	
+X	if (dismiss_button && item == ip->buttonpl ||
+X		xv_get(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN) == FALSE)
+X	{
+X		xv_set(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN, TRUE,
+X			NULL);
+X		xv_set(Workman_plpopup->plpopup, XV_SHOW, TRUE, NULL);
+X	}
+X	else
+X		xv_set(Workman_plpopup->plpopup, FRAME_CMD_PUSHPIN_IN, FALSE,
+X			XV_SHOW, FALSE, NULL);
+X	xv_set(Workman_plpopup->plpopup, XV_KEY_DATA, FRAME_CMD_PUSHPIN_IN,
+X		FALSE, NULL);
+X}
+X
+X/*
+X * Notify callback function for `button7'.
+X */
+Xvoid
+Xplpopup_button7_notify_callback(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	add_playlist(item, event);
+X}
+X
+X/*
+X * Insert a track into the playlist.  This is the notify procedure for the
+X * dynamically-built track number menu's items.
+X */
+Xvoid
+Xinsert_into_playlist(menu, item)
+X	Menu		menu;
+X	Menu_item	item;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	int	trackno;
+X
+X	if (pl_listnum == -1)
+X		return;
+X
+X	info_modified = 1;
+X
+X	trackno = (int) xv_get(item, XV_KEY_DATA, 1234);
+X	if (pop_list == NULL)
+X		pop_list = (int *)malloc(sizeof (int) * 2);
+X	else
+X		pop_list = (int *)realloc(pop_list, sizeof (int) *
+X			(pop_listsize + 2));
+X	if (pop_list == NULL)
+X	{
+X		perror("malloc");
+X		exit(1);
+X	}
+X
+X	xv_set(ip->playlist, PANEL_LIST_INSERT, pop_listsize,
+X		PANEL_LIST_STRING, pop_listsize,
+X		listentry(trackno - 1), PANEL_LIST_SELECT,
+X		pop_listsize, TRUE, NULL);
+X	xv_set(ip->delete, PANEL_INACTIVE, FALSE, NULL);
+X
+X	pl_item = pop_listsize;
+X	pop_list[pop_listsize++] = trackno;
+X	pop_list[pop_listsize] = 0;
+X	cd->lists[pl_listnum].list = pop_list;
+X}
+X
+X/*
+X * Notify callback function for `button8'.
+X */
+Xvoid
+Xcdinfo_reset(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	popup1_objects *ip = Workman_popup1;
+X	int	old_cdmode = cur_cdmode;
+X	
+X	kill_stats(Workman_window1);
+X	wipe_cdinfo();
+X	load();
+X	init_stats(Workman_window1);
+X	show_stats(Workman_window1);
+X	if (old_cdmode == 3)
+X	{
+X		cur_cdmode = 3;
+X		xv_set(Workman_window1->mode, PANEL_VALUE, 3, NULL);
+X	}
+X	info_modified = 0;
+X}
+X
+X/*
+X * Notify callback function for `playlists'.
+X */
+Xint
+Xswitch_playlists(item, string, client_data, op, event, row)
+X	Panel_item	item;
+X	char		*string;
+X	Xv_opaque	client_data;
+X	Panel_list_op	op;
+X	Event		*event;
+X	int		row;
+X{
+X	plpopup_objects *ip = Workman_plpopup;
+X	int	i, *thislist;
+X	
+X	switch(op) {
+X	case PANEL_LIST_OP_DESELECT:
+X		xv_set(ip->playlist, PANEL_LIST_DELETE_ROWS, 0,
+X			xv_get(ip->playlist, PANEL_LIST_NROWS), NULL);
+X		xv_set(ip->delete, PANEL_INACTIVE, TRUE, NULL);
+X		xv_set(ip->button5, PANEL_INACTIVE, TRUE, NULL);
+X		xv_set(ip->button6, PANEL_INACTIVE, TRUE, NULL);
+X		pop_list = NULL;
+X		pop_listsize = 0;
+X		pl_listnum = -1;
+X		pl_item = -1;
+X		break;
+X
+X	case PANEL_LIST_OP_SELECT:
+X		xv_set(ip->button5, PANEL_INACTIVE, FALSE, NULL);
+X		xv_set(ip->button6, PANEL_INACTIVE, FALSE, NULL);
+X		/* If there's stuff in the list already (how?), delete it. */
+X		if (xv_get(ip->playlist, PANEL_LIST_NROWS) != 0)
+X			xv_set(ip->playlist, PANEL_LIST_DELETE_ROWS, 0,
+X				xv_get(ip->playlist, PANEL_LIST_NROWS), NULL);
+X		thislist = cd->lists[row].list;
+X		if (thislist != NULL && thislist[0])
+X		{
+X			xv_set(ip->playlist, XV_SHOW, FALSE, NULL);
+X			for (i = 0; thislist[i]; i++)
+X				xv_set(ip->playlist, PANEL_LIST_INSERT, i,
+X					PANEL_LIST_STRING, i,
+X					listentry(thislist[i] - 1), NULL);
+X			xv_set(ip->playlist, XV_SHOW, TRUE, PANEL_LIST_SELECT,
+X				i - 1, TRUE, NULL);
+X			xv_set(ip->delete, PANEL_INACTIVE, FALSE, NULL);
+X			pop_list = thislist;
+X			pop_listsize = i;
+X			pl_item = 0;
+X		}
+X		else
+X		{
+X			pl_item = -1;
+X			pop_list = NULL;
+X			pop_listsize = 0;
+X			xv_set(ip->delete, PANEL_INACTIVE, TRUE, NULL);
+X		}
+X		pl_listnum = row;
+X		break;
+X
+X	case PANEL_LIST_OP_VALIDATE:
+X	case PANEL_LIST_OP_DELETE:
+X		break;
+X	}
+X	return XV_OK;
+X}
+X
+X/*
+X * User-defined action for `abrepeat'.
+X */
+Xvoid
+Xstop_repeating(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X
+X	was_repeating = 1;
+X	cur_lasttrack = cur_ntracks;
+X}
+X
+X/*
+X * Split the current track at the current position.
+X */
+Xvoid
+Xsplit_track(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	int	listno;
+X
+X	if (cur_frame < 1)
+X		return;
+X	
+X	if (! split_trackinfo(cur_frame))
+X		return;
+X
+X	info_modified = 1;
+X
+X	if (cur_track != -1 && pop_track > cur_track)
+X		pop_track++;
+X
+X	fill_buttons();
+X	cleanout_lists();
+X	fill_lists();
+X	if (pl_listnum >= 0)
+X	{
+X		listno = pl_listnum;
+X		switch_playlists(Workman_plpopup->playlists, NULL, NULL,
+X			PANEL_LIST_OP_DESELECT, NULL, pl_listnum);
+X		switch_playlists(Workman_plpopup->playlists, NULL, NULL,
+X			PANEL_LIST_OP_SELECT, NULL, listno);
+X	}
+X
+X	if (pop_track)
+X		xv_set(Workman_popup1->tracklist, PANEL_LIST_SELECT,
+X			pop_track - 1, TRUE, NULL);
+X
+X	if (cur_track != -1)
+X		new_track(Workman_window1);
+X}
+X
+Xvoid
+Xdelete_track(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	int	listno;
+X
+X	if (cur_track < 1)
+X		return;
+X	
+X	if (! remove_trackinfo(cur_track - 1))
+X		return;
+X	
+X	info_modified = 1;
+X
+X	if (pop_track > cur_track)
+X		pop_track--;
+X	
+X	fill_buttons();
+X	cleanout_lists();
+X	fill_lists();
+X	if (pl_listnum >= 0)
+X	{
+X		listno = pl_listnum;
+X		switch_playlists(Workman_plpopup->playlists, NULL, NULL,
+X			PANEL_LIST_OP_DESELECT, NULL, pl_listnum);
+X		switch_playlists(Workman_plpopup->playlists, NULL, NULL,
+X			PANEL_LIST_OP_SELECT, NULL, listno);
+X	}
+X
+X	if (pop_track)
+X	{
+X		if (pop_track == cur_track)
+X		{
+X			xv_set(Workman_popup1->trackname, PANEL_VALUE, "",
+X				NULL);
+X			pop_track = 0;
+X		}
+X		xv_set(Workman_popup1->tracklist, PANEL_LIST_SELECT,
+X			pop_track - 1, TRUE, NULL);
+X	}
+X
+X	new_track(Workman_window1);
+X}
+X
+Xvoid
+Xindex_scan(item, event)
+X	Panel_item	item;
+X	Event		*event;
+X{
+X	int	track, index;
+X
+X	if (cur_cdmode != 4)
+X	{
+X		change_mode(NULL, 4, NULL);
+X		cur_cdmode = 4;
+X		xv_set(Workman_window1->mode, PANEL_VALUE, 4, NULL);
+X	}
+X
+X	for (track = 1; track <= cd->ntracks; track++)
+X	{
+X		cur_frame = 0;
+X		index = 2;
+X		while (cur_frame = find_trkind(track, index, cur_frame))
+X		{
+X			cur_track = -1;
+X			split_track(item, event);
+X			index++;
+X		}
+X	}
+X
+X	stop_cd();
+X}
+X
+X/*
+X * Called when the user quits.
+X */
+XNotify_value
+Xbyebye(c, s)
+X	Notify_client	c;
+X	Destroy_status	s;
+X{
+X	if (s == DESTROY_CHECKING && cur_cdmode != 5)
+X	{
+X		keep_settings(Workman_window1);
+X		if (info_modified)
+X		{
+X			xv_set(wannasave, XV_SHOW, TRUE, NULL);
+X			if (confirmsave)
+X				save_config(NULL, NULL);
+X			info_modified = 0;
+X		}
+X	}
+X	else if (s == DESTROY_CLEANUP)
+X		return (notify_next_destroy_func(c, s));
+X
+X	return (NOTIFY_DONE);
+X}
+X
+X/*
+X * Quit programmatically.  This will cause byebye() to be called, and
+X * the main loop to exit.
+X */
+Xvoid
+Xquit()
+X{
+X	xv_destroy_safe(Workman_window1->window1);
+X}
+X
+X/*
+X * Notify callback function for `playnewcds'.
+X */
+Xvoid
+Xgoodies_playnewcds_notify_callback(item, value, event)
+X	Panel_item	item;
+X	int		value;
+X	Event		*event;
+X{
+X	goodies_objects *ip = Workman_goodies;
+X	short	i;
+X	
+X	for (i = 0; i < 1; i++) {
+X		if (i == 0 && (value & 01))
+X			cur_playnew = 1;
+X		
+X		if (i == 0 && !(value & 01))
+X			cur_playnew = 0;
+X
+X		value >>= 1;
+X	}
+X}
+X
+X/*
+X * Handle SIGUSR1 (to pause the CD) and SIGUSR2 (to play the CD if paused.)
+X */
+XNotify_value
+Xsigusr1(client, sig, when)
+X	Notify_client		client;
+X	int			sig;
+X	Notify_signal_mode	when;
+X{
+X	if (cur_cdmode == 1)
+X	{
+X		xv_set(Workman_window1->mode, PANEL_VALUE, 3, NULL);
+X		pause_cd();
+X		show_stats(Workman_window1);
+X	}
+X
+X	return (NOTIFY_DONE);
+X}
+X
+XNotify_value
+Xsigusr2(client, sig, when)
+X	Notify_client		client;
+X	int			sig;
+X	Notify_signal_mode	when;
+X{
+X	if (cur_cdmode == 3)
+X	{
+X		xv_set(Workman_window1->mode, PANEL_VALUE, 1, NULL);
+X		pause_cd();
+X		show_stats(Workman_window1);
+X	}
+X
+X	return (NOTIFY_DONE);
+X}
+X
+X/*
+X * Return the value of the "Play new CDs" button.
+X */
+Xget_playnew()
+X{
+X	return (xv_get(Workman_goodies->playnewcds, PANEL_VALUE));
+X}
+END_OF_FILE
+if test 51771 -ne `wc -c <'workman_stubs.c'`; then
+    echo shar: \"'workman_stubs.c'\" unpacked with wrong size!
+fi
+# end of 'workman_stubs.c'
+fi
+echo shar: End of archive 6 \(of 6\).
+cp /dev/null ark6isdone
+MISSING=""
+for I in 1 2 3 4 5 6 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 6 archives.
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

@@ -1,0 +1,2360 @@
+Newsgroups: alt.sources
+Path: sparky!uunet!zaphod.mps.ohio-state.edu!sol.ctr.columbia.edu!eff!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: JOE 1.0.5 Part 10 of 10
+Message-ID: <By2Mpu.L8L@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+Date: Sat, 21 Nov 1992 14:53:53 GMT
+Lines: 2351
+
+Submitted-by: jha...@world.std.com
+Archive-name: joe1.0.5part10
+
+#define sLEN(a) ((a)?*((int *)(a)-1):0)
+#define sLen(a) (*((int *)(a)-1))
+X
+/* int slen(sELEMENT(*ary));
+X * Compute length of char or variable length array by searching for termination
+X * element.  Returns 0 if 'vary' is 0.
+X */
+int slen();
+X
+/* sELEMENT(*vsensure(sELEMENT(*vary),int len));
+X * Make sure there's enough space in the array for 'len' elements.  Whenever
+X * vsensure reallocs the array, it allocates 25% more than the necessary
+X * minimum space in anticipation of future expansion.  If 'vary' is 0,
+X * it creates a new array.
+X */
+sELEMENT(*vsensure());
+X
+/* sELEMENT(*vszap(sELEMENT(*vary),int pos,int n));
+X * Destroy n elements from an array beginning at pos.  Is ok if pos/n go
+X * past end of array.  This does not change the sLEN() value of the array.
+X * This does nothing and returns 0 if 'vary' is 0.  Note that this
+X * function does not actually write to the array.  This does not stop if
+X * a sterm is encountered.
+X */
+sELEMENT(*vszap());
+X
+/* sELEMENT(*vstrunc(sELEMENT(*vary),int len));
+X * Truncate array to indicated size.  This zaps or expands with blank elements
+X * and sets the LEN() of the array.  A new array is created if 'vary' is 0.
+X */
+sELEMENT(*vstrunc());
+X
+/************************************/
+/* Function which write to an array */
+/************************************/
+X
+/* sELEMENT(*vsfill(sELEMENT(*vary),int pos,sELEMENT(el),int len));
+X * Set 'len' element of 'vary' beginning at 'pos' to duplications of 'el'.
+X * Ok, if pos/len are past end of array.  If 'vary' is 0, a new array is
+X * created.
+X *
+X * This does not zap previous values.  If you need that to happen, call
+X * vszap first.  It does move the terminator around properly though.
+X */
+sELEMENT(*vsfill());
+X
+/* sELEMENT(*vsncpy(sELEMENT(*vary),int pos,sELEMENT(*array),int len));
+X * Copy 'len' elements from 'array' onto 'vary' beginning at position 'pos'.
+X * 'array' can be a normal char array since the length is passed seperately.  The
+X * elements are copied, not duplicated.  A new array is created if 'vary' is
+X * 0.  This does not zap previous elements.
+X */
+sELEMENT(*vsncpy());
+X
+/* sELEMENT(*vsndup(sELEMENT(*vary),int pos,sELEMENT(*array),int len));
+X * Duplicate 'len' elements from 'array' onto 'vary' beginning at position
+X * 'pos'.  'array' can be a char array since its length is passed seperately.  A
+X * new array is created if 'vary' is 0.
+X */
+sELEMENT(*vsndup());
+X
+/* sELEMENT(*vsfield(sELEMENT(*vary),int pos,int len));
+X * Make sure a field exists at 'pos' of length 'len'.  If there isn't one,
+X * 'vary' is extended with blank elements.  This does not eliminate elements
+X * which already exist in the field.  Use vszap for that.
+X */
+sELEMENT(*vsfield());
+X
+/* sELEMENT(*vsdup(sELEMENT(*vary)));
+X * Duplicate array.  This is just a functionalized version of:
+X *
+X *   vsndup(NULL,0,vary,sLEN(vary));
+X *
+X * but since you need to be able to refer to this particular function by
+X * address often it's given here.
+X *
+X * (actually, there's bazillions of these simple combinations of the above
+X * functions and the macros of the next section.  You'll probably want to make
+X * functionalized instances of the ones you use most often - especially since
+X * the macros aren't safe).
+X */ 
+sELEMENT(*vsdup());
+X
+/* sELEMENT(*vsset(sELEMENT(*vary),int pos,sELEMENT(element)));
+X * Set an element in an array.  Any value of 'pos' is valid.  A new array
+X * is created if 'vary' is 0.  The previous contents of the position is
+X * deleted.    This does not duplicate 'element'.  If you need 'element'
+X * duplicated, call: vsset(vary,pos,sdup(element));
+X */
+sELEMENT(*_vsset());
+X
+#define vsset(v,p,el)  \
+X (!(v) || (p)>sLen(v) || (p)>=sSiz(v) ?  \
+X  _vsset((v),(p),(el)) \
+X : \
+X  ((p)==sLen(v) ? \
+X   ((v)[(p)+1]=0, sLen(v)=(p)+1, (v)[p]=(el), (v)) \
+X  : \
+X   ((v)[p]=(el), (v)) \
+X  ) \
+X )   
+X
+/* sELEMENT(*vsadd(sELEMENT(*vary),sELEMENT(element)));
+X * Concatenate a single element to the end of 'vary'.  A new array is created
+X * if 'vary' is 0.  This does not duplicate element: call
+X * vsadd(vary,sdup(element));  If you need it duplicated.
+X */
+#define vsadd(v,el) \
+X (!(v) || sLen(v)==sSiz(v) ? \
+X  _vsset((v),sLEN(v),(el)) \
+X : \
+X  ((v)[sLen(v)+1]=0, (v)[sLen(v)]=(el), sLen(v)=sLen(v)+1, (v)) \
+X )
+X
+/**************************************/
+/* Functions which read from an array */
+/**************************************/
+X
+/* These macros are used to generate the address/size pairs which get
+X * passed to the functions of the previous section.
+X */
+X
+/* { sELEMENT(*),int } sv(sELEMENT(*array));
+X * Return array,size pair.  Uses sLEN to get size.
+X */
+#define sv(a) (a),sLEN(a)
+X
+/* { sELEMENT(*),int } sz(sELEMENT(*array));
+X * Return array,size pair.  Uses slen to get size.
+X */
+#define sz(a) (a),slen(a)
+X
+/* { sELEMENT(*),int } sc(sELEMENT(*array));
+X * Return array,size pair.  Uses 'sizeof' to get size.
+X */
+#define sc(a) (a),(sizeof(a)/sizeof(sCAST)-1)
+X
+/* { sELEMENT(*),int } srest(sELEMENT(*vary),int pos);
+X * Return array,size pair of rest of array beginning at pos.  If
+X * pos is past end of array, gives size of 0.
+X */
+#define srest(a,p) ((a)+(p)),(((p)>sLEN(a))?0:sLen(a)-(p))
+X
+/* { sELEMENT(*),int } spart(sELEMENT(*vary),int pos,int len);
+X * Return array,size pair of 'len' elements of array beginning with pos.  If
+X * pos is past end of array, gives size of 0.  If pos+len is past end of array,
+X * returns number of elements to end of array.
+X */
+#define spart(a,p,l) \
+X ((a)+(p)),((p)>=sLEN(a)?0:((p)+(l)>sLen(a)?sLen(a)-(p):(l)))
+X
+/* sELEMENT(vsget(sELEMENT(*vary),int pos));
+X * Get an element from an array.  Any value of pos is valid; if it's past the
+X * end of the array or if 'vary' is 0, the terminator is returned.  This
+X * does not make a duplicate of the returned element.  If you want that, pass
+X * the return value of this to sdup.
+X */
+#define vsget(a,p) ((p)>=sLEN(a)?sterm:(a)[p])
+X
+/**********************/
+/* Insertion/Deletion */
+/**********************/
+X
+/* sELEMENT(*vsins(sELEMENT(*vary),int pos,int n));
+X * Insert n empty slots into the array.  If 'pos' >= the length of the array,
+X * the array is simply extended.  The new slots are not set to anything.
+X * This does not set the elements in the created hole to any particular
+X * value: use vsfill if you need that to occur.
+X */
+sELEMENT(*vsins());
+X
+/* sELEMENT(*vsdel(sELEMENT(*vary),int pos,int n));
+X * Delete n slots from the array.  This does not zap the elements first; call
+X * vszap first if you need this to happen.
+X */
+sELEMENT(*vsdel());
+X
+/*************************/
+/* Searching and Sorting */
+/*************************/
+X
+/* sELEMENT(*vssort(sELEMENT(*ary),int len))
+X * Sort the elements of an array (char or variable length) using qsort().
+X */
+sELEMENT(*vssort());
+X
+/* int vsbsearch(sELEMENT(*ary),int len,sELEMENT(element));
+X * Do a binary search on a sorted variable length or char array.  Returns position
+X * of matching element or the position where the element should be if it was
+X * not found.  (You should test with scmp to find out which).
+X *
+X * Hmm... this should really indicate whether or not the element was found.
+X */
+int vsbsearch();
+X
+/* int vsfirst(sELEMENT(*ary),int len,sELEMENT(element));
+X * Find offset to first matching element in 'vary' or return ~0 if not found.
+X */
+int vsfirst();
+X
+/* int vslast(sELEMENT(*ary),int len,sELEMENT(element));
+X * Find offset to last matching element in 'vary' or return ~0 if none found.
+X */
+int vslast();
+X
+/* int vss(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+X * Do a substring search on 'a'.  Return offset from 'a' to first matching
+X * occurance of 'b' in 'a' or return ~0 if none found.
+X */
+int vss();
+X
+/* int vscmpn(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+X *
+X * Compare two arrays using scmp.  If 'a' > 'b', return 1.  If 'a' == 'b',
+X * return 0.  If 'a' < 'b', return -1.  Longer strings are > shorter ones if
+X * their beginning match.
+X */
+int vscmpn();
+X
+/* int vscmp(sELEMENT(*a),sELEMENT(*b));
+X *
+X * Functionalized version of: vscmpn(sv(a),sv(b));
+X */
+int vscmp();
+X
+/* int vsicmpn(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+X *
+X * Compare two arrays using sicmp.  If 'a' > 'b', return 1.  If 'a' == 'b',
+X * return 0.  If 'a' < 'b', return -1.  Longer strings are > shorter ones if
+X * their beginning match.
+X *
+X * This is same as vscmpn except that it is case insensitive.
+X */
+int vsicmpn();
+X
+/* int vsicmp(sELEMENT(*a),sELEMENT(*b));
+X *
+X * Functionalized version of: vsicmpn(sv(a),sv(b));
+X */
+int vsicmp();
+X
+/* int vsscan(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+X * Find offset of first matching element in 'a' which matches any
+X * of the elements passed in 'b'.  Array 'b' must be sorted.
+X *
+X * Hmm... this really needs to return what the found element is.
+X */
+int vsscan();
+X
+/* int vsspan(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+X * Find offset of first matching element in 'a' which does not match any
+X * of the elements passed in 'b'.  Array 'b' must be sorted.
+X */
+int vsspan();
+X
+/***************/
+/* Other stuff */
+/***************/
+X
+/* char *vsread(char *d,int p,int (*getC)(void *ptr),void *ptr);
+X * Replace 'd' with next line read from read-character function 'getC'.  If 
+X * 'd' is 0, a new string is allocated.  If there is no more input, the string
+X * is freed and 0 is returned.  The \n is deleted from the entered line.
+X *
+X * 'ptr' is passed as the first arg to 'getC'.  'getC' should return -1 if
+X * there is no more input.
+X */
+char *vsread();
+X
+/* char *vwords(char *s,char **a,int len,char t);
+X *
+X * Generate a 't'-seperated word list from the words in the zero-terminated
+X * array of zero-terminated strings 'a'.  For example a simple 'echo.c':
+X *
+X * main(argc,argv)
+X * char *argv[];
+X * {
+X * printf("%s\n",vwords(NULL,argv,argc,' ')):
+X * }
+X *
+X */
+char *vswords();
+X
+/* char *vsfmt(char *s,char *fmt,...);
+X *
+X * (Yeah, yeah.. I really need to make this printf compatible, I know.)
+X *
+X * Printf (almost) to a variable length string.  If 's' is zero, a string is
+X * created.  All chars from 'fmt' are copied to string except for these '%'
+X * sequences:
+X *
+X *    % [' '|'+'|'-'] Base _ FieldWidth . Precision [l] {d|D|u|U|c|s}
+X *    %% generates %
+X *
+X *    '+' means leading + needed for zero and positive numbers
+X *    ' ' means leading space needed for zero and positive numbers
+X *    '-' means left justified within field instead of right justified
+X *    FieldWidth is minimum field width
+X *
+X *    s     Means insert next zero-terminated string from argument list
+X *          Precision means maximum string size
+X *
+X *    c     Means insert next character from argument list.  The character is
+X *          normally passed as an int.  If 'l' is given, the character is
+X *          passed as a long.
+X *
+X *    d signed integer, use lower case letters for digits above 9
+X *    D signed integer, use upper case letters for digits above 9
+X *    u unsigned integer, use lower case letters for digits above 9
+X *    U unsigned integer, use upper case letters for digits above 9
+X *          If 'l' is give, a long or unsigned long is requested instead.
+X *          Precision is minimum number of digits to generate in number.
+X *          Default base is decimal.
+X */
+char *vsfmt();
+X
+X
+#endif
+SHAR_EOF
+chmod 0600 vs.h ||
+echo 'restore of vs.h failed'
+Wc_c="`wc -c < 'vs.h'`"
+test 13819 -eq "$Wc_c" ||
+	echo 'vs.h: original size 13819, current size' "$Wc_c"
+fi
+# ============= w.c ==============
+if test -f 'w.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping w.c (File already exists)'
+else
+echo 'x - extracting w.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'w.c' &&
+/* Window system
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "config.h"
+#include "heap.h"
+#include "vfile.h"
+#include "toomany.h"
+#include "b.h"
+#include "termcap.h"
+#include "scrn.h"
+#include "tty.h"
+#include "queue.h"
+#include "kbd.h"
+#include "main.h"
+#include "poshist.h"
+#include "w.h"
+X
+/* Redraw a window */
+X
+void wredraw(w)
+W *w;
+{
+msetI(w->t->t->updtab+w->y,1,w->h);
+}
+X
+/* Scroll an update array */
+X
+void scrldn(ary,top,bot,amnt)
+int *ary,top,bot,amnt;
+{
+if(!amnt || top>=bot || amnt>bot-top) return;
+if(bot>25)
+X {
+X signal(0,5);
+X }
+/* mbkwd(ary+top+amnt,ary+top,(bot-top-amnt)*sizeof(int)); */
+msetI(ary+top,1,amnt);
+}
+X
+void scrlup(ary,top,bot,amnt)
+int *ary,top,bot,amnt;
+{
+if(!amnt || top>=bot || amnt>bot-top) return;
+if(bot>25)
+X {
+X signal(0,5);
+X }
+/* mfwrd(ary+top,ary+top+amnt,(bot-top-amnt)*sizeof(int)); */
+msetI(ary+bot-amnt,1,amnt);
+}
+X
+/* Find first window in a group */
+X
+W *findtopw(w)
+W *w;
+{
+W *x;
+for(x=w;x->link.prev->main==w->main && x->link.prev!=w;x=x->link.prev);
+return x;
+}
+X
+/* Determine height of a family of windows */
+X
+int getgrouph(w)
+W *w;
+{
+W *x;
+int h;
+X
+/* Find first window in family */
+x=findtopw(w);
+X
+/* Add heights of all windows in family */
+for(w=x, h=(w->reqh?w->reqh:w->hh);
+X    w->link.next!=x && w->link.next->main==x->main;
+X    w=w->link.next, h+=(w->reqh?w->reqh:w->hh));
+X
+return h;
+}
+X
+/* Determine minimum height of a family */
+X
+int getminh(w)
+W *w;
+{
+W *x;
+int h;
+x=findtopw(w);
+for(w=x, h=(w->win?1:2);
+X    w->link.next!=x && w->link.next->main==x->main;
+X    w=w->link.next, h+=(w->win?1:2));
+X
+return h;
+}
+X
+/* Find last window in a group */
+X
+W *findbotw(w)
+W *w;
+{
+W *x;
+for(x=w;x->link.next->main==w->main && x->link.next!=w;x=x->link.next);
+return x;
+}
+X
+/* Find last window on the screen */
+X
+W *lastw(t)
+SCREEN *t;
+{
+W *x;
+for(x=t->topwin;x->link.next!=t->topwin && x->link.next->y>=0;x=x->link.next);
+return x;
+}
+X
+/* Create a screen object */
+X
+SCREEN *scr;
+X
+SCREEN *screate(scrn)
+SCRN *scrn;
+{
+SCREEN *t=(SCREEN *)malloc(sizeof(SCREEN));
+t->pattern=0;
+t->replace=0;
+t->t=scrn;
+t->w=scrn->co;
+t->h=scrn->li;
+t->topwin=0;
+t->curwin=0;
+t->wind=0;
+t->markb=0;
+t->markk=0;
+t->arg=0;
+scr=t;
+return t;
+}
+X
+void chsize(t,mul,div)
+SCREEN *t;
+{
+W *w;
+w=t->topwin; do
+X if(!w->win)
+X  {
+X  w->reqh=getgrouph(w)*mul;
+X  w->reqh=w->reqh/div+(w->reqh%div>=div/2?1:0);
+X  if(w->reqh<FITHEIGHT) w->reqh=FITHEIGHT;
+X  w->reqh-=getminh(w)-2;
+X  if(w->reqh<2) w->reqh=2;
+X  if(w->reqh>t->h-t->wind) w->reqh=t->h-t->wind;
+X  }
+X while(w=w->link.next, w!=t->topwin);
+wfit(t);
+}
+X
+void sresize(t)
+SCREEN *t;
+{
+SCRN *scrn=t->t;
+W *w;
+int osize=t->h-t->wind;
+t->w=scrn->co;
+t->h=scrn->li;
+if(t->h-t->wind<FITHEIGHT) t->wind=t->h-FITHEIGHT;
+if(t->wind<0) t->wind=0;
+w=t->topwin; do
+X w->y= -1, w->w=t->w-1;
+X while(w=w->link.next, w!=t->topwin);
+chsize(t,t->h-t->wind,osize);
+updall();
+}
+X
+void updall()
+{
+int y;
+for(y=0;y!=scr->h;++y) scr->t->updtab[y]=1;
+}
+X
+void scrins(b,l,n,flg)
+B *b;
+long l,n;
+int flg;
+{
+W *w;
+if(w=scr->topwin) do
+X if(w->y>=0) w->watom->ins(w,b,l,n,flg);
+X while(w=w->link.next, w!=scr->topwin);
+}
+X
+void scrdel(b,l,n,flg)
+B *b;
+long l,n;
+int flg;
+{
+W *w;
+if(w=scr->topwin) do
+X if(w->y>=0) w->watom->del(w,b,l,n,flg);
+X while(w=w->link.next, w!=scr->topwin);
+}
+X
+/* Fit as many windows on the screen as is possible beginning with the window
+X * at topwin.  Give any extra space which couldn't be used to fit in another
+X * window to the last text window on the screen.  This function guarentees
+X * to fit on the window with the cursor in it (moves topwin to next group
+X * of windows until window with cursor fits on screen).
+X */
+X
+static int doabort();
+X
+void wfit(t)
+SCREEN *t;
+{
+int y;		/* Where next window goes */
+int left;	/* Lines left on screen */
+W *w;		/* Current window we're fitting */
+W *pw;		/* Main window of previous family */
+int req;	/* Amount this family needs */
+int adj;	/* Amount family needs to be adjusted */
+int flg=0;	/* Set if cursor window was placed on screen */
+X
+tryagain:
+y=t->wind; left=t->h-y; pw=0;
+X
+w=t->topwin; do
+X w->ny= -1, w->hh=w->nh=(w->reqh?w->reqh:w->hh);
+X while((w=w->link.next)!=t->topwin);
+X
+/* Fit a group of windows on the screen */
+w=t->topwin; do
+X {
+X req=getgrouph(w);
+X if(req>left)		/* If group is taller than lines left */
+X  adj=req-left;		/* then family gets shorter */
+X else adj=0;
+X 
+X /* Fit a family of windows on the screen */
+X do
+X  {
+X  w->ny=y;			/* Set window's y position */
+X  if(!w->win) pw=w, w->nh-=adj;	/* Adjust main window of the group */
+X  if(!w->win && w->nh<2) while(w->nh<2) w->nh+=doabort(w->link.next);
+X  if(w==t->curwin) flg=1;	/* Set if we got window with cursor */
+X  y+=w->nh; left-=w->nh;	/* Increment y value by height of window */
+X  w=w->link.next;		/* Next window */
+X  } while(w!=t->topwin && w->main==w->link.prev->main);
+X } while(w!=t->topwin && left>=FITHEIGHT);
+X
+/* We can't use extra space to fit a new family on, so give space to parent of
+X * previous family */
+pw->nh+=left;
+X
+/* Adjust that family's children which are below the parent */
+while((pw=pw->link.next)!=w) pw->ny+=left;
+X
+/* Make sure the cursor window got on the screen */
+if(!flg)
+X {
+X t->topwin=findbotw(t->topwin)->link.next;
+X goto tryagain;
+X }
+X
+/* All of the windows are now on the screen.  Scroll the screen to reflect what
+X * happened
+X */
+w=t->topwin; do
+X if(w->y>=0 && w->ny>=0)
+X  if(w->ny>w->y)
+X   {
+X   W *l=pw=w;
+X   while(pw->link.next!=t->topwin &&
+X         (pw->link.next->y<0 || pw->link.next->ny<0 ||
+X         pw->link.next->ny>pw->link.next->y))
+X    {
+X    pw=pw->link.next;
+X    if(pw->ny>=0 && pw->y>=0) l=pw;
+X    }
+X   /* Scroll windows between l and w */
+X   loop1:
+X   if(l->ny>=0 && l->y>=0)
+X    {
+X    nscrldn(t->t,l->y,l->ny+Umin(l->h,l->nh),l->ny-l->y);
+X    scrldn(t->t->updtab,l->y,l->ny+Umin(l->h,l->nh),l->ny-l->y);
+X    }
+X   if(w!=l)
+X    {
+X    l=l->link.prev;
+X    goto loop1;
+X    }
+X   w=pw->link.next;
+X   }
+X  else if(w->ny<w->y)
+X   {
+X   W *l=pw=w;
+X   while(pw->link.next!=t->topwin &&
+X         (pw->link.next->y<0 || 
+X         pw->link.next->ny<0 || 
+X         pw->link.next->ny<pw->link.next->y))
+X    {
+X    pw=pw->link.next;
+X    if(pw->ny>=0 && pw->y>=0) l=pw;
+X    }
+X   /* Scroll windows between l and w */
+X   loop0:
+X   if(w->ny>=0 && w->y>=0)
+X    {
+X    nscrlup(t->t,w->ny,w->y+Umin(w->h,w->nh),w->y-w->ny);
+X    scrlup(t->t->updtab,w->ny,w->y+Umin(w->h,w->nh),w->y-w->ny);
+X    }
+X   if(w!=l)
+X    {
+X    w=w->link.next;
+X    goto loop0;
+X    }
+X   w=pw->link.next;
+X   }
+X  else w=w->link.next;
+X else w=w->link.next;
+X while(w!=t->topwin);
+X
+/* Update current height and position values */
+w=t->topwin; do
+X {
+X if(w->ny>=0)
+X  {
+X  if(w->object) w->watom->move(w,w->x,w->ny),
+X                w->watom->resize(w,w->w,w->nh);
+X  if(w->y== -1) msetI(t->t->updtab+w->ny,1,w->nh);
+X  w->y=w->ny;
+X  }
+X else w->y= -1;
+X w->h=w->nh;
+X w->reqh=0;
+X }
+X while(w=w->link.next, w!=t->topwin);
+}
+X
+/* Goto next window */
+X
+int wnext(t)
+SCREEN *t;
+{
+if(t->curwin->link.next!=t->curwin)
+X {
+X t->curwin=t->curwin->link.next;
+X if(t->curwin->y== -1) wfit(t);
+X return 0;
+X }
+else return -1;
+}
+X
+/* Goto previous window */
+X
+int wprev(t)
+SCREEN *t;
+{
+if(t->curwin->link.prev!=t->curwin)
+X {
+X t->curwin=t->curwin->link.prev;
+X if(t->curwin->y== -1)
+X  {
+X  t->topwin=findtopw(t->curwin);
+X  wfit(t);
+X  }
+X return 0;
+X }
+else return -1;
+}
+X
+/* Grow window */
+X
+int wgrow(w)
+W *w;
+{
+W *nextw, *z;
+/* Is there enough space to grow window? */
+for(nextw=w->link.next;
+X    nextw->win && nextw!=w->t->topwin;
+X    nextw=nextw->link.next);
+if(nextw==w->t->topwin) return -1;
+if(nextw->y== -1 || nextw->hh<=FITHEIGHT) return -1;
+X
+w->reqh=w->hh+1;	/* Increase this window's height */
+nextw->reqh=nextw->hh-1;/* Decrease this window's height and move it down */
+X
+wfit(w->t);
+X
+return 0;
+}
+X
+/* Shrink window */
+X
+int wshrink(w)
+W *w;
+{
+W *nextw, *z;
+/* Is this window too small already? */
+if(w->hh<=FITHEIGHT) return -1;
+X
+/* Is there a window we can grow with this window's space? */
+for(nextw=w->link.next;
+X    nextw!=w->t->topwin && nextw->win;
+X    nextw=nextw->link.next);
+if(nextw==w->t->topwin) return -1;
+X
+w->reqh=w->hh-1;		/* Decrease window size */
+nextw->reqh=nextw->hh+1;	/* Give space to this window */
+X
+wfit(w->t);
+return 0;
+}
+X
+/* Show all windows */
+X
+void wshowall(t)
+SCREEN *t;
+{
+int n=0;
+int set;
+W *w=t->topwin; do
+X if(!w->win) ++n;
+X while(w=w->link.next, w!=t->topwin);
+if((t->h-t->wind)/n>=FITHEIGHT) set=(t->h-t->wind)/n;
+else set=FITHEIGHT;
+w=t->topwin; do
+X if(!w->win)
+X  {
+X  int h=getminh(w);
+X  if(h>=set) w->reqh=2;
+X  else w->reqh=set-(h-2);
+X  w->orgwin=0;
+X  }
+X while(w=w->link.next, w!=t->topwin);
+wfit(t);
+}
+X
+void wspread(t)
+SCREEN *t;
+{
+int n=0;
+W *w=t->topwin; do
+X if(w->y>=0 && !w->win) ++n;
+X while(w=w->link.next, w!=t->topwin);
+if(!n)
+X {
+X wfit(t);
+X return;
+X }
+if((t->h-t->wind)/n>=FITHEIGHT) n=(t->h-t->wind)/n;
+else n=FITHEIGHT;
+w=t->topwin; do
+X if(!w->win)
+X  {
+X  int h=getminh(w);
+X  if(h>=n) w->reqh=2;
+X  else w->reqh=n-(h-2);
+X  w->orgwin=0;
+X  }
+X while(w=w->link.next, w!=t->topwin);
+wfit(t);
+}
+X
+/* Show just one family of windows */
+X
+void wshowone(w)
+W *w;
+{
+W *q=w->t->topwin; do
+X if(!q->win)
+X  q->reqh=w->t->h-(getgrouph(q)-q->hh), q->orgwin=0;
+X while(q=q->link.next, q!=w->t->topwin);
+wfit(w->t);
+}
+X
+/* Create a window */
+X
+W *wcreate(t,watom,where,target,original,height,huh)
+SCREEN *t;
+WATOM *watom;
+W *where, *target, *original;
+int height;
+char *huh;
+{
+W *new;
+X
+if(height<1) return 0;
+X
+/* Create the window */
+new=(W *)malloc(sizeof(W));
+new->t=t;
+new->w=t->w-1;
+new->hh=new->h=height;
+new->y= -1;
+new->ny=0; new->nh=0; new->reqh=0;
+new->x=0;
+new->huh=huh;
+new->orgwin=original;
+new->watom=watom;
+new->object=0;
+new->msgb=0;
+new->msgt=0;
+X
+/* Set window's target and family */
+if(new->win=target) new->main=target->main;
+else new->main=new;
+X
+/* Get space for window */
+if(original)
+X if(original->hh-height<=2)
+X  {
+X  /* Not enough space for window */
+X  free(new);
+X  return 0;
+X  }
+X else original->hh-=height;
+X
+/* Create new keyboard handler for window */
+if(watom->context) new->kbd=mkkbd(watom->context,new);
+else new->kbd=0;
+X
+/* Put window on the screen */
+if(where) enquef(W,link,where,new);
+else
+X {
+X if(t->topwin) enqueb(W,link,t->topwin,new);
+X else izque(W,link,new), t->curwin=t->topwin=new;
+X }
+X
+wfit(t);
+return new;
+}
+X
+/* Abort group of windows */
+X
+static int doabort(w)
+W *w;
+{
+int amnt=w->hh;
+W *z, *zn;
+w->y= -2;
+if(w->t->topwin==w) w->t->topwin=w->link.next;
+loop:
+z=w->t->topwin; do
+X {
+X if(z->orgwin==w) z->orgwin=0;
+X if((z->win==w || z->main==w) && z->y!= -2)
+X  {
+X  amnt+=doabort(z);
+X  goto loop;
+X  }
+X }
+X while(z=z->link.next, z!=w->t->topwin);
+if(w->orgwin)
+X {
+X if(w->orgwin->reqh) w->orgwin->reqh+=(w->reqh?w->reqh:w->hh);
+X else w->orgwin->reqh=w->orgwin->hh+(w->reqh?w->reqh:w->hh);
+X }
+if(w->t->curwin==w)
+X if(w->t->curwin->win) w->t->curwin=w->t->curwin->win;
+X else
+X  if(w->orgwin) w->t->curwin=w->orgwin;
+X  else w->t->curwin=w->link.next;
+if(qempty(W,link,w))
+X {
+X leave=1;
+X amnt=0;
+X }
+deque(W,link,w);
+w->watom->kill(w);
+rmkbd(w->kbd);
+free(w);
+windie(w);
+return amnt;
+}
+X
+/* Abort a window and its children */
+X
+void wabort(w)
+W *w;
+{
+SCREEN *t=w->t;
+if(w!=w->main)
+X {
+X doabort(w);
+X if(!leave) wfit(t);
+X }
+else
+X {
+X doabort(w);
+X if(!leave)
+X  {
+X  if(lastw(t)->link.next!=t->topwin) wfit(t);
+X  else wspread(t);
+X  }
+X }
+}
+X
+/* Generate text with formatting escape sequences */
+X
+void genfmt(t,x,y,ofst,s,flg)
+SCRN *t;
+char *s;
+{
+int *scrn=t->scrn+y*t->co+x;
+int atr=0;
+int col=0;
+while(*s)
+X {
+X int c;
+X if(*s=='\\')
+X  {
+X  ++s;
+X  if(!*s) break;
+X  if(*s=='\\') if(col++>=ofst) c= (unsigned char)*s++ + atr; else { ++s; continue; }
+X  else if(*s=='u' || *s=='U') { atr^=UNDERLINE; ++s; continue; }
+X  else if(*s=='i' || *s=='I') { atr^=INVERSE; ++s; continue; }
+X  else { ++s; continue; }
+X  }
+X else if(col++>=ofst) c= (unsigned char)*s++ + atr; else { ++s; continue; }
+X if(c!=*scrn) *scrn=c, outatr(t,col-ofst+x-1,y,c);
+X ++scrn;
+X }
+if(flg) eraeol(t,col-ofst+x,y);
+}
+X
+/* Determine column width of string with format codes */
+X
+int fmtlen(s)
+char *s;
+{
+int col=0;
+while(*s)
+X {
+X if(*s=='\\')
+X  {
+X  ++s;
+X  if(!*s) break;
+X  if(*s=='\\') { ++col; ++s; continue; }
+X  if(*s=='u' || *s=='U') { ++s; continue; }
+X  if(*s=='i' || *s=='I') { ++s; continue; }
+X  ++s; continue;
+X  }
+X ++col; ++s;
+X }
+return col;
+}
+X
+/* Display a message and skip the next key */
+X
+int msgout(t,y,s)
+SCRN *t;
+char *s;
+{
+int ofst;
+int len;
+len=fmtlen(s);
+if(len<=(t->co-1)) ofst=0;
+else ofst=len-(t->co-1);
+genfmt(t,0,y,ofst,s,1);
+return len-ofst;
+}
+X
+void msg(w,s)
+W *w;
+char *s;
+{
+cpos(w->t->t,msgout(w->t->t,w->y+w->h-1,s),w->y+w->h-1);
+w->t->t->updtab[w->y+w->h-1]=1;
+engetc(w->t->t);
+}
+X
+/* Set temporary message */
+X
+void msgnw(w,s)
+W *w;
+char *s;
+{
+w->msgb=s;
+}
+X
+void msgnwt(w,s)
+W *w;
+char *s;
+{
+w->msgt=s;
+}
+X
+/* Single key query */
+X
+int query(w,s)
+W *w;
+char *s;
+{
+int ofst;
+int c;
+int len;
+len=fmtlen(s);
+if(len<=w->w-2) ofst=0;
+else ofst=len-(w->w-2);
+genfmt(w->t->t,w->x,w->y+w->h-1,ofst,s,1);
+cpos(w->t->t,w->x+len-ofst,w->y+w->h-1);
+c=engetc(w->t->t);
+w->t->t->updtab[w->y+w->h-1]=1;
+return c;
+}
+X
+/* Single key query - leave cursor in curwin */
+X
+static void dumb()
+{
+}
+X
+static WATOM dummy=
+{
+0,dumb,dumb,dumb,dumb,dumb,dumb,dumb
+};
+X
+int queryn(w,s)
+W *w;
+char *s;
+{
+int ofst;
+int len;
+int c;
+W *new=wcreate(w->t,&dummy,w,w,w,1,NULL);
+if(!new) return MAXINT;
+len=fmtlen(s);
+if(len<=w->w-1) ofst=0;
+else ofst=len-(w->w-1);
+genfmt(w->t->t,w->x,new->y,ofst,s,1);
+c=edgetc();
+wabort(new);
+return c;
+}
+SHAR_EOF
+chmod 0600 w.c ||
+echo 'restore of w.c failed'
+Wc_c="`wc -c < 'w.c'`"
+test 13930 -eq "$Wc_c" ||
+	echo 'w.c: original size 13930, current size' "$Wc_c"
+fi
+# ============= w.h ==============
+if test -f 'w.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping w.h (File already exists)'
+else
+echo 'x - extracting w.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'w.h' &&
+/* Window management
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Iw
+#define _Iw 1
+X
+#include "config.h"
+#include "queue.h"
+#include "kbd.h"
+#include "scrn.h"
+#include "b.h"
+X
+typedef struct watom WATOM;
+typedef struct screen SCREEN;
+typedef struct window W;
+X
+struct watom
+X {
+X CONTEXT *context;
+X void (*disp)();
+X void (*follow)();
+X void (*kill)();
+X void (*resize)();
+X void (*move)();
+X void (*ins)();
+X void (*del)();
+X int what;		/* Type of this thing */
+X };
+X
+struct screen
+X {
+X SCRN *t;			/* Screen data on this screen is output to */
+X
+X int wind;			/* Number of help lines on this screen */
+X 
+X W *topwin;			/* Top-most window showing on screen */
+X W *curwin;			/* Window cursor is in */
+X
+X int w,h;			/* Width and height of this screen */
+X 
+X char *pattern;			/* pattern being searched for */
+X char *replace;			/* what to replace with */
+X int options;			/* Search/Replace options */
+X int repeat;
+X int foundlen;
+X 
+X P *markb;			/* Beginning and end of marked block */
+X P *markk;
+X
+X int arg;
+X };
+X
+struct window
+X {
+X LINK(W) link;			/* Linked list of windows in order they
+X 				   appear on the screen */
+X SCREEN *t;			/* Screen this thing is on */
+X int x,y,w,h;			/* Position and size of window */
+X                                /* Currently, x=0, w=width or screen. */
+X                                /* y== -1 if window is not on screen */
+X int ny,nh;			/* Temporary values for wfit */
+X int reqh;			/* Requested new height or 0 for same */
+X 				/* This is an argument for wfit */
+X int hh;			/* Natural height */
+X W *win;			/* Window this one operates on */
+X W *main;			/* Main window of this family */
+X W *orgwin;			/* Window where space from this window came */
+X int curx, cury;		/* Cursor position within window */
+X KBD *kbd;			/* Keyboard handler for this window */
+X WATOM *watom;			/* The type of this window */
+X void *object;			/* Object which inherits this */
+X
+X char *msgt;			/* Message at top of window */
+X
+X char *msgb;			/* Message at bottom of window */
+X
+X char *huh;			/* Name of window for context sensitive hlp */
+X };
+X
+/* Minimum text window height */
+#define FITHEIGHT 4
+X
+/***************/
+/* Subroutines */
+/***************/
+X
+void scrlup();
+void scrldn();
+void prming();
+void updall();
+X
+/* int getgrouph(W *);
+X * Get height of a family of windows
+X */
+int getgrouph();
+X
+/* W *findtopw(W *);
+X * Find first (top-most) window of a family
+X */
+W *findtopw();
+X
+/* W *findbotw(W *);
+X * Find last (bottom-most) window a family
+X */
+W *findbotw();
+X
+W *lastw();
+X
+/* void wfit(SCREEN *);
+X *
+X * Fit all of the windows onto the screen
+X */
+void wfit();
+X
+/*****************/
+/* Main routines */
+/*****************/
+X
+/* SCREEN *screate(SCRN *);
+X *
+X * Create a screen
+X */
+SCREEN *screate();
+X
+/* void sresize(SCREEN *t);
+X * Screen size changed
+X */
+void sresize();
+X
+void chsize();
+X
+/* W *wcreate(SCREEN *t,WATOM *watom,W *where,W *target,W *original,int height);
+X *
+X * Try to create a window
+X *
+X * 't'		Is the screen the window is placed on
+X * 'watom'	Type of new window
+X * 'where'	The window placed after this window, or if 'where'==0, the
+X *		window is placed on the end of the screen
+X * 'target'	The window operates on this window.  The window becomes a
+X *		member of 'target's family or starts a new family if
+X *		'target'==0.
+X * 'original'	Attempt to get 'height' from this window.  When the window is
+X *              aborted, the space gets returned to 'original' if it still
+X *		exists.  If 'original'==0, the window will force other
+X *		windows to go off of the screen.
+X * 'height'	The height of the window
+X *
+X * Returns the new window or returns 0 if there was not enough space to
+X * create the window and maintain family integrity.
+X */
+W *wcreate();
+X
+/* void wabort(W *w);
+X *
+X * Kill a window and it's children
+X */
+void wabort();
+X
+/* int wnext(SCREEN *);
+X *
+X * Switch to next window
+X */
+int wnext();
+X
+/* int wprev(SCREEN *);
+X *
+X * Switch to previous window
+X */
+int wprev();
+X
+/* int wgrow(W *);
+X *
+X * increase size of window.  Return 0 for success, -1 for fail.
+X */
+int wgrow();
+X
+/* int wshrink(W *);
+X *
+X * Decrease size of window.  Returns 0 for success, -1 for fail.
+X */
+int wshrink();
+X
+/* void wshowone(W *);
+X *
+X * Show only one window on the screen
+X */
+void wshowone();
+X
+/* void wshowall(SCREEN *);
+X *
+X * Show all windows on the screen, including the given one
+X */
+void wshowall();
+X
+/* void wredraw(W *);
+X *
+X * Force complete redraw of window
+X */
+void wredraw();
+X
+/* void wsquish(SCREEN *,int h);
+X *
+X * Squish all of the windows on the screen so that h lines can fit
+X */
+void wsquish();
+X
+/* void wrestore(SCREEN *);
+X *
+X * Restore windows to their original heights
+X */
+void wrestore();
+X
+/* void msg(W *w,char *text);
+X * Display a message and then continue editing after the next keypress.
+X * The message is placed in the last line of 'w'
+X */
+int msgout();
+void msg();
+X
+void msgnw();
+void msgnwt();
+X
+/* int query(W *w,char *text);
+X * Single-key query.  'func' gets the key as it's first arg.  The message is
+X * displayed on the last line of 'w'.
+X */
+int query();
+X
+/* int queryn(W *w,char *text);
+X * As above, but leave cursor in current window
+X */
+int queryn();
+X
+#endif
+SHAR_EOF
+chmod 0600 w.h ||
+echo 'restore of w.h failed'
+Wc_c="`wc -c < 'w.h'`"
+test 5765 -eq "$Wc_c" ||
+	echo 'w.h: original size 5765, current size' "$Wc_c"
+fi
+# ============= zstr.c ==============
+if test -f 'zstr.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping zstr.c (File already exists)'
+else
+echo 'x - extracting zstr.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'zstr.c' &&
+/* Zero terminated strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#include "heap.h"
+#include "zstr.h"
+X
+int toup(a) { return (a>='a' && a<='z')?a+'A'-'a':a; }
+unsigned Umin(a,b) unsigned a,b; { return a<b?a:b; }
+unsigned Umax(a,b) unsigned a,b; { return a>b?a:b; }
+int Imin(a,b) { return a<b?a:b; }
+int Imax(a,b) { return a>b?a:b; }
+int Iabs(a) { return a>=0?a:-a; }
+X
+int cword(c)
+{
+return c>='A' && c<='Z' || c>='a' && c<='z' || c>='0' && c<='9' || c=='_';
+}
+X
+int cwhitel(c)
+{
+return c==' ' || c=='\t' || c=='\n';
+}
+X
+int cwhite(c)
+{
+return c==' ' || c=='\t';
+}
+X
+int zlen(s)
+char *s;
+{
+char *os=s;
+while(*s) ++s;
+return s-os;
+}
+X
+char *zcpy(d,s)
+char *d,*s;
+{
+char *od=d;
+while(*d++= *s++);
+return od;
+}
+X
+char *zcat(d,s)
+char *d,*s;
+{
+char *od=d;
+while(*d) ++d;
+while(*d++= *s++);
+return od;
+}
+X
+char *zdup(s)
+char *s;
+{
+return zcpy((char *)malloc(zlen(s)+1),s);
+}
+X
+int zcmp(l,r)
+char *l, *r;
+{
+while(*l && *l==*r) ++l, ++r;
+if(*l>*r) return 1;
+if(*l<*r) return -1;
+return 0;
+}
+X
+int fields(s,fields,sep)
+char *s, **fields, sep;
+{
+int y=1;
+fields[0]=s;
+while(*s)
+X {
+X if(*s==sep) fields[y++]=s+1, *s=0;
+X ++s;
+X }
+return y;
+}
+X
+int nfields(s,sep)
+char *s, sep;
+{
+int y=1;
+while(*s) if(*s++==sep) ++y;
+return y;
+}
+SHAR_EOF
+chmod 0600 zstr.c ||
+echo 'restore of zstr.c failed'
+Wc_c="`wc -c < 'zstr.c'`"
+test 1902 -eq "$Wc_c" ||
+	echo 'zstr.c: original size 1902, current size' "$Wc_c"
+fi
+# ============= zstr.h ==============
+if test -f 'zstr.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping zstr.h (File already exists)'
+else
+echo 'x - extracting zstr.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'zstr.h' &&
+/* Zero terminated strings
+X   Copyright (C) 1992 Joseph H. Allen
+X
+This file is part of JOE (Joe's Own Editor)
+X
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+X
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+X
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+X
+#ifndef _Izstr
+#define _Izstr 1
+X
+#include "config.h"
+X
+int cword();
+int cwhite();
+int cwhitel();
+int Iabs();
+int toup();
+unsigned Umin();
+unsigned Umax();
+int Imin();
+int Imax();
+char *zcpy();
+char *zdup();
+char *zcat();
+int zcmp();
+int zlen();
+int fields();
+int nfields();
+X
+#endif
+SHAR_EOF
+chmod 0600 zstr.h ||
+echo 'restore of zstr.h failed'
+Wc_c="`wc -c < 'zstr.h'`"
+test 1044 -eq "$Wc_c" ||
+	echo 'zstr.h: original size 1044, current size' "$Wc_c"
+fi
+# ============= .joerc ==============
+if test -f '.joerc' -a X"$1" != X"-c"; then
+	echo 'x - skipping .joerc (File already exists)'
+else
+echo 'x - extracting .joerc (Text)'
+sed 's/^X//' << 'SHAR_EOF' > '.joerc' &&
+X                         Initialization file for JOE
+X
+X JOE looks for this file in:
+X	1 - .joerc
+X	2 - $HOME/.joerc
+X	3 - /usr/local/lib/joerc
+X
+X FIRST SECTION: Default global options:
+X
+X Put each option you want set in the first column:
+X
+X -mid		Cursor is recentered when scrolling is necessary
+X -asis		Characters 160 - 254 shown as-is
+X -stacol	Column number in status line
+X -starow	Row number in status line
+X -force		Force final newline when files are saved
+X -help		Start with help on
+X -pg nnn	No. lines to keep for PgUp/PgDn
+X -gtab nnn	Default tab width for prompt windows
+X
+X SECOND SECTION: File name dependant local option settings:
+X
+X Each line with '*' in the first column indicates the modes which should be
+X files which match the regular expression.  If more than one regular
+X expression matches the file name, than the last matching one is chosen.
+X
+X Here is a list of modes which can be set:
+X
+X	-wordwrap		Wordwrap
+X	-autoindent		Auto indent
+X	-overwrite		Overtype mode
+X	-lmargin nnn		Left margin
+X	-rmargin nnn		Right margin
+X	-tab nnn		Tab width
+X	-indentc nnn		Indentation character (32 for space, 9 for tab)
+X	-istep nnn		Number of indentation columns
+*
+-wordwrap
+X
+*.c
+-autoindent
+X
+*.h
+-autoindent
+X
+*akefile
+*AKEFILE
+*joerc
+X
+*.p
+-autoindent
+X
+X THIRD SECTION: Named help screens:
+X
+X Use \i to turn on/off inverse video
+X Use \u to turn on/off underline
+X
+{Basic
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i\uCURSOR\u           \uGO TO\u            \uBLOCK\u      \uDELETE\u   \uMISC\u         \uEXIT\u      \i \i
+\i \i^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save  \i \i
+\i \i^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^TT overtype ^C  abort \i \i
+\i \i^Z previous word ^A  beg. of line ^KM move   ^W >word `   Ctrl-    ^KZ shell \i \i
+\i \i^X next word     ^E  end of line  ^KC copy   ^O word< ^\\  Meta-    \uFILE\u      \i \i
+\i \i\uSEARCH\u           ^KU top of file  ^KW file   ^J >line ^R  retype   ^KE new   \i \i
+\i \i^KF find text    ^KV end of file  ^KY delete ^_ undo  ^@  insert   ^KR insert\i \i
+\i \i^L  find next    ^KL to line No.  ^K/ filter ^^ redo               ^KD save  \i \i
+}
+X
+{Windows
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i^KO Split the window into two.  You can then use ^KE to load a file into the \i \i
+\i \i    new window.                                                              \i \i
+\i \i^KG Make current window bigger         ^KT Make current window smaller       \i \i
+\i \i^KN Go to the window below             ^KP Go to the window above            \i \i
+\i \i^C  Eliminate the current window       ^KI Show all windows / Show one window\i \i
+}
+X
+{Advanced
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i ESC nn   repeat next command nn times     ^G   goto matching ( [ {          \i \i
+\i \i ^K SPACE show position status             ^K-  goto prevous place in        \i \i
+\i \i ^K [ 0-9 begin recording macro n               position history             \i \i
+\i \i ^K ]     stop recording                   ^K=  goto next place              \i \i
+\i \i ^K 0-9   play macro n                     ^K,  indent marked block less     \i \i
+\i \i ^K A     center line                      ^K.  indent marked block more     \i \i
+\i \i ^T X     rectangle mode                   ^K;  tag search                   \i \i
+}
+X
+{Options
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i                                Mode Settings                                \i \i
+\i \i                                                                             \i \i
+\i \i ^TT Insert/Overtype             ^TM Recenter cursor when it goes off window \i \i
+\i \i ^TA Autoindent on/off           ^TF Force final NL when files are written   \i \i
+\i \i ^TW Wordwrap on/off             ^TH Display characters above 127 as-is      \i \i
+\i \i ^TL Left margin                 ^TN Show line number on status line         \i \i
+\i \i ^TR Right margin                ^TC Show column number on status line       \i \i
+\i \i ^TP No. PgUp/PgDn Lines         ^TD Tab width                               \i \i
+\i \i ^TK Indent character            ^TI Indent step column width                \i \i
+\i \i ^TX Rectangle mode                                                          \i \i
+}
+X
+{Search
+\i   Help Screen    turn off with ^KH                                            \i
+\i \iSpecial search sequences:                                                    \i \i
+\i \i    \\^     matches beginning of line     \\$     matches end of line          \i \i
+\i \i    \\<     matches beginning of word     \\>     matches end of word          \i \i
+\i \i    \\?     matches any single character  \\*     matches 0 or more characters \i \i
+\i \i    \\c     matches balanced C expression \\\\     matches a \\                  \i \i
+\i \i    \\[..]  matches one of a set          \\n     matches a newline            \i \i
+\i \i    \\+     matches 0 or more of the character which follows the \\+           \i \i
+\i \iSpecial replace sequences:                                                   \i \i
+\i \i    \\&     replaced with text which matched search string                    \i \i
+\i \i    \\0 - 9 replaced with text which matched Nth \\*, \\?, \\c, \\+, or \\[..]     \i \i
+\i \i    \\\\     replaced with \\               \\n     replaced with newline        \i \i
+}
+X
+{Names
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i Hit TAB at file name prompts to generate menu of file names                 \i \i
+\i \i Or use up/down keys to access history of previously entered names           \i \i
+\i \i Special file names:                                                         \i \i
+\i \i      !command                 Pipe in/out of a shell command                \i \i
+\i \i      >>filename               Append to a file                              \i \i
+\i \i      -                        Read/Write to/from standard I/O               \i \i
+\i \i      filename,START,SIZE      Read/Write a part of a file/device            \i \i
+\i \i          Give START/SIZE in decimal (255), octal (0377) or hex (0xFF)       \i \i
+}
+X
+{Joe
+\i   Help Screen    turn off with ^KH                                            \i
+\i \i Joe Allen's email address:  'jha...@world.std.com' or                      \i \i
+\i \i 'rcarter' on the VWIS Linux BBS (508)793-9568                               \i \i
+}
+X
+X FOURTH SECTION: Key bindings:
+X
+X :main are the main editing bindings
+X :fprompt are file name prompt bindings
+X :prompt are other prompt bindings
+X :tab are file menu bindings
+X :help are help menu bindings
+X
+X Use ^@ through ^_ and ^? for Ctrl chars
+X Use SP for space
+X Use a TO b to generate a range of characters
+X Use UP DOWN RIGHT LEFT HOME END INS DEL PGUP PGDN
+X     F1 F2 F3 F4 F5 F6 F7 F8 F9 F0
+X     for the corresponding termcap key sequence definitions
+X
+X Simple macros can be made by comma seperating 2 or more command names.  For
+X example:
+X
+X bof,bol	^T Z		Goto beginning of last line
+X
+X Also quoted matter is typed in literally:
+X
+X bol,">",dnarw	F1		Quote news article line
+X
+:main
+X
+type		^I		Tab
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abort		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtn		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:prompt
+X
+type		^I		Tab
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abortpw		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtnpw		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:fprompt
+X
+complete	^I		Complete file name
+quote8		^\		Quote Meta chars
+type		SP TO ~		Typeable characters
+quote		`		Quote Ctrl chars
+X
+abortpw		^C		Abort window
+arg		^[ 1 TO 9	Repeat count
+backs		^?		Backspace
+backs		^H
+backw		^O		Backspace word
+blkcpy		^K C		Copy marked block
+blkcpy		^K ^C
+blkcpy		^K c
+blkdel		^K Y		Delete marked block
+blkdel		^K ^Y
+blkdel		^K y
+blkmove		^K M		Move marked block
+blkmove		^K ^M
+blkmove		^K m
+blksave		^K W		Save marked block
+blksave		^K ^W
+blksave		^K w
+bof		^K U		Goto beginning of file
+bof		^K ^U
+bof		^K u
+bol		HOME		Goto beginning of line
+bol		^A
+center		^K A		Center line
+center		^K ^A
+center		^K a
+delch		DEL		Delete character
+delch		^D
+deleol		^J		Delete to end of line
+dellin		^Y		Delete entire line
+delw		^W		Delete word to right
+dnarw		DOWN		Go down
+dnarw		^N
+dnarw		^[ O B
+dnarw		^[ [ B
+edit		^K E		Edit a file
+edit		^K ^E
+edit		^K e
+eof		^K V		Go to end of file
+eof		^K ^V
+eof		^K v
+eol		END		Go to end of line
+eol		^E
+explode		^K I		Show one window / Show all windows
+explode		^K ^I
+explode		^K i
+exsave		^K X		Save and exit
+exsave		^K ^X
+exsave		^K x
+ffirst		^K F		Find first
+ffirst		^K ^F
+ffirst		^K f
+filt		^K /		Filter block
+fnext		^L		Find next
+format		^K J		Format paragraph
+format		^K ^J
+format		^K j
+groww		^K G		Grow window
+groww		^K ^G
+groww		^K g
+help		^K H		Help
+help		^K ^H
+help		^K h
+iasis		^T H		Characters 160-254 shown as-is
+iasis		^T ^H
+iasis		^T h
+iforce		^T F		Force final newline
+iforce		^T ^F
+iforce		^T f
+iindent		^T A		Autoindent on/off
+iindent		^T ^A
+iindent		^T a
+iindentc	^T k
+iindentc	^T K
+iindentc	^T ^K
+ilmargin	^T L		Set left margin
+ilmargin	^T ^L
+ilmargin	^T l
+imid		^T M		Center cursor when scrolling
+imid		^T ^M
+imid		^T m
+insc		INS		Insert a space
+insc		^@
+insf		^K R		Insert a file
+insf		^K ^R
+insf		^K r
+ipgamnt		^T P		No. lines to keep for PGUP/PGDN
+ipgamnt		^T ^P
+ipgamnt		^T p
+irmargin	^T R		Set right margin
+irmargin	^T ^R
+irmargin	^T r
+istacol		^T C		Column number on status line
+istacol		^T ^C
+istacol		^T c
+istarow		^T N		Row number on status line
+istarow		^T ^N
+istarow		^T n
+iistep		^T i
+iistep		^T I
+iistep		^T ^I
+isquare		^T x
+isquare		^T X
+isquare		^T ^X
+itab		^T D
+itab		^T ^D
+itab		^T d
+itype		^T T		Insert/Overtype
+itype		^T ^T
+itype		^T t
+iwrap		^T W		Word wrap
+iwrap		^T ^W
+iwrap		^T w
+lindent		^K ,		Indent to left
+line		^K L		Goto line no.
+line		^K ^L
+line		^K l
+ltarw		LEFT		Go left
+ltarw		^B
+ltarw		^[ O D
+ltarw		^[ [ D
+markb		^K B		Set beginning of marked block
+markb		^K ^B
+markb		^K b
+markk		^K K		Set end of marked block
+markk		^K ^K
+markk		^K k
+nextpos		^K =		Goto next position in position history
+nextw		^K N		Goto window below
+nextw		^K ^N
+nextw		^K n
+nextword	^X		Goto next word
+open		^]		Split line
+pgdn		PGDN		Screen down
+pgdn		^V
+pgup		PGUP		Screen up
+pgup		^U
+play		^K 0 TO 9	Execute macro
+prevpos		^K -
+prevw		^K P		Window above
+prevw		^K ^P
+prevw		^K p
+prevword	^Z		Previous word
+record		^K [		Record macro
+redo		^^		Redo changes
+retype		^R		Refresh screen
+rindent		^K .		Indent to right
+rtarw		RIGHT		Go right
+rtarw		^F
+rtarw		^[ O C
+rtarw		^[ [ C
+rtnpw		^M		Return
+save		^K D		Save file
+save		^K S
+save		^K ^D
+save		^K ^S
+save		^K d
+save		^K s
+shell		^K Z		Shell escape/Suspend
+shell		^K ^Z
+shell		^K z
+shrinkw		^K T		Shrink window
+shrinkw		^K ^T
+shrinkw		^K t
+splitw		^K O		Split window
+splitw		^K ^O
+splitw		^K o
+stat		^K SP		Show status
+stop		^K ]		Stop recording macro
+tag		^K ;
+tomatch		^G		Goto matching parenthasis
+undo		^_		Undo changes
+uparw		UP		Go up
+uparw		^P
+uparw		^[ O A
+uparw		^[ [ A
+X
+:tab
+X
+aborttab	^C
+arg		^[ 1 TO 9
+backstab	^?
+backstab	^H
+boftab		^K U
+boftab		^K ^U
+boftab		^K u
+boltab		HOME
+boltab		^A
+dnarwtab	DOWN
+dnarwtab	^N
+dnarwtab	^[ [ B
+dnarwtab	^[ O B
+eoftab		^K V
+eoftab		^K ^V
+eoftab		^K v
+eoltab		END
+eoltab		^E
+explode		^K I
+explode		^K ^I
+explode		^K i
+help		^K H
+help		^K ^H
+help		^K h
+ltarwtab	LEFT
+ltarwtab	^B
+ltarwtab	^[ [ D
+ltarwtab	^[ O D
+nextw		^K N
+nextw		^K ^N
+nextw		^K n
+play		^K 0 TO 9
+prevw		^K P
+prevw		^K ^P
+prevw		^K p
+record		^K [
+retype		^R
+rtarwtab	RIGHT
+rtarwtab	^F
+rtarwtab	^[ [ C
+rtarwtab	^[ O C
+rtntab		SP
+rtntab		^M
+shell		^K Z
+shell		^K ^Z
+shell		^K z
+stop		^K ]
+uparwtab	UP
+uparwtab	^P
+uparwtab	^[ [ A
+uparwtab	^[ O A
+X
+:help
+X
+aborthelp	^C
+arg		^[ 1 TO 9
+bofhelp		^K U
+bofhelp		^K ^U
+bofhelp		^K u
+bolhelp		HOME
+bolhelp		^A
+dnarwhelp	DOWN
+dnarwhelp	^N
+dnarwhelp	^[ [ B
+dnarwhelp	^[ O B
+eofhelp		^K V
+eofhelp		^K ^V
+eofhelp		^K v
+eolhelp		END
+eolhelp		^E
+explode		^K I
+explode		^K ^I
+explode		^K i
+ltarwhelp	LEFT
+ltarwhelp	^B
+ltarwhelp	^[ [ D
+ltarwhelp	^[ O D
+nextw		^K N
+nextw		^K ^N
+nextw		^K n
+play		^K 0 TO 9
+prevw		^K P
+prevw		^K ^P
+prevw		^K p
+record		^K [
+retype		^R
+rtarwhelp	RIGHT
+rtarwhelp	^F
+rtarwhelp	^[ [ C
+rtarwhelp	^[ O C
+rtnhelp		SP
+rtnhelp		^M
+rtnhelp		^K H
+rtnhelp		^K ^H
+rtnhelp		^K h
+shell		^K Z
+shell		^K ^Z
+shell		^K z
+stop		^K ]
+uparwhelp	UP
+uparwhelp	^P
+uparwhelp	^[ [ A
+uparwhelp	^[ O A
+SHAR_EOF
+chmod 0600 .joerc ||
+echo 'restore of .joerc failed'
+Wc_c="`wc -c < '.joerc'`"
+test 19130 -eq "$Wc_c" ||
+	echo '.joerc: original size 19130, current size' "$Wc_c"
+fi
+exit 0

@@ -1,0 +1,2143 @@
+Xref: funic alt.sources:4966 alt.graphics.pixutils:4163
+Path: funic!news.funet.fi!sunic!mcsun!uunet!cs.utexas.edu!qt.cs.utexas.edu!yale.edu!jvnc.net!rutgers!uwvax!ssec.wisc.edu!dws
+From: dws@ssec.wisc.edu (DaviD W. Sanderson)
+Newsgroups: alt.sources,alt.graphics.pixutils
+Subject: bmptoppm,ppmtobmp,pnmtoraw PBMPLUS utilities
+Message-ID: <1992Nov24.200735.21607@cs.wisc.edu>
+Date: 24 Nov 92 20:07:35 GMT
+Sender: news@cs.wisc.edu (The News)
+Followup-To: alt.graphics.pixutils
+Organization: UW-Madison Space Science and Engineering Center
+Lines: 2131
+
+Submitted-by: dws@ssec.wisc.edu
+Archive-name: bmptoppm/part01
+
+Here are the long-anticipated programs which can convert between OS/2
+and Microsoft Windows .BMP files and the PPM format.  (I have
+crossposted this to alt.graphics.pixutils due to the interest there in
+these programs.)
+
+I have included an additional utility 'pnmtoraw' which is useful for
+turning plain-format PBMPLUS files into the much smaller raw-format
+equivalents, if possible.
+
+In order to compile these programs you must have the libraries and
+header files from the PBMPLUS package available.  You will definitely
+have to dink with the Makefile to get the paths and linking options
+right for you.
+
+I have sent these programs to Jef Poskanzer for inclusion in the next
+release of PBMPLUS.  (So when will it be, Jef? :-)
+
+If you find BMP files bmptoppm can't convert properly, *please* let me
+know.  I suspect there are some, but I haven't found any yet.  (For
+instance, I've heard that 24-bit BMP files exist.  Since I have never
+seen any, these programs do not yet handle them.)
+
+If you enhance bmptoppm and ppmtobmp to deal with any BMP files they
+can't already handle, please forward your changes to me.
+
+Also, if ppmtobmp generates bad BMP files (ones that your regular
+BMP-reading programs can't read), please let me know.  I don't have all
+the details on the Windows BITMAPINFOHEADER structure, so ppmtobmp
+fills in the unknown fields with zeros.  That's why ppmtobmp produces
+OS/2-style BMP files by default.
+
+DaviD W. Sanderson (dws@ssec.wisc.edu)
+
+#!/bin/sh
+# This is bmptoppm, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/24/1992 19:44 UTC by dws@ssec.wisc.edu
+# Source directory /home/dws/bmp
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   1314 -rw------- README
+#   3779 -rw------- bitio.c
+#   2086 -rw------- bitio.h
+#   3705 -rw------- bmp.h
+#   9992 -rw------- bmptoppm.c
+#    741 -rw------- bmptoppm.1
+#  11184 -rw------- ppmtobmp.c
+#   1010 -rw------- ppmtobmp.1
+#   1902 -rw------- pnmtoraw.c
+#    951 -rw------- pnmtoraw.1
+#   1343 -rw------- Makefile
+#
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+Here are programs which can convert between OS/2 and Microsoft Windows
+.BMP files and the PPM format.
+X
+I have included an additional utility 'pnmtoraw' which is useful for
+turning plain-format PBMPLUS files into the much smaller raw-format
+equivalents, if possible.
+X
+In order to compile these programs you must have the libraries and
+header files from the PBMPLUS package available.  You will definitely
+have to dink with the Makefile to get the paths and linking options
+right for you.
+X
+I have sent these programs to Jef Poskanzer for inclusion in the next
+release of PBMPLUS.
+X
+If you find BMP files bmptoppm can't convert properly, *please* let me
+know.  I suspect there are some, but I haven't found any yet.  (For
+instance, I've heard that 24-bit BMP files exist.  Since I have never
+seen any, these programs do not yet handle them.)
+X
+If you enhance bmptoppm and ppmtobmp to deal with any BMP files they
+can't already handle, please forward your changes to me.
+X
+Also, if ppmtobmp generates bad BMP files (ones that your regular
+BMP-reading programs can't read), please let me know.  I don't have all
+the details on the Windows BITMAPINFOHEADER structure, so ppmtobmp
+fills in the unknown fields with zeros.  That's why ppmtobmp produces
+OS/2-style BMP files by default.
+X
+DaviD W. Sanderson (dws@ssec.wisc.edu)
+SHAR_EOF
+chmod 0600 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 1314 -eq "$Wc_c" ||
+	echo 'README: original size 1314, current size' "$Wc_c"
+fi
+# ============= bitio.c ==============
+if test -f 'bitio.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping bitio.c (File already exists)'
+else
+echo 'x - extracting bitio.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bitio.c' &&
+/*\
+X * $Id: bitio.c,v 1.5 1992/11/24 19:36:46 dws Exp dws $
+X *
+X * bitio.c - bitstream I/O
+X *
+X * Works for (sizeof(unsigned long)-1)*8 bits.
+X *
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X *
+X * $Log: bitio.c,v $
+X * Revision 1.5  1992/11/24  19:36:46  dws
+X * Added copyright.
+X *
+X * Revision 1.4  1992/11/17  03:37:50  dws
+X * updated comment
+X *
+X * Revision 1.3  1992/11/10  23:15:16  dws
+X * Removed superfluous code.
+X *
+X * Revision 1.2  1992/11/10  23:11:22  dws
+X * Generalized to handle more than one bitstream at once.
+X *
+X * Revision 1.1  1992/11/10  18:33:21  dws
+X * Initial revision
+X *
+\*/
+X
+#include "bitio.h"
+X
+struct bitstream
+{
+X	FILE *
+X		f;		/* bytestream */
+X	unsigned long
+X		bitbuf;		/* bit buffer */
+X	int
+X		nbitbuf;	/* number of bits in 'bitbuf' */
+X	char
+X		mode;
+};
+X
+#define Mask(n)		((1<<(n))-1)
+X
+#define BitPut(b,ul,n)	((b)->bitbuf = (((b)->bitbuf<<(n))	\
+X					|((ul)&Mask(n))),	\
+X			(b)->nbitbuf += (n))
+X
+#define BitGet(b,n)	(((b)->bitbuf>>((b)->nbitbuf-=(n))) & Mask(n))
+X
+/*
+X * pm_bitinit() - allocate and return a struct bitstream * for the
+X * given FILE*.
+X *
+X * mode must be one of "r" or "w", according to whether you will be
+X * reading from or writing to the struct bitstream *.
+X *
+X * Returns 0 on error.
+X */
+X
+struct bitstream *
+pm_bitinit(f, mode)
+X	FILE           *f;
+X	char           *mode;
+{
+X	struct bitstream *ans = (struct bitstream *)0;
+X
+X	if(!f || !mode || !*mode)
+X		return ans;
+X	if(strcmp(mode, "r") && strcmp(mode, "w"))
+X		return ans;
+X
+X	ans = (struct bitstream *)calloc(1, sizeof(struct bitstream));
+X	if(ans)
+X	{
+X		ans->f = f;
+X		ans->mode = *mode;
+X	}
+X
+X	return ans;
+}
+X
+/*
+X * pm_bitfini() - deallocate the given struct bitstream *.
+X *
+X * You must call this after you are done with the struct bitstream *.
+X * 
+X * It may flush some bits left in the buffer.
+X *
+X * Returns the number of bytes written, -1 on error.
+X */
+X
+int
+pm_bitfini(b)
+X	struct bitstream *b;
+{
+X	int		nbyte = 0;
+X
+X	if(!b)
+X		return -1;
+X
+X	/* flush the output */
+X	if(b->mode == 'w')
+X	{
+X		/* flush the bits */
+X		if (b->nbitbuf < 0 || b->nbitbuf >= 8)
+X		{
+X			/* pm_bitwrite() didn't work */
+X			return -1;
+X		}
+X
+X		/*
+X		 * If we get to here, nbitbuf is 0..7
+X		 */
+X		if(b->nbitbuf)
+X		{
+X			char	c;
+X
+X			BitPut(b, 0, (long)8-(b->nbitbuf));
+X			c = (char) BitGet(b, (long)8);
+X			if(putc(c, b->f) == EOF)
+X			{
+X				return -1;
+X			}
+X			nbyte++;
+X		}
+X	}
+X
+X	free(b);
+X	return nbyte;
+}
+X
+/*
+X * pm_bitread() - read the next nbits into *val from the given file.
+X * 
+X * The last pm_bitread() must be followed by a call to pm_bitfini().
+X * 
+X * Returns the number of bytes read, -1 on error.
+X */
+X
+int 
+pm_bitread(b, nbits, val)
+X	struct bitstream *b;
+X	unsigned long   nbits;
+X	unsigned long  *val;
+{
+X	int		nbyte = 0;
+X	int		c;
+X
+X	if(!b)
+X		return -1;
+X
+X	while (b->nbitbuf < nbits)
+X	{
+X		if((c = getc(b->f)) == EOF)
+X		{
+X			return -1;
+X		}
+X		nbyte++;
+X
+X		BitPut(b, c, (long) 8);
+X	}
+X
+X	*val = BitGet(b, nbits);
+X	return nbyte;
+}
+X
+/*
+X * pm_bitwrite() - write the low nbits of val to the given file.
+X * 
+X * The last pm_bitwrite() must be followed by a call to pm_bitfini().
+X * 
+X * Returns the number of bytes written, -1 on error.
+X */
+X
+int
+pm_bitwrite(b, nbits, val)
+X	struct bitstream *b;
+X	unsigned long   nbits;
+X	unsigned long   val;
+{
+X	int		nbyte = 0;
+X	char		c;
+X
+X	if(!b)
+X		return -1;
+X
+X	BitPut(b, val, nbits);
+X
+X	while (b->nbitbuf >= 8)
+X	{
+X		c = (char) BitGet(b, (long)8);
+X
+X		if(putc(c, b->f) == EOF)
+X		{
+X			return -1;
+X		}
+X		nbyte++;
+X	}
+X
+X	return nbyte;
+}
+SHAR_EOF
+chmod 0600 bitio.c ||
+echo 'restore of bitio.c failed'
+Wc_c="`wc -c < 'bitio.c'`"
+test 3779 -eq "$Wc_c" ||
+	echo 'bitio.c: original size 3779, current size' "$Wc_c"
+fi
+# ============= bitio.h ==============
+if test -f 'bitio.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping bitio.h (File already exists)'
+else
+echo 'x - extracting bitio.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bitio.h' &&
+/*\
+X * $Id: bitio.h,v 1.4 1992/11/24 19:37:02 dws Exp dws $
+X *
+X * bitio.h - bitstream I/O
+X *
+X * Works for (sizeof(unsigned long)-1)*8 bits.
+X *
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X *
+X * $Log: bitio.h,v $
+X * Revision 1.4  1992/11/24  19:37:02  dws
+X * Added copyright
+X *
+X * Revision 1.3  1992/11/17  03:37:59  dws
+X * updated comment
+X *
+X * Revision 1.2  1992/11/10  23:10:22  dws
+X * Generalized to handle more than one bitstream at a time.
+X *
+X * Revision 1.1  1992/11/10  18:33:51  dws
+X * Initial revision
+X *
+\*/
+X
+#ifndef _BITIO_H_
+#define _BITIO_H_
+X
+#include "pbmplus.h"
+X
+typedef struct bitstream	*BITSTREAM;
+X
+/*
+X * pm_bitinit() - allocate and return a BITSTREAM for the given FILE*.
+X *
+X * mode must be one of "r" or "w", according to whether you will be
+X * reading from or writing to the BITSTREAM.
+X *
+X * Returns 0 on error.
+X */
+X
+extern BITSTREAM pm_bitinit ARGS((FILE *f, char *mode));
+X
+/*
+X * pm_bitfini() - deallocate the given BITSTREAM.
+X *
+X * You must call this after you are done with the BITSTREAM.
+X * 
+X * It may flush some bits left in the buffer.
+X *
+X * Returns the number of bytes written, -1 on error.
+X */
+X
+extern int pm_bitfini ARGS((BITSTREAM b));
+X
+/*
+X * pm_bitread() - read the next nbits into *val from the given file.
+X * 
+X * Returns the number of bytes read, -1 on error.
+X */
+X
+extern int pm_bitread ARGS((BITSTREAM b, unsigned long nbits, unsigned long *val));
+X
+/*
+X * pm_bitwrite() - write the low nbits of val to the given file.
+X * 
+X * The last pm_bitwrite() must be followed by a call to pm_bitflush().
+X * 
+X * Returns the number of bytes written, -1 on error.
+X */
+X
+extern int pm_bitwrite ARGS((BITSTREAM b, unsigned long nbits, unsigned long val));
+X
+#endif /* _BITIO_H_ */
+SHAR_EOF
+chmod 0600 bitio.h ||
+echo 'restore of bitio.h failed'
+Wc_c="`wc -c < 'bitio.h'`"
+test 2086 -eq "$Wc_c" ||
+	echo 'bitio.h: original size 2086, current size' "$Wc_c"
+fi
+# ============= bmp.h ==============
+if test -f 'bmp.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping bmp.h (File already exists)'
+else
+echo 'x - extracting bmp.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bmp.h' &&
+/*\
+X * $Id: bmp.h,v 1.3 1992/11/24 19:39:56 dws Exp dws $
+X * 
+X * bmp.h - routines to calculate sizes of parts of BMP files
+X *
+X * Some fields in BMP files contain offsets to other parts
+X * of the file.  These routines allow us to calculate these
+X * offsets, so that we can read and write BMP files without
+X * the need to fseek().
+X * 
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X * 
+X * $Log: bmp.h,v $
+X * Revision 1.3  1992/11/24  19:39:56  dws
+X * Added copyright.
+X *
+X * Revision 1.2  1992/11/17  02:13:37  dws
+X * Adjusted a string's name.
+X *
+X * Revision 1.1  1992/11/16  19:54:44  dws
+X * Initial revision
+X *
+\*/
+X
+#ifndef _BMP_H_
+#define _BMP_H_
+X
+#include	"pbmplus.h"
+X
+/*
+X * Classes of BMP files
+X */
+X
+#define C_WIN	1
+#define C_OS2	2
+X
+static char     er_internal[] = "%s: internal error!";
+X
+static unsigned long
+BMPlenfileheader(class)
+X	int             class;
+{
+X	switch (class)
+X	{
+X	case C_WIN:
+X		return 14;
+X	case C_OS2:
+X		return 14;
+X	default:
+X		pm_error(er_internal, "BMPlenfileheader");
+X		return 0;
+X	}
+}
+X
+static unsigned long
+BMPleninfoheader(class)
+X	int             class;
+{
+X	switch (class)
+X	{
+X	case C_WIN:
+X		return 40;
+X	case C_OS2:
+X		return 12;
+X	default:
+X		pm_error(er_internal, "BMPleninfoheader");
+X		return 0;
+X	}
+}
+X
+static unsigned long
+BMPlenrgbtable(class, bitcount)
+X	int             class;
+X	unsigned long   bitcount;
+{
+X	unsigned long   lenrgb;
+X
+X	if (bitcount < 1)
+X	{
+X		pm_error(er_internal, "BMPlenrgbtable");
+X		return 0;
+X	}
+X	switch (class)
+X	{
+X	case C_WIN:
+X		lenrgb = 4;
+X		break;
+X	case C_OS2:
+X		lenrgb = 3;
+X		break;
+X	default:
+X		pm_error(er_internal, "BMPlenrgbtable");
+X		return 0;
+X	}
+X
+X	return (1 << bitcount) * lenrgb;
+}
+X
+/*
+X * length, in bytes, of a line of the image
+X * 
+X * Evidently each row is padded on the right as needed to make it a
+X * multiple of 4 bytes long.  This appears to be true of both
+X * OS/2 and Windows BMP files.
+X */
+static unsigned long
+BMPlenline(class, bitcount, x)
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+{
+X	unsigned long   bitsperline;
+X
+X	switch (class)
+X	{
+X	case C_WIN:
+X		break;
+X	case C_OS2:
+X		break;
+X	default:
+X		pm_error(er_internal, "BMPlenline");
+X		return 0;
+X	}
+X
+X	bitsperline = x * bitcount;
+X
+X	/*
+X	 * if bitsperline is not a multiple of 32, then round
+X	 * bitsperline up to the next multiple of 32.
+X	 */
+X	if ((bitsperline % 32) != 0)
+X	{
+X		bitsperline += (32 - (bitsperline % 32));
+X	}
+X
+X	if ((bitsperline % 32) != 0)
+X	{
+X		pm_error(er_internal, "BMPlenline");
+X		return 0;
+X	}
+X
+X	/* number of bytes per line == bitsperline/8 */
+X	return bitsperline >> 3;
+}
+X
+/* return the number of bytes used to store the image bits */
+static unsigned long
+BMPlenbits(class, bitcount, x, y)
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+X	unsigned long   y;
+{
+X	return y * BMPlenline(class, bitcount, x);
+}
+X
+/* return the offset to the BMP image bits */
+static unsigned long
+BMPoffbits(class, bitcount)
+X	int             class;
+X	unsigned long   bitcount;
+{
+X	return BMPlenfileheader(class)
+X		+ BMPleninfoheader(class)
+X		+ BMPlenrgbtable(class, bitcount);
+}
+X
+/* return the size of the BMP file in bytes */
+static unsigned long
+BMPlenfile(class, bitcount, x, y)
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+X	unsigned long   y;
+{
+X	return BMPoffbits(class, bitcount)
+X		+ BMPlenbits(class, bitcount, x, y);
+}
+X
+#endif /* _BMP_H_ */
+SHAR_EOF
+chmod 0600 bmp.h ||
+echo 'restore of bmp.h failed'
+Wc_c="`wc -c < 'bmp.h'`"
+test 3705 -eq "$Wc_c" ||
+	echo 'bmp.h: original size 3705, current size' "$Wc_c"
+fi
+# ============= bmptoppm.c ==============
+if test -f 'bmptoppm.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping bmptoppm.c (File already exists)'
+else
+echo 'x - extracting bmptoppm.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bmptoppm.c' &&
+/*\
+X * $Id: bmptoppm.c,v 1.10 1992/11/24 19:38:17 dws Exp dws $
+X * 
+X * bmptoppm.c - Converts from a Microsoft Windows or OS/2 .BMP file to a
+X * PPM file.
+X * 
+X * The current implementation is probably not complete, but it works for
+X * all the BMP files I have.  I welcome feedback.
+X * 
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X * 
+X * $Log: bmptoppm.c,v $
+X * Revision 1.10  1992/11/24  19:38:17  dws
+X * Added code to verify that reading occurred at the correct offsets.
+X * Added copyright.
+X *
+X * Revision 1.9  1992/11/17  02:15:24  dws
+X * Changed to include bmp.h.
+X * Eliminated need for fseek(), and therefore the need for a
+X * temporary file.
+X *
+X * Revision 1.8  1992/11/13  23:48:57  dws
+X * Made definition of Seekable() static, to match its prototype.
+X *
+X * Revision 1.7  1992/11/11  00:17:50  dws
+X * Generalized to use bitio routines.
+X *
+X * Revision 1.6  1992/11/10  23:51:44  dws
+X * Enhanced command-line handling.
+X *
+X * Revision 1.5  1992/11/08  00:38:46  dws
+X * Changed some names to help w/ addition of ppmtobmp.
+X *
+X * Revision 1.4  1992/10/27  06:28:28  dws
+X * Corrected stupid typo.
+X *
+X * Revision 1.3  1992/10/27  06:17:10  dws
+X * Removed a magic constant value.
+X *
+X * Revision 1.2  1992/10/27  06:09:58  dws
+X * Made stdin seekable.
+X *
+X * Revision 1.1  1992/10/27  05:31:41  dws
+X * Initial revision
+\*/
+X
+#include	"bmp.h"
+#include	"ppm.h"
+#include	"bitio.h"
+X
+#define	MAXCOLORS   	256
+X
+static char    *ifname;
+X
+/*
+X * Utilities
+X */
+X
+static int GetByte ARGS((FILE * fp));
+static short GetShort ARGS((FILE * fp));
+static long GetLong ARGS((FILE * fp));
+X
+static char     er_read[] = "%s: read error";
+static char     er_seek[] = "%s: seek error";
+X
+static int
+GetByte(fp)
+X	FILE           *fp;
+{
+X	int             v;
+X
+X	if ((v = getc(fp)) == EOF)
+X	{
+X		pm_error(er_read, ifname);
+X	}
+X
+X	return v;
+}
+X
+static short
+GetShort(fp)
+X	FILE           *fp;
+{
+X	short           v;
+X
+X	if (pm_readlittleshort(fp, &v) == -1)
+X	{
+X		pm_error(er_read, ifname);
+X	}
+X
+X	return v;
+}
+X
+static long
+GetLong(fp)
+X	FILE           *fp;
+{
+X	long            v;
+X
+X	if (pm_readlittlelong(fp, &v) == -1)
+X	{
+X		pm_error(er_read, ifname);
+X	}
+X
+X	return v;
+}
+X
+/*
+X * readto - read as many bytes as necessary to position the
+X * file at the desired offset.
+X */
+X
+static void
+readto(fp, ppos, dst)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* pointer to number of bytes read from fp */
+X	unsigned long   dst;
+{
+X	unsigned long   pos;
+X
+X	if(!fp || !ppos)
+X		return;
+X
+X	pos = *ppos;
+X
+X	if(pos > dst)
+X		pm_error("%s: internal error in readto()", ifname);
+X
+X	for(; pos < dst; pos++)
+X	{
+X		if (getc(fp) == EOF)
+X		{
+X			pm_error(er_read, ifname);
+X		}
+X	}
+X
+X	*ppos = pos;
+}
+X
+#if 0
+static void
+Seek(fp, off)
+X	FILE           *fp;
+X	long            off;
+{
+X	if (fseek(fp, off, 0) == -1)
+X	{
+X		pm_error(er_seek, ifname);
+X	}
+}
+X
+/*
+X * Seekable(f) - makes sure the given FILE* is seekable (for
+X * reading). returns f if it is, and a new, seekable FILE* if f is
+X * stdin.
+X */
+X
+static FILE    *
+Seekable(f)
+X	FILE           *f;
+{
+X	int             c;
+X	FILE           *t;
+X
+X	if (f != stdin)
+X	{
+X		return f;
+X	}
+X
+X	t = tmpfile();
+X
+X	while ((c = getc(f)) != EOF)
+X	{
+X		putc(c, t);
+X	}
+X
+X	rewind(t);
+X
+X	return t;
+}
+#endif
+X
+X
+/*
+X * BMP reading routines
+X */
+X
+static void
+BMPreadfileheader(fp, ppos, poffBits)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* number of bytes read from fp */
+X	unsigned long  *poffBits;
+{
+X	unsigned long   cbSize;
+X	unsigned short  xHotSpot;
+X	unsigned short  yHotSpot;
+X	unsigned long   offBits;
+X
+X	if (GetByte(fp) != 'B')
+X	{
+X		pm_error("%s is not a BMP file", ifname);
+X	}
+X	if (GetByte(fp) != 'M')
+X	{
+X		pm_error("%s is not a BMP file", ifname);
+X	}
+X
+X	cbSize = GetLong(fp);
+X	xHotSpot = GetShort(fp);
+X	yHotSpot = GetShort(fp);
+X	offBits = GetLong(fp);
+X
+X	*poffBits = offBits;
+X
+X	*ppos += 14;
+}
+X
+static void
+BMPreadinfoheader(fp, ppos, pcx, pcy, pcBitCount, pclass)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* number of bytes read from fp */
+X	unsigned long  *pcx;
+X	unsigned long  *pcy;
+X	unsigned short *pcBitCount;
+X	int            *pclass;
+{
+X	unsigned long   cbFix;
+X	unsigned short  cPlanes;
+X
+X	unsigned long   cx;
+X	unsigned long   cy;
+X	unsigned short  cBitCount;
+X	int             class;
+X
+X	cbFix = GetLong(fp);
+X
+X	switch (cbFix)
+X	{
+X	case 12:
+X		class = C_OS2;
+X
+X		cx = GetShort(fp);
+X		cy = GetShort(fp);
+X		cPlanes = GetShort(fp);
+X		cBitCount = GetShort(fp);
+X
+X		break;
+X	case 40:
+X		class = C_WIN;
+X
+X		cx = GetLong(fp);
+X		cy = GetLong(fp);
+X		cPlanes = GetShort(fp);
+X		cBitCount = GetShort(fp);
+X
+X		/*
+X		 * We've read 16 bytes so far, need to read 24 more
+X		 * for the required total of 40.
+X		 */
+X
+X		GetLong(fp);
+X		GetLong(fp);
+X		GetLong(fp);
+X		GetLong(fp);
+X		GetLong(fp);
+X		GetLong(fp);
+X
+X		break;
+X	default:
+X		pm_error("%s: unknown cbFix: %d", ifname, cbFix);
+X		break;
+X	}
+X
+X	if (cPlanes != 1)
+X	{
+X		pm_error("%s: don't know how to handle cPlanes = %d"
+X			 ,ifname
+X			 ,cPlanes);
+X	}
+X
+X	switch (class)
+X	{
+X	case C_WIN:
+X		pm_message("Windows BMP, %dx%dx%d"
+X			   ,cx
+X			   ,cy
+X			   ,cBitCount);
+X		break;
+X	case C_OS2:
+X		pm_message("OS/2 BMP, %dx%dx%d"
+X			   ,cx
+X			   ,cy
+X			   ,cBitCount);
+X		break;
+X	}
+X
+#ifdef DEBUG
+X	pm_message("cbFix: %d", cbFix);
+X	pm_message("cx: %d", cx);
+X	pm_message("cy: %d", cy);
+X	pm_message("cPlanes: %d", cPlanes);
+X	pm_message("cBitCount: %d", cBitCount);
+#endif
+X
+X	*pcx = cx;
+X	*pcy = cy;
+X	*pcBitCount = cBitCount;
+X	*pclass = class;
+X
+X	*ppos += cbFix;
+}
+X
+/*
+X * returns the number of bytes read, or -1 on error.
+X */
+static int
+BMPreadrgbtable(fp, ppos, cBitCount, class, R, G, B)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* number of bytes read from fp */
+X	unsigned short  cBitCount;
+X	int             class;
+X	pixval         *R;
+X	pixval         *G;
+X	pixval         *B;
+{
+X	int             i;
+X	int		nbyte = 0;
+X
+X	long            ncolors = (1 << cBitCount);
+X
+X	for (i = 0; i < ncolors; i++)
+X	{
+X		B[i] = (pixval) GetByte(fp);
+X		G[i] = (pixval) GetByte(fp);
+X		R[i] = (pixval) GetByte(fp);
+X		nbyte += 3;
+X
+X		if (class == C_WIN)
+X		{
+X			(void) GetByte(fp);
+X			nbyte++;
+X		}
+X	}
+X
+X	*ppos += nbyte;
+X	return nbyte;
+}
+X
+/*
+X * returns the number of bytes read, or -1 on error.
+X */
+static int
+BMPreadrow(fp, ppos, row, cx, cBitCount, R, G, B)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* number of bytes read from fp */
+X	pixel          *row;
+X	unsigned long   cx;
+X	unsigned short  cBitCount;
+X	pixval         *R;
+X	pixval         *G;
+X	pixval         *B;
+{
+X	BITSTREAM       b;
+X	unsigned        nbyte = 0;
+X	int             rc;
+X	unsigned        x;
+X
+X	if ((b = pm_bitinit(fp, "r")) == (BITSTREAM) 0)
+X	{
+X		return -1;
+X	}
+X
+X	for (x = 0; x < cx; x++, row++)
+X	{
+X		unsigned long   v;
+X
+X		if ((rc = pm_bitread(b, cBitCount, &v)) == -1)
+X		{
+X			return -1;
+X		}
+X		nbyte += rc;
+X
+X		PPM_ASSIGN(*row, R[v], G[v], B[v]);
+X	}
+X
+X	if ((rc = pm_bitfini(b)) != 0)
+X	{
+X		return -1;
+X	}
+X
+X	/*
+X	 * Make sure we read a multiple of 4 bytes.
+X	 */
+X	while (nbyte % 4)
+X	{
+X		GetByte(fp);
+X		nbyte++;
+X	}
+X
+X	*ppos += nbyte;
+X	return nbyte;
+}
+X
+static pixel **
+BMPreadbits(fp, ppos, offBits, cx, cy, cBitCount, class, R, G, B)
+X	FILE           *fp;
+X	unsigned long  *ppos;	/* number of bytes read from fp */
+X	unsigned long   offBits;
+X	unsigned long   cx;
+X	unsigned long   cy;
+X	unsigned short  cBitCount;
+X	int             class;
+X	pixval         *R;
+X	pixval         *G;
+X	pixval         *B;
+{
+X	pixel         **pixels;	/* output */
+X	long            y;
+X
+X	readto(fp, ppos, offBits);
+X
+X	pixels = ppm_allocarray(cx, cy);
+X
+X	if(cBitCount > 24)
+X	{
+X		pm_error("%s: cannot handle cBitCount: %d"
+X			 ,ifname
+X			 ,cBitCount);
+X	}
+X
+X	/*
+X	 * The picture is stored bottom line first, top line last
+X	 */
+X
+X	for (y = cy - 1; y >= 0; y--)
+X	{
+X		int rc;
+X		rc = BMPreadrow(fp, ppos, pixels[y], cx, cBitCount, R, G, B);
+X
+X		if(rc == -1)
+X		{
+X			pm_error("%s: couldn't read row %d"
+X				 ,ifname
+X				 ,y);
+X		}
+X		if(rc%4)
+X		{
+X			pm_error("%s: row had bad number of bytes: %d"
+X				 ,ifname
+X				 ,rc);
+X		}
+X	}
+X
+X	return pixels;
+}
+X
+void
+main(argc, argv)
+X	int             argc;
+X	char          **argv;
+{
+X	FILE           *ifp = stdin;
+X	char           *usage = "[bmpfile]";
+X	int             argn;
+X
+X	int             rc;
+X	unsigned long	pos = 0;
+X
+X	unsigned long   offBits;
+X
+X	unsigned long   cx;
+X	unsigned long   cy;
+X	unsigned short  cBitCount;
+X	int             class;
+X
+X	pixval          R[MAXCOLORS];	/* reds */
+X	pixval          G[MAXCOLORS];	/* greens */
+X	pixval          B[MAXCOLORS];	/* blues */
+X
+X	pixel         **pixels;
+X
+X	ppm_init(&argc, argv);
+X
+X	/*
+X	 * Since this command takes no flags, produce an error message
+X	 * if the user tries to give any.
+X	 * This is friendlier than if the command were to say
+X	 * 'no such file: -help'.
+X	 */
+X
+X	argn = 1;
+X	while (argn < argc && argv[argn][0] == '-' && argv[argn][1] != '\0')
+X	{
+X		pm_usage(usage);
+X		++argn;
+X	}
+X
+X	if (argn < argc)
+X	{
+X		ifname = argv[argn];
+X		ifp = pm_openr(ifname);
+X		++argn;
+X	}
+X	else
+X	{
+X		ifname = "standard input";
+X		ifp = stdin;
+X	}
+X
+X	if (argn != argc)
+X	{
+X		pm_usage(usage);
+X	}
+X
+X	BMPreadfileheader(ifp, &pos, &offBits);
+X	BMPreadinfoheader(ifp, &pos, &cx, &cy, &cBitCount, &class);
+X
+X	if(offBits != BMPoffbits(class, cBitCount))
+X	{
+X		pm_message("warning: offBits is %d, expected %d"
+X			, pos
+X			, BMPoffbits(class, cBitCount));
+X	}
+X
+X	rc = BMPreadrgbtable(ifp, &pos, cBitCount, class, R, G, B);
+X
+X	if(rc != BMPlenrgbtable(class, cBitCount))
+X	{
+X		pm_message("warning: %d-byte RGB table, expected %d bytes"
+X			, rc
+X			, BMPlenrgbtable(class, cBitCount));
+X	}
+X
+X
+X	pixels = BMPreadbits(ifp, &pos, offBits, cx, cy
+X			, cBitCount, class, R, G, B);
+X
+X	if(pos != BMPlenfile(class, cBitCount, cx, cy))
+X	{
+X		pm_message("warning: read %d bytes, expected to read %d bytes"
+X			, pos
+X			, BMPlenfile(class, cBitCount, cx, cy));
+X	}
+X
+X	pm_close(ifp);
+X	ppm_writeppm(stdout, pixels, cx, cy, (pixval) (MAXCOLORS-1), 0);
+X	pm_close(stdout);
+X
+X	exit(0);
+}
+SHAR_EOF
+chmod 0600 bmptoppm.c ||
+echo 'restore of bmptoppm.c failed'
+Wc_c="`wc -c < 'bmptoppm.c'`"
+test 9992 -eq "$Wc_c" ||
+	echo 'bmptoppm.c: original size 9992, current size' "$Wc_c"
+fi
+# ============= bmptoppm.1 ==============
+if test -f 'bmptoppm.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping bmptoppm.1 (File already exists)'
+else
+echo 'x - extracting bmptoppm.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'bmptoppm.1' &&
+.TH bmptoppm 1 "26 Oct 1992"
+.IX bmptoppm
+.SH NAME
+bmptoppm \- convert a BMP file into a portable pixmap
+.SH SYNOPSIS
+.B bmptoppm
+.RI [ bmpfile ]
+.SH DESCRIPTION
+Reads a Microsoft Windows or OS/2 BMP file as input.
+.IX BMP
+Produces a portable pixmap as output.
+.SH "SEE ALSO"
+ppmtobmp(1),
+ppm(5)
+.SH AUTHOR
+Copyright (C) 1992 by David W. Sanderson.
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted,
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear in
+.\" supporting documentation.  This software is provided "as is" without
+.\" express or implied warranty.
+SHAR_EOF
+chmod 0600 bmptoppm.1 ||
+echo 'restore of bmptoppm.1 failed'
+Wc_c="`wc -c < 'bmptoppm.1'`"
+test 741 -eq "$Wc_c" ||
+	echo 'bmptoppm.1: original size 741, current size' "$Wc_c"
+fi
+# ============= ppmtobmp.c ==============
+if test -f 'ppmtobmp.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping ppmtobmp.c (File already exists)'
+else
+echo 'x - extracting ppmtobmp.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ppmtobmp.c' &&
+/*\
+X * $Id: ppmtobmp.c,v 1.9 1992/11/24 19:39:33 dws Exp dws $
+X * 
+X * ppmtobmp.c - Converts from a PPM file to a Microsoft Windows or OS/2
+X * .BMP file.
+X * 
+X * The current implementation is probably not complete, but it works for
+X * me.  I welcome feedback.
+X * 
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X * 
+X * $Log: ppmtobmp.c,v $
+X * Revision 1.9  1992/11/24  19:39:33  dws
+X * Added copyright.
+X *
+X * Revision 1.8  1992/11/17  02:16:52  dws
+X * Moved length functions to bmp.h.
+X *
+X * Revision 1.7  1992/11/11  23:18:16  dws
+X * Modified to adjust the bits per pixel to 1, 4, or 8.
+X *
+X * Revision 1.6  1992/11/11  22:43:39  dws
+X * Commented out a superfluous message.
+X *
+X * Revision 1.5  1992/11/11  05:58:06  dws
+X * First version that works.
+X *
+X * Revision 1.4  1992/11/11  03:40:32  dws
+X * Moved calculation of bits per pixel to BMPEncode.
+X *
+X * Revision 1.3  1992/11/11  03:02:34  dws
+X * Added BMPEncode function.
+X *
+X * Revision 1.2  1992/11/08  01:44:35  dws
+X * Added option processing and reading of PPM file.
+X *
+X * Revision 1.1  1992/11/08  00:46:07  dws
+X * Initial revision
+\*/
+X
+#include	"bmp.h"
+#include	"ppm.h"
+#include	"ppmcmap.h"
+#include	"bitio.h"
+X
+#define MAXCOLORS 256
+X
+/*
+X * Utilities
+X */
+X
+static char     er_write[] = "stdout: write error";
+X
+static void
+PutByte(fp, v)
+X	FILE           *fp;
+X	char		v;
+{
+X	if (putc(v, fp) == EOF)
+X	{
+X		pm_error(er_write);
+X	}
+}
+X
+static void
+PutShort(fp, v)
+X	FILE           *fp;
+X	short		v;
+{
+X	if (pm_writelittleshort(fp, v) == -1)
+X	{
+X		pm_error(er_write);
+X	}
+}
+X
+static void
+PutLong(fp, v)
+X	FILE           *fp;
+X	long		v;
+{
+X	if (pm_writelittlelong(fp, v) == -1)
+X	{
+X		pm_error(er_write);
+X	}
+}
+X
+/*
+X * BMP writing
+X */
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwritefileheader(fp, class, bitcount, x, y)
+X	FILE           *fp;
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+X	unsigned long   y;
+{
+X	PutByte(fp, 'B');
+X	PutByte(fp, 'M');
+X
+X	/* cbSize */
+X	PutLong(fp, BMPlenfile(class, bitcount, x, y));
+X
+X	/* xHotSpot */
+X	PutShort(fp, 0);
+X
+X	/* yHotSpot */
+X	PutShort(fp, 0);
+X
+X	/* offBits */
+X	PutLong(fp, BMPoffbits(class, bitcount));
+X
+X	return 14;
+}
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwriteinfoheader(fp, class, bitcount, x, y)
+X	FILE           *fp;
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+X	unsigned long   y;
+{
+X	long	cbFix;
+X
+X	/* cbFix */
+X	switch (class)
+X	{
+X	case C_WIN:
+X		cbFix = 40;
+X		PutLong(fp, cbFix);
+X
+X		/* cx */
+X		PutLong(fp, x);
+X		/* cy */
+X		PutLong(fp, y);
+X		/* cPlanes */
+X		PutShort(fp, 1);
+X		/* cBitCount */
+X		PutShort(fp, bitcount);
+X
+X		/*
+X		 * We've written 16 bytes so far, need to write 24 more
+X		 * for the required total of 40.
+X		 */
+X
+X		PutLong(fp, 0);
+X		PutLong(fp, 0);
+X		PutLong(fp, 0);
+X		PutLong(fp, 0);
+X		PutLong(fp, 0);
+X		PutLong(fp, 0);
+X
+X
+X		break;
+X	case C_OS2:
+X		cbFix = 12;
+X		PutLong(fp, cbFix);
+X
+X		/* cx */
+X		PutShort(fp, x);
+X		/* cy */
+X		PutShort(fp, y);
+X		/* cPlanes */
+X		PutShort(fp, 1);
+X		/* cBitCount */
+X		PutShort(fp, bitcount);
+X
+X		break;
+X	default:
+X		pm_error(er_internal, "BMPwriteinfoheader");
+X	}
+X
+X	return cbFix;
+}
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwritergb(fp,class,R,G,B)
+X	FILE           *fp;
+X	int             class;
+X	pixval		R;
+X	pixval		G;
+X	pixval		B;
+{
+X	switch (class)
+X	{
+X	case C_WIN:
+X		PutByte(fp, B);
+X		PutByte(fp, G);
+X		PutByte(fp, R);
+X		PutByte(fp, 0);
+X		return 4;
+X	case C_OS2:
+X		PutByte(fp, B);
+X		PutByte(fp, G);
+X		PutByte(fp, R);
+X		return 3;
+X	default:
+X		pm_error(er_internal, "BMPwritergb");
+X	}
+X	return -1;
+}
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwritergbtable(fp,class,bpp,colors,R,G,B)
+X	FILE           *fp;
+X	int		class;
+X	int		bpp;
+X	pixval         *R;
+X	pixval         *G;
+X	pixval         *B;
+{
+X	int		nbyte = 0;
+X	int             i;
+X	long            ncolors;
+X
+X	for (i = 0; i < colors; i++)
+X	{
+X		nbyte += BMPwritergb(fp,class,R[i],G[i],B[i]);
+X	}
+X
+X	ncolors = (1 << bpp);
+X
+X	for (; i < ncolors; i++)
+X	{
+X		nbyte += BMPwritergb(fp,class,0,0,0);
+X	}
+X
+X	return nbyte;
+}
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwriterow(fp, row, cx, bpp, cht)
+X	FILE           *fp;
+X	pixel          *row;
+X	unsigned long   cx;
+X	unsigned short  bpp;
+X	colorhash_table cht;
+{
+X	BITSTREAM       b;
+X	unsigned        nbyte = 0;
+X	int             rc;
+X	unsigned        x;
+X
+X	if ((b = pm_bitinit(fp, "w")) == (BITSTREAM) 0)
+X	{
+X		return -1;
+X	}
+X
+X	for (x = 0; x < cx; x++, row++)
+X	{
+X		if ((rc = pm_bitwrite(b, bpp, ppm_lookupcolor(cht, row))) == -1)
+X		{
+X			return -1;
+X		}
+X		nbyte += rc;
+X	}
+X
+X	if ((rc = pm_bitfini(b)) == -1)
+X	{
+X		return -1;
+X	}
+X	nbyte += rc;
+X
+X	/*
+X	 * Make sure we write a multiple of 4 bytes.
+X	 */
+X	while (nbyte % 4)
+X	{
+X		PutByte(fp, 0);
+X		nbyte++;
+X	}
+X
+X	return nbyte;
+}
+X
+/*
+X * returns the number of bytes written, or -1 on error.
+X */
+static int
+BMPwritebits(fp, cx, cy, cBitCount, pixels, cht)
+X	FILE           *fp;
+X	unsigned long   cx;
+X	unsigned long   cy;
+X	unsigned short  cBitCount;
+X	pixel         **pixels;
+X	colorhash_table cht;
+{
+X	int		nbyte = 0;
+X	long            y;
+X
+X	if(cBitCount > 24)
+X	{
+X		pm_error("cannot handle cBitCount: %d"
+X			 ,cBitCount);
+X	}
+X
+X	/*
+X	 * The picture is stored bottom line first, top line last
+X	 */
+X
+X	for (y = cy - 1; y >= 0; y--)
+X	{
+X		int rc;
+X		rc = BMPwriterow(fp, pixels[y], cx, cBitCount, cht);
+X
+X		if(rc == -1)
+X		{
+X			pm_error("couldn't write row %d"
+X				 ,y);
+X		}
+X		if(rc%4)
+X		{
+X			pm_error("row had bad number of bytes: %d"
+X				 ,rc);
+X		}
+X		nbyte += rc;
+X	}
+X
+X	return nbyte;
+}
+X
+/*
+X * Return the number of bits per pixel required to represent the
+X * given number of colors.
+X */
+X
+static int
+colorstobpp(colors)
+X	int             colors;
+{
+X	int             bpp;
+X
+X	if (colors < 1)
+X	{
+X		pm_error("can't have less than one color");
+X	}
+X
+X	if ((bpp = pm_maxvaltobits(colors - 1)) > 8)
+X	{
+X		pm_error("can't happen");
+X	}
+X
+X	return bpp;
+}
+X
+/*
+X * Write a BMP file of the given class.
+X * 
+X * Note that we must have 'colors' in order to know exactly how many
+X * colors are in the R, G, B, arrays.  Entries beyond those in the
+X * arrays are undefined.
+X */
+static void
+BMPEncode(fp, class, x, y, pixels, colors, cht, R, G, B)
+X	FILE           *fp;
+X	int             class;
+X	int             x;
+X	int             y;
+X	pixel         **pixels;
+X	int             colors;	/* number of valid entries in R,G,B */
+X	colorhash_table cht;
+X	pixval         *R;
+X	pixval         *G;
+X	pixval         *B;
+{
+X	int             bpp;	/* bits per pixel */
+X	unsigned long	nbyte = 0;
+X
+X	bpp = colorstobpp(colors);
+X
+X	/*
+X	 * I have found empirically at least one BMP-displaying program
+X	 * that can't deal with (for instance) using 3 bits per pixel.
+X	 * I have seen no programs that can deal with using 3 bits per
+X	 * pixel.  I have seen programs which can deal with 1, 4, and
+X	 * 8 bits per pixel.
+X	 *
+X	 * Based on this, I adjust actual the number of bits per pixel
+X	 * as follows.  If anyone knows better, PLEASE tell me!
+X	 */
+X	switch(bpp)
+X	{
+X	case 2:
+X	case 3:
+X		bpp = 4;
+X		break;
+X	case 5:
+X	case 6:
+X	case 7:
+X		bpp = 8;
+X		break;
+X	}
+X
+X	pm_message("Using %d bits per pixel", bpp);
+X
+X	nbyte += BMPwritefileheader(fp, class, bpp, x, y);
+X	nbyte += BMPwriteinfoheader(fp, class, bpp, x, y);
+X	nbyte += BMPwritergbtable(fp, class, bpp, colors, R, G, B);
+X
+X	if(nbyte !=	( BMPlenfileheader(class)
+X			+ BMPleninfoheader(class)
+X			+ BMPlenrgbtable(class, bpp)))
+X	{
+X		pm_error(er_internal, "BMPEncode");
+X	}
+X
+X	nbyte += BMPwritebits(fp, x, y, bpp, pixels, cht);
+X	if(nbyte != BMPlenfile(class, bpp, x, y))
+X	{
+X		pm_error(er_internal, "BMPEncode");
+X	}
+}
+X
+#if 0
+report(class, bitcount, x, y)
+X	int             class;
+X	unsigned long   bitcount;
+X	unsigned long   x;
+X	unsigned long   y;
+{
+X	char *name;
+X	switch (class)
+X	{
+X	case C_WIN:
+X		name = "Win";
+X		break;
+X	case C_OS2:
+X		name = "OS/2";
+X		break;
+X	default:
+X		pm_error(er_internal, "report");
+X		return 0;
+X	}
+X
+X	pm_message("For class %s, bitcount %d, x %d, y %d:"
+X		, name
+X		, bitcount
+X		, x
+X		, y);
+X	pm_message("\tlenrgbtable: %d"
+X		, BMPlenrgbtable(class, bitcount));
+X	pm_message("\tlenline:       %d"
+X		, BMPlenline(class, bitcount, x));
+X	pm_message("\tlenbits:       %d"
+X		, BMPlenbits(class, bitcount, x, y));
+X	pm_message("\toffbits:       %d"
+X		, BMPoffbits(class, bitcount));
+X	pm_message("\tlenfile:       %d"
+X		, BMPlenfile(class, bitcount, x, y));
+}
+X
+void
+main(ac, av)
+X	int             ac;
+X	char          **av;
+{
+X	ppm_init(&ac, av);
+X
+X	if(ac != 5)
+X	{
+X		pm_message("usage: ppmtobmp class bitcount x y");
+X		exit(1);
+X	}
+X
+X	report(atoi(av[1]), atoi(av[2]), atoi(av[3]), atoi(av[4]));
+X
+X	exit(0);
+}
+#endif
+X
+void
+main(argc, argv)
+X	int             argc;
+X	char          **argv;
+{
+X	FILE           *ifp = stdin;
+X	char           *usage = "[-windows] [-os2] [ppmfile]";
+X	int		class = C_OS2;
+X
+X	int             argn;
+X	int             rows;
+X	int             cols;
+X	int             colors;
+X	int             i;
+X	pixval          maxval;
+X	colorhist_vector chv;
+X	pixval          Red[MAXCOLORS];
+X	pixval          Green[MAXCOLORS];
+X	pixval          Blue[MAXCOLORS];
+X
+X	pixel** pixels;
+X	colorhash_table cht;
+X
+X	ppm_init(&argc, argv);
+X
+X	argn = 1;
+X
+X	while (argn < argc && argv[argn][0] == '-' && argv[argn][1] != '\0')
+X	{
+X		if (pm_keymatch(argv[argn], "-windows", 2))
+X			class = C_WIN;
+X		else if (pm_keymatch(argv[argn], "-os2", 2))
+X			class = C_OS2;
+X		else
+X			pm_usage(usage);
+X		++argn;
+X	}
+X
+X	if (argn < argc)
+X	{
+X		ifp = pm_openr(argv[argn]);
+X		++argn;
+X	}
+X
+X	if (argn != argc)
+X	{
+X		pm_usage(usage);
+X	}
+X
+X	pixels = ppm_readppm(ifp, &cols, &rows, &maxval);
+X
+X	pm_close(ifp);
+X
+#if 0
+X	{
+X		char *name;
+X		switch (class)
+X		{
+X		case C_WIN:
+X			name = "a Windows";
+X			break;
+X		case C_OS2:
+X			name = "an OS/2";
+X			break;
+X		default:
+X			pm_error(er_internal, "report");
+X			break;
+X		}
+X		pm_message("generating %s BMP file", name);
+X	}
+#endif
+X
+X	/* Figure out the colormap. */
+X	pm_message("computing colormap...");
+X	chv = ppm_computecolorhist(pixels, cols, rows, MAXCOLORS, &colors);
+X	if (chv == (colorhist_vector) 0)
+X		pm_error("too many colors - try doing a 'ppmquant %d'"
+X			, MAXCOLORS);
+X	pm_message("%d colors found", colors);
+X
+X	/*
+X	 * Now turn the ppm colormap into the appropriate GIF
+X	 * colormap.
+X	 */
+X	if (maxval > 255)
+X	{
+X		pm_message("maxval is not 255 - automatically rescaling colors");
+X	}
+X	for (i = 0; i < colors; ++i)
+X	{
+X		if (maxval == 255)
+X		{
+X			Red[i] = PPM_GETR(chv[i].color);
+X			Green[i] = PPM_GETG(chv[i].color);
+X			Blue[i] = PPM_GETB(chv[i].color);
+X		}
+X		else
+X		{
+X			Red[i] = (pixval) PPM_GETR(chv[i].color) * 255 / maxval;
+X			Green[i] = (pixval) PPM_GETG(chv[i].color) * 255 / maxval;
+X			Blue[i] = (pixval) PPM_GETB(chv[i].color) * 255 / maxval;
+X		}
+X	}
+X
+X	/* And make a hash table for fast lookup. */
+X	cht = ppm_colorhisttocolorhash(chv, colors);
+X	ppm_freecolorhist(chv);
+X
+X	/* All set, let's do it. */
+X	BMPEncode(stdout, class
+X		, cols, rows, pixels, colors, cht
+X		,Red, Green, Blue);
+X
+X	pm_close(stdout);
+X
+X	exit(0);
+}
+SHAR_EOF
+chmod 0600 ppmtobmp.c ||
+echo 'restore of ppmtobmp.c failed'
+Wc_c="`wc -c < 'ppmtobmp.c'`"
+test 11184 -eq "$Wc_c" ||
+	echo 'ppmtobmp.c: original size 11184, current size' "$Wc_c"
+fi
+# ============= ppmtobmp.1 ==============
+if test -f 'ppmtobmp.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping ppmtobmp.1 (File already exists)'
+else
+echo 'x - extracting ppmtobmp.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'ppmtobmp.1' &&
+.TH ppmtobmp 1 "26 Oct 1992"
+.IX ppmtobmp
+.SH NAME
+ppmtobmp \- convert a portable pixmap into a BMP file
+.SH SYNOPSIS
+.B ppmtobmp
+.RI [ \-windows ]
+.RI [ \-os2 ]
+.RI [ ppmfile ]
+.SH DESCRIPTION
+Reads a portable pixmap as input.
+Produces a Microsoft Windows or OS/2 BMP file as output.
+.IX BMP
+.SH OPTIONS
+.TP
+.B \-windows
+Tells the program to produce a Microsoft Windows BMP file.
+.TP
+.B \-os2
+Tells the program to produce an OS/2 BMP file.
+(This is the default.)
+.PP
+All flags can be abbreviated to their shortest unique prefix.
+.SH "SEE ALSO"
+bmptoppm(1),
+ppm(5)
+.SH AUTHOR
+Copyright (C) 1992 by David W. Sanderson.
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted,
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear in
+.\" supporting documentation.  This software is provided "as is" without
+.\" express or implied warranty.
+SHAR_EOF
+chmod 0600 ppmtobmp.1 ||
+echo 'restore of ppmtobmp.1 failed'
+Wc_c="`wc -c < 'ppmtobmp.1'`"
+test 1010 -eq "$Wc_c" ||
+	echo 'ppmtobmp.1: original size 1010, current size' "$Wc_c"
+fi
+# ============= pnmtoraw.c ==============
+if test -f 'pnmtoraw.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping pnmtoraw.c (File already exists)'
+else
+echo 'x - extracting pnmtoraw.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pnmtoraw.c' &&
+/*\
+X * $Id: pnmtoraw.c,v 1.1 1992/11/24 19:32:39 dws Exp dws $
+X *
+X * pnmtoraw.c - force a portable anymap into raw format, if possible
+X *
+X * Copyright (C) 1992 by David W. Sanderson.
+X * 
+X * Permission to use, copy, modify, and distribute this software and its
+X * documentation for any purpose and without fee is hereby granted,
+X * provided that the above copyright notice appear in all copies and
+X * that both that copyright notice and this permission notice appear
+X * in supporting documentation.  This software is provided "as is"
+X * without express or implied warranty.
+X *
+X * $Log: pnmtoraw.c,v $
+X * Revision 1.1  1992/11/24  19:32:39  dws
+X * Initial revision
+X *
+\*/
+X
+#include "pnm.h"
+X
+static void
+dofile(ifp, ofp)
+X	FILE           *ifp;
+X	FILE           *ofp;
+{
+X	int             cols;
+X	int             rows;
+X	xelval          maxval;
+X	int             format;
+X
+X	register xel   *xelrow;
+X	int             row;
+X
+X	pnm_readpnminit(ifp, &cols, &rows, &maxval, &format);
+X	pnm_writepnminit(ofp, cols, rows, maxval, format, 0);
+X	xelrow = pnm_allocrow(cols);
+X
+X	for (row = 0; row < rows; ++row)
+X	{
+X		pnm_readpnmrow(ifp, xelrow, cols, maxval, format);
+X		pnm_writepnmrow(ofp, xelrow, cols, maxval, format, 0);
+X	}
+}
+X
+void
+main(argc, argv)
+X	int             argc;
+X	char          **argv;
+{
+X	FILE           *ifp = stdin;
+X	char           *usage = "[pnmfile]";
+X	int             argn;
+X
+X	pnm_init(&argc, argv);
+X
+X	/*
+X	 * Since this command takes no flags, produce an error
+X	 * message if the user tries to give any. This is friendlier
+X	 * than if the command were to say 'no such file: -help'.
+X	 */
+X
+X	argn = 1;
+X	while (argn < argc && argv[argn][0] == '-' && argv[argn][1] != '\0')
+X	{
+X		pm_usage(usage);
+X		++argn;
+X	}
+X
+X	if (argn < argc)
+X	{
+X		ifp = pm_openr(argv[argn]);
+X		++argn;
+X	}
+X	else
+X	{
+X		ifp = stdin;
+X	}
+X
+X	if (argn != argc)
+X	{
+X		pm_usage(usage);
+X	}
+X
+X	dofile(ifp, stdout);
+X
+X	pm_close(ifp);
+X	pm_close(stdout);
+X
+X	exit(0);
+}
+SHAR_EOF
+chmod 0600 pnmtoraw.c ||
+echo 'restore of pnmtoraw.c failed'
+Wc_c="`wc -c < 'pnmtoraw.c'`"
+test 1902 -eq "$Wc_c" ||
+	echo 'pnmtoraw.c: original size 1902, current size' "$Wc_c"
+fi
+# ============= pnmtoraw.1 ==============
+if test -f 'pnmtoraw.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping pnmtoraw.1 (File already exists)'
+else
+echo 'x - extracting pnmtoraw.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'pnmtoraw.1' &&
+.TH pnmtoraw 1 "29 October 1992"
+.IX pnmtoraw
+.SH NAME
+pnmtoraw \- try to force a portable anymap into raw format
+.SH SYNOPSIS
+.B pnmtoraw
+.RI [ pnmfile ]
+.SH DESCRIPTION
+Reads a portable anymap as input.
+Writes it out in raw format, if possible.
+If it
+.I is
+possible, then the raw format output will be significantly smaller
+than the input, assuming the input is in plain format.
+.PP
+This is fairly useless if you haven't defined the PBMPLUS_RAWBITS
+compile-time option.
+.IX RAWBITS
+.SH "SEE ALSO"
+pnm(5)
+.SH AUTHOR
+Copyright (C) 1992 by David W. Sanderson.
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted,
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear in
+.\" supporting documentation.  This software is provided "as is" without
+.\" express or implied warranty.
+SHAR_EOF
+chmod 0600 pnmtoraw.1 ||
+echo 'restore of pnmtoraw.1 failed'
+Wc_c="`wc -c < 'pnmtoraw.1'`"
+test 951 -eq "$Wc_c" ||
+	echo 'pnmtoraw.1: original size 951, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+#-------
+# Makefile for bmptoppm, ppmtobmp, pnmtoraw
+#
+# Change as appropriate to find the header files and libraries in your
+# installation of PBMPLUS.
+#-------
+X
+#CC		= cc
+CFLAGS		= -DSYSV
+LDFLAGS		= -L/common/tool/lib
+X
+LIBPGM		= -lpgm
+LIBPBM		= -lpbm
+LIBPPM		= -lppm
+LIBPNM		= -lpnm
+X
+SHELL		= /bin/sh
+INCLUDE		= -I/common/tool/inc
+ALLCFLAGS	= $(CFLAGS) $(INCLUDE)
+X
+PORTBINARIES	= \
+X		pnmtoraw		\
+X		$(NULL)
+X
+BINARIES	= \
+X		bmptoppm		\
+X		ppmtobmp		\
+X		$(PORTBINARIES)		\
+X		$(NULL)
+X
+OBJECTS		= \
+X		bitio.o			\
+X		bmptoppm.o		\
+X		ppmtobmp.o		\
+X		pnmtoraw.o		\
+X		$(NULL)
+X
+all:		$(BINARIES)
+X
+# Rule for plain programs.
+$(PORTBINARIES):
+X	$(CC) $(ALLCFLAGS) $(LDFLAGS) -o $@ $@.c $(LIBPNM) $(LIBPPM) $(LIBPGM) $(LIBPBM)
+X
+bmptoppm:
+X	$(CC) $(ALLCFLAGS) $(LDFLAGS) -o $@ $@.c bitio.o $(LIBPNM) $(LIBPPM) $(LIBPGM) $(LIBPBM)
+X
+ppmtobmp:
+X	$(CC) $(ALLCFLAGS) $(LDFLAGS) -o $@ $@.c bitio.o $(LIBPNM) $(LIBPPM) $(LIBPGM) $(LIBPBM)
+X
+# Rule for objects.
+$(OBJECTS):
+X	$(CC) $(ALLCFLAGS) -c $*.c
+X
+bmptoppm:	bmptoppm.c bitio.o
+ppmtobmp:	ppmtobmp.c
+pnmtoraw:	pnmtoraw.c
+X
+clean:
+X	-rm -f *.o Part.?? core $(BINARIES)
+X
+shar:
+X		# -o Part -L 50	\
+X	shar	\
+X		>Part.01	\
+X		-s dws@ssec.wisc.edu -n bmptoppm -a \
+X		README		\
+X		bitio.c		\
+X		bitio.h		\
+X		bmp.h		\
+X		bmptoppm.c	\
+X		bmptoppm.1	\
+X		ppmtobmp.c	\
+X		ppmtobmp.1	\
+X		pnmtoraw.c	\
+X		pnmtoraw.1	\
+X		Makefile	\
+X		$(NULL)
+SHAR_EOF
+chmod 0600 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 1343 -eq "$Wc_c" ||
+	echo 'Makefile: original size 1343, current size' "$Wc_c"
+fi
+exit 0

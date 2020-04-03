@@ -1,0 +1,326 @@
+Path: funic!fuug!mcsun!sunic!lunic!my!ljp
+From: ljp@sm.luth.se (Johan Persson)
+Newsgroups: alt.sources
+Subject: splaytree-part1/2
+Message-ID: <1356@my.sm.luth.se>
+Date: 22 Nov 92 13:36:35 GMT
+Reply-To: Johan Persson <ljp@my.sm.luth.se>
+Organization: University of Lulea, Sweden
+Lines: 316
+
+Submitted-by: ljp@sm.luth.se
+Archive-name: splaytree-part1
+
+The following archive is a modula-2 implementation of 
+splay trees.
+
+See the README file for further information.
+
+In short, splay trees are a form of balanced binary trees which
+moves every accessed node to the root. This means that the tree
+will behave very well when there is some form of locality in the
+data processed. Furthermore it can be shown that the amortized
+access cost is O(lgn) for the basic operations (insert, delete and
+find).
+
+The splay tree also has the nice property that an item accessed
+t operations ago can be located in O(lgt) time.
+
+---
+Johan Persson (ljp@sm.luth.se)
+
+---------------------- cut here --------------------------
+
+#!/bin/sh
+# This is a shell archive (shar 3.21)
+# made 11/22/1992 13:14 UTC by ljp@my
+# Source directory /usr/staff/ljp/tmp/splayTree
+#
+# existing files will NOT be overwritten
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   3504 -rw-r--r-- README
+#   3755 -r--r--r-- splay.def
+#    505 -rw-r--r-- splayItem.def
+#  11524 -r--r--r-- splay.mod
+#    447 -rw-r--r-- splayItem.mod
+#   2242 -rw-r--r-- splayTest.mod
+#
+if touch 2>&1 | fgrep '[-amc]' > /dev/null
+ then TOUCH=touch
+ else TOUCH=true
+fi
+# ============= README ==============
+if test X"$1" != X"-c" -a -f 'README'; then
+	echo "File already exists: skipping 'README'"
+else
+echo "x - extracting README (Text)"
+sed 's/^X//' << 'SHAR_EOF' > README &&
+XSPLAY TREE LIBRARY
+X==================
+X
+XThis library contains the following files:
+X
+X	splay.def	Definition module for the splay tree library
+X	splay.mod 	Implementation of splay tree
+X	splayItem.def 	Definition module for data stored in the tree
+X	splayItem.mod	Implementation module for data stored in
+X			the tree
+X	splayTest.mod	A short test program
+X
+X
+XFor a full introduction to splay trees see
+X
+X	                Sleator D. and Tarjan R. "Self adjusting
+X			binary trees", JACM Vol 32. No 3, 1985, pp 652-
+X			686.
+X
+X
+XIn short, splay trees are a form of balanced binary trees which
+Xmoves every accessed node to the root. This means that the tree
+Xwill behave very well when there is some form of locality in the
+Xdata processed. Furthermore it can be shown that the amortized
+Xaccess cost is O(lgn) for the basic operations (insert, delete and
+Xfind).
+X
+XThe splay tree also has the nice property that an item accessed
+Xt operations ago can be located in O(lgt) time.
+X
+XAll in all practical tests have shown splay trees to be an excellent
+Xsubstitution for the more well known r-b-trees or some other variations
+Xon balanced trees.
+X
+XSince modula2 lacks possibilities to create generic modules my
+Xapproach is to provide a separate module which gives the operations
+Xand type of the element stored in the tree. This module
+X(here called splayItem) must support operations to create, destroy
+Xand compare elements. This scheme provides for a fairly generic
+Ximplementation, (see the test program and splayItem.[mod,def])
+XIn the test program supplied the create and destroy routines
+Xare empty since the objects doesn't use any dynamic memory. The
+Xprize to pay for the generic structure is a little overhead for
+Xeach comparison.
+X
+XIf speed is essential (as always) you may hard code the comparison
+Xbeetween elements in the implementation if you are only working
+Xwith simple types like integers or something like that. Or you
+Xmight want to rewrite the code to handle the more classic
+Xvariation with a key and a generic pointer stored in each
+Xnode. These changes are trivial and shouldn't take long
+Xtime to do.
+X
+XTo the best of my knowledge this code is bug free. But if you
+Xdo discover som irregularities please drop me a note.
+X
+X	Johan Persson (ljp@sm.luth.se)
+X
+X
+X----
+X
+XNote0: You may encounter some difficulties when trying to
+Xcompile the 'splayTest.mod' due to the lack of standard between
+Xdifferent compilers in their I/O libraries. Though it should be
+Xfairly simpel just to change the name to your own routines which
+Xprints a string, a cardinal and so on.
+X
+XNote1: This code implements the more efficient top-down splaying as
+Xdescribed in section 4 of original paper (see above).
+X
+XNote2: This implementation has been augumented with operations
+Xto retrive the rank of the element stored in the tree, (i.e their
+Xposition when making an inorder tree walk). This operations take time
+XO(lgn), but to achive this we have to pay a prize when making
+Xthe basic operations (insert,delete,find), this means that these
+Xoperations now take O(n) time instead. If you find this unexceptable
+Xyou may modify the source by simply removing the calls to 'fixRank' at
+Xthe end of (insert,delete,find). NOTE: this will make the rank operations
+Xunusable! The basic problem is that we must maintain the weight of
+Xeach element, and each basic operations restructure the tree so we
+Xmust recalculate the weights for each node bottom up.
+X
+X
+X---
+XJohan Persson				E-mail: ljp@sm.luth.se
+XDept. of Computer Science
+XTechnical University of Lulea
+XS-951 87 Lulea
+X			
+SHAR_EOF
+$TOUCH -am 1122140092 README &&
+chmod 0644 README ||
+echo "restore of README failed"
+set `wc -c README`;Wc_c=$1
+if test "$Wc_c" != "3504"; then
+	echo original size 3504, current size $Wc_c
+fi
+fi
+# ============= splay.def ==============
+if test X"$1" != X"-c" -a -f 'splay.def'; then
+	echo "File already exists: skipping 'splay.def'"
+else
+echo "x - extracting splay.def (Text)"
+sed 's/^X//' << 'SHAR_EOF' > splay.def &&
+XDEFINITION MODULE splay;
+X(*
+X	Title:		Implementation of splay trees
+X	Last Edit:	Sun Nov 22 13:43:23 1992
+X	Author:		Johan Persson at my9
+X
+X	SCCS:		@(#)splay.def       2.1     92/11/22
+X
+X	Description:	This code implements splay tree as described in 
+X	                Sleator D. and Tarjan R. "Self adjusting
+X			binary trees", JACM Vol 32. No 3, 1985, pp 652-
+X			686.
+X			
+X			The implemenation is based on a top down
+X                        splaying heuristics as described in section 4 of 
+X			the article.
+X
+X	Note:		This implementation also supports the operations
+X			'getRankElement' which finds the element in the tree
+X			with a given rank in O(lgn) time) and 'getRank', 
+X			(which returns the rank of a given element)
+X			To achive this one must store the weight of a node in
+X			each node (i.e the number of descadents). This
+X			information must be updated after each operation
+X			(insert, delete, find). If this is to costly
+X			(it takes O(n)) the source can be modified to remove
+X			the call to 'fixRank' in 'insert', 'delete' and
+X			'find'
+X
+X*)
+X
+X  IMPORT splayItem;
+X
+X  TYPE
+X     auxFunc = PROCEDURE (splayItem.T);
+X     T;
+X
+X  PROCEDURE create(VAR tree:T);
+X  (* Post: The splay tree tree 'tree' has been created.
+X  *)
+X		   
+X  PROCEDURE destroy(VAR tree:T);
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: All dynamic memory previously associated with 'tree'
+X           have been returned. The 'del' function specified in
+X	   'create' has been called one time for each datum in the
+X	   tree. Upon completion 'tree' is no longer a valid tree.
+X  *) 
+X  
+X  PROCEDURE insert(tree:T; item:splayItem.T);
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: 'item' has been inserted in 'tree'. If the 'item' already
+X           exists this operation equals 
+X	      delete(tree,item);insert(tree,item)
+X  *)
+X  
+X  PROCEDURE delete(tree:T; item:splayItem.T);
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: If 'item' exists it has been removed from 'tree'
+X           otherwise the tree is left untouched
+X  *)
+X  
+X  PROCEDURE find(tree:T; item:splayItem.T; VAR found:splayItem.T):BOOLEAN;
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: If 'item' exists in 'tree' 'found' has been assigned
+X           to the corresponding data in 'tree'.
+X	   Note: The reason for returning the same item searched
+X	         for is to make it possible to specify an incomplete
+X		 search structure and then get the full structure
+X		 returned.
+X     Returns: TRUE if 'item' exist, FALSE otherwise
+X  *)
+X  
+X  PROCEDURE nbrElem(tree:T): CARDINAL;
+X  (* Pre: 'tree' has been created with 'create'
+X     Returns: The number of elements in 'tree'
+X  *)
+X  
+X  PROCEDURE getRankElement(tree:T; r:CARDINAL; VAR found:splayItem.T): BOOLEAN;
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: The 'item' with rank 'r' has been assigned to 'found'
+X     Returns: TRUE if 'item' exist, FALSE otherwise
+X  *)
+X  
+X  PROCEDURE getRank(tree:T; item:splayItem.T):CARDINAL;
+X  (* Pre: 'tree' has been created with 'create'
+X     Returns: The rank of element 'item'. If 'item' wasn't 
+X              found the routine returns 0 
+X  *)
+X  
+X  PROCEDURE mapIn(tree:T; f:auxFunc);
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: The 'f' procedure has been applied to all elements in
+X           'tree' according to a tree-inorder walk
+X  *)
+X  
+X  PROCEDURE mapPre(tree:T; f:auxFunc);
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: The 'f' procedure has been applied to all elements in
+X           'tree' according to a tree-preorder walk
+X  *)
+X  
+X  PROCEDURE mapPos(tree:T; f:auxFunc); 
+X  (* Pre: 'tree' has been created with 'create'
+X     Post: The 'f' procedure has been applied to all elements in
+X           'tree' according to a tree-preorder walk
+X  *)
+X
+XEND splay.
+SHAR_EOF
+$TOUCH -am 1122140092 splay.def &&
+chmod 0444 splay.def ||
+echo "restore of splay.def failed"
+set `wc -c splay.def`;Wc_c=$1
+if test "$Wc_c" != "3755"; then
+	echo original size 3755, current size $Wc_c
+fi
+fi
+# ============= splayItem.def ==============
+if test X"$1" != X"-c" -a -f 'splayItem.def'; then
+	echo "File already exists: skipping 'splayItem.def'"
+else
+echo "x - extracting splayItem.def (Text)"
+sed 's/^X//' << 'SHAR_EOF' > splayItem.def &&
+XDEFINITION MODULE splayItem;
+X(*
+X 	Title:		
+X	Last Edit:	Sun Nov 22 12:31:05 1992
+X	Author:		Johan Persson at my9
+X
+X*)
+X  TYPE
+X     T = INTEGER;
+X
+X  PROCEDURE cmp(a:T; b:T): INTEGER;
+X  (* Returns:	   cmp(a,b) = 0  => a=b
+X		   cmp(a,b) = 1  => a>b
+X		   cmp(a,b) = -1 => a<b
+X  *)
+X  
+X  PROCEDURE create(VAR a:T);
+X  (* Post: A new object has been created 
+X  *) 
+X  
+X  PROCEDURE destroy(VAR a:T);
+X  (* Pre: create(a)
+X     Post: All memory occupied by 'a' has been returned.
+X           a = NIL 
+X  *)
+X  
+XEND splayItem.
+SHAR_EOF
+$TOUCH -am 1122140092 splayItem.def &&
+chmod 0644 splayItem.def ||
+echo "restore of splayItem.def failed"
+set `wc -c splayItem.def`;Wc_c=$1
+if test "$Wc_c" != "505"; then
+	echo original size 505, current size $Wc_c
+fi
+fi
+echo "End of part 1, continue with part 2"
+exit 0

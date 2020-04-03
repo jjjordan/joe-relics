@@ -1,0 +1,645 @@
+Path: funic!fuug!mcsun!uunet!snorkelwacker.mit.edu!ai-lab!silver.lcs.mit.edu!cutter
+From: cutter@silver.lcs.mit.edu (nice guys don't get paid)
+Newsgroups: alt.sources
+Subject: argus -- repost -- shar file
+Date: 18 Nov 1992 15:43:31 GMT
+Organization: MIT Artificial Intelligence Lab
+Lines: 635
+Message-ID: <1edob3INN754@life.ai.mit.edu>
+NNTP-Posting-Host: silver.ai.mit.edu
+
+Submitted-by: cutter@silver
+Archive-name: argus
+
+This is a repost of the file I submitted a few days ago.  Some people
+complained about sending a uuencoded and compressed file, so I'll
+resend it in shar format.  Sorry about that.
+
+/joe
+
+-|-|-|-|-|-|/\-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-
+Joe Turner <  > cutter@silver.lcs.mit.edu
+            \/
+Don't touch it!  It's PURE EVIL!
+
+
+---- Cut Here and feed the following to sh ----
+#!/bin/sh
+# This is ARGUS, a shell archive (produced by shar 3.49)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 11/18/1992 15:32 UTC by cutter@silver
+# Source directory /usr/guests/cutter/src/dist/argus
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#   1996 -rw-r--r-- INSTALL
+#    475 -rw-r--r-- Makefile
+#    480 -rw-r--r-- README
+#   9431 -rw-r--r-- argus.c
+#
+# ============= INSTALL ==============
+if test -f 'INSTALL' -a X"$1" != X"-c"; then
+	echo 'x - skipping INSTALL (File already exists)'
+else
+echo 'x - extracting INSTALL (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'INSTALL' &&
+Installation Notes for ARGUS
+X
+1.)	Edit the Makefile.
+X
+X	Change the ${BIN} field so it points to where the binary will
+X	eventually end up.  If you are installing argus on a system
+X	not mentioned before, you might want to uncomment CFLAGS so
+X	the debugging information will be retained (that is, if you
+X	plan to try debugging it if it bombs!).  If you are running
+X	under SunOS, you won't have to do much of anything.  If you
+X	are running under Ultrix, or Mt Xinu's MORE/bsd, uncomment the
+X	appropriate CDEFs.  This program has NOT been tested on
+X	anything remotely SysV.
+X
+2.)	Type "make install".
+X
+X	If it works -- hey! great!   If not, try pretending you're on
+X	a Sun or a VAX.  If that doesn't work, mail me a bug report
+X	(or play around with it yourself).
+X
+X
+How to Use Argus
+================
+X
+1.)	Create a file in your home directory called ".argus" (or
+X	whatever LISTFILE is set to in argus.c, or whatever the
+X	environment variable LISTFILE is set to).  This file should
+X	contain a list of usernames, one per line. 
+X
+2.)	Type "argus".  If that doesn't work, make sure the executable
+X	is in a directory that's in your path.
+X
+X	Be careful -- if no-one you care about is on, argus will sit
+X	quietly and it may look like it's not working.  Typing "ps -x"
+X	will give you a list of all your processes, and argus should
+X	be listed.  If not, it really *isn't* working, and you should
+X	e-mail me.
+X
+3.)	If you so desire, put "argus" in your .login file.  You don't
+X	have to worry about stopping argus before you log out -- it
+X	will stop automatically once you have left.
+X
+4.)	Command line options:
+X		-w	Who?		Show the current who's-here list.
+X		-r *	Reread		Read the usernames file in again.
+X		-k *	Kill		Kill argus (quit).
+X		-h	Help!		Show me these options.
+X		-n *	Notify		Toggle notification beeps.
+X	A star next to an option means that the option will affect an
+X	already running argus.
+X
+X	The default notification is set to "quiet".
+X
+Mail all questions, comments, bomb-threats, etc., to cutter@ra.umb.edu.
+SHAR_EOF
+chmod 0644 INSTALL ||
+echo 'restore of INSTALL failed'
+Wc_c="`wc -c < 'INSTALL'`"
+test 1996 -eq "$Wc_c" ||
+	echo 'INSTALL: original size 1996, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+CC	= gcc
+#CFLAGS	= -g
+#CDEF	= -DMOREBSD
+#CDEF	= -DULTRIX
+BIN	= ${HOME}/bin
+SRC	= ${HOME}/src
+DIST	= ${SRC}/dist
+X
+all: argus
+X
+install: argus
+X	strip argus
+X	mv argus ${BIN}/argus
+X
+argus:	argus.c
+X	${CC} ${CFLAGS} ${CDEF} argus.c -o argus
+X
+mv:
+X	(cd ${SRC}/argus; \
+X	cp INSTALL README argus.c ${DIST}/argus; \
+X	cp Makefile.dist ${DIST}/argus/Makefile)
+X
+dist:
+X	(cd ${SRC}/dist; \
+X	tar cf argus.tar argus; \
+X	compress argus.tar; \
+X	uuencode argus.tar.Z argus.tar.Z > argus.tar.Z.uu)
+SHAR_EOF
+chmod 0644 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 475 -eq "$Wc_c" ||
+	echo 'Makefile: original size 475, current size' "$Wc_c"
+fi
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+Before you attempt to install argus, please do the following:
+X
+X	o	Read the instructions in INSTALL.   Argus is pretty
+X		simple to install, but please read it anyway.
+X
+X	o	Send a short note to me (cutter@ra.cs.umb.edu) telling
+X		me you're trying to install argus.  I'd like to keep
+X		track (at least at the start) of people who are
+X		using it.
+X
+Enjoy!
+X
+X
+-|-|-|-|-|-|/\-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-
+Joe Turner <  > cutter@ra.cs.umb.edu
+X            \/
+SHAR_EOF
+chmod 0644 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 480 -eq "$Wc_c" ||
+	echo 'README: original size 480, current size' "$Wc_c"
+fi
+# ============= argus.c ==============
+if test -f 'argus.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping argus.c (File already exists)'
+else
+echo 'x - extracting argus.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'argus.c' &&
+/*
+** argus  -  look for users you care about (or want to avoid)
+** version 1.0 by Joe Turner (cutter@ra.cs.umb.edu)  06-Oct-1992
+** Imagine that the GNU copyleft was right here.
+**
+** Thanks to laura@usl.com and roland@gnu.ai.mit.edu for helpful
+** suggestions!
+*/
+X
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <signal.h>
+#include <utmp.h>
+#include <pwd.h>
+#include <sys/file.h>
+#include <sys/types.h>
+X
+#ifdef ULTRIX
+#define DUMBFPRINTF
+#define NOSTDLIB
+#define NOSTRDUP
+#endif
+X
+#ifdef MOREBSD
+#define DUMBFPRINTF
+#define NOMALLOCH
+#define NOSTDLIB
+#define NOSTRDUP
+#endif
+X
+/*
+** LISTFILE says where the list of users you care about is.
+** It is overridden by the LISTFILE environment variable.
+*/
+#define LISTFILE ".argus"
+X
+/*
+** PIDFILE says where argus stores its current PID.
+** It is overridden by the PIDFILE environment variable.
+*/
+#define PIDFILE ".arguspid"
+X
+/*
+** How many users are usually on your machine?
+*/
+#define MAXUSER 75
+X
+#ifndef NOSTDLIB
+#include <stdlib.h>
+#endif
+X
+#ifndef NOMALLOCH
+#include <malloc.h>
+#endif
+X
+typedef char *List[MAXUSER];
+X
+/*
+** Some global variables
+*/
+char host[20];
+char *PIDF, *LISTF;
+int reread_list = 1; /* so it will read the first time argus is run */
+int beep = 1; /* beep char */
+X
+/*
+** gotta write this because Ultrix SUCKS and has no strdup.
+** apparently this is also missing in mtxinu's MORE/bsd.
+*/
+#ifdef NOSTRDUP
+void *strdup(char *s)
+{
+X  return((char *)sprintf(malloc(strlen(s)),"%s",s));
+}
+#endif
+X
+/*
+** figure out which files to use.
+*/
+void which_files()
+{
+X  char *home;
+X
+X  home = (char *) malloc(50);
+X  PIDF = (char *) malloc(50);
+X  LISTF = (char *) malloc(50);
+X
+X  sprintf(home,"%s/",getenv("HOME"));
+X
+X  if (getenv("PIDFILE") == NULL)
+X      sprintf(PIDF,"%s%s",home,PIDFILE);
+X  else
+X      sprintf(PIDF,"%s%s",home,getenv("PIDFILE"));
+X
+X  if (getenv("LISTFILE") == NULL)
+X      sprintf(LISTF,"%s%s",home,LISTFILE);
+X  else
+X      sprintf(LISTF,"%s%s",home,getenv("LISTFILE"));
+}
+X  
+/*
+** write the pid of the child to a lockfile.
+*/
+void writepid()
+{
+X  FILE *fd;
+X
+X  if ((fd = fopen(PIDF,"w")) == NULL)
+X    {
+X      perror(strcat(strdup("Couldn't find "),PIDF));
+X      exit(errno);
+X    }
+#ifdef DUMBFPRINTF /* lossage again */
+X  if (fprintf(fd,"%d\n",getpid()))
+#else
+X  if (!fprintf(fd,"%d\n",getpid()))
+#endif
+X    {
+X      perror(strcat(strdup("Couldn't write to "),PIDF));
+X      exit(errno);
+X    }
+X  fclose(fd);
+}
+X
+/*
+** read the PID from PIDF, if we can.
+*/
+int readpid()
+{
+X  FILE *fd;
+X  int pid;
+X
+X  if ((fd = fopen(PIDF,"r")) == NULL) /* if we couldn't open it... */
+X    {
+X      if (errno != ENOENT) /* if a major error occurs */
+X	{
+X	  perror(strcat(strdup("Couldn't read "),PIDF));
+X	  exit(errno);
+X	}
+X      else /* no file.  assume no other running process and return -1 */
+X	return(-1);
+X    }
+X  else /* we COULD open it, so read the PID and return it */
+X    {
+X      if (!fscanf(fd,"%d\n",&pid)) /* returns 0 if screwed up */
+X	return(-1);
+X      else
+X	return(pid);
+X    }
+X  fclose(fd);
+}
+X
+/*
+** is process pid still mine and still running?
+*/
+int already(int pid)
+{
+X  int a;
+X
+X  if (pid == -1)
+X    return(0);
+X  else
+X    {
+X      errno = 0;
+X      a = setpriority(0,pid,getpriority(0,pid));
+X      return((errno != EPERM) && (a != -1));
+X    }
+}
+X
+/*
+** is "name" anywhere in "list"?
+*/
+int exists(char *name, List list, int num)
+{
+X  int i = 0;
+X  while ((i < num) && strcmp(name,list[i]))
+X    i++;
+X  return(i < num);
+}
+X
+/*
+** when we get a SIGINT, run this routine.
+*/
+void reread()
+{
+X  printf("[argus@%s: rereading %s]\n",host,LISTF);
+X  reread_list = 1;
+}
+X
+/*
+** when we get a SIGQUIT, run this routine.
+*/
+void quiet()
+{
+X  printf("[argus@%s: ",host);
+X  beep ? printf("quiet]\n",host) : printf("loud]\n");
+X  beep = !beep;
+}
+X
+/*
+** read the user's namelist into an array and return the amount read.
+*/
+void read_list(List ul, int *num)
+{
+X  FILE *fd;
+X  int uln = 0;
+X
+X  if ((fd = fopen(LISTF,"r")) == NULL)   /* open the user's file. */
+X    {
+X      perror("can't open names file"); /* user is a dim bulb */
+X      exit(errno);
+X    }
+X
+X  while (fscanf(fd,"%s\n",(ul[uln] = (char *) malloc(10))) != EOF)
+X    uln++; /* read entries */
+X
+X  fclose(fd);
+X  *num = uln;
+X  reread_list = 0;
+}
+X
+/*
+** read the /etc/utmp file into an array and return the amount read.
+*/
+void read_utmp(List ut, int *num)
+{
+X  FILE *fd;
+X  struct utmp usr;
+X  int utn = 0;
+X
+X  /* open the /etc/utmp file */
+X  if ((fd = fopen("/etc/utmp","r")) == NULL)
+X    {
+X      perror("can't open utmp");
+X      exit(errno);
+X    }
+X  while (fread(&usr, sizeof(usr), 1, fd) != 0)	/* read it in.  get */
+X    if (*usr.ut_name && *usr.ut_line)		/* the usernames and */
+X      if (!exists(usr.ut_name,ut,utn))		/* store them in ut */
+X	ut[utn++] = strncpy(malloc(8),usr.ut_name,8);
+X  fclose(fd);
+X  *num = utn;
+}
+X
+display_users(int uln,int ut1n,int ut2n,List ul,List ut1,List ut2)
+{
+X  int i;
+X
+X  /*
+X  ** check each name we're looking for against the lists.  if
+X  ** it's not in ut1 but it is in ut2, that user has just shown
+X  ** up and we should announce it.  if it's in ut1 but NOT in
+X  ** ut2, then a user left and we should announce it.  The first
+X  ** time through, ut1 will be blank.
+X  */
+X  for (i = 0; i < uln; i++)
+X    if (exists(ul[i],ut2,ut2n) && !exists(ul[i],ut1,ut1n))
+X      printf("%c[argus@%s: %s is here]\n",beep?'\a':'\0',host,ul[i]);
+X    else
+X      if (!exists(ul[i],ut2,ut2n) && exists(ul[i],ut1,ut1n))
+X	printf("%c[argus@%s: %s is gone]\n",beep?'\a':'\0',host,ul[i]);
+}  
+X
+/*
+** Exit with grace, style, wit, and charm.
+*/
+byebye()
+{
+X  printf("[Argus says goodbye]\n");
+X  execl("/bin/rm","/bin/rm",PIDF,(char *)0);
+X  exit(0);
+}
+X
+/*
+** Here we go again...
+*/
+main(int argc, char *argv[])
+{
+X  /*
+X  ** ut1 and ut2 contain valid utmp entries to check names against
+X  ** ut1 is "older" than ut2, so if a name is in ut2 but not ut1, then
+X  ** that person just showed up.  ut1n and ut2n are the number
+X  ** of entries in each list.  ul holds the user's list of names to
+X  ** check for.  uln is the number of entries.
+X  */
+X
+X  int i; /* counter variable */
+X  int ppid; /* parent pid - not ALWAYS the login proc, tho. :( */
+X  int pid; /* child pid */
+X  int ut1n = 0, ut2n, uln = 0;
+X  int otherpid, another = 0; /* is there an argus running already? */
+X
+X  int DFLT, HELP, KILL, BELL, READ, WHO;
+X
+X  char *opt;
+X  int op; /* storage variable */
+X  char host1[20]; /* hostname */
+X  char *ut1[MAXUSER], *ut2[MAXUSER], *ul[MAXUSER];
+X
+X  struct passwd *pwent; /* for getting username */
+X
+X
+X  /* get the host name (minus domain fields) */
+X  if (gethostname(host1,20))
+X    {
+X      perror("can't get your hostname");
+X      exit(errno);
+X    }
+X  sscanf(host1,"%[^.]",host);
+X
+X  ppid = getppid();
+X
+X  which_files();
+X
+X  another = already((pid = readpid()));
+X
+X  DFLT = HELP = KILL = BELL = READ = WHO = 0;
+X  if (argc == 2)
+X    {
+X      opt = strchr(argv[1],'-');
+X      if (opt == NULL || (opt != NULL && opt+1 == NULL))
+X	op = '?';
+X      else
+X	op = *(++opt);
+X      do
+X	{
+X	  switch (op)
+X	    {
+X	    case '?': DFLT = !DFLT;
+X	      break;
+X	    case 'h': HELP = !HELP;
+X	      break;
+X	    case 'k': KILL = !KILL;
+X	      break;
+X	    case 'n': BELL = !BELL;
+X	      break;
+X	    case 'r': READ = !READ;
+X	      break;
+X	    case 'w': WHO = !WHO;
+X	      break;
+X	    default: HELP = 1;
+X	      break;
+X	    }
+X	  op = *(++opt);
+X	}
+X      while (op != NULL);
+X
+X      if (HELP)
+X	{
+X	  printf("\nargus 1.0\nBugs to cutter@ra.cs.umb.edu\n");
+X	  printf("Usage: argus [-hknrw]\n\n");
+X	}
+X      if (KILL)
+X	{
+X	  if (another)
+X	    kill(pid,1); /* kill the old argus */
+X	  else
+X	    printf("argus: there is no other argus to kill.\n");
+X	}
+X      if (BELL)
+X	{
+X	  if (another && !WHO)
+X	    kill(pid,3); /* toggle beeps */
+X	  beep = 0; /* default is silent */
+X	}
+X      if (READ)
+X	{
+X	  if (another)
+X	    kill(pid,2); /* make it reread file */
+X	  else
+X	    printf("argus: there is no other argus running.\n");
+X	}
+X      if (WHO)
+X	{
+X	  ut1n = 0; beep = 0;
+X	  read_list(ul,&uln);
+X	  read_utmp(ut2,&ut2n);
+X	  display_users(uln, ut1n, ut2n, ul, ut1, ut2);
+X	}
+X      if (DFLT)
+X	{
+X	  printf("Usage: argus [-hknrw]\n");
+X	}
+X    }
+X
+X  if (DFLT || HELP || KILL || READ || WHO || (BELL && WHO))
+X    exit(0);
+X
+X  if (another)
+X    {
+X      if (!BELL)
+X	printf("Argus is already running, process %d.\n",pid);
+X      exit(0);
+X    }
+X
+X  if ((pid = fork()) == -1)
+X    {
+X      perror("couldn't fork a process");
+X      exit(errno);
+X    } 
+X
+X  if (pid != 0)
+X    {
+X      exit(0);
+X    }
+X
+X  writepid();
+X
+X  if (nice(10)) /* be nice to the system */
+X    {
+X      perror("couldn't change priority");
+X      exit(errno);
+X    }
+X
+X  signal(SIGHUP,byebye); /* Let's make sure we exit cleanly and all. */
+X  signal(SIGINT,reread); /* Trap a SIGINT so it will reread the user's */
+X			 /* file. */
+X  signal(SIGQUIT,quiet); /* Trap a SIGQUIT to turn beeps off */
+X
+X  if ((pwent = getpwuid(getuid())) == NULL) /* get the user's passwd */
+X					    /* file entry */ 
+X    {
+X      perror("couldn't get username");
+X      exit(errno);
+X    }
+X
+X  while (already(ppid)) /* Da Main Loop, duh yeah. */
+X    {
+X      if (reread_list) /* this will be true on first execution */
+X	{
+X	  ut1n = 0;
+X	  read_list(ul,&uln);
+X	}
+X
+X      read_utmp(ut2,&ut2n);
+X
+X      display_users(uln, ut1n, ut2n, ul, ut1, ut2);
+X
+X      /*
+X      ** shift ut2 to ut1 so we can have something to compare when
+X      ** the next utmp file is read in.  both  ut2 and ut2n will
+X      ** be reset when the next utmp file is read in.
+X      */
+X      for (i=0; i < ut2n; i++)
+X	ut1[i] = ut2[i];
+X      ut1n = ut2n;
+X
+X      sleep(5); /* be even MORE nice to the system */
+X    }
+}
+SHAR_EOF
+chmod 0644 argus.c ||
+echo 'restore of argus.c failed'
+Wc_c="`wc -c < 'argus.c'`"
+test 9431 -eq "$Wc_c" ||
+	echo 'argus.c: original size 9431, current size' "$Wc_c"
+fi
+exit 0
