@@ -1,0 +1,68 @@
+Xref: sparky comp.editors:2895 comp.unix.admin:6416 comp.unix.xenix.misc:261 comp.os.linux:18442
+Newsgroups: comp.editors,comp.unix.admin,comp.unix.xenix.misc,comp.os.linux
+Path: sparky!uunet!noc.near.net!mv!world!jhallen
+From: jha...@world.std.com (Joseph H Allen)
+Subject: Re: New release: JOE 1.0.7
+Message-ID: <ByJGy6.7uG@world.std.com>
+Organization: The World Public Access UNIX, Brookline, MA
+References: <ByBvGL.1D6@world.std.com> <ByHruF.B6K@world.std.com>
+Date: Mon, 30 Nov 1992 17:08:29 GMT
+Lines: 57
+
+Included are two two minor patches for joe 1.0.7 and the current bug list. 
+For the next version, I'll add the NOXON, DOPADDING, BAUD, LINES and COLUMNS
+environment variable options as .joerc options as well.
+
+- For Real AT&T versions of SYS V (both SVR3 and SVR4, I think) there's a
+problem with the screen update algorithm: it prints garbage characters on
+the top line.  I'm not sure what this is yet, as I don't have these OSs
+(plus it works ok in Xenix (actually I do have an old CT machine with a
+version of SYS V from 1983, but I have to shorten the identifier lengths to
+get it to work on that, which is a big mess)).  I would appreciate it if
+someone would try compiling it without the optimizer and send me the results
+from make.
+
+- For the same os, someone reported that JOE sometimes doesn't save files
+correctly (when you save it makes a file with two NLs in it- if you save
+again it seems to work).
+
+=-=-=-=-=-=-=-
+This patch turns 'tab3' off for BSD versions of JOE (if your help screen is
+messing up in BSD this is probably the reason):
+
+File: tty.c
+
+294c294
+< arg.sg_flags=( (arg.sg_flags&~(ECHO|CRMOD) ) | CBREAK) ;
+---
+> arg.sg_flags=( (arg.sg_flags&~(ECHO|CRMOD|XTABS|ALLDELAY|TILDE) ) | CBREAK) ;
+
+=-=-=-=-=-=-=-
+This patch fixes a problem where JOE was crashing when you try to quote control
+characters:
+
+File main.c
+
+102,104c102,104
+<   { "ffirst", TYPETW+TYPEPW+EMOVE, pffirst },
+<   { "filt", TYPETW+TYPEPW+EFIXXCOL, ufilt },
+<   { "fnext", TYPETW+TYPEPW+EFIXXCOL+EMID+EMOVE, pfnext },
+---
+>   { "ffirst", TYPETW+TYPEPW, pffirst },
+>   { "filt", TYPETW+TYPEPW, ufilt },
+>   { "fnext", TYPETW+TYPEPW, pfnext },
+128c128
+<   { "line", TYPETW+TYPEPW+EMOVE, uline },
+---
+>   { "line", TYPETW+TYPEPW, uline },
+146,147c146,147
+<   { "quote", TYPETW+TYPEPW+EFIXXCOL, uquote },
+<   { "quote8", TYPETW+TYPEPW+EFIXXCOL, uquote8 },
+---
+>   { "quote", TYPETW+TYPEPW, uquote },
+>   { "quote8", TYPETW+TYPEPW, uquote8 },
+-- 
+/*  jha...@world.std.com (192.74.137.5) */               /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}
