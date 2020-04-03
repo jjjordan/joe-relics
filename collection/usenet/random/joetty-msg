@@ -1,0 +1,63 @@
+Newsgroups: comp.editors
+Path: sparky!uunet!centerline!noc.near.net!wpi.WPI.EDU!wpi.WPI.EDU!rcarter
+From: rca...@wpi.WPI.EDU (Randolph Carter <Joseph H. Allen>)
+Subject: Re: Thanks for simple editor source.
+Message-ID: <1992Jun13.033135.12146@wpi.WPI.EDU>
+Sender: ne...@wpi.WPI.EDU (USENET News System)
+Nntp-Posting-Host: wpi.wpi.edu
+Organization: Worcester Polytechnic Institute
+References: <1992Jun12.103843.1@cc.newcastle.edu.au> <1992Jun12.141210.16794@Princeton.EDU>
+Date: Sat, 13 Jun 1992 03:31:35 GMT
+Lines: 51
+
+bvau...@lotka.Princeton.EDU (Barbara Vaughan) writes:
+>(Joe has all of these features,
+>and if it ever comes out with the promised next release, and fixes some of
+>its inconsistencies, it would have everything I want.)
+
+I have to apologize for not having new version of joe out as promissed.  The
+deal is this:  I have other work to do and joe is taking a long time in any
+case.  I'm still working on it though.  You may have seen the JOETTY thing I
+posted to alt.sources a while ago.  It's done now (it happens that I'm using
+it for my other work as well).  It's now got a new version of termcap which
+allows you to have a sorted termcap file.  This allows termcap to be as fast
+as terminfo (it uses a binary search to look up the termcap entry) but is
+still compatible (upwards and downwards) with original termcap and more
+importantly is as "open" as termcap (terminfo has a lot of problems in this
+respect). 
+
+Oh and that reminds me- should I include the GNU extensions to the termcap
+language?  Does anyone actually use these extensions?  There's no way I'm
+going to implement the terminfo language since it's incompatible.
+
+Also the buffer management library is done.  It now uses a linked list of
+gap buffers which can be swapped out to the disk.  The software virtual
+memory system this uses has ended up being a real nice library in itself-
+I've already used it for other things.  It implements three sets of access
+functions: vopen/vclose/vtmp/vread/vwrite/vgetc/vputc/vseek/vtell/vgets/vputs,
+the 'f' similer routines; vrb/vrw/vrl/vwb/vww/vwl, routines which make the
+file look like an array; and vlock/vunlock/vchanged, routines which let you
+access the buffered pages directly.  Joe's buffer management system uses
+this last set so that any size files can be edited.  The other routines have
+been useful for things which require a lot of seeking.  Any previously read
+page is quickly accessed- it only requires a hash table lookup, not a 1K
+transfer from the operating system.  This has been very helpful in the
+database I've been writing (the work I'm getting paid for).
+
+But there's still lots of work to go.  I have to make the window management
+functions, the edit functions and the helper functons for them, the stuff to
+handle prompts and their histories, the undo/redo transaction log, an
+improved key binding system, the vi-like regual expression interpreter (for
+the ^KL command), etc.  And I still don't know about an extension language.
+This stuff is pretty easy though- it's just that there's a lot of it.  I'm
+hoping that joe will be done before august.
+
+The old version of joe is up to 0.1.5.  It has two things fixed:  the POSIX
+driver now really works and joe doesn't loose a single character of typeahead
+when you exit or shell-escape.  Get it from wpi.wpi.edu:stusrc/joe.tar.Z if
+you didn't know.
+-- 
+/*  rca...@wpi.wpi.edu */      /* Amazing */             /* Joseph H. Allen */
+int a[1817];main(z,p,q,r){for(p=80;q+p-80;p-=2*a[p])for(z=9;z--;)q=3&(r=time(0)
++r*57)/7,q=q?q-1?q-2?1-p%79?-1:0:p%79-77?1:0:p<1659?79:0:p>158?-79:0,q?!a[p+q*2
+]?a[p+=a[p+=q]=q]=q:0:0;for(;q++-1817;)printf(q%79?"%c":"%c\n"," #"[!a[q-1]]);}
