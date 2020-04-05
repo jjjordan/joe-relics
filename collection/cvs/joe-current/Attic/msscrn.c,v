@@ -1,0 +1,738 @@
+head	1.5;
+access;
+symbols
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.5
+date	2001.11.12.16.40.37;	author vsamel;	state dead;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.5
+log
+@delete unused files from distribution
+@
+text
+@/* MSDOS screen interface for JOE */
+
+#include <stdio.h>
+#include <dos.h>
+#include "blocks.h"
+#include "vs.h"
+#include "tty.h"
+#include "scrn.h"
+
+int skiptop = 0;
+int lines = 0;
+int columns = 0;
+int dopadding = 0;
+
+extern int mid;
+
+/* Table of MSDOS monochrome screen attribute combinations */
+
+unsigned atab[] = {
+	7 * 256, 112 * 256, 1 * 256, 112 * 256,
+	15 * 256, 112 * 256, 9 * 256, 112 * 256
+};
+
+/* How to display characters */
+
+unsigned xlata[256] = {
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	UNDERLINE,
+
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE, INVERSE + UNDERLINE, INVERSE + UNDERLINE,
+	INVERSE + UNDERLINE,
+
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+	INVERSE,
+	INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+
+	INVERSE + UNDERLINE,
+};
+
+unsigned char xlatc[256] = {
+	64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+	32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+	48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+	64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+	96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
+	110,
+	111,
+	112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124,
+	125,
+	126, 63,
+	64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+	32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+	48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+	64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+	96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
+	110,
+	111,
+	112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124,
+	125,
+	126, 63
+};
+
+/* Set attributes */
+
+int attr(t, c)
+SCRN *t;
+int c;
+{
+	return 0;
+}
+
+void setregn()
+{
+}
+void setins()
+{
+}
+int clrins()
+{
+	return 0;
+}
+
+int eraeol(t, x, y)
+SCRN *t;
+{
+	while (x < t->co)
+		t->scrn[y * t->co + x++] = 0x0720;
+}
+
+SCRN *nopen()
+{
+	SCRN *t = (SCRN *) malloc(sizeof(SCRN));
+	short *screen;
+	union REGS regs;
+
+	ttopen();
+	regs.h.ah = 0x0F;
+	int86(0x10, &regs, &regs);
+	if (regs.h.al == 7)
+		t->scrn = (char *) 0xB0000000;
+	else
+		t->scrn = (char *) 0xB8000000;
+	t->co = regs.h.ah;
+	t->li = *(unsigned char *) 0x00400084 + 1;
+	if (!t->li)
+		t->li = 25;
+	t->scroll = 0;
+	t->insdel = 0;
+	t->updtab = 0;
+	t->sary = 0;
+	t->compose = 0;
+	nresize(t, t->co, t->li);
+	return t;
+}
+
+void nresize(t, w, h)
+SCRN *t;
+{
+	if (h < 4)
+		h = 4;
+	if (w < 8)
+		w = 8;
+	t->li = h;
+	t->co = w;
+	if (t->updtab)
+		free(t->updtab);
+	if (t->sary)
+		free(t->sary);
+	if (t->compose)
+		free(t->compose);
+	t->updtab = (int *) malloc(t->li * sizeof(int));
+	t->sary = (int *) malloc(t->li * sizeof(int));
+	t->compose = (int *) malloc(t->co * sizeof(int));
+
+	nredraw(t);
+}
+
+int cpos(t, x, y)
+SCRN *t;
+{
+	union REGS regs;
+
+	regs.h.ah = 2;
+	regs.h.dh = y;
+	regs.h.dl = x;
+	regs.h.bh = 0;
+	int86(0x10, &regs, &regs);
+	return 0;
+}
+
+void magic()
+{
+}
+void nscroll()
+{
+}
+
+void npartial(t)
+SCRN *t;
+{
+}
+
+void nescape(t)
+SCRN *t;
+{
+	cpos(t, 0, t->li - 1);
+}
+
+void nreturn(t)
+SCRN *t;
+{
+	nredraw(t);
+}
+
+void nclose(t)
+SCRN *t;
+{
+	cpos(t, 0, t->li - 1);
+	eraeol(t, 0, t->li - 1);
+	ttclose();
+}
+
+void nscrldn(t, top, bot, amnt)
+SCRN *t;
+{
+	nredraw(t);
+}
+
+void nscrlup(t, top, bot, amnt)
+SCRN *t;
+{
+	nredraw(t);
+}
+
+void nredraw(t)
+SCRN *t;
+{
+	msetI(t->updtab + skiptop, -1, t->li - skiptop);
+}
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d44 1
+a44 1
+		INVERSE + UNDERLINE,
+d46 1
+a46 1
+		INVERSE + UNDERLINE,
+d48 1
+a48 1
+		INVERSE + UNDERLINE,
+d50 1
+a50 1
+		INVERSE + UNDERLINE,
+d52 1
+a52 1
+		INVERSE + UNDERLINE,
+d54 1
+a54 1
+		INVERSE + UNDERLINE,
+d56 1
+a56 1
+		INVERSE + UNDERLINE,
+d58 1
+a58 1
+		INVERSE + UNDERLINE,
+d61 1
+a61 1
+		INVERSE,
+d63 1
+a63 1
+		INVERSE,
+d65 1
+a65 1
+		INVERSE,
+d67 1
+a67 1
+		INVERSE,
+d69 1
+a69 1
+		INVERSE,
+d71 1
+a71 1
+		INVERSE,
+d73 1
+a73 1
+		INVERSE,
+d75 1
+a75 1
+		INVERSE,
+d77 1
+a77 1
+		INVERSE,
+d79 1
+a79 1
+		INVERSE,
+d81 1
+a81 1
+		INVERSE,
+d94 6
+a99 4
+	96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+		111,
+	112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+		126, 63,
+d106 6
+a111 4
+	96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+		111,
+	112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+		126, 63
+d116 3
+a118 4
+int
+attr (t, c)
+     SCRN *t;
+     int c;
+d123 1
+a123 2
+void
+setregn ()
+d126 1
+a126 2
+void
+setins ()
+d129 1
+a129 2
+int
+clrins ()
+d134 2
+a135 3
+int
+eraeol (t, x, y)
+     SCRN *t;
+d141 1
+a141 2
+SCRN *
+nopen ()
+d143 1
+a143 1
+	SCRN *t = (SCRN *) malloc (sizeof (SCRN));
+d146 2
+a147 1
+	ttopen ();
+d149 1
+a149 1
+	int86 (0x10, &regs, &regs);
+d163 1
+a163 1
+	nresize (t, t->co, t->li);
+d167 2
+a168 3
+void
+nresize (t, w, h)
+     SCRN *t;
+d177 1
+a177 1
+		free (t->updtab);
+d179 1
+a179 1
+		free (t->sary);
+d181 6
+a186 5
+		free (t->compose);
+	t->updtab = (int *) malloc (t->li * sizeof (int));
+	t->sary = (int *) malloc (t->li * sizeof (int));
+	t->compose = (int *) malloc (t->co * sizeof (int));
+	nredraw (t);
+d189 2
+a190 3
+int
+cpos (t, x, y)
+     SCRN *t;
+d193 1
+d198 1
+a198 1
+	int86 (0x10, &regs, &regs);
+d202 1
+a202 2
+void
+magic ()
+d205 1
+a205 2
+void
+nscroll ()
+d209 2
+a210 3
+void
+npartial (t)
+     SCRN *t;
+d214 2
+a215 3
+void
+nescape (t)
+     SCRN *t;
+d217 1
+a217 1
+	cpos (t, 0, t->li - 1);
+d220 2
+a221 3
+void
+nreturn (t)
+     SCRN *t;
+d223 1
+a223 1
+	nredraw (t);
+d226 2
+a227 3
+void
+nclose (t)
+     SCRN *t;
+d229 3
+a231 3
+	cpos (t, 0, t->li - 1);
+	eraeol (t, 0, t->li - 1);
+	ttclose ();
+d234 2
+a235 3
+void
+nscrldn (t, top, bot, amnt)
+     SCRN *t;
+d237 1
+a237 1
+	nredraw (t);
+d240 2
+a241 3
+void
+nscrlup (t, top, bot, amnt)
+     SCRN *t;
+d243 1
+a243 1
+	nredraw (t);
+d246 2
+a247 3
+void
+nredraw (t)
+     SCRN *t;
+d249 1
+a249 1
+	msetI (t->updtab + skiptop, -1, t->li - skiptop);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.5
+@
+text
+@d10 4
+a13 4
+int skiptop=0;
+int lines=0;
+int columns=0;
+int dopadding=0;
+d19 4
+a22 5
+unsigned atab[]=
+ {
+ 7*256, 112*256, 1*256, 112*256,
+ 15*256, 112*256, 9*256, 112*256
+ };
+d26 83
+a108 62
+unsigned xlata[256]=
+ {
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ UNDERLINE, UNDERLINE, UNDERLINE, UNDERLINE,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ UNDERLINE,
+
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+ INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, INVERSE+UNDERLINE, 
+
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, 
+ INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE, INVERSE,
+ 
+ INVERSE+UNDERLINE, 
+ };
+
+unsigned char xlatc[256]=
+ {
+ 64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+ 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,
+ 32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+ 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,
+ 64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+ 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,
+ 96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,
+ 112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,63,
+ 64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+ 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,
+ 32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
+ 48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,
+ 64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,
+ 80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,
+ 96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,
+ 112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,63
+ }; 
+d112 149
+a260 110
+int attr(t,c)
+SCRN *t;
+int c;
+ {
+ return 0;
+ }
+
+void setregn() {}
+void setins() {}
+int clrins() { return 0; }
+
+int eraeol(t,x,y)
+SCRN *t;
+ {
+ while(x<t->co) t->scrn[y*t->co+x++]=0x0720;
+ }
+
+SCRN *nopen()
+ {
+ SCRN *t=(SCRN *)malloc(sizeof(SCRN));
+ short *screen;
+ union REGS regs;
+ ttopen();
+ regs.h.ah=0x0F;
+ int86(0x10,&regs,&regs);
+ if(regs.h.al==7) t->scrn=(char *)0xB0000000;
+ else t->scrn=(char *)0xB8000000;
+ t->co=regs.h.ah;
+ t->li= *(unsigned char *)0x00400084+1;
+ if(!t->li) t->li=25;
+ t->scroll=0;
+ t->insdel=0;
+ t->updtab=0; t->sary=0; t->compose=0;
+ nresize(t,t->co,t->li);
+ return t;
+ }
+
+void nresize(t,w,h)
+SCRN *t;
+ {
+ if(h<4) h=4;
+ if(w<8) w=8;
+ t->li=h;
+ t->co=w;
+ if(t->updtab) free(t->updtab);
+ if(t->sary) free(t->sary);
+ if(t->compose) free(t->compose);
+ t->updtab=(int *)malloc(t->li*sizeof(int));
+ t->sary=(int *)malloc(t->li*sizeof(int));
+ t->compose=(int *)malloc(t->co*sizeof(int));
+ nredraw(t);
+ }
+
+int cpos(t,x,y)
+SCRN *t;
+ {
+ union REGS regs;
+ regs.h.ah=2;
+ regs.h.dh=y;
+ regs.h.dl=x;
+ regs.h.bh=0;
+ int86(0x10,&regs,&regs);
+ return 0;
+ }
+
+void magic() {}
+void nscroll() {}
+
+void npartial(t)
+SCRN *t;
+ {
+ }
+
+void nescape(t)
+SCRN *t;
+ {
+ cpos(t,0,t->li-1);
+ }
+
+void nreturn(t)
+SCRN *t;
+ {
+ nredraw(t);
+ }
+
+void nclose(t)
+SCRN *t;
+ {
+ cpos(t,0,t->li-1);
+ eraeol(t,0,t->li-1);
+ ttclose();
+ }
+
+void nscrldn(t,top,bot,amnt)
+SCRN *t;
+ {
+ nredraw(t);
+ }
+
+void nscrlup(t,top,bot,amnt)
+SCRN *t;
+ {
+ nredraw(t);
+ }
+
+void nredraw(t)
+SCRN *t;
+ {
+ msetI(t->updtab+skiptop,-1,t->li-skiptop);
+ }
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@a7 1
+#include "zstr.h"
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

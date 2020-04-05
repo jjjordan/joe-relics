@@ -1,0 +1,732 @@
+head	1.26;
+access;
+symbols
+	joe_3_5:1.23
+	joe-3_4:1.23
+	help:1.23
+	joe_3_1:1.17
+	joe_3_0:1.14
+	joe_2_9_8:1.10
+	joe_2_9_8_pre1:1.8
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.26
+date	2008.10.25.19.37.31;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2007.06.04.01.13.33;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2006.05.21.01.58.58;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2006.05.05.18.18.45;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2005.04.24.04.30.52;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.06.21.14.47.43;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2004.05.04.16.35.13;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2004.05.03.22.55.53;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2004.05.03.18.29.00;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2004.04.23.02.14.08;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2004.04.14.17.09.48;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.03.30.05.10.15;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2002.01.15.09.24.38;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.12.10.14.01.27;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.04.13.20.52;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.26
+log
+@Check for EINTR from ioctl.  Improve xml.jsf.in a little mor.
+@
+text
+@/*
+ *	Various utilities
+ *	
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *		(C) 2001 Marek 'Marx' Grac
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_UTILS_H
+#define _JOE_UTILS_H 1
+
+/* Unsigned versions of regular string functions */
+
+/* JOE uses 'unsigned char *', never 'char *'.  This is so that when a
+   character is loaded from a string into an 'int', the codes 0-255 are
+   used, not -128 - 127. */
+
+size_t zlen PARAMS((unsigned char *s));
+int zcmp PARAMS((unsigned char *a, unsigned char *b));
+int zncmp PARAMS((unsigned char *a, unsigned char *b, size_t len));
+unsigned char *zdup PARAMS((unsigned char *s));
+unsigned char *zcpy PARAMS((unsigned char *a, unsigned char *b));
+unsigned char *zncpy PARAMS((unsigned char *a, unsigned char *b,size_t len));
+unsigned char *zstr PARAMS((unsigned char *a, unsigned char *b));
+unsigned char *zchr PARAMS((unsigned char *s, int c));
+unsigned char *zrchr PARAMS((unsigned char *s, int c));
+unsigned char *zcat PARAMS((unsigned char *a, unsigned char *b));
+
+/*
+ * Functions which return minimum/maximum of two numbers  
+ */
+unsigned int uns_min PARAMS((unsigned int a, unsigned int b));
+signed int int_min PARAMS((signed int a, int signed b));
+signed long long_max PARAMS((signed long a, signed long b));
+signed long long_min PARAMS((signed long a, signed long b));
+
+/* Versions of 'read' and 'write' which automatically retry when interrupted */
+ssize_t joe_read PARAMS((int fd, void *buf, size_t siz));
+ssize_t joe_write PARAMS((int fd, void *buf, size_t siz));
+int joe_ioctl PARAMS((int fd, int req, void *ptr));
+
+/* wrappers to *alloc routines */
+void *joe_malloc PARAMS((size_t size));
+unsigned char *joe_strdup PARAMS((unsigned char *ptr));
+void *joe_calloc PARAMS((size_t nmemb, size_t size));
+void *joe_realloc PARAMS((void *ptr, size_t size));
+void joe_free PARAMS((void *ptr));
+
+#ifndef HAVE_SIGHANDLER_T
+typedef RETSIGTYPE (*sighandler_t)(int);
+#endif
+
+#ifdef NEED_TO_REINSTALL_SIGNAL
+#define REINSTALL_SIGHANDLER(sig, handler) joe_set_signal(sig, handler)
+#else
+#define REINSTALL_SIGHANDLER(sig, handler) do {} while(0)
+#endif
+
+/* wrapper to hide signal interface differrencies */
+int joe_set_signal PARAMS((int signum, sighandler_t handler));
+
+/* Simple parsers */
+int parse_ws PARAMS((unsigned char **p,int cmt));
+int parse_ident PARAMS((unsigned char **p,unsigned char **buf));
+int parse_kw PARAMS((unsigned char **p,unsigned char *kw));
+long parse_num PARAMS((unsigned char **p));
+int parse_tows PARAMS((unsigned char **p,unsigned char **buf));
+int parse_field PARAMS((unsigned char **p,unsigned char *field));
+int parse_char PARAMS((unsigned char  **p,unsigned char c));
+int parse_int PARAMS((unsigned char **p,int *buf));
+int parse_long PARAMS((unsigned char **p,long  *buf));
+int parse_string PARAMS((unsigned char **p,unsigned char **dst));
+int parse_range PARAMS((unsigned char **p,int *first,int *second));
+void emit_string PARAMS((FILE *f,unsigned char *s,int len));
+int escape PARAMS((int utf8,unsigned char **a, int *b));
+
+#endif
+@
+
+
+1.25
+log
+@More work on coroutine refactoring.
+@
+text
+@d41 1
+@
+
+
+1.24
+log
+@semiautomatic variables
+@
+text
+@a12 74
+/* Destructors */
+
+#define AUTO_DESTRUCT GC *gc = 0;
+
+typedef struct gc GC;
+
+struct gc {
+	struct gc *next;	/* List */
+	void **var;		/* Address of pointer variable */
+	void (*rm)(void *val);	/* Destructor which takes pointer variable */
+};
+
+/* Add a variable to GC list */
+
+void gc_add PARAMS((GC **gc, void **var, void (*rm)(void *val)));
+
+/* Call destructors */
+
+void gc_collect PARAMS((GC **gc));
+
+/* Version of return which calls destructors before returning */
+
+#define RETURN(val) do { \
+	if (gc) gc_collect(&gc); \
+	return (val); \
+	} while(0)
+
+/* Pool allocation functions using singly-linked lists */
+
+extern void *ITEM; /* Temporary global variable (from queue.c) */
+
+/* Allocate item from free-list.  If free-list empty, replenish it. */
+
+void *replenish PARAMS((void **list,int size));
+
+#define al_single(list,type) ( \
+	(ITEM = *(void **)(list)) ? \
+	  ( (*(void **)(list) = *(void **)ITEM), ITEM ) \
+	: \
+	  replenish((void **)(list),sizeof(type)) \
+)
+
+/* Put item on free list */
+
+#define fr_single(list,item) do { \
+	*(void **)(item) = *(void **)(list); \
+	*(void **)(list) = (void *)(item); \
+} while(0)
+
+/* JOE uses 'unsigned char *', never 'char *'.  This is that when a
+   character is loaded into an 'int', the codes 0-255 are used,
+   not -128 - 127. */
+
+/* Zero terminated strings */
+
+typedef struct zs ZS;
+
+struct zs {
+	unsigned char *s;
+};
+
+/* Create zs in local gc */
+
+#define mk_zs(var,s,len) do { \
+	(var) = raw_mk_zs((s),(len)); \
+	gc_add(&gc, &(var), rm_zs); \
+} while(0)
+
+ZS raw_mk_zs PARAMS((GC **gc,unsigned char *s,int len));
+
+/* Destructor for zs */
+
+void rm_zs PARAMS((ZS z));
+
+@
+
+
+1.23
+log
+@A option for search
+Restore cursor to old position
+@
+text
+@d138 1
+a138 1
+int parse_ident PARAMS((unsigned char **p,unsigned char *buf,int len));
+d141 1
+a141 1
+int parse_tows PARAMS((unsigned char **p,unsigned char *buf));
+d146 1
+a146 1
+int parse_string PARAMS((unsigned char **p,unsigned char *buf,int len));
+d149 1
+@
+
+
+1.22
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d140 1
+d145 1
+@
+
+
+1.21
+log
+@Allow escape sequences in strings.
+@
+text
+@a12 9
+#include "config.h"
+
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>			/* we need size_t, ssize_t */
+#endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+
+@
+
+
+1.20
+log
+@fix gcc-4.0.0 warnings
+@
+text
+@a155 4
+int parse_escapes PARAMS((unsigned char *buf,int len));
+
+void emit_hdlc PARAMS((FILE *f,unsigned char *s,int len));
+int parse_hdlc PARAMS((unsigned char **p,unsigned char *buf,int len));
+@
+
+
+1.19
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d22 91
+d145 1
+@
+
+
+1.18
+log
+@Fix -pedantic warnings.
+@
+text
+@d63 5
+@
+
+
+1.17
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d36 1
+@
+
+
+1.16
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@a21 35
+#include "charmap.h"
+
+/* 
+ * Characters which are considered as word characters 
+ * 	_ is considered as word character because is often used 
+ *	in the names of C/C++ functions
+ */
+int isalnum_ PARAMS((int wide,struct charmap *map,int c));
+int isalpha_ PARAMS((int wide,struct charmap *map,int c));
+
+/* 
+ * Whitespace characters are characters like tab, space, ...
+ *	Every config line in *rc must be end by whitespace but
+ *	EOF is not considered as whitespace by isspace()
+ *	This is because I don't want to be forced to end 
+ *	*rc file with \n
+ */
+int isspace_eof PARAMS((int c));
+
+/*
+ * Define function isblank(c)
+ *	isblank() is GNU extension;
+ *	even #including <ctype.h> without additional hackery doesn't import
+ *	the prototype, so we define it here unconditionaly
+ */
+int joe_isblank PARAMS((int c));
+
+int joe_isspace PARAMS((int c));
+
+int joe_isprint PARAMS((int wide,struct charmap *map,int c));
+
+int joe_ispunct PARAMS((int wide,struct charmap *map,int c));
+
+unsigned char *lowerize PARAMS((unsigned char *s));
+
+a39 1
+
+a62 1
+
+@
+
+
+1.15
+log
+@Eliminate iconv() dependency.
+@
+text
+@d22 2
+d29 2
+a30 1
+int isalnum_ PARAMS((int wide,int c));
+d49 6
+@
+
+
+1.14
+log
+@Fixed uopen() ^] for overtype mode.
+
+Added 'istrings' option in syntax files for ignoring case
+in strings.
+
+Added ^T Y- allows you to select syntax during run time (tab
+completion works too!)
+
+Added ^T P- picture mode: can move and type anywhere on the screen,
+good for drawing ASCII art.
+@
+text
+@d80 1
+a80 1
+int parse_ws PARAMS((unsigned char **p));
+d83 1
+@
+
+
+1.13
+log
+@Fix many edit fuctions for UTF-8.  Now we use iswalnum() when in UTF-8 mode.
+Paragraph format works.
+
+Search is still broken.
+@
+text
+@d46 2
+@
+
+
+1.12
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d27 1
+a27 1
+int isalnum_ PARAMS((int c));
+d44 1
+a44 1
+int isblank PARAMS((int c));
+@
+
+
+1.11
+log
+@More changes for syntax highlighting.
+@
+text
+@d78 8
+a85 8
+int parse_ws(char **p);
+int parse_ident(char **p,char *buf,int len);
+int parse_kw(char **p,char *kw);
+int parse_field(char **p,char *field);
+int parse_char(char  **p,char c);
+int parse_int(char **p,int *buf);
+int parse_string(char **p,char *buf,int len);
+int parse_range(char **p,int *first,int *second);
+@
+
+
+1.10
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d78 10
+@
+
+
+1.9
+log
+@cleanup signals handling (sigaction() / sigvec() / signal())
+@
+text
+@d27 1
+a27 1
+unsigned int isalnum_ PARAMS((unsigned int c));
+@
+
+
+1.8
+log
+@change (m|re|c)alloc() and free() into joe_(m|re|c)alloc() and joe_free()
+(preparation for further error checking)
+@
+text
+@d18 3
+d63 14
+@
+
+
+1.7
+log
+@move jread() / jwrite() into utils.c
+@
+text
+@d55 6
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d15 4
+d50 4
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 1
+#include "types.h"
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d2 10
+a11 11
+	Various utilities
+	
+	Copyright
+		(C) 1992 Joseph H. Allen
+		(C) 2001 Marek 'Marx' Grac
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _JOEutils
+#define _JOEutils 1
+d14 1
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@a14 1
+#include <ctype.h>
+d21 1
+a21 1
+unsigned int isalnum_(unsigned int c);
+d30 1
+a30 1
+#define isspace_eof(c) (isspace(c) || (!(c)))
+d33 4
+a36 1
+ * Define function isblank(c) for non-GNU systems
+d38 1
+a38 3
+#ifndef __USE_GNU
+#define isblank(c) (((c)==32) || ((c)==9))
+#endif
+d43 4
+a46 4
+unsigned int uns_min(unsigned int a, unsigned int b);
+signed int int_min(signed int a, int signed b);
+signed long long_max(signed long a, signed long b);
+signed long long_min(signed long a, signed long b);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d22 1
+a22 1
+unsigned int isalnum_ (unsigned int c);
+d31 1
+a31 1
+unsigned int isspace_eof (unsigned int c);
+d43 4
+a46 4
+unsigned int uns_min (unsigned int a, unsigned int b);
+signed int   int_min (signed int a, int signed b);
+signed long long_max (signed long a, signed long b);
+signed long long_min (signed long a, signed long b);
+@
+
+
+1.1
+log
+@changed as of joe-2.9.5
+@
+text
+@d9 1
+a9 1
+*/ 
+d14 1
+d22 1
+a22 1
+#define isalnum_(c) (isalnum(c) || (c==*"_"))
+d31 8
+a38 1
+#define isspace_eof(c) (isspace(c) || (!c))
+d43 4
+a46 4
+unsigned uns_min (unsigned a, unsigned b);
+int int_min (int a, int b);
+long long_max (long a, long b);
+long long_min (long a, long b);
+d48 1
+a48 1
+#endif@
+

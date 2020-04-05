@@ -1,0 +1,2222 @@
+head	1.30;
+access;
+symbols
+	joe_3_5:1.27
+	joe-3_4:1.25
+	help:1.25
+	joe_3_1:1.18
+	joe_3_0:1.16
+	joe_2_9_8:1.15
+	joe_2_9_8_pre1:1.12
+	joe_2_9_7:1.6
+	joe_2_9_7_pre3:1.6
+	joe_2_9_7_pre2:1.6
+	joe_2_9_6:1.5
+	joe_2_9_5:1.4
+	joe_2_9_4:1.3
+	joe_2_9_2:1.3
+	joe_2_9_1:1.2
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.30
+date	2008.10.31.23.45.11;	author jhallen;	state Exp;
+branches;
+next	1.29;
+
+1.29
+date	2008.10.23.16.04.59;	author jhallen;	state Exp;
+branches;
+next	1.28;
+
+1.28
+date	2006.07.20.20.56.17;	author jhallen;	state Exp;
+branches;
+next	1.27;
+
+1.27
+date	2006.07.19.00.27.12;	author jhallen;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2006.07.18.23.31.54;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2006.05.22.04.15.41;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2005.04.24.04.30.50;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2005.03.22.03.22.38;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2005.03.20.03.50.59;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2005.03.20.03.31.26;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2005.03.16.23.19.28;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.05.28.17.06.35;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2004.05.03.22.55.50;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2003.03.24.09.17.34;	author vsamel;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2003.03.04.17.39.04;	author vsamel;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2002.06.10.12.09.38;	author vsamel;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2001.12.12.14.26.34;	author vsamel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2001.12.04.13.21.47;	author vsamel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2001.12.04.13.17.42;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2001.12.04.13.14.16;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.03.57.30;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.48.08;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.30
+log
+@Allow backslashes in filenames
+@
+text
+@/* 
+ *	Directory and path functions
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+
+#ifdef HAVE_PATHS_H
+#  include <paths.h>	/* for _PATH_TMP */
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+
+#ifdef HAVE_DIRENT_H
+#  include <dirent.h>
+#  define NAMLEN(dirent) strlen((dirent)->d_name)
+#else
+#  ifdef HAVE_SYS_DIRENT_H
+#    include <sys/dirent.h>
+#    define NAMLEN(dirent) strlen((dirent)->d_name)
+#  else
+#    define direct dirent
+#    define NAMLEN(dirent) (dirent)->d_namlen
+#    ifdef HAVE_SYS_NDIR_H
+#      include <sys/ndir.h>
+#    else
+#      ifdef HAVE_SYS_DIR_H
+#        include <sys/dir.h>
+#      else
+#        ifdef HAVE_NDIR_H
+#          include <ndir.h>
+#        else
+#          ifndef __MSDOS__
+#            include "dir.c"
+#          endif
+#        endif
+#      endif
+#    endif
+#  endif
+#endif
+
+#ifdef __MSDOS__	/* paths in MS-DOS can include a drive letter followed by semicolon */
+#define	do_if_drive_letter(path, command) do { \
+						if ((path)[0] && (path)[1] == ':') { \
+							command; \
+						} \
+					} while(0)
+#else
+#define do_if_drive_letter(path, command)	do { } while(0)
+#endif
+#define skip_drive_letter(path)	do_if_drive_letter((path), (path) += 2)
+
+#ifndef		_PATH_TMP
+#  ifdef __MSDOS__
+#    define	_PATH_TMP	""
+#  else
+#    define	_PATH_TMP	"/tmp/"
+#  endif
+#endif
+
+#ifndef PATH_MAX
+#warning What should we include to have PATH_MAX defined?
+#define PATH_MAX	4096
+#endif
+
+/********************************************************************/
+unsigned char *joesep(unsigned char *path)
+{
+#ifdef __MSDOS__
+	int x;
+
+	for (x = 0; path[x]; ++x)
+		if (path[x] == '\\')
+			path[x] = '/';
+#endif
+	return path;
+}
+/********************************************************************/
+unsigned char *namprt(unsigned char *path)
+{
+	unsigned char *z;
+
+	skip_drive_letter(path);
+	z = path + zlen(path);
+	while ((z != path) && (z[-1] != '/'))
+		--z;
+	return vsncpy(NULL, 0, sz(z));
+}
+/********************************************************************/
+unsigned char *namepart(unsigned char *tmp, unsigned char *path)
+{
+	unsigned char *z;
+
+	skip_drive_letter(path);
+	z = path + zlen(path);
+	while ((z != path) && (z[-1] != '/'))
+		--z;
+	return zcpy(tmp, z);
+}
+/********************************************************************/
+unsigned char *dirprt(unsigned char *path)
+{
+	unsigned char *b = path;
+	unsigned char *z = path + zlen(path);
+
+	skip_drive_letter(b);
+	while ((z != b) && (z[-1] != '/'))
+		--z;
+	return vsncpy(NULL, 0, path, z - path);
+}
+/********************************************************************/
+unsigned char *begprt(unsigned char *path)
+{
+	unsigned char *z = path + zlen(path);
+	int drv = 0;
+
+	do_if_drive_letter(path, drv = 2);
+	while ((z != path + drv) && (z[-1] == '/'))
+		--z;
+	if (z == path + drv)
+		return vsncpy(NULL, 0, sz(path));
+	else {
+		while ((z != path + drv) && (z[-1] != '/'))
+			--z;
+		return vsncpy(NULL, 0, path, z - path);
+	}
+}
+/********************************************************************/
+unsigned char *endprt(unsigned char *path)
+{
+	unsigned char *z = path + zlen(path);
+	int drv = 0;
+
+	do_if_drive_letter(path, drv = 2);
+	while ((z != path + drv) && (z[-1] == '/'))
+		--z;
+	if (z == path + drv)
+		return vsncpy(NULL, 0, sc(""));
+	else {
+		while (z != path + drv && z[-1] != '/')
+			--z;
+		return vsncpy(NULL, 0, sz(z));
+	}
+}
+/********************************************************************/
+int mkpath(unsigned char *path)
+{
+	unsigned char *s;
+
+	if (path[0] == '/') {
+		if (chddir("/"))
+			return 1;
+		s = path;
+		goto in;
+	}
+
+	while (path[0]) {
+		int c;
+
+		for (s = path; (*s) && (*s != '/'); s++) ;
+		c = *s;
+		*s = 0;
+		if (chddir((char *)path)) {
+			if (mkdir((char *)path, 0777))
+				return 1;
+			if (chddir((char *)path))
+				return 1;
+		}
+		*s = c;
+	      in:
+		while (*s == '/')
+			++s;
+		path = s;
+	}
+	return 0;
+}
+/********************************************************************/
+/* Create a temporary file */
+/********************************************************************/
+unsigned char *mktmp(unsigned char *where)
+{
+#ifndef HAVE_MKSTEMP
+	static unsigned seq = 0;
+#endif
+	unsigned char *name;
+	int fd;
+	unsigned namesize;
+
+	if (!where)
+		where = (unsigned char *)getenv("TEMP");
+	if (!where)
+		where = USTR _PATH_TMP;
+
+	namesize = zlen(where) + 16;
+	name = vsmk(namesize);	/* [G.Ghibo'] we need to use vsmk() and not malloc() as
+				   area returned by mktmp() is destroyed later with
+				   vsrm(); */
+#ifdef HAVE_MKSTEMP
+	name = vsfmt(name, 0, USTR "%s/joe.tmp.XXXXXX", where);
+	if((fd = mkstemp((char *)name)) == -1)
+		return NULL;	/* FIXME: vflsh() and vflshf() */
+				/* expect mktmp() always succeed!!! */
+
+	fchmod(fd, 0600);       /* Linux glibc 2.0 mkstemp() creates it with */
+				/* 0666 mode --> change it to 0600, so nobody */
+				/* else sees content of temporary file */
+	close(fd);
+
+#else
+      loop:
+	seq = (seq + 1) % 1000;
+	name = vsfmt(name, 0, USTR "%s/joe.tmp.%03u%03u", where, seq, (unsigned) time(NULL) % 1000);
+	if ((fd = open(name, O_RDONLY)) != -1) {
+		close(fd);
+		goto loop;	/* FIXME: possible endless loop --> DoS attack */
+	}
+	if ((fd = open(name, O_RDWR | O_CREAT | O_EXCL, 0600)) == -1)
+		return NULL;	/* FIXME: see above */
+	else
+		close(fd);
+#endif
+	obj_perm(name);
+	return name;
+}
+/********************************************************************/
+int rmatch(unsigned char *a, unsigned char *b)
+{
+	int flag, inv, c;
+
+	for (;;)
+		switch (*a) {
+		case '*':
+			++a;
+			do {
+				if (rmatch(a, b))
+					return 1;
+			} while (*b++);
+			return 0;
+		case '[':
+			++a;
+			flag = 0;
+			if (*a == '^') {
+				++a;
+				inv = 1;
+			} else
+				inv = 0;
+			if (*a == ']')
+				if (*b == *a++)
+					flag = 1;
+			while (*a && (c = *a++) != ']')
+				if ((c == '-') && (a[-2] != '[') && (*a)) {
+					if ((*b >= a[-2]) && (*b <= *a))
+						flag = 1;
+				} else if (*b == c)
+					flag = 1;
+			if ((!flag && !inv) || (flag && inv) || (!*b))
+				return 0;
+			++b;
+			break;
+		case '?':
+			++a;
+			if (!*b)
+				return 0;
+			++b;
+			break;
+		case 0:
+			if (!*b)
+				return 1;
+			else
+				return 0;
+		default:
+			if (*a++ != *b++)
+				return 0;
+		}
+}
+/********************************************************************/
+int isreg(unsigned char *s)
+{
+	int x;
+
+	for (x = 0; s[x]; ++x)
+		if ((s[x] == '*') || (s[x] == '?') || (s[x] == '['))
+			return 1;
+	return 0;
+}
+/********************************************************************/
+#ifdef __MSDOS__
+#include <dos.h>
+#include <dir.h>
+
+struct direct {
+	unsigned char d_name[16];
+} direc;
+int dirstate = 0;
+struct ffblk ffblk;
+unsigned char *dirpath = NULL;
+
+void *opendir(unsigned char *path)
+{
+	dirstate = 0;
+	return &direc;
+}
+
+void closedir()
+{
+}
+
+struct direct *readdir()
+{
+	int x;
+
+	if (dirstate) {
+		if (findnext(&ffblk))
+			return NULL;
+	} else {
+		if (findfirst("*.*", &ffblk, FA_DIREC))
+			return NULL;
+		dirstate = 1;
+	}
+
+	zcpy(direc.d_name, ffblk.ff_name);
+	for (x = 0; direc.d_name[x]; ++x)
+		direc.d_name[x] = tolower(direc.d_name[x]);
+	return &direc;
+}
+#endif
+/********************************************************************/
+unsigned char **rexpnd(unsigned char *word)
+{
+	void *dir;
+	unsigned char **lst = NULL;
+
+	struct dirent *de;
+	dir = opendir(".");
+	if (dir) {
+		while ((de = readdir(dir)) != NULL)
+			if (strcmp(".", de->d_name))
+				if (rmatch(word, (unsigned char *)de->d_name))
+					lst = vaadd(lst, vsncpy(NULL, 0, sz((unsigned char *)de->d_name)));
+		closedir(dir);
+	}
+	return lst;
+}
+/********************************************************************/
+unsigned char **rexpnd_users(unsigned char *word)
+{
+	unsigned char **lst = NULL;
+	struct passwd *pw;
+
+	while((pw=getpwent()))
+		if (rmatch(word+1, (unsigned char *)pw->pw_name)) {
+			unsigned char *t = vsncpy(NULL,0,sc("~"));
+			lst = vaadd(lst, vsncpy(sv(t),sz((unsigned char *)pw->pw_name)));
+			}
+	endpwent();
+
+	return lst;
+}
+/********************************************************************/
+int chpwd(unsigned char *path)
+{
+#ifdef __MSDOS__
+	unsigned char buf[256];
+	int x;
+
+	if (!path)
+		return 0;
+	if ((path[0]) && (path[1] == ':')) {
+		if (_chdrive(path[0] & 0x1F))
+			return -1;
+		path += 2;
+	}
+	if (!path[0])
+		return 0;
+	zcpy(buf, path);
+	x = zlen(buf);
+	while (x > 1) {
+		--x;
+		if ((buf[x] == '/') || (buf[x] == '\\'))
+			buf[x] = 0;
+		else
+			break;
+	}
+	return chdir(buf);
+#else
+	if ((!path) || (!path[0]))
+		return 0;
+	return chdir((char *)path);
+#endif
+}
+
+/* The pwd function */
+unsigned char *pwd(void)
+{
+	static unsigned char buf[PATH_MAX];
+	unsigned char	*ret;
+
+#ifdef HAVE_GETCWD
+	ret = (unsigned char *)getcwd((char *)buf, PATH_MAX - 1);
+#else
+	ret = (unsigned char *)getwd((char *)buf);
+#endif
+	buf[PATH_MAX - 1] = '\0';
+
+	return ret;
+}
+
+/* Simplify prefix by using ~ */
+/* Expects s to have trailing / */
+
+unsigned char *simplify_prefix(unsigned char *s)
+{
+	unsigned char *t = (unsigned char *)getenv("HOME");
+	unsigned char *n;
+
+#ifdef junk
+	unsigned char *org = pwd();
+	/* Normalize home */
+	if (t && !chpwd(t)) {
+		t = pwd();
+	} else {
+		t = 0;
+	}
+	chpwd(org);
+#endif
+
+	/* If current directory is prefixed with home directory, use ~... */
+	if (t && !strncmp((char *)s,(char *)t,zlen(t)) && (!s[zlen(t)] || s[zlen(t)]=='/')) {
+		n = vsncpy(NULL,0,sc("~/"));
+		/* If anything more than just the home directory, add it */
+		if (s[zlen(t)]) {
+			n = vsncpy(sv(n),s+zlen(t)+1,zlen(s+zlen(t)+1));
+		}
+	} else {
+		n = vsncpy(NULL,0,sz(s));
+	}
+	return n;
+}
+@
+
+
+1.29
+log
+@Apply two years of good user supplied patches.  See NEWS file for details.
+@
+text
+@d77 1
+d83 1
+@
+
+
+1.28
+log
+@semiautomatic variables
+@
+text
+@d228 1
+@
+
+
+1.27
+log
+@UC -> USTR
+@
+text
+@d90 1
+a90 1
+	z = path + slen(path);
+d110 1
+a110 1
+	unsigned char *z = path + slen(path);
+d120 1
+a120 1
+	unsigned char *z = path + slen(path);
+d137 1
+a137 1
+	unsigned char *z = path + slen(path);
+d205 1
+a205 1
+	joe_snprintf_1(name, namesize, "%s/joe.tmp.XXXXXX", where);
+d218 1
+a218 1
+	joe_snprintf_3(name, namesize, "%s/joe.tmp.%03u%03u", where, seq, (unsigned) time(NULL) % 1000);
+@
+
+
+1.26
+log
+@change US to UC
+@
+text
+@d198 1
+a198 1
+		where = UC _PATH_TMP;
+@
+
+
+1.25
+log
+@gettext()
+@
+text
+@d198 1
+a198 1
+		where = US _PATH_TMP;
+@
+
+
+1.24
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d205 1
+a205 1
+	joe_snprintf_1((char *)name, namesize, "%s/joe.tmp.XXXXXX", where);
+@
+
+
+1.23
+log
+@fix gcc-4.0.0 warnings
+@
+text
+@a7 1
+#include "config.h"
+d13 1
+a13 7
+#include <stdio.h>
+#include <sys/types.h>
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#include <fcntl.h>
+#include <unistd.h>
+a19 3
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+a20 4
+#include "utils.h"
+#include "path.h"
+#include "vs.h"
+#include "va.h"
+d355 1
+a355 1
+	while(pw=getpwent())
+@
+
+
+1.22
+log
+@Fix bugs where doedit() was called and we expected the window to immediately
+change.
+
+Run -pedantic
+@
+text
+@a19 1
+#include <string.h>
+d31 1
+d115 1
+a115 1
+	z = path + strlen((char *)path);
+d118 1
+a118 1
+	return (unsigned char *)strcpy((char *)tmp, (char *)z);
+d214 1
+a214 1
+	namesize = strlen((char *)where) + 16;
+d340 1
+a340 1
+	strcpy(direc.d_name, ffblk.ff_name);
+d394 2
+a395 2
+	strcpy(buf, path);
+	x = strlen(buf);
+d447 1
+a447 1
+	if (t && !strncmp((char *)s,(char *)t,strlen((char *)t)) && (!s[strlen((char *)t)] || s[strlen((char *)t)]=='/')) {
+d450 2
+a451 2
+		if (s[strlen((char *)t)]) {
+			n = vsncpy(sv(n),s+strlen((char *)t)+1,strlen((char *)(s+strlen((char *)t)+1)));
+@
+
+
+1.21
+log
+@Get current directory from files on command line
+@
+text
+@d447 1
+a447 1
+	if (t && !strncmp(s,t,strlen(t)) && (!s[strlen(t)] || s[strlen(t)]=='/')) {
+d450 2
+a451 2
+		if (s[strlen(t)]) {
+			n = vsncpy(sv(n),s+strlen(t)+1,strlen(s+strlen(t)+1));
+@
+
+
+1.20
+log
+@Current directory stuff
+@
+text
+@a442 1
+
+d445 1
+d454 1
+a454 1
+		n = vsncpy(NULL,0,sv(s));
+a455 1
+	vsrm(s);
+@
+
+
+1.19
+log
+@Get tab completion to work on user names.
+@
+text
+@d426 33
+@
+
+
+1.18
+log
+@Now it will use sprintf if snprintf does not exist.
+Can now build on IRIX 6.2
+@
+text
+@d11 3
+d364 15
+@
+
+
+1.17
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@d216 1
+a216 1
+	snprintf((char *)name, namesize, "%s/joe.tmp.XXXXXX", where);
+d229 1
+a229 1
+	snprintf(name, namesize, "%s/joe.tmp.%03u%03u", where, seq, (unsigned) time(NULL) % 1000);
+@
+
+
+1.16
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a16 1
+#include <ctype.h>
+@
+
+
+1.15
+log
+@use O_EXCL when creating temporary file
+@
+text
+@d87 1
+a87 1
+char *joesep(char *path)
+d97 1
+a97 1
+char *namprt(char *path)
+d99 1
+a99 1
+	char *z;
+d108 1
+a108 1
+char *namepart(char *tmp, char *path)
+d110 1
+a110 1
+	char *z;
+d113 1
+a113 1
+	z = path + strlen(path);
+d116 1
+a116 1
+	return strcpy(tmp, z);
+d119 1
+a119 1
+char *dirprt(char *path)
+d121 2
+a122 2
+	char *b = path;
+	char *z = path + slen(path);
+d130 1
+a130 1
+char *begprt(char *path)
+d132 1
+a132 1
+	char *z = path + slen(path);
+d147 1
+a147 1
+char *endprt(char *path)
+d149 1
+a149 1
+	char *z = path + slen(path);
+d164 1
+a164 1
+int mkpath(char *path)
+d166 1
+a166 1
+	char *s;
+d181 2
+a182 2
+		if (chddir(path)) {
+			if (mkdir(path, 0777))
+d184 1
+a184 1
+			if (chddir(path))
+d198 1
+a198 1
+char *mktmp(char *where)
+d203 1
+a203 1
+	char *name;
+d208 1
+a208 1
+		where = getenv("TEMP");
+d210 1
+a210 1
+		where = _PATH_TMP;
+d212 1
+a212 1
+	namesize = strlen(where) + 16;
+d217 2
+a218 2
+	snprintf(name, namesize, "%s/joe.tmp.XXXXXX", where);
+	if((fd = mkstemp(name)) == -1)
+d243 1
+a243 1
+int rmatch(char *a, char *b)
+d294 1
+a294 1
+int isreg(char *s)
+d309 1
+a309 1
+	char d_name[16];
+d313 1
+a313 1
+char *dirpath = NULL;
+d315 1
+a315 1
+void *opendir(char *path)
+d345 1
+a345 1
+char **rexpnd(char *word)
+d348 1
+a348 1
+	char **lst = NULL;
+d355 2
+a356 2
+				if (rmatch(word, de->d_name))
+					lst = vaadd(lst, vsncpy(NULL, 0, sz(de->d_name)));
+d362 1
+a362 1
+int chpwd(char *path)
+d365 1
+a365 1
+	char buf[256];
+d390 1
+a390 1
+	return chdir(path);
+d395 1
+a395 1
+char *pwd(void)
+d397 2
+a398 2
+	static char buf[PATH_MAX];
+	char	*ret;
+d401 1
+a401 1
+	ret = getcwd(buf, PATH_MAX - 1);
+d403 1
+a403 1
+	ret = getwd(buf);
+@
+
+
+1.14
+log
+@change 0 to NULL where we're talking about pointers
+@
+text
+@d235 1
+a235 1
+	if ((fd = creat(name, 0600)) == -1)
+@
+
+
+1.13
+log
+@change "expr, expr" to "expr; expr" where appropriate
+@
+text
+@d219 1
+a219 1
+		return 0;       /* FIXME: vflsh() and vflshf() */
+d236 1
+a236 1
+		return 0;	/* FIXME: see above */
+d313 1
+a313 1
+char *dirpath = 0;
+d331 1
+a331 1
+			return 0;
+d334 1
+a334 1
+			return 0;
+d348 1
+a348 1
+	char **lst = 0;
+@
+
+
+1.12
+log
+@include <limits.h> if available to get PATH_MAX
+@
+text
+@d259 4
+a262 3
+			if (*a == '^')
+				++a, inv = 1;
+			else
+@
+
+
+1.11
+log
+@move pwd() into path.c
+@
+text
+@d23 3
+@
+
+
+1.10
+log
+@change indentation of cases in the switch() statement
+@
+text
+@d78 5
+d388 16
+@
+
+
+1.9
+log
+@change indentation of do {} while() cycles
+@
+text
+@d241 1
+a241 1
+			case '*':
+d248 1
+a248 1
+			case '[':
+d268 1
+a268 1
+			case '?':
+d274 1
+a274 1
+			case 0:
+d279 1
+a279 1
+			default:
+@
+
+
+1.8
+log
+@include only headers which are needed
+@
+text
+@d243 1
+a243 1
+			do
+d246 1
+a246 1
+			while (*b++) ;
+@
+
+
+1.7
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d27 1
+a29 2
+#include "tty.h"
+#include "path.h"
+@
+
+
+1.6
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@a0 1
+
+d2 8
+a9 2
+	Directory and path functions
+	Copyright (C) 1992 Joseph H. Allen
+a10 4
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#include "config.h"
+@
+
+
+1.5
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 1
+d9 1
+d12 3
+d19 6
+a25 1
+#include "config.h"
+d31 3
+a33 8
+#ifdef DIRENT
+#	include <dirent.h>
+#else
+#ifdef SYSDIRENT
+#	include <sys/dirent.h>
+#else
+#ifdef SYSDIR
+#	include <sys/dir.h>
+d35 30
+a64 2
+#ifdef BSDSYSDIR
+#	include <bsd/sys/dir.h>
+d66 1
+a66 5
+#ifndef __MSDOS__
+#	include "dir.c"
+#endif
+#endif
+#endif
+d68 8
+a76 5
+/********************************************************************/
+char *
+ossep (char *path)
+{
+	int x;
+a77 10
+	for (x = 0; path[x]; ++x)
+#ifdef __MSDOS__
+		if (path[x] == '/')
+			path[x] = '\\';
+#else
+		if (path[x] == '\\')
+			path[x] = '/';
+#endif
+	return path;
+}
+d79 1
+a79 2
+char *
+joesep (char *path)
+d89 1
+a89 2
+char *
+namprt (char *path)
+d93 2
+a94 5
+#ifdef __MSDOS__
+	if (path[0] && path[1] == ':')
+		path += 2;
+#endif
+	z = path + slen (path);
+d97 1
+a97 1
+	return vsncpy (NULL, 0, sz (z));
+d100 1
+a100 2
+char *
+namepart (char *tmp, char *path)
+d104 2
+a105 5
+#ifdef __MSDOS__
+	if (path[0] && path[1] == ':')
+		path += 2;
+#endif
+	z = path + strlen (path);
+d108 1
+a108 1
+	return strcpy (tmp, z);
+d111 1
+a111 2
+char *
+dirprt (char *path)
+d114 1
+a114 1
+	char *z = path + slen (path);
+d116 1
+a116 4
+#ifdef __MSDOS__
+	if (b[0] && b[1] == ':')
+		b += 2;
+#endif
+d119 1
+a119 1
+	return vsncpy (NULL, 0, path, z - path);
+d122 1
+a122 2
+char *
+begprt (char *path)
+d124 1
+a124 1
+	char *z = path + slen (path);
+d127 1
+a127 4
+#ifdef __MSDOS__
+	if (path[0] && path[1] == ':')
+		drv = 2;
+#endif
+d131 6
+a136 7
+		return vsncpy (NULL, 0, sz (path));
+	else
+	  {
+		  while ((z != path + drv) && (z[-1] != '/'))
+			  --z;
+		  return vsncpy (NULL, 0, path, z - path);
+	  }
+d139 1
+a139 2
+char *
+endprt (char *path)
+d141 1
+a141 1
+	char *z = path + slen (path);
+d144 1
+a144 4
+#ifdef __MSDOS__
+	if (path[0] && path[1] == ':')
+		drv = 2;
+#endif
+d148 6
+a153 7
+		return vsncpy (NULL, 0, sc (""));
+	else
+	  {
+		  while (z != path + drv && z[-1] != '/')
+			  --z;
+		  return vsncpy (NULL, 0, sz (z));
+	  }
+d156 1
+a156 2
+int
+mkpath (char *path)
+d160 25
+a184 27
+	if (path[0] == '/')
+	  {
+		  if (chddir ("/"))
+			  return 1;
+		  s = path;
+		  goto in;
+	  }
+
+	while (path[0])
+	  {
+		  int c;
+		  for (s = path; (*s) && (*s != '/'); s++);
+		  c = *s;
+		  *s = 0;
+		  if (chddir (path))
+		    {
+			    if (mkdir (path, 0777))
+				    return 1;
+			    if (chddir (path))
+				    return 1;
+		    }
+		  *s = c;
+		in:
+		  while (*s == '/')
+			  ++s;
+		  path = s;
+	  }
+d190 1
+a190 2
+char *
+mktmp (char *where)
+d192 3
+a194 1
+	static int seq = 0;
+d197 1
+a197 1
+	int namesize;
+d200 1
+a200 2
+		where = getenv ("TEMP");
+#ifdef __MSDOS__
+d202 17
+a218 1
+		where = "";
+a219 7
+	if (!where)
+		where = "/tmp";
+#endif
+	namesize = strlen (where) + 16;
+	name = vsmk(namesize); /* [G.Ghibo'] we need to use vsmk() and not malloc() as
+                         area returned by mktmp() is destroyed later with
+                         vsrm(); */
+d221 8
+a228 9
+	snprintf(name,namesize,"%s/J%03d03%d.tmp",where,seq= ++seq%1000,(unsigned)time(NULL)%1000);
+	ossep (name);
+	if ((fd = open (name, O_RDONLY)) != -1)
+	  {
+		  close (fd);
+		  goto loop;
+	  }
+	if ((fd = creat (name, 0666)) == -1)
+		return 0;
+d230 2
+a231 1
+		close (fd);
+d235 1
+a235 2
+int
+rmatch (char *a, char *b)
+d240 43
+a282 46
+		switch (*a)
+		  {
+		  case '*':
+			  ++a;
+			  do
+				  if (rmatch (a, b))
+					  return 1;
+			  while (*b++);
+			  return 0;
+		  case '[':
+			  ++a;
+			  flag = 0;
+			  if (*a == '^')
+				  ++a, inv = 1;
+			  else
+				  inv = 0;
+			  if (*a == ']')
+				  if (*b == *a++)
+					  flag = 1;
+			  while (*a && (c = *a++) != ']')
+				  if ((c == '-') && (a[-2] != '[') && (*a))
+				    {
+					    if ((*b >= a[-2]) && (*b <= *a))
+						    flag = 1;
+				    }
+				  else if (*b == c)
+					  flag = 1;
+			  if ((!flag && !inv) || (flag && inv) || (!*b))
+				  return 0;
+			  ++b;
+			  break;
+		  case '?':
+			  ++a;
+			  if (!*b)
+				  return 0;
+			  ++b;
+			  break;
+		  case 0:
+			  if (!*b)
+				  return 1;
+			  else
+				  return 0;
+		  default:
+			  if (*a++ != *b++)
+				  return 0;
+		  }
+d285 1
+a285 2
+int
+isreg (char *s)
+d299 1
+a299 2
+struct direct
+{
+d301 1
+a301 2
+}
+direc;
+d306 1
+a306 2
+void *
+opendir (char *path)
+d312 1
+a312 2
+void
+closedir ()
+d316 1
+a316 2
+struct direct *
+readdir ()
+d320 8
+a327 11
+	if (dirstate)
+	  {
+		  if (findnext (&ffblk))
+			  return 0;
+	  }
+	else
+	  {
+		  if (findfirst ("*.*", &ffblk, FA_DIREC))
+			  return 0;
+		  dirstate = 1;
+	  }
+d329 1
+a329 1
+	strcpy (direc.d_name, ffblk.ff_name);
+d331 1
+a331 1
+		direc.d_name[x] = tolower (direc.d_name[x]);
+d336 1
+a336 2
+char **
+rexpnd (char *word)
+d340 1
+a340 1
+#ifdef DIRENT
+d342 8
+a349 20
+#else
+#ifdef SYSDIRENT
+	struct dirent *de;
+#else
+	struct direct *de;
+#endif
+#endif
+	dir = opendir (".");
+	if (dir)
+	  {
+		  while (de = readdir (dir))
+			  if (strcmp (".", de->d_name))
+				  if (rmatch (word, de->d_name))
+					  lst =
+						  vaadd (lst,
+							 vsncpy (NULL, 0,
+								 sz (de->
+								     d_name)));
+		  closedir (dir);
+	  }
+d353 1
+a353 2
+int
+chpwd (char *path)
+d358 1
+d361 5
+a365 6
+	if ((path[0]) && (path[1] == ':'))
+	  {
+		  if (_chdrive (path[0] & 0x1F))
+			  return -1;
+		  path += 2;
+	  }
+d368 10
+a377 11
+	strcpy (buf, path);
+	x = strlen (buf);
+	while (x > 1)
+	  {
+		  --x;
+		  if ((buf[x] == '/') || (buf[x] == '\\'))
+			  buf[x] = 0;
+		  else
+			  break;
+	  }
+	return chdir (buf);
+d381 1
+a381 1
+	return chdir (path);
+@
+
+
+1.4
+log
+@changed as of joe-2.9.5
+@
+text
+@d13 1
+d41 3
+a43 1
+char *ossep (char *path) {
+d46 1
+a46 1
+	for (x=0; path[x]; ++x)
+d48 2
+a49 1
+		if (path[x]=='/') path[x]='\\';
+d51 2
+a52 1
+		if (path[x]=='\\') path[x]='/';
+d57 3
+a59 1
+char *joesep (char *path) {
+d62 4
+a65 3
+	for (x=0; path[x]; ++x)
+		if (path[x]=='\\') path[x]='/';
+ 	return path;
+d68 3
+a70 1
+char *namprt (char *path) {
+d74 2
+a75 1
+	if(path[0] && path[1]==':') path += 2;
+d77 4
+a80 3
+	z = path+slen(path);
+	while ((z!=path) && (z[-1]!='/')) --z;
+	return vsncpy(NULL,0,sz(z));
+d83 3
+a85 1
+char *namepart (char *tmp, char *path) {
+d89 2
+a90 1
+	if(path[0] && path[1]==':') path += 2;
+d92 4
+a95 3
+	z = path+strlen(path);
+ 	while ((z!=path) && (z[-1]!='/')) --z;
+ 	return strcpy(tmp,z);
+d98 3
+a100 1
+char *dirprt (char *path) {
+d102 1
+a102 1
+	char *z = path+slen(path);
+d105 2
+a106 1
+	if(b[0] && b[1]==':') b += 2;
+d108 3
+a110 2
+	while ((z!=b) && (z[-1]!='/')) --z;
+	return vsncpy(NULL,0,path,z-path);
+d113 4
+a116 2
+char *begprt (char *path) {
+	char *z = path+slen(path);
+d120 2
+a121 1
+	if(path[0] && path[1]==':') drv=2;
+d123 16
+a138 11
+	while ((z!=path+drv) && (z[-1]=='/')) --z;
+ 	if (z==path+drv)
+ 		return vsncpy(NULL,0,sz(path));
+ 	else {
+ 		while ((z!=path+drv) && (z[-1]!='/')) --z;
+ 		return vsncpy(NULL,0,path,z-path);
+ 	}
+}
+/********************************************************************/
+char *endprt (char *path) {
+	char *z = path+slen(path);
+d142 2
+a143 1
+	if (path[0] && path[1]==':') drv=2;
+d145 15
+a159 10
+	while ((z!=path+drv) && (z[-1]=='/')) --z;
+	if (z==path+drv) 
+		return vsncpy(NULL,0,sc(""));
+	else {
+		while(z!=path+drv && z[-1]!='/') --z;
+		return vsncpy(NULL,0,sz(z));
+	}
+}
+/********************************************************************/
+int mkpath (char *path) {
+d162 28
+a189 21
+	if (path[0]=='/') {
+  		if (chddir("/")) return 1;
+  		s = path;
+  		goto in;
+	}
+
+	while (path[0]) {
+		int c;
+		for (s=path; (*s) && (*s!='/'); s++);
+  		c = *s;
+  		*s = 0;
+  		if (chddir(path)) {
+  			if (mkdir(path,0777)) return 1;
+			if (chddir(path)) return 1;
+		}
+  		*s = c;
+in:
+		while (*s=='/') ++s;
+		path = s;
+	}
+ 	return 0;
+d194 3
+a196 1
+char *mktmp (char *where) {
+d200 1
+d202 2
+a203 1
+ 	if (!where) where = getenv("TEMP");
+d205 2
+a206 1
+	if (!where) where = "";
+d208 2
+a209 1
+ 	if (!where) where = "/tmp";
+d211 22
+a232 16
+	name=(char *)malloc(strlen(where)+16);
+loop:
+	sprintf (name,"%s/J%d%d.tmp",where,seq= ++seq%1000,(unsigned)time(NULL)%1000);
+ 	ossep (name);
+	if ((fd=open(name,O_RDONLY))!= -1) {
+		close(fd);
+		goto loop;
+	}
+ 	if ((fd=creat(name,0666))== -1)	
+ 		return 0;
+ 	else
+ 		close(fd);
+ 	return name;
+}
+/********************************************************************/
+int rmatch (char *a, char *b) {
+d235 52
+a286 31
+	for(;;) switch(*a) {
+		case '*': 
+			++a;
+	      		do if (rmatch(a,b)) return 1; while(*b++);
+			return 0;
+		case '[': 
+			++a;
+			flag = 0;
+			if (*a=='^') ++a, inv=1; else inv=0;
+			if (*a==']') if (*b==*a++) flag=1;
+			while (*a && (c= *a++)!=']')
+				if ((c=='-') && (a[-2]!='[') && (*a)) {
+					if ((*b>=a[-2]) && (*b<=*a)) flag=1;
+				} else 
+					if (*b==c) flag=1;
+			if ((!flag && !inv) || (flag && inv) || (!*b)) return 0;
+			++b;
+			break;
+		case '?':
+			++a;
+            		if (!*b) return 0;
+            		++b;
+			break;
+		case 0:
+			if (!*b) return 1; else return 0;
+		default:
+			if (*a++!=*b++) return 0;
+	}
+}
+/********************************************************************/
+int isreg(char *s) {
+d289 4
+a292 3
+	for (x=0; s[x]; ++x)
+		if ((s[x]=='*') || (s[x]=='?') || (s[x]=='[')) return 1;
+ 	return 0;
+d296 2
+a297 2
+	#include <dos.h>
+	#include <dir.h>
+d299 43
+a341 30
+	struct direct {
+		char d_name[16];
+	} direc;
+	int dirstate = 0;
+	struct ffblk ffblk;
+	char *dirpath = 0;
+
+	void *opendir (char *path) {
+		dirstate = 0;
+		return &direc;
+	}
+
+	void closedir () {
+	}
+
+	struct direct *readdir() {
+		int x;
+
+		if (dirstate) {
+			if (findnext(&ffblk)) return 0;
+		} else {
+			if (findfirst("*.*",&ffblk,FA_DIREC)) return 0;
+			dirstate = 1;
+		}
+	
+		strcpy (direc.d_name,ffblk.ff_name);
+		for (x=0; direc.d_name[x]; ++x)
+			direc.d_name[x] = tolower(direc.d_name[x]);
+		return &direc;
+	}
+d344 3
+a346 1
+char **rexpnd (char *word) {
+d358 13
+a370 8
+	dir = opendir(".");
+	if (dir) {
+		while (de=readdir(dir))
+			if (strcmp(".",de->d_name))
+				if (rmatch(word,de->d_name))
+					lst = vaadd (lst,vsncpy(NULL,0,sz(de->d_name)));
+		closedir(dir);
+  	}
+d374 3
+a376 1
+int chpwd (char *path) {
+d380 21
+a400 16
+	if (!path) return 0;
+	if ((path[0]) && (path[1]==':')) {
+		if (_chdrive(path[0]&0x1F)) return -1;
+		path += 2;
+	}
+	if (!path[0]) return 0;
+	strcpy(buf,path);
+	x = strlen(buf);
+	while(x>1) {
+		--x;
+		if ((buf[x]=='/') || (buf[x]=='\\')) 
+			buf[x]=0;
+		else 
+			break;
+	}
+	return chdir(buf);
+d402 3
+a404 2
+	if ((!path) || (!path[0])) return 0;
+	return chdir(path);
+@
+
+
+1.3
+log
+@changed as of joe-2.9.2
+@
+text
+@a14 1
+#include "zstr.h"
+@
+
+
+1.2
+log
+@changes for joe-2.9.1
+@
+text
+@d12 1
+d78 1
+a78 1
+	z = path+zlen(path);
+d80 1
+a80 1
+ 	return zcpy(tmp,z);
+d165 1
+a165 1
+	name=(char *)malloc(zlen(where)+16);
+d250 1
+a250 1
+		zcpy (direc.d_name,ffblk.ff_name);
+d272 1
+a272 1
+			if (zcmp(".",de->d_name))
+d290 2
+a291 2
+	zcpy(buf,path);
+	x = zlen(buf);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Directory and path functions
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d11 2
+d21 1
+a21 1
+#include <dirent.h>
+d24 1
+a24 1
+#include <sys/dirent.h>
+d27 1
+a27 1
+#include <sys/dir.h>
+d30 1
+a30 1
+#include <bsd/sys/dir.h>
+d33 1
+a33 1
+#include "dir.c"
+d39 3
+d43 1
+a43 56
+#ifdef junk
+char *abspth(path)
+char *path;
+ {
+ char *s=0;
+ int x=0;
+ int y;
+ if(path[0]=='/')
+  {
+  s=vsadd(s,'/');
+  while(path[x]=='/') ++x;
+  y=1;
+  }
+ else
+  {
+  if(!(s=pwd())) return 0;
+  s=vsncpy(NULL,0,sz(s));
+  if(s[1]) s=vsadd(s,'/');
+  y=sLEN(s);
+  }
+ while(path[x])
+  {
+  if(path[x]=='.' && (path[x+1]==0 || path[x+1]=='/'))
+   {
+   x+=1;
+   while(path[x]=='/') ++x;
+   continue;
+   }
+  if(path[x]=='.' && path[x+1]=='.' && (path[x+2]==0 || path[x+2]=='/'))
+   {
+   x+=2;
+   while(path[x]=='/') ++x;
+   if(y!=1)
+    {
+    --y;
+    while(s[y-1]!='/') --y;
+    }
+   continue;
+   }
+  do
+   s=vsset(s,y,path[x]), ++y, ++x;
+   while(path[x] && path[x]!='/');
+  s=vsset(s,y,'/'), ++y;
+  while(path[x]=='/') x++;
+  }
+ if(y!=1 && s[y-1]=='/') --y;
+ s=vstrunc(s,y);
+ return s;
+ }
+#endif
+
+char *ossep(path)
+char *path;
+ {
+ int x;
+ for(x=0;path[x];++x)
+d45 1
+a45 1
+  if(path[x]=='/') path[x]='\\';
+d47 1
+a47 1
+  if(path[x]=='\\') path[x]='/';
+d49 13
+a61 2
+ return path;
+ }
+a62 12
+char *joesep(path)
+char *path;
+ {
+ int x;
+ for(x=0;path[x];++x) if(path[x]=='\\') path[x]='/';
+ return path;
+ }
+
+char *namprt(path)
+char *path;
+ {
+ char *z;
+d64 1
+a64 1
+ if(path[0] && path[1]==':') path+=2;
+d66 8
+a73 10
+ z=path+slen(path);
+ while(z!=path && z[-1]!='/') --z;
+ return vsncpy(NULL,0,sz(z));
+ }
+
+char *namepart(tmp,path)
+char *tmp;
+char *path;
+ {
+ char *z;
+d75 1
+a75 1
+ if(path[0] && path[1]==':') path+=2;
+d77 9
+a85 10
+ z=path+zlen(path);
+ while(z!=path && z[-1]!='/') --z;
+ return zcpy(tmp,z);
+ }
+
+char *dirprt(path)
+char *path;
+ {
+ char *b=path;
+ char *z=path+slen(path);
+d87 1
+a87 1
+ if(b[0] && b[1]==':') b+=2;
+d89 8
+a96 9
+ while(z!=b && z[-1]!='/') --z;
+ return vsncpy(NULL,0,path,z-path);
+ }
+
+char *begprt(path)
+char *path;
+ {
+ char *z=path+slen(path);
+ int drv=0;
+d98 1
+a98 1
+ if(path[0] && path[1]==':') drv=2;
+d100 13
+a112 14
+ while(z!=path+drv && z[-1]=='/') --z;
+ if(z==path+drv) return vsncpy(NULL,0,sz(path));
+ else
+  {
+  while(z!=path+drv && z[-1]!='/') --z;
+  return vsncpy(NULL,0,path,z-path);
+  }
+ }
+
+char *endprt(path)
+char *path;
+ {
+ char *z=path+slen(path);
+ int drv=0;
+d114 1
+a114 1
+ if(path[0] && path[1]==':') drv=2;
+d116 35
+a150 37
+ while(z!=path+drv && z[-1]=='/') --z;
+ if(z==path+drv) return vsncpy(NULL,0,sc(""));
+ else
+  {
+  while(z!=path+drv && z[-1]!='/') --z;
+  return vsncpy(NULL,0,sz(z));
+  }
+ }
+
+int mkpath(path)
+char *path;
+ {
+ char *s;
+ if(path[0]=='/')
+  {
+  if(chddir("/")) return 1;
+  s=path;
+  goto in;
+  }
+ while(path[0])
+  {
+  int c;
+  for(s=path;*s && *s!='/';s++);
+  c= *s; *s=0;
+  if(chddir(path))
+   {
+   if(mkdir(path,0777)) return 1;
+   if(chddir(path)) return 1;
+   }
+  *s=c;
+  in:
+  while(*s=='/') ++s;
+  path=s;
+  }
+ return 0;
+ }
+
+d152 5
+d158 1
+a158 7
+char *mktmp(where)
+char *where;
+ {
+ static int seq=0;
+ char *name;
+ int fd;
+ if(!where) where=getenv("TEMP");
+d160 1
+a160 1
+ if(!where) where="";
+d162 1
+a162 1
+ if(!where) where="/tmp";
+d164 56
+a219 57
+ name=(char *)malloc(zlen(where)+16);
+ loop:
+ sprintf(name,"%s/J%d%d.tmp",where,seq= ++seq%1000,(unsigned)time(NULL)%1000);
+ ossep(name);
+ if((fd=open(name,O_RDONLY))!= -1)
+  {
+  close(fd);
+  goto loop;
+  }
+ if((fd=creat(name,0666))== -1) return 0;
+ else close(fd);
+ return name;
+ }
+
+int rmatch(a,b)
+char *a, *b;
+ {
+ int flag, inv, c;
+ for(;;)
+  switch(*a)
+   {
+  case '*': ++a;
+            do if(rmatch(a,b)) return 1; while(*b++);
+            return 0;
+
+  case '[': ++a;
+            flag=0;
+            if(*a=='^') ++a, inv=1; else inv=0;
+            if(*a==']') if(*b==*a++) flag=1;
+            while(*a && (c= *a++)!=']')
+             if(c=='-' && a[-2]!='[' && *a)
+              { if(*b>=a[-2] && *b<=*a) flag=1; }
+             else if(*b==c) flag=1;
+            if((!flag && !inv) || (flag && inv) || !*b) return 0;
+            ++b;
+            break;
+
+  case '?': ++a;
+            if(!*b) return 0;
+            ++b;
+            break;
+
+  case 0:   if(!*b) return 1;
+            else return 0;
+
+  default:  if(*a++!=*b++) return 0;
+   }
+ }
+
+int isreg(s)
+char *s;
+ {
+ int x;
+ for(x=0;s[x];++x) if(s[x]=='*' || s[x]=='?' || s[x]=='[') return 1;
+ return 0;
+ }
+
+d221 2
+d224 35
+a258 47
+#include <dos.h>
+#include <dir.h>
+
+struct direct
+ {
+ char d_name[16];
+ } direc;
+int dirstate=0;
+struct ffblk ffblk;
+char *dirpath=0;
+
+void *opendir(path)
+char *path;
+ {
+ dirstate=0;
+ return &direc;
+ }
+
+void closedir()
+ {
+ }
+
+struct direct *readdir()
+ {
+ int x;
+ if(dirstate)
+  {
+  if(findnext(&ffblk)) return 0;
+  }
+ else
+  {
+  if(findfirst("*.*",&ffblk,FA_DIREC))
+   return 0;
+  dirstate=1;
+  }
+ zcpy(direc.d_name,ffblk.ff_name);
+ for(x=0;direc.d_name[x];++x) direc.d_name[x]=todn(direc.d_name[x]);
+ return &direc;
+ }
+
+#endif
+
+char **rexpnd(word)
+char *word;
+ {
+ void *dir;
+ char **lst=0;
+d260 1
+a260 1
+ struct dirent *de;
+d263 1
+a263 1
+ struct dirent *de;
+d265 1
+a265 1
+ struct direct *de;
+d268 12
+a279 15
+ dir=opendir(".");
+ if(dir)
+  {
+  while(de=readdir(dir))
+   if(zcmp(".",de->d_name))
+    if(rmatch(word,de->d_name))
+     lst=vaadd(lst,vsncpy(NULL,0,sz(de->d_name)));
+  closedir(dir);
+  }
+ return lst;
+ }
+
+int chpwd(path)
+char *path;
+ {
+d281 18
+a298 18
+ char buf[256];
+ int x;
+ if(!path) return 0;
+ if(path[0] && path[1]==':')
+  {
+  if(_chdrive(path[0]&0x1F)) return -1;
+  path+=2;
+  }
+ if(!path[0]) return 0;
+ zcpy(buf,path);
+ x=zlen(buf);
+ while(x>1)
+  {
+  --x;
+  if(buf[x]=='/' || buf[x]=='\\') buf[x]=0;
+  else break;
+  }
+ return chdir(buf);
+d300 2
+a301 2
+ if(!path || !path[0]) return 0;
+ return chdir(path);
+d303 1
+a303 1
+ }
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

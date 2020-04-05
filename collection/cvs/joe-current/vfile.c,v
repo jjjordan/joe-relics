@@ -1,0 +1,3021 @@
+head	1.23;
+access;
+symbols
+	joe_3_5:1.21
+	joe-3_4:1.20
+	help:1.20
+	joe_3_1:1.18
+	joe_3_0:1.18
+	joe_2_9_8:1.17
+	joe_2_9_8_pre1:1.12
+	joe_2_9_7:1.6
+	joe_2_9_7_pre3:1.6
+	joe_2_9_7_pre2:1.5
+	joe_2_9_6:1.4
+	joe_2_9_5:1.3
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.2
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.23
+date	2008.10.29.16.58.33;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2006.06.07.01.56.34;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2006.05.22.04.15.41;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2003.03.04.17.39.33;	author vsamel;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2003.01.02.10.46.08;	author vsamel;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2002.06.10.12.15.16;	author vsamel;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2002.06.10.12.09.40;	author vsamel;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2001.12.10.14.01.27;	author vsamel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2001.12.04.13.20.52;	author vsamel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2001.12.04.13.14.16;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.12.15.35.52;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.48.08;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.25;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.25;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.23
+log
+@Improve fault handling
+@
+text
+@/*
+ *	Software virtual memory system
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+static VFILE vfiles = { {&vfiles, &vfiles} };	/* Known vfiles */
+static VPAGE *freepages = NULL;	/* Linked list of free pages */
+static VPAGE *htab[HTSIZE];	/* Hash table of page headers */
+static long curvalloc = 0;	/* Amount of memory in use */
+static long maxvalloc = ILIMIT;	/* Maximum allowed */
+unsigned char *vbase;			/* Data first entry in vheader refers to */
+VPAGE **vheaders = NULL;	/* Array of header addresses */
+static int vheadsz = 0;		/* No. entries allocated to vheaders */
+
+void vflsh(void)
+{
+	VPAGE *vp;
+	VPAGE *vlowest;
+	off_t addr;
+	off_t last;
+	VFILE *vfile;
+	int x;
+
+	for (vfile = vfiles.link.next; vfile != &vfiles; vfile = vfile->link.next) {
+		last = -1;
+	      loop:
+		addr = MAXOFF;
+		vlowest = NULL;
+		for (x = 0; x != HTSIZE; x++)
+			for (vp = htab[x]; vp; vp = vp->next)
+				if (vp->addr < addr && vp->addr > last && vp->vfile == vfile && (vp->addr >= vfile->size || (vp->dirty && !vp->count))) {
+					addr = vp->addr;
+					vlowest = vp;
+				}
+		if (vlowest) {
+			if (!vfile->name)
+				vfile->name = mktmp(NULL);
+			if (!vfile->fd)
+				vfile->fd = open((char *)(vfile->name), O_RDWR);
+			if (vfile->fd < 0)
+				ttsig(-2);
+			lseek(vfile->fd, addr, 0);
+			if (addr + PGSIZE > vsize(vfile)) {
+				if (joe_write(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr)) < 0)
+					ttsig(-2);
+				vfile->size = vsize(vfile);
+			} else {
+				if (joe_write(vfile->fd, vlowest->data, PGSIZE) < 0)
+					ttsig(-2);
+				if (addr + PGSIZE > vfile->size)
+					vfile->size = addr + PGSIZE;
+			}
+			vlowest->dirty = 0;
+			last = addr;
+			goto loop;
+		}
+	}
+}
+
+void vflshf(VFILE *vfile)
+{
+	VPAGE *vp;
+	VPAGE *vlowest;
+	off_t addr;
+	int x;
+
+      loop:
+	addr = MAXOFF;
+	vlowest = NULL;
+	for (x = 0; x != HTSIZE; x++)
+		for (vp = htab[x]; vp; vp = vp->next)
+			if (vp->addr < addr && vp->dirty && vp->vfile == vfile && !vp->count) {
+				addr = vp->addr;
+				vlowest = vp;
+			}
+	if (vlowest) {
+		if (!vfile->name)
+			vfile->name = mktmp(NULL);
+		if (!vfile->fd) {
+			vfile->fd = open((char *)(vfile->name), O_RDWR);
+		}
+		if (vfile->fd < 0)
+			ttsig(-2);
+		lseek(vfile->fd, addr, 0);
+		if (addr + PGSIZE > vsize(vfile)) {
+			if (joe_write(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr)) < 0)
+				ttsig(-2);
+			vfile->size = vsize(vfile);
+		} else {
+			if (joe_write(vfile->fd, vlowest->data, PGSIZE) < 0)
+				ttsig(-2);
+			if (addr + PGSIZE > vfile->size)
+				vfile->size = addr + PGSIZE;
+		}
+		vlowest->dirty = 0;
+		goto loop;
+	}
+}
+
+static unsigned char *mema(int align, int size)
+{
+	unsigned char *z = (unsigned char *) joe_malloc(align + size);
+
+	return z + align - physical(z) % align;
+}
+
+unsigned char *vlock(VFILE *vfile, off_t addr)
+{
+	VPAGE *vp, *pp;
+	int x, y;
+	off_t ofst = (addr & (PGSIZE - 1));
+
+	addr -= ofst;
+
+	for (vp = htab[((addr >> LPGSIZE) + (unsigned long) vfile) & (HTSIZE - 1)]; vp; vp = vp->next)
+		if (vp->vfile == vfile && vp->addr == addr) {
+			++vp->count;
+			return vp->data + ofst;
+		}
+
+	if (freepages) {
+		vp = freepages;
+		freepages = vp->next;
+		goto gotit;
+	}
+
+	if (curvalloc + PGSIZE <= maxvalloc) {
+		vp = (VPAGE *) joe_malloc(sizeof(VPAGE) * INC);
+		if (vp) {
+			vp->data = (unsigned char *) mema(PGSIZE, PGSIZE * INC);
+			if (vp->data) {
+				int q;
+
+				curvalloc += PGSIZE * INC;
+				if (!vheaders) {
+					vheaders = (VPAGE **) joe_malloc((vheadsz = INC) * sizeof(VPAGE *));
+					vbase = vp->data;
+				} else if (physical(vp->data) < physical(vbase)) {
+					VPAGE **t = vheaders;
+					int amnt = (physical(vbase) - physical(vp->data)) >> LPGSIZE;
+
+					vheaders = (VPAGE **) joe_malloc((amnt + vheadsz) * sizeof(VPAGE *));
+					mmove(vheaders + amnt, t, vheadsz * sizeof(VPAGE *));
+					vheadsz += amnt;
+					vbase = vp->data;
+					joe_free(t);
+				} else if (((physical(vp->data + PGSIZE * INC) - physical(vbase)) >> LPGSIZE) > vheadsz) {
+					vheaders = (VPAGE **)
+					    joe_realloc(vheaders, (vheadsz = (((physical(vp->data + PGSIZE * INC) - physical(vbase)) >> LPGSIZE))) * sizeof(VPAGE *));
+				}
+				for (q = 1; q != INC; ++q) {
+					vp[q].next = freepages;
+					freepages = vp + q;
+					vp[q].data = vp->data + q * PGSIZE;
+					vheader(vp->data + q * PGSIZE) = vp + q;
+				}
+				vheader(vp->data) = vp;
+				goto gotit;
+			}
+			joe_free(vp);
+			vp = NULL;
+		}
+	}
+
+	for (y = HTSIZE, x = (random() & (HTSIZE - 1)); y; x = ((x + 1) & (HTSIZE - 1)), --y)
+		for (pp = (VPAGE *) (htab + x), vp = pp->next; vp; pp = vp, vp = vp->next)
+			if (!vp->count && !vp->dirty) {
+				pp->next = vp->next;
+				goto gotit;
+			}
+	vflsh();
+	for (y = HTSIZE, x = (random() & (HTSIZE - 1)); y; x = ((x + 1) & (HTSIZE - 1)), --y)
+		for (pp = (VPAGE *) (htab + x), vp = pp->next; vp; pp = vp, vp = vp->next)
+			if (!vp->count && !vp->dirty) {
+				pp->next = vp->next;
+				goto gotit;
+			}
+	write(2, (char *)sz(joe_gettext(_("vfile: out of memory\n"))));
+	exit(1);
+
+      gotit:
+	vp->addr = addr;
+	vp->vfile = vfile;
+	vp->dirty = 0;
+	vp->count = 1;
+	vp->next = htab[((addr >> LPGSIZE) + (unsigned long)vfile) & (HTSIZE - 1)];
+	htab[((addr >> LPGSIZE) + (unsigned long)vfile) & (HTSIZE - 1)] = vp;
+
+	if (addr < vfile->size) {
+		if (!vfile->fd) {
+			vfile->fd = open((char *)(vfile->name), O_RDWR);
+		}
+		if (vfile->fd < 0)
+			ttsig(-2);
+		lseek(vfile->fd, addr, 0);
+		if (addr + PGSIZE > vfile->size) {
+			if (joe_read(vfile->fd, vp->data, (int) (vfile->size - addr)) < 0)
+				ttsig(-2);
+			mset(vp->data + vfile->size - addr, 0, PGSIZE - (int) (vfile->size - addr));
+		} else
+			if (joe_read(vfile->fd, vp->data, PGSIZE) < 0)
+				ttsig(-2);
+	} else
+		mset(vp->data, 0, PGSIZE);
+
+	return vp->data + ofst;
+}
+
+VFILE *vtmp(void)
+{
+	VFILE *new = (VFILE *) joe_malloc(sizeof(VFILE));
+
+	new->fd = 0;
+	new->name = NULL;
+	new->alloc = 0;
+	new->size = 0;
+	new->left = 0;
+	new->lv = 0;
+	new->vpage = NULL;
+	new->flags = 1;
+	new->vpage1 = NULL;
+	new->addr = -1;
+	return enqueb_f(VFILE, link, &vfiles, new);
+}
+
+#ifdef junk
+
+VFILE *vopen(name)
+unsigned char *name;
+{
+	struct stat buf;
+	VFILE *new = (VFILE *) joe_malloc(sizeof(VFILE));
+
+	new->name = vsdupz(name);
+	obj_perm(new->name);
+	new->fd = open(name, O_RDWR);
+	if (!new->fd) {
+		fprintf(stderr, (char *)joe_gettext(_("Couldn\'t open file \'%s\'\n")), name);
+		joe_free(new);
+		return NULL;
+	}
+	fstat(new->fd, &buf);
+	new->size = buf.st_size;
+	new->alloc = new->size;
+	new->left = 0;
+	new->lv = 0;
+	new->vpage = NULL;
+	new->flags = 0;
+	new->vpage1 = NULL;
+	new->addr = -1;
+	return enqueb_f(VFILE, link, &vfiles, new);
+}
+
+#endif
+
+void vclose(VFILE *vfile)
+{
+	VPAGE *vp, *pp;
+	int x;
+
+	if (vfile->vpage)
+		vunlock(vfile->vpage);
+	if (vfile->vpage1)
+		vunlock(vfile->vpage1);
+	if (vfile->name) {
+		if (vfile->flags)
+			unlink((char *)vfile->name);
+		else
+			vflshf(vfile);
+		obj_free(vfile->name);
+	}
+	if (vfile->fd)
+		close(vfile->fd);
+	joe_free(deque_f(VFILE, link, vfile));
+	for (x = 0; x != HTSIZE; x++)
+		for (pp = (VPAGE *) (htab + x), vp = pp->next; vp;)
+			if (vp->vfile == vfile) {
+				pp->next = vp->next;
+				vp->next = freepages;
+				freepages = vp;
+				vp = pp->next;
+			} else {
+				pp = vp;
+				vp = vp->next;
+			}
+}
+
+#ifdef junk
+/* this is now broken */
+void vlimit(amount)
+long amount;
+{
+	VPAGE *vp, *pp;
+	int x, y;
+
+	maxvalloc = amount;
+	while (curvalloc > maxvalloc)
+		if (freepages) {
+			vp = freepages;
+			freepages = vp->next;
+			joe_free(vp->data);
+			joe_free(vp);
+			curvalloc -= PGSIZE;
+		} else {
+		      again:
+			for (y = HTSIZE, x = (random() & (HTSIZE - 1)); y; x = ((x + 1) & (HTSIZE - 1)), --y)
+				for (pp = (VPAGE *) (htab + x), vp = pp->next; vp; pp = vp, vp = vp->next)
+					if (!vp->count && !vp->dirty) {
+						pp->next = vp->next;
+						joe_free(vp->data);
+						joe_free(vp);
+						if ((curvalloc -= PGSIZE)
+						    <= maxvalloc)
+							return;
+						goto again;
+					}
+			vflsh();
+		      again1:
+			for (y = HTSIZE, x = (random() & (HTSIZE - 1)); y; x = ((x + 1) & (HTSIZE - 1)), --y)
+				for (pp = (VPAGE *) (htab + x), vp = pp->next; vp; pp = vp, vp = vp->next)
+					if (!vp->count && !vp->dirty) {
+						pp->next = vp->next;
+						joe_free(vp->data);
+						joe_free(vp);
+						if ((curvalloc -= PGSIZE)
+						    <= maxvalloc)
+							return;
+						goto again1;
+					}
+			return;
+		}
+}
+#endif
+
+off_t my_valloc(VFILE *vfile, off_t size)
+{
+	off_t start = vsize(vfile);
+
+	vfile->alloc = start + size;
+	if (vfile->lv) {
+		if (vheader(vfile->vpage)->addr + PGSIZE > vfile->alloc)
+			vfile->lv = PGSIZE - (vfile->alloc - vheader(vfile->vpage)->addr);
+		else
+			vfile->lv = 0;
+	}
+	return start;
+}
+
+#ifdef junk
+
+void vseek(vfile, addr)
+VFILE *vfile;
+long addr;
+{
+	vfile->alloc = vsize(vfile);
+	if (addr > vfile->alloc)
+		vfile->alloc = addr;
+	if (!vfile->vpage)
+		vfile->vpage = vlock(vfile, addr & ~(long) (PGSIZE - 1));
+	else if (vheader(vfile->vpage)->addr != (addr & ~(long) (PGSIZE - 1))) {
+		vunlock(vfile->vpage);
+		vfile->vpage = vlock(vfile, addr & ~(long) (PGSIZE - 1));
+	}
+	vfile->bufp = vfile->vpage + (addr & (PGSIZE - 1));
+	vfile->left = vfile->vpage + PGSIZE - vfile->bufp;
+	if (vheader(vfile->vpage)->addr + PGSIZE > vfile->alloc)
+		vfile->lv = PGSIZE - (vfile->alloc - vheader(vfile->vpage)->addr);
+	else
+		vfile->lv = 0;
+}
+
+int _vrgetc(vfile)
+VFILE *vfile;
+{
+	if (vtell(vfile) == 0)
+		return NO_MORE_DATA;
+	vseek(vfile, vtell(vfile) - 1);
+	++vfile->bufp;
+	--vfile->left;
+	return vrgetc(vfile);
+}
+
+int _vgetc(vfile)
+VFILE *vfile;
+{
+	if (vtell(vfile) == vsize(vfile))
+		return NO_MORE_DATA;
+	vseek(vfile, vtell(vfile));
+	return vgetc(vfile);
+}
+
+int nmvgetc(v)
+VFILE *v;
+{
+	return vgetc(v);
+}
+
+int _vputc(vfile, c)
+VFILE *vfile;
+unsigned char c;
+{
+	vseek(vfile, vtell(vfile));
+	return vputc(vfile, c);
+}
+
+short vgetw(vfile)
+VFILE *vfile;
+{
+	short w;
+
+	if (vtell(vfile) + 2 > vsize(vfile))
+		return -1;
+	w = vgetc(vfile);
+	w += ((short) vgetc(vfile) << 8);
+	return w;
+}
+
+short vputw(vfile, w)
+VFILE *vfile;
+short w;
+{
+	vputc(vfile, w);
+	vputc(vfile, w >> 8);
+	return w;
+}
+
+long vgetl(vfile)
+VFILE *vfile;
+{
+	long w;
+
+	if (vtell(vfile) + 4 > vsize(vfile))
+		return -1;
+	w = vgetc(vfile);
+	w += ((long) vgetc(vfile) << 8);
+	w += ((long) vgetc(vfile) << 16);
+	w += ((long) vgetc(vfile) << 24);
+	return w;
+}
+
+long vputl(vfile, w)
+VFILE *vfile;
+long w;
+{
+	vputc(vfile, w);
+	vputc(vfile, w >> 8);
+	vputc(vfile, w >> 16);
+	vputc(vfile, w >> 24);
+	return w;
+}
+
+int _rc(vfile, addr)
+VFILE *vfile;
+long addr;
+{
+	if (vfile->vpage1)
+		vunlock(vfile->vpage1);
+	vfile->vpage1 = vlock(vfile, vfile->addr = (addr & ~(long) (PGSIZE - 1)));
+	return rc(vfile, addr);
+}
+
+int _wc(vfile, addr, c)
+VFILE *vfile;
+long addr;
+unsigned char c;
+{
+	if (addr + 1 > vsize(vfile))
+		my_valloc(vfile, addr + 1 - vsize(vfile));
+	if (vfile->vpage1)
+		vunlock(vfile->vpage1);
+	vfile->vpage1 = vlock(vfile, vfile->addr = (addr & ~(long) (PGSIZE - 1)));
+	return wc(vfile, addr, c);
+}
+
+short rw(vfile, addr)
+VFILE *vfile;
+long addr;
+{
+	short c;
+
+	if (addr + 2 > vsize(vfile))
+		return -1;
+	c = rc(vfile, addr);
+	c += ((short) rc(vfile, addr + 1) << 8);
+	return c;
+}
+
+short ww(vfile, addr, c)
+VFILE *vfile;
+long addr;
+short c;
+{
+	if (addr + 2 > vsize(vfile))
+		my_valloc(vfile, addr + 2 - vsize(vfile));
+	wc(vfile, addr, c);
+	wc(vfile, addr + 1, c >> 8);
+	return c;
+}
+
+long rl(vfile, addr)
+VFILE *vfile;
+long addr;
+{
+	long c;
+
+	if (addr + 4 > vsize(vfile))
+		return -1;
+	c = rc(vfile, addr);
+	c += ((long) rc(vfile, addr + 1) << 8);
+	c += ((long) rc(vfile, addr + 2) << 16);
+	c += ((long) rc(vfile, addr + 3) << 24);
+	return c;
+}
+
+long wl(vfile, addr, c)
+VFILE *vfile;
+long addr;
+long c;
+{
+	if (addr + 4 > vsize(vfile))
+		my_valloc(vfile, addr + 4 - vsize(vfile));
+	wc(vfile, addr, c);
+	wc(vfile, addr + 1, c >> 8);
+	wc(vfile, addr + 2, c >> 16);
+	wc(vfile, addr + 3, c >> 24);
+	return c;
+}
+
+void vread(v, blk, size)
+VFILE *v;
+unsigned char *blk;
+int size;
+{
+	long addr = vtell(v);
+	unsigned char *src;
+	int x;
+
+	while (size) {
+		src = vlock(v, addr);
+		x = PGSIZE - (addr & (PGSIZE - 1));
+		if (x >= size) {
+			vseek(v, addr + size);
+			mcpy(blk, src, size);
+			vunlock(src);
+			return;
+		}
+		size -= x;
+		addr += x;
+		mcpy(blk, src, x);
+		blk += x;
+		vunlock(src);
+	}
+	vseek(v, addr);
+}
+
+void vwrite(v, blk, size)
+VFILE *v;
+unsigned char *blk;
+int size;
+{
+	long addr = vtell(v);
+	unsigned char *src;
+	int x;
+
+	if (addr + size > vsize(v))
+		my_valloc(v, addr + size - vsize(v));
+	while (size) {
+		src = vlock(v, addr);
+		x = PGSIZE - (addr & (PGSIZE - 1));
+		if (x >= size) {
+			vseek(v, addr + size);
+			mcpy(src, blk, size);
+			vchanged(src);
+			vunlock(src);
+			return;
+		}
+		size -= x;
+		addr += x;
+		mcpy(src, blk, x);
+		blk += x;
+		vchanged(src);
+		vunlock(src);
+	}
+	vseek(v, addr);
+}
+
+/* Write zstring to vfile */
+
+void vputs(v, s)
+VFILE *v;
+unsigned char *s;
+{
+	while (*s) {
+		vputc(v, *s);
+		++s;
+	}
+}
+
+/* Read a line from a file.  Remove '\n' if there was any */
+
+unsigned char *vgets(v, s)
+VFILE *v;
+unsigned char *s;
+{
+	unsigned char *b, *a, *x, *y;
+	int cnt;
+
+	/* Return with NULL if at end of file */
+	if (vtell(v) == vsize(v)) {
+		return NULL;
+	}
+
+	/* Create string if it doesn't exist */
+	if (!s)
+		s = vsmk(80);
+
+	/* Zero string length */
+	sLen(s) = 0;
+
+      loop:
+
+	/* Set b to end of string, a to page pointer, and cnt to min which ever
+	 * (string or page) has the least space left
+	 */
+	b = s + sLen(s);
+	a = v->bufp;
+	cnt = Imin(sSIZ(s) - sLen(s), v->left - v->lv);
+
+	/* Copy until \n is found or until page or buffer out of space */
+	if (cnt >= 16)
+		do {
+			if ((b[0] = a[0]) == '\n') {
+				a += 1;
+				b += 1;
+				goto ovr;
+			}
+			if ((b[1] = a[1]) == '\n') {
+				a += 2;
+				b += 2;
+				cnt -= 1;
+				goto ovr;
+			}
+			if ((b[2] = a[2]) == '\n') {
+				a += 3;
+				b += 3;
+				cnt -= 2;
+				goto ovr;
+			}
+			if ((b[3] = a[3]) == '\n') {
+				a += 4;
+				b += 4;
+				cnt -= 3;
+				goto ovr;
+			}
+			if ((b[4] = a[4]) == '\n') {
+				a += 5;
+				b += 5;
+				cnt -= 4;
+				goto ovr;
+			}
+			if ((b[5] = a[5]) == '\n') {
+				a += 6;
+				b += 6;
+				cnt -= 5;
+				goto ovr;
+			}
+			if ((b[6] = a[6]) == '\n') {
+				a += 7;
+				b += 7;
+				cnt -= 6;
+				goto ovr;
+			}
+			if ((b[7] = a[7]) == '\n') {
+				a += 8;
+				b += 8;
+				cnt -= 7;
+				goto ovr;
+			}
+			if ((b[8] = a[8]) == '\n') {
+				a += 9;
+				b += 9;
+				cnt -= 8;
+				goto ovr;
+			}
+			if ((b[9] = a[9]) == '\n') {
+				a += 10;
+				b += 10;
+				cnt -= 9;
+				goto ovr;
+			}
+			if ((b[10] = a[10]) == '\n') {
+				a += 11;
+				b += 11;
+				cnt -= 10;
+				goto ovr;
+			}
+			if ((b[11] = a[11]) == '\n') {
+				a += 12;
+				b += 12;
+				cnt -= 11;
+				goto ovr;
+			}
+			if ((b[12] = a[12]) == '\n') {
+				a += 13;
+				b += 13;
+				cnt -= 12;
+				goto ovr;
+			}
+			if ((b[13] = a[13]) == '\n') {
+				a += 14;
+				b += 14;
+				cnt -= 13;
+				goto ovr;
+			}
+			if ((b[14] = a[14]) == '\n') {
+				a += 15;
+				b += 15;
+				cnt -= 14;
+				goto ovr;
+			}
+			if ((b[15] = a[15]) == '\n') {
+				a += 16;
+				b += 16;
+				cnt -= 15;
+				goto ovr;
+			}
+		} while (a += 16, b += 16, (cnt -= 16) >= 16);
+
+/*
+	x = a;
+	y = b;
+	a += cnt - 15;
+	b += cnt - 15;
+	switch(cnt) {
+	case 15:	if((b[0]=a[0])=='\n') { a+=1; b+=1; goto zif; }
+	case 14:	if((b[1]=a[1])=='\n') { a+=2; b+=2; goto zif; }
+	case 13:	if((b[2]=a[2])=='\n') { a+=3; b+=3; goto zif; }
+	case 12:	if((b[3]=a[3])=='\n') { a+=4; b+=4; goto zif; }
+	case 11:	if((b[4]=a[4])=='\n') { a+=5; b+=5; goto zif; }
+	case 10:	if((b[5]=a[5])=='\n') { a+=6; b+=6; goto zif; }
+	case 9:		if((b[6]=a[6])=='\n')  { a+=7; b+=7; goto zif; }
+	case 8:		if((b[7]=a[7])=='\n')  { a+=8; b+=8; goto zif; }
+	case 7:		if((b[8]=a[8])=='\n')  { a+=9; b+=9; goto zif; }
+	case 6:		if((b[9]=a[9])=='\n')  { a+=10; b+=10; goto zif; }
+	case 5:		if((b[10]=a[10])=='\n'){ a+=11; b+=11; goto zif; }
+	case 4:		if((b[11]=a[11])=='\n'){ a+=12; b+=12; goto zif; }
+	case 3:		if((b[12]=a[12])=='\n'){ a+=13; b+=13; goto zif; }
+	case 2:		if((b[13]=a[13])=='\n'){ a+=14; b+=14; goto zif; }
+	case 1:		if((b[14]=a[14])=='\n'){ a+=15; b+=15; goto zif; }
+	}
+	a = x + cnt;
+	b = y + cnt;
+	cnt=0;
+	goto ovr;
+zif:	cnt -= a - x - 1;
+*/
+
+	if (cnt)
+		do {
+			if ((*b++ = *a++) == '\n')
+				break;
+		} while (--cnt);
+
+      ovr:
+
+	/* Update string and page data */
+	sLen(s) = b - s;
+	v->left -= a - v->bufp;
+	v->bufp = a;
+
+	if (!cnt)
+		if (vtell(v) == vsize(v))
+			b[0] = 0;
+		else {
+			if (sLen(s) == sSiz(s))
+				s = vsensure(s, sLen(s) + (sLen(s) >> 1) + 16);
+			if (!v->left)
+				vseek(v, vtell(v));
+			goto loop;
+	} else
+		b[-1] = 0;
+
+	return s;
+}
+#endif
+@
+
+
+1.22
+log
+@semiautomatic variables
+@
+text
+@d44 2
+d48 2
+a49 1
+				joe_write(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr));
+d52 2
+a53 1
+				joe_write(vfile->fd, vlowest->data, PGSIZE);
+d86 2
+d90 2
+a91 1
+			joe_write(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr));
+d94 2
+a95 1
+			joe_write(vfile->fd, vlowest->data, PGSIZE);
+d197 2
+d201 2
+a202 1
+			joe_read(vfile->fd, vp->data, (int) (vfile->size - addr));
+d205 2
+a206 1
+			joe_read(vfile->fd, vp->data, PGSIZE);
+@
+
+
+1.21
+log
+@large file patch, makefile fix, tty.c fix.
+@
+text
+@d226 2
+a227 1
+	new->name = vsncpy(NULL, 0, sz(name));
+d262 1
+a262 1
+		vsrm(vfile->name);
+a601 1
+		vsrm(s);
+@
+
+
+1.20
+log
+@gettext()
+@
+text
+@d23 2
+a24 2
+	long addr;
+	long last;
+d31 1
+a31 1
+		addr = MAXLONG;
+d64 1
+a64 1
+	long addr;
+d68 1
+a68 1
+	addr = MAXLONG;
+d103 1
+a103 1
+unsigned char *vlock(VFILE *vfile, unsigned long addr)
+d107 1
+a107 1
+	int ofst = (addr & (PGSIZE - 1));
+d326 1
+a326 1
+long my_valloc(VFILE *vfile, long int size)
+d328 1
+a328 1
+	long start = vsize(vfile);
+@
+
+
+1.19
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d174 1
+a174 1
+	write(2, "vfile: out of memory\n", 21);
+d229 1
+a229 1
+		fprintf(stderr, "Couldn\'t open file \'%s\'\n", name);
+@
+
+
+1.18
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a7 1
+#include "config.h"
+a9 19
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#include <fcntl.h>
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#include <unistd.h>
+
+#include "blocks.h"
+#include "queue.h"
+#include "path.h"
+#include "utils.h"
+#include "vfile.h"
+#include "vs.h"
+
+@
+
+
+1.17
+log
+@change 0 to NULL where we're talking about pointers
+@
+text
+@d35 1
+a35 1
+char *vbase;			/* Data first entry in vheader refers to */
+d63 1
+a63 1
+				vfile->fd = open(vfile->name, O_RDWR);
+d100 1
+a100 1
+			vfile->fd = open(vfile->name, O_RDWR);
+d116 1
+a116 1
+static char *mema(int align, int size)
+d118 1
+a118 1
+	char *z = (char *) joe_malloc(align + size);
+d123 1
+a123 1
+char *vlock(VFILE *vfile, unsigned long addr)
+d146 1
+a146 1
+			vp->data = (char *) mema(PGSIZE, PGSIZE * INC);
+d207 1
+a207 1
+			vfile->fd = open(vfile->name, O_RDWR);
+d241 1
+a241 1
+char *name;
+d278 1
+a278 1
+			unlink(vfile->name);
+d411 1
+a411 1
+char c;
+d476 1
+a476 1
+char c;
+d542 1
+a542 1
+char *blk;
+d546 1
+a546 1
+	char *src;
+d569 1
+a569 1
+char *blk;
+d573 1
+a573 1
+	char *src;
+d602 1
+a602 1
+char *s;
+d612 1
+a612 1
+char *vgets(v, s)
+d614 1
+a614 1
+char *s;
+d616 1
+a616 1
+	char *b, *a, *x, *y;
+@
+
+
+1.16
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d31 1
+a31 1
+static VPAGE *freepages = 0;	/* Linked list of free pages */
+d36 1
+a36 1
+VPAGE **vheaders = 0;		/* Array of header addresses */
+d52 1
+a52 1
+		vlowest = 0;
+d89 1
+a89 1
+	vlowest = 0;
+d177 1
+a177 1
+			vp = 0;
+d226 1
+a226 1
+	new->name = 0;
+d231 1
+a231 1
+	new->vpage = 0;
+d233 1
+a233 1
+	new->vpage1 = 0;
+d251 1
+a251 1
+		return 0;
+d258 1
+a258 1
+	new->vpage = 0;
+d260 1
+a260 1
+	new->vpage1 = 0;
+d622 1
+a622 1
+		return 0;
+@
+
+
+1.15
+log
+@64bit arch fixes: don't expect pointer fits into int
+@
+text
+@d387 1
+a387 1
+		return MAXINT;
+d398 1
+a398 1
+		return MAXINT;
+@
+
+
+1.14
+log
+@change "expr, expr" to "expr; expr" where appropriate (take 2)
+@
+text
+@d123 1
+a123 1
+char *vlock(VFILE *vfile, long int addr)
+d131 1
+a131 1
+	for (vp = htab[((addr >> LPGSIZE) + (int) vfile) & (HTSIZE - 1)]; vp; vp = vp->next)
+d202 2
+a203 2
+	vp->next = htab[((addr >> LPGSIZE) + (int) vfile) & (HTSIZE - 1)];
+	htab[((addr >> LPGSIZE) + (int) vfile) & (HTSIZE - 1)] = vp;
+@
+
+
+1.13
+log
+@change "expr, expr" to "expr; expr" where appropriate
+@
+text
+@d604 4
+a607 2
+	while (*s)
+		vputc(v, *s), ++s;
+d742 2
+a743 1
+	x = a, y = b;
+d763 2
+a764 1
+	a = x + cnt, b = y + cnt;
+@
+
+
+1.12
+log
+@change (m|re|c)alloc() and free() into joe_(m|re|c)alloc() and joe_free()
+(preparation for further error checking)
+@
+text
+@d55 4
+a58 2
+				if (vp->addr < addr && vp->addr > last && vp->vfile == vfile && (vp->addr >= vfile->size || (vp->dirty && !vp->count)))
+					addr = vp->addr, vlowest = vp;
+d92 4
+a95 2
+			if (vp->addr < addr && vp->dirty && vp->vfile == vfile && !vp->count)
+				addr = vp->addr, vlowest = vp;
+d132 4
+a135 2
+		if (vp->vfile == vfile && vp->addr == addr)
+			return ++vp->count, vp->data + ofst;
+d151 4
+a154 5
+				if (!vheaders)
+					vheaders = (VPAGE **)
+					    joe_malloc((vheadsz = INC)
+						   * sizeof(VPAGE *)), vbase = vp->data;
+				else if (physical(vp->data) < physical(vbase)) {
+d158 1
+a158 2
+					vheaders = (VPAGE **)
+					    joe_malloc((amnt + vheadsz) * sizeof(VPAGE *));
+d293 4
+a296 2
+			} else
+				pp = vp, vp = vp->next;
+@
+
+
+1.11
+log
+@move jread() / jwrite() into utils.c
+@
+text
+@d114 1
+a114 1
+	char *z = (char *) malloc(align + size);
+d138 1
+a138 1
+		vp = (VPAGE *) malloc(sizeof(VPAGE) * INC);
+d147 1
+a147 1
+					    malloc((vheadsz = INC)
+d154 1
+a154 1
+					    malloc((amnt + vheadsz) * sizeof(VPAGE *));
+d158 1
+a158 1
+					free(t);
+d161 1
+a161 1
+					    realloc(vheaders, (vheadsz = (((physical(vp->data + PGSIZE * INC) - physical(vbase)) >> LPGSIZE))) * sizeof(VPAGE *));
+d172 1
+a172 1
+			free(vp);
+d219 1
+a219 1
+	VFILE *new = (VFILE *) malloc(sizeof(VFILE));
+d240 1
+a240 1
+	VFILE *new = (VFILE *) malloc(sizeof(VFILE));
+d246 1
+a246 1
+		free(new);
+d281 1
+a281 1
+	free(deque_f(VFILE, link, vfile));
+d306 2
+a307 2
+			free(vp->data);
+			free(vp);
+d315 2
+a316 2
+						free(vp->data);
+						free(vp);
+d328 2
+a329 2
+						free(vp->data);
+						free(vp);
+@
+
+
+1.10
+log
+@change indentation of do {} while() cycles
+@
+text
+@d26 1
+a26 1
+#include "tty.h"
+d64 1
+a64 1
+				jwrite(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr));
+d67 1
+a67 1
+				jwrite(vfile->fd, vlowest->data, PGSIZE);
+d100 1
+a100 1
+			jwrite(vfile->fd, vlowest->data, (int) (vsize(vfile) - addr));
+d103 1
+a103 1
+			jwrite(vfile->fd, vlowest->data, PGSIZE);
+d207 1
+a207 1
+			jread(vfile->fd, vp->data, (int) (vfile->size - addr));
+d210 1
+a210 1
+			jread(vfile->fd, vp->data, PGSIZE);
+@
+
+
+1.9
+log
+@include only headers which are needed
+@
+text
+@d731 1
+a731 2
+		}
+		while (a += 16, b += 16, (cnt -= 16) >= 16);
+d734 24
+a757 21
+ x=a, y=b; a+=cnt-15; b+=cnt-15;
+ switch(cnt)
+  {
+  case 15: if((b[0]=a[0])=='\n') { a+=1; b+=1; goto zif; }
+  case 14: if((b[1]=a[1])=='\n') { a+=2; b+=2; goto zif; }
+  case 13: if((b[2]=a[2])=='\n') { a+=3; b+=3; goto zif; }
+  case 12: if((b[3]=a[3])=='\n') { a+=4; b+=4; goto zif; }
+  case 11: if((b[4]=a[4])=='\n') { a+=5; b+=5; goto zif; }
+  case 10: if((b[5]=a[5])=='\n') { a+=6; b+=6; goto zif; }
+  case 9: if((b[6]=a[6])=='\n')  { a+=7; b+=7; goto zif; }
+  case 8: if((b[7]=a[7])=='\n')  { a+=8; b+=8; goto zif; }
+  case 7: if((b[8]=a[8])=='\n')  { a+=9; b+=9; goto zif; }
+  case 6: if((b[9]=a[9])=='\n')  { a+=10; b+=10; goto zif; }
+  case 5: if((b[10]=a[10])=='\n'){ a+=11; b+=11; goto zif; }
+  case 4: if((b[11]=a[11])=='\n'){ a+=12; b+=12; goto zif; }
+  case 3: if((b[12]=a[12])=='\n'){ a+=13; b+=13; goto zif; }
+  case 2: if((b[13]=a[13])=='\n'){ a+=14; b+=14; goto zif; }
+  case 1: if((b[14]=a[14])=='\n'){ a+=15; b+=15; goto zif; }
+  }
+ a=x+cnt, b=y+cnt; cnt=0; goto ovr;
+ zif: cnt-=a-x-1;
+d761 1
+a761 1
+		do
+d764 1
+a764 1
+		while (--cnt) ;
+@
+
+
+1.8
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d11 1
+a11 1
+#include <stdio.h>
+d13 2
+d16 1
+d18 1
+d20 1
+d22 1
+a22 2
+#include "config.h"
+#include "vs.h"
+d28 1
+@
+
+
+1.7
+log
+@use mfwrd() and mbkwd() only as internal functions to mmove()
+@
+text
+@d1 9
+a9 17
+/* Software virtual memory system
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+@
+
+
+1.6
+log
+@version 2.9.7-pre3
+@
+text
+@d158 1
+a158 1
+					mcpy(vheaders + amnt, t, vheadsz * sizeof(VPAGE *));
+@
+
+
+1.5
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d42 1
+a42 1
+void vflsh()
+d81 1
+a81 2
+void vflshf(vfile)
+VFILE *vfile;
+d115 1
+a115 1
+char *mema(align, size)
+d122 1
+a122 3
+char *vlock(vfile, addr)
+VFILE *vfile;
+long addr;
+d220 1
+a220 1
+VFILE *vtmp()
+d266 1
+a266 2
+void vclose(vfile)
+VFILE *vfile;
+d343 1
+a343 3
+long my_valloc(vfile, size)
+VFILE *vfile;
+long size;
+@
+
+
+1.4
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 4
+a4 3
+/*
+	Software virtual memory system
+	Copyright (C) 1992 Joseph H. Allen
+d6 12
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d30 1
+d42 1
+a42 2
+void
+vflsh ()
+d50 33
+a82 44
+	for (vfile = vfiles.link.next;
+	     vfile != &vfiles; vfile = vfile->link.next)
+	  {
+		  last = -1;
+		loop:
+		  addr = MAXLONG;
+		  vlowest = 0;
+		  for (x = 0; x != HTSIZE; x++)
+			  for (vp = htab[x]; vp; vp = vp->next)
+				  if (vp->addr < addr && vp->addr > last
+				      && vp->vfile == vfile
+				      && (vp->addr >= vfile->size
+					  || (vp->dirty && !vp->count)))
+					  addr = vp->addr, vlowest = vp;
+		  if (vlowest)
+		    {
+			    if (!vfile->name)
+				    vfile->name = mktmp (NULL);
+			    if (!vfile->fd)
+				    vfile->fd = open (vfile->name, O_RDWR);
+			    lseek (vfile->fd, addr, 0);
+			    if (addr + PGSIZE > vsize (vfile))
+			      {
+				      jwrite (vfile->fd, vlowest->data,
+					      (int) (vsize (vfile) - addr));
+				      vfile->size = vsize (vfile);
+			      }
+			    else
+			      {
+				      jwrite (vfile->fd, vlowest->data,
+					      PGSIZE);
+				      if (addr + PGSIZE > vfile->size)
+					      vfile->size = addr + PGSIZE;
+			      }
+			    vlowest->dirty = 0;
+			    last = addr;
+			    goto loop;
+		    }
+	  }
+}
+
+void
+vflshf (vfile)
+     VFILE *vfile;
+d88 1
+d94 1
+a94 2
+			if (vp->addr < addr && vp->dirty && vp->vfile == vfile
+			    && !vp->count)
+d96 30
+a125 37
+	if (vlowest)
+	  {
+		  if (!vfile->name)
+			  vfile->name = mktmp (NULL);
+		  if (!vfile->fd)
+		    {
+			    vfile->fd = open (vfile->name, O_RDWR);
+		    }
+		  lseek (vfile->fd, addr, 0);
+		  if (addr + PGSIZE > vsize (vfile))
+		    {
+			    jwrite (vfile->fd, vlowest->data,
+				    (int) (vsize (vfile) - addr));
+			    vfile->size = vsize (vfile);
+		    }
+		  else
+		    {
+			    jwrite (vfile->fd, vlowest->data, PGSIZE);
+			    if (addr + PGSIZE > vfile->size)
+				    vfile->size = addr + PGSIZE;
+		    }
+		  vlowest->dirty = 0;
+		  goto loop;
+	  }
+}
+
+char *
+mema (align, size)
+{
+	char *z = (char *) malloc (align + size);
+	return z + align - physical (z) % align;
+}
+
+char *
+vlock (vfile, addr)
+     VFILE *vfile;
+     long addr;
+d130 1
+d133 1
+a133 2
+	for (vp = htab[((addr >> LPGSIZE) + (int) vfile) & (HTSIZE - 1)]; vp;
+	     vp = vp->next)
+d137 61
+a197 111
+	if (freepages)
+	  {
+		  vp = freepages;
+		  freepages = vp->next;
+		  goto gotit;
+	  }
+
+	if (curvalloc + PGSIZE <= maxvalloc)
+	  {
+		  vp = (VPAGE *) malloc (sizeof (VPAGE) * INC);
+		  if (vp)
+		    {
+			    vp->data = (char *) mema (PGSIZE, PGSIZE * INC);
+			    if (vp->data)
+			      {
+				      int q;
+				      curvalloc += PGSIZE * INC;
+				      if (!vheaders)
+					      vheaders =
+						      (VPAGE **)
+						      malloc ((vheadsz = INC)
+							      *
+							      sizeof (VPAGE
+								      *)),
+						      vbase = vp->data;
+				      else if (physical (vp->data) <
+					       physical (vbase))
+					{
+						VPAGE **t = vheaders;
+						int amnt =
+							(physical (vbase) -
+							 physical (vp->
+								   data)) >>
+							LPGSIZE;
+						vheaders =
+							(VPAGE **)
+							malloc (
+								(amnt +
+								 vheadsz) *
+								sizeof (VPAGE
+									*));
+						mcpy (vheaders + amnt, t,
+						      vheadsz *
+						      sizeof (VPAGE *));
+						vheadsz += amnt;
+						vbase = vp->data;
+						free (t);
+					}
+				      else
+					      if (
+						  ((physical
+						    (vp->data +
+						     PGSIZE * INC) -
+						    physical (vbase)) >>
+						   LPGSIZE) > vheadsz)
+					{
+						vheaders =
+							(VPAGE **)
+							realloc (vheaders,
+								 (vheadsz =
+								  (((physical
+								     (vp->
+								      data +
+								      PGSIZE *
+								      INC) -
+								     physical
+								     (vbase))
+								    >>
+								    LPGSIZE)))
+								 *
+								 sizeof (VPAGE
+									 *));
+					}
+				      for (q = 1; q != INC; ++q)
+					{
+						vp[q].next = freepages;
+						freepages = vp + q;
+						vp[q].data =
+							vp->data + q * PGSIZE;
+						vheader (vp->data +
+							 q * PGSIZE) = vp + q;
+					}
+				      vheader (vp->data) = vp;
+				      goto gotit;
+			      }
+			    free (vp);
+			    vp = 0;
+		    }
+	  }
+
+	for (y = HTSIZE, x = (random () & (HTSIZE - 1)); y;
+	     x = ((x + 1) & (HTSIZE - 1)), --y)
+		for (pp = (VPAGE *) (htab + x), vp = pp->next; vp;
+		     pp = vp, vp = vp->next)
+			if (!vp->count && !vp->dirty)
+			  {
+				  pp->next = vp->next;
+				  goto gotit;
+			  }
+	vflsh ();
+	for (y = HTSIZE, x = (random () & (HTSIZE - 1)); y;
+	     x = ((x + 1) & (HTSIZE - 1)), --y)
+		for (pp = (VPAGE *) (htab + x), vp = pp->next; vp;
+		     pp = vp, vp = vp->next)
+			if (!vp->count && !vp->dirty)
+			  {
+				  pp->next = vp->next;
+				  goto gotit;
+			  }
+	write (2, "vfile: out of memory\n", 21);
+	exit (1);
+d207 12
+a218 19
+	if (addr < vfile->size)
+	  {
+		  if (!vfile->fd)
+		    {
+			    vfile->fd = open (vfile->name, O_RDWR);
+		    }
+		  lseek (vfile->fd, addr, 0);
+		  if (addr + PGSIZE > vfile->size)
+		    {
+			    jread (vfile->fd, vp->data,
+				   (int) (vfile->size - addr));
+			    mset (vp->data + vfile->size - addr, 0,
+				  PGSIZE - (int) (vfile->size - addr));
+		    }
+		  else
+			  jread (vfile->fd, vp->data, PGSIZE);
+	  }
+	else
+		mset (vp->data, 0, PGSIZE);
+d223 1
+a223 2
+VFILE *
+vtmp ()
+d225 2
+a226 1
+	VFILE *new = (VFILE *) malloc (sizeof (VFILE));
+d237 1
+a237 1
+	return enqueb (VFILE, link, &vfiles, new);
+d242 2
+a243 3
+VFILE *
+vopen (name)
+     char *name;
+d246 10
+a255 10
+	VFILE *new = (VFILE *) malloc (sizeof (VFILE));
+	new->name = vsncpy (NULL, 0, sz (name));
+	new->fd = open (name, O_RDWR);
+	if (!new->fd)
+	  {
+		  fprintf (stderr, "Couldn\'t open file \'%s\'\n", name);
+		  free (new);
+		  return 0;
+	  }
+	fstat (new->fd, &buf);
+d264 1
+a264 1
+	return enqueb (VFILE, link, &vfiles, new);
+d269 2
+a270 3
+void
+vclose (vfile)
+     VFILE *vfile;
+d274 1
+d276 1
+a276 1
+		vunlock (vfile->vpage);
+d278 8
+a285 9
+		vunlock (vfile->vpage1);
+	if (vfile->name)
+	  {
+		  if (vfile->flags)
+			  unlink (vfile->name);
+		  else
+			  vflshf (vfile);
+		  vsrm (vfile->name);
+	  }
+d287 2
+a288 2
+		close (vfile->fd);
+	free (deque (VFILE, link, vfile));
+d291 6
+a296 8
+			if (vp->vfile == vfile)
+			  {
+				  pp->next = vp->next;
+				  vp->next = freepages;
+				  freepages = vp;
+				  vp = pp->next;
+			  }
+			else
+d302 2
+a303 3
+void
+vlimit (amount)
+     long amount;
+d307 1
+d310 34
+a343 43
+		if (freepages)
+		  {
+			  vp = freepages;
+			  freepages = vp->next;
+			  free (vp->data);
+			  free (vp);
+			  curvalloc -= PGSIZE;
+		  }
+		else
+		  {
+			again:
+			  for (y = HTSIZE, x = (random () & (HTSIZE - 1)); y;
+			       x = ((x + 1) & (HTSIZE - 1)), --y)
+				  for (pp = (VPAGE *) (htab + x), vp =
+				       pp->next; vp; pp = vp, vp = vp->next)
+					  if (!vp->count && !vp->dirty)
+					    {
+						    pp->next = vp->next;
+						    free (vp->data);
+						    free (vp);
+						    if ((curvalloc -= PGSIZE)
+							<= maxvalloc)
+							    return;
+						    goto again;
+					    }
+			  vflsh ();
+			again1:
+			  for (y = HTSIZE, x = (random () & (HTSIZE - 1)); y;
+			       x = ((x + 1) & (HTSIZE - 1)), --y)
+				  for (pp = (VPAGE *) (htab + x), vp =
+				       pp->next; vp; pp = vp, vp = vp->next)
+					  if (!vp->count && !vp->dirty)
+					    {
+						    pp->next = vp->next;
+						    free (vp->data);
+						    free (vp);
+						    if ((curvalloc -= PGSIZE)
+							<= maxvalloc)
+							    return;
+						    goto again1;
+					    }
+			  return;
+		  }
+d347 3
+a349 4
+long
+my_valloc (vfile, size)
+     VFILE *vfile;
+     long size;
+d351 2
+a352 1
+	long start = vsize (vfile);
+d354 6
+a359 9
+	if (vfile->lv)
+	  {
+		  if (vheader (vfile->vpage)->addr + PGSIZE > vfile->alloc)
+			  vfile->lv =
+				  PGSIZE - (vfile->alloc -
+					    vheader (vfile->vpage)->addr);
+		  else
+			  vfile->lv = 0;
+	  }
+d365 3
+a367 4
+void
+vseek (vfile, addr)
+     VFILE *vfile;
+     long addr;
+d369 1
+a369 1
+	vfile->alloc = vsize (vfile);
+d373 5
+a377 7
+		vfile->vpage = vlock (vfile, addr & ~(long) (PGSIZE - 1));
+	else if (vheader (vfile->vpage)->addr !=
+		 (addr & ~(long) (PGSIZE - 1)))
+	  {
+		  vunlock (vfile->vpage);
+		  vfile->vpage = vlock (vfile, addr & ~(long) (PGSIZE - 1));
+	  }
+d380 2
+a381 4
+	if (vheader (vfile->vpage)->addr + PGSIZE > vfile->alloc)
+		vfile->lv =
+			PGSIZE - (vfile->alloc -
+				  vheader (vfile->vpage)->addr);
+d386 2
+a387 3
+int
+_vrgetc (vfile)
+     VFILE *vfile;
+d389 1
+a389 1
+	if (vtell (vfile) == 0)
+d391 1
+a391 1
+	vseek (vfile, vtell (vfile) - 1);
+d394 1
+a394 1
+	return vrgetc (vfile);
+d397 2
+a398 3
+int
+_vgetc (vfile)
+     VFILE *vfile;
+d400 1
+a400 1
+	if (vtell (vfile) == vsize (vfile))
+d402 2
+a403 2
+	vseek (vfile, vtell (vfile));
+	return vgetc (vfile);
+d406 2
+a407 3
+int
+nmvgetc (v)
+     VFILE *v;
+d409 1
+a409 1
+	return vgetc (v);
+d412 3
+a414 4
+int
+_vputc (vfile, c)
+     VFILE *vfile;
+     char c;
+d416 2
+a417 2
+	vseek (vfile, vtell (vfile));
+	return vputc (vfile, c);
+d420 2
+a421 3
+short
+vgetw (vfile)
+     VFILE *vfile;
+d424 2
+a425 1
+	if (vtell (vfile) + 2 > vsize (vfile))
+d427 2
+a428 2
+	w = vgetc (vfile);
+	w += ((short) vgetc (vfile) << 8);
+d432 3
+a434 4
+short
+vputw (vfile, w)
+     VFILE *vfile;
+     short w;
+d436 2
+a437 2
+	vputc (vfile, w);
+	vputc (vfile, w >> 8);
+d441 2
+a442 3
+long
+vgetl (vfile)
+     VFILE *vfile;
+d445 2
+a446 1
+	if (vtell (vfile) + 4 > vsize (vfile))
+d448 4
+a451 4
+	w = vgetc (vfile);
+	w += ((long) vgetc (vfile) << 8);
+	w += ((long) vgetc (vfile) << 16);
+	w += ((long) vgetc (vfile) << 24);
+d455 8
+a462 9
+long
+vputl (vfile, w)
+     VFILE *vfile;
+     long w;
+{
+	vputc (vfile, w);
+	vputc (vfile, w >> 8);
+	vputc (vfile, w >> 16);
+	vputc (vfile, w >> 24);
+d466 3
+a468 4
+int
+_rc (vfile, addr)
+     VFILE *vfile;
+     long addr;
+d471 3
+a473 4
+		vunlock (vfile->vpage1);
+	vfile->vpage1 = vlock (vfile, vfile->addr =
+			       (addr & ~(long) (PGSIZE - 1)));
+	return rc (vfile, addr);
+d476 4
+a479 5
+int
+_wc (vfile, addr, c)
+     VFILE *vfile;
+     long addr;
+     char c;
+d481 2
+a482 2
+	if (addr + 1 > vsize (vfile))
+		my_valloc (vfile, addr + 1 - vsize (vfile));
+d484 3
+a486 4
+		vunlock (vfile->vpage1);
+	vfile->vpage1 = vlock (vfile, vfile->addr =
+			       (addr & ~(long) (PGSIZE - 1)));
+	return wc (vfile, addr, c);
+d489 3
+a491 4
+short
+rw (vfile, addr)
+     VFILE *vfile;
+     long addr;
+d494 2
+a495 1
+	if (addr + 2 > vsize (vfile))
+d497 2
+a498 2
+	c = rc (vfile, addr);
+	c += ((short) rc (vfile, addr + 1) << 8);
+d502 9
+a510 10
+short
+ww (vfile, addr, c)
+     VFILE *vfile;
+     long addr;
+     short c;
+{
+	if (addr + 2 > vsize (vfile))
+		my_valloc (vfile, addr + 2 - vsize (vfile));
+	wc (vfile, addr, c);
+	wc (vfile, addr + 1, c >> 8);
+d514 3
+a516 4
+long
+rl (vfile, addr)
+     VFILE *vfile;
+     long addr;
+d519 2
+a520 1
+	if (addr + 4 > vsize (vfile))
+d522 4
+a525 4
+	c = rc (vfile, addr);
+	c += ((long) rc (vfile, addr + 1) << 8);
+	c += ((long) rc (vfile, addr + 2) << 16);
+	c += ((long) rc (vfile, addr + 3) << 24);
+d529 11
+a539 12
+long
+wl (vfile, addr, c)
+     VFILE *vfile;
+     long addr;
+     long c;
+{
+	if (addr + 4 > vsize (vfile))
+		my_valloc (vfile, addr + 4 - vsize (vfile));
+	wc (vfile, addr, c);
+	wc (vfile, addr + 1, c >> 8);
+	wc (vfile, addr + 2, c >> 16);
+	wc (vfile, addr + 3, c >> 24);
+d543 4
+a546 5
+void
+vread (v, blk, size)
+     VFILE *v;
+     char *blk;
+     int size;
+d548 1
+a548 1
+	long addr = vtell (v);
+d551 23
+a573 25
+	while (size)
+	  {
+		  src = vlock (v, addr);
+		  x = PGSIZE - (addr & (PGSIZE - 1));
+		  if (x >= size)
+		    {
+			    vseek (v, addr + size);
+			    mcpy (blk, src, size);
+			    vunlock (src);
+			    return;
+		    }
+		  size -= x;
+		  addr += x;
+		  mcpy (blk, src, x);
+		  blk += x;
+		  vunlock (src);
+	  }
+	vseek (v, addr);
+}
+
+void
+vwrite (v, blk, size)
+     VFILE *v;
+     char *blk;
+     int size;
+d575 1
+a575 1
+	long addr = vtell (v);
+d578 21
+a598 22
+	if (addr + size > vsize (v))
+		my_valloc (v, addr + size - vsize (v));
+	while (size)
+	  {
+		  src = vlock (v, addr);
+		  x = PGSIZE - (addr & (PGSIZE - 1));
+		  if (x >= size)
+		    {
+			    vseek (v, addr + size);
+			    mcpy (src, blk, size);
+			    vchanged (src);
+			    vunlock (src);
+			    return;
+		    }
+		  size -= x;
+		  addr += x;
+		  mcpy (src, blk, x);
+		  blk += x;
+		  vchanged (src);
+		  vunlock (src);
+	  }
+	vseek (v, addr);
+d603 3
+a605 4
+void
+vputs (v, s)
+     VFILE *v;
+     char *s;
+d608 1
+a608 1
+		vputc (v, *s), ++s;
+d613 3
+a615 4
+char *
+vgets (v, s)
+     VFILE *v;
+     char *s;
+d621 4
+a624 5
+	if (vtell (v) == vsize (v))
+	  {
+		  vsrm (s);
+		  return 0;
+	  }
+d628 1
+a628 1
+		s = vsmk (80);
+d631 1
+a631 1
+	sLen (s) = 0;
+d638 1
+a638 1
+	b = s + sLen (s);
+d640 1
+a640 1
+	cnt = Imin (sSIZ (s) - sLen (s), v->left - v->lv);
+d644 97
+a740 114
+		do
+		  {
+			  if ((b[0] = a[0]) == '\n')
+			    {
+				    a += 1;
+				    b += 1;
+				    goto ovr;
+			    }
+			  if ((b[1] = a[1]) == '\n')
+			    {
+				    a += 2;
+				    b += 2;
+				    cnt -= 1;
+				    goto ovr;
+			    }
+			  if ((b[2] = a[2]) == '\n')
+			    {
+				    a += 3;
+				    b += 3;
+				    cnt -= 2;
+				    goto ovr;
+			    }
+			  if ((b[3] = a[3]) == '\n')
+			    {
+				    a += 4;
+				    b += 4;
+				    cnt -= 3;
+				    goto ovr;
+			    }
+			  if ((b[4] = a[4]) == '\n')
+			    {
+				    a += 5;
+				    b += 5;
+				    cnt -= 4;
+				    goto ovr;
+			    }
+			  if ((b[5] = a[5]) == '\n')
+			    {
+				    a += 6;
+				    b += 6;
+				    cnt -= 5;
+				    goto ovr;
+			    }
+			  if ((b[6] = a[6]) == '\n')
+			    {
+				    a += 7;
+				    b += 7;
+				    cnt -= 6;
+				    goto ovr;
+			    }
+			  if ((b[7] = a[7]) == '\n')
+			    {
+				    a += 8;
+				    b += 8;
+				    cnt -= 7;
+				    goto ovr;
+			    }
+			  if ((b[8] = a[8]) == '\n')
+			    {
+				    a += 9;
+				    b += 9;
+				    cnt -= 8;
+				    goto ovr;
+			    }
+			  if ((b[9] = a[9]) == '\n')
+			    {
+				    a += 10;
+				    b += 10;
+				    cnt -= 9;
+				    goto ovr;
+			    }
+			  if ((b[10] = a[10]) == '\n')
+			    {
+				    a += 11;
+				    b += 11;
+				    cnt -= 10;
+				    goto ovr;
+			    }
+			  if ((b[11] = a[11]) == '\n')
+			    {
+				    a += 12;
+				    b += 12;
+				    cnt -= 11;
+				    goto ovr;
+			    }
+			  if ((b[12] = a[12]) == '\n')
+			    {
+				    a += 13;
+				    b += 13;
+				    cnt -= 12;
+				    goto ovr;
+			    }
+			  if ((b[13] = a[13]) == '\n')
+			    {
+				    a += 14;
+				    b += 14;
+				    cnt -= 13;
+				    goto ovr;
+			    }
+			  if ((b[14] = a[14]) == '\n')
+			    {
+				    a += 15;
+				    b += 15;
+				    cnt -= 14;
+				    goto ovr;
+			    }
+			  if ((b[15] = a[15]) == '\n')
+			    {
+				    a += 16;
+				    b += 16;
+				    cnt -= 15;
+				    goto ovr;
+			    }
+		  }
+d771 1
+a771 1
+		while (--cnt);
+d776 1
+a776 1
+	sLen (s) = b - s;
+d781 1
+a781 1
+		if (vtell (v) == vsize (v))
+d783 7
+a789 12
+		else
+		  {
+			  if (sLen (s) == sSiz (s))
+				  s =
+					  vsensure (s,
+						    sLen (s) +
+						    (sLen (s) >> 1) + 16);
+			  if (!v->left)
+				  vseek (v, vtell (v));
+			  goto loop;
+		  }
+	else
+@
+
+
+1.3
+log
+@changed as of joe-2.9.5
+@
+text
+@d1 3
+a3 2
+/* Software virtual memory system
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d13 1
+d21 2
+a22 2
+static VFILE vfiles={{&vfiles,&vfiles}};	/* Known vfiles */
+static VPAGE *freepages=0;	/* Linked list of free pages */
+d24 2
+a25 2
+static long curvalloc=0;	/* Amount of memory in use */
+static long maxvalloc= ILIMIT;	/* Maximum allowed */
+d27 2
+a28 2
+VPAGE **vheaders=0;		/* Array of header addresses */
+static int vheadsz=0;		/* No. entries allocated to vheaders */
+d30 2
+a31 1
+void vflsh()
+d33 269
+a301 206
+VPAGE *vp;
+VPAGE *vlowest;
+long addr;
+long last;
+VFILE *vfile;
+int x;
+for(vfile=vfiles.link.next;
+    vfile!=&vfiles;
+    vfile=vfile->link.next)
+ {
+ last= -1;
+ loop:
+ addr= MAXLONG;
+ vlowest=0;
+ for(x=0;x!=HTSIZE;x++)
+  for(vp=htab[x];vp;vp=vp->next)
+   if(vp->addr<addr && vp->addr>last && vp->vfile==vfile &&
+      (vp->addr>=vfile->size || (vp->dirty && !vp->count)))
+    addr=vp->addr, vlowest=vp;
+ if(vlowest)
+  {
+  if(!vfile->name) vfile->name=mktmp(NULL);
+  if(!vfile->fd) vfile->fd=open(vfile->name,O_RDWR);
+  lseek(vfile->fd,addr,0);
+  if(addr+PGSIZE>vsize(vfile))
+   {
+   jwrite(vfile->fd,vlowest->data,(int)(vsize(vfile)-addr));
+   vfile->size=vsize(vfile);
+   }
+  else
+   {
+   jwrite(vfile->fd,vlowest->data,PGSIZE);
+   if(addr+PGSIZE>vfile->size) vfile->size=addr+PGSIZE;
+   }
+  vlowest->dirty=0;
+  last=addr;
+  goto loop;
+  }
+ }
+}
+
+void vflshf(vfile)
+VFILE *vfile;
+{
+VPAGE *vp;
+VPAGE *vlowest;
+long addr;
+int x;
+loop:
+addr= MAXLONG;
+vlowest=0;
+for(x=0;x!=HTSIZE;x++)
+ for(vp=htab[x];vp;vp=vp->next)
+  if(vp->addr<addr && vp->dirty && vp->vfile==vfile && !vp->count)
+   addr=vp->addr, vlowest=vp;
+if(vlowest)
+ {
+ if(!vfile->name) vfile->name=mktmp(NULL);
+ if(!vfile->fd)
+  {
+  vfile->fd=open(vfile->name,O_RDWR);
+  }
+ lseek(vfile->fd,addr,0);
+ if(addr+PGSIZE>vsize(vfile))
+  {
+  jwrite(vfile->fd,vlowest->data,(int)(vsize(vfile)-addr));
+  vfile->size=vsize(vfile);
+  }
+ else
+  {
+  jwrite(vfile->fd,vlowest->data,PGSIZE);
+  if(addr+PGSIZE>vfile->size) vfile->size=addr+PGSIZE;
+  }
+ vlowest->dirty=0;
+ goto loop;
+ }
+}
+
+char *mema(align,size)
+ {
+ char *z=(char *)malloc(align+size);
+ return z+align-physical(z)%align;
+ }
+
+char *vlock(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+VPAGE *vp, *pp;
+int x,y;
+int ofst=(addr&(PGSIZE-1));
+addr-=ofst;
+
+for(vp=htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)];vp;vp=vp->next)
+ if(vp->vfile==vfile && vp->addr==addr) return ++vp->count, vp->data+ofst;
+
+if(freepages)
+ {
+ vp=freepages;
+ freepages=vp->next;
+ goto gotit;
+ }
+
+if(curvalloc+PGSIZE<=maxvalloc)
+ {
+ vp=(VPAGE *)malloc(sizeof(VPAGE)*INC);
+ if(vp)
+  {
+  vp->data=(char *)mema(PGSIZE,PGSIZE*INC);
+  if(vp->data)
+   {
+   int q;
+   curvalloc+=PGSIZE*INC;
+   if(!vheaders)
+    vheaders=(VPAGE **)malloc((vheadsz=INC)*sizeof(VPAGE *)),
+    vbase=vp->data;
+   else
+    if(physical(vp->data)<physical(vbase))
+     {
+     VPAGE **t=vheaders;
+     int amnt=(physical(vbase)-physical(vp->data))>>LPGSIZE;
+     vheaders=(VPAGE **)malloc((amnt+vheadsz)*sizeof(VPAGE *));
+     mcpy(vheaders+amnt,t,vheadsz*sizeof(VPAGE *));
+     vheadsz+=amnt;
+     vbase=vp->data;
+     free(t);
+     }
+    else if(((physical(vp->data+PGSIZE*INC)-physical(vbase))>>LPGSIZE)>vheadsz)
+     {
+     vheaders=(VPAGE **)realloc(vheaders,
+      (vheadsz=(((physical(vp->data+PGSIZE*INC)-physical(vbase))>>LPGSIZE)))*sizeof(VPAGE *));
+     }
+   for(q=1;q!=INC;++q)
+    {
+    vp[q].next=freepages;
+    freepages=vp+q;
+    vp[q].data=vp->data+q*PGSIZE;
+    vheader(vp->data+q*PGSIZE)=vp+q;
+    }
+   vheader(vp->data)=vp;
+   goto gotit;
+   }
+  free(vp);
+  vp=0;
+  }
+ }
+
+for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+ for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+  if(!vp->count && !vp->dirty)
+   {
+   pp->next=vp->next;
+   goto gotit;
+   }
+vflsh();
+for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+ for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+  if(!vp->count && !vp->dirty)
+   {
+   pp->next=vp->next;
+   goto gotit;
+   }
+write(2,"vfile: out of memory\n",21);
+exit(1);
+
+gotit:
+vp->addr=addr;
+vp->vfile=vfile;
+vp->dirty=0;
+vp->count=1;
+vp->next=htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)];
+htab[((addr>>LPGSIZE)+(int)vfile)&(HTSIZE-1)]=vp;
+
+if(addr<vfile->size)
+ {
+ if(!vfile->fd)
+  {
+  vfile->fd=open(vfile->name,O_RDWR);
+  }
+ lseek(vfile->fd,addr,0);
+ if(addr+PGSIZE>vfile->size)
+  {
+  jread(vfile->fd,vp->data,(int)(vfile->size-addr));
+  mset(vp->data+vfile->size-addr,0,PGSIZE-(int)(vfile->size-addr));
+  }
+ else jread(vfile->fd,vp->data,PGSIZE);
+ }
+else mset(vp->data,0,PGSIZE);
+
+return vp->data+ofst;
+}
+
+VFILE *vtmp()
+{
+VFILE *new=(VFILE *)malloc(sizeof(VFILE));
+new->fd= 0;
+new->name=0;
+new->alloc=0;
+new->size=0;
+new->left=0;
+new->lv=0;
+new->vpage=0;
+new->flags=1;
+new->vpage1=0;
+new->addr= -1;
+return enqueb(VFILE,link,&vfiles,new);
+d306 24
+a329 23
+VFILE *vopen(name)
+char *name;
+{
+struct stat buf;
+VFILE *new=(VFILE *)malloc(sizeof(VFILE));
+new->name=vsncpy(NULL,0,sz(name));
+new->fd=open(name,O_RDWR);
+if(!new->fd)
+ {
+ fprintf(stderr,"Couldn\'t open file \'%s\'\n",name);
+ free(new);
+ return 0;
+ }
+fstat(new->fd,&buf);
+new->size=buf.st_size;
+new->alloc=new->size;
+new->left=0;
+new->lv=0;
+new->vpage=0;
+new->flags=0;
+new->vpage1=0;
+new->addr= -1;
+return enqueb(VFILE,link,&vfiles,new);
+d334 32
+a365 25
+void vclose(vfile)
+VFILE *vfile;
+{
+VPAGE *vp, *pp;
+int x;
+if(vfile->vpage) vunlock(vfile->vpage);
+if(vfile->vpage1) vunlock(vfile->vpage1);
+if(vfile->name)
+ {
+ if(vfile->flags) unlink(vfile->name);
+ else vflshf(vfile);
+ vsrm(vfile->name);
+ }
+if(vfile->fd) close(vfile->fd);
+free(deque(VFILE,link,vfile));
+for(x=0;x!=HTSIZE;x++)
+ for(pp=(VPAGE *)(htab+x), vp=pp->next;vp;)
+  if(vp->vfile==vfile)
+   {
+   pp->next=vp->next;
+   vp->next=freepages;
+   freepages=vp;
+   vp=pp->next;
+   }
+  else pp=vp, vp=vp->next;
+d370 51
+a420 42
+void vlimit(amount)
+long amount;
+{
+VPAGE *vp, *pp;
+int x,y;
+maxvalloc=amount;
+while(curvalloc>maxvalloc)
+ if(freepages)
+  {
+  vp=freepages;
+  freepages=vp->next;
+  free(vp->data);
+  free(vp);
+  curvalloc-=PGSIZE;
+  }
+ else
+  {
+  again:
+  for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+   for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+    if(!vp->count && !vp->dirty)
+     {
+     pp->next=vp->next;
+     free(vp->data);
+     free(vp);
+     if((curvalloc-=PGSIZE)<=maxvalloc) return;
+     goto again;
+     }
+  vflsh();
+  again1:
+  for(y=HTSIZE, x=(random()&(HTSIZE-1));y;x=((x+1)&(HTSIZE-1)), --y)
+   for(pp=(VPAGE *)(htab+x),vp=pp->next;vp;pp=vp, vp=vp->next)
+    if(!vp->count && !vp->dirty)
+     {
+     pp->next=vp->next;
+     free(vp->data);
+     free(vp);
+     if((curvalloc-=PGSIZE)<=maxvalloc) return;
+     goto again1;
+     }
+  return;
+  }
+d424 17
+a440 13
+long my_valloc(vfile,size)
+VFILE *vfile;
+long size;
+{
+long start=vsize(vfile);
+vfile->alloc=start+size;
+if(vfile->lv)
+ {
+ if(vheader(vfile->vpage)->addr+PGSIZE>vfile->alloc)
+  vfile->lv=PGSIZE-(vfile->alloc-vheader(vfile->vpage)->addr);
+ else vfile->lv=0;
+ }
+return start;
+d445 255
+a699 214
+void vseek(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+vfile->alloc=vsize(vfile);
+if(addr>vfile->alloc) vfile->alloc=addr;
+if(!vfile->vpage) vfile->vpage=vlock(vfile,addr&~(long)(PGSIZE-1));
+else if(vheader(vfile->vpage)->addr!=(addr&~(long)(PGSIZE-1)))
+ {
+ vunlock(vfile->vpage);
+ vfile->vpage=vlock(vfile,addr&~(long)(PGSIZE-1));
+ }
+vfile->bufp=vfile->vpage+(addr&(PGSIZE-1));
+vfile->left=vfile->vpage+PGSIZE-vfile->bufp;
+if(vheader(vfile->vpage)->addr+PGSIZE>vfile->alloc)
+ vfile->lv=PGSIZE-(vfile->alloc-vheader(vfile->vpage)->addr);
+else vfile->lv=0;
+}
+
+int _vrgetc(vfile)
+VFILE *vfile;
+{
+if(vtell(vfile)==0) return MAXINT;
+vseek(vfile,vtell(vfile)-1);
+++vfile->bufp;
+--vfile->left;
+return vrgetc(vfile);
+}
+
+int _vgetc(vfile)
+VFILE *vfile;
+{
+if(vtell(vfile)==vsize(vfile)) return MAXINT;
+vseek(vfile,vtell(vfile));
+return vgetc(vfile);
+}
+
+int nmvgetc(v) VFILE *v; { return vgetc(v); } 
+
+int _vputc(vfile,c)
+VFILE *vfile;
+char c;
+{
+vseek(vfile,vtell(vfile));
+return vputc(vfile,c);
+}
+
+short vgetw(vfile)
+VFILE *vfile;
+{
+short w;
+if(vtell(vfile)+2>vsize(vfile)) return -1;
+w=vgetc(vfile);
+w+=((short)vgetc(vfile)<<8);
+return w;
+}
+
+short vputw(vfile,w)
+VFILE *vfile;
+short w;
+{
+vputc(vfile,w);
+vputc(vfile,w>>8);
+return w;
+}
+
+long vgetl(vfile)
+VFILE *vfile;
+{
+long w;
+if(vtell(vfile)+4>vsize(vfile)) return -1;
+w=vgetc(vfile);
+w+=((long)vgetc(vfile)<<8);
+w+=((long)vgetc(vfile)<<16);
+w+=((long)vgetc(vfile)<<24);
+return w;
+}
+
+long vputl(vfile,w)
+VFILE *vfile;
+long w;
+{
+vputc(vfile,w);
+vputc(vfile,w>>8);
+vputc(vfile,w>>16);
+vputc(vfile,w>>24);
+return w;
+}
+
+int _rc(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+if(vfile->vpage1) vunlock(vfile->vpage1);
+vfile->vpage1=vlock(vfile,vfile->addr=(addr&~(long)(PGSIZE-1)));
+return rc(vfile,addr);
+}
+
+int _wc(vfile,addr,c)
+VFILE *vfile;
+long addr;
+char c;
+{
+if(addr+1>vsize(vfile)) my_valloc(vfile,addr+1-vsize(vfile));
+if(vfile->vpage1) vunlock(vfile->vpage1);
+vfile->vpage1=vlock(vfile,vfile->addr=(addr&~(long)(PGSIZE-1)));
+return wc(vfile,addr,c);
+}
+
+short rw(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+short c;
+if(addr+2>vsize(vfile)) return -1;
+c=rc(vfile,addr);
+c+=((short)rc(vfile,addr+1)<<8);
+return c;
+}
+
+short ww(vfile,addr,c)
+VFILE *vfile;
+long addr;
+short c;
+{
+if(addr+2>vsize(vfile)) my_valloc(vfile,addr+2-vsize(vfile));
+wc(vfile,addr,c);
+wc(vfile,addr+1,c>>8);
+return c;
+}
+
+long rl(vfile,addr)
+VFILE *vfile;
+long addr;
+{
+long c;
+if(addr+4>vsize(vfile)) return -1;
+c=rc(vfile,addr);
+c+=((long)rc(vfile,addr+1)<<8);
+c+=((long)rc(vfile,addr+2)<<16);
+c+=((long)rc(vfile,addr+3)<<24);
+return c;
+}
+
+long wl(vfile,addr,c)
+VFILE *vfile;
+long addr;
+long c;
+{
+if(addr+4>vsize(vfile)) my_valloc(vfile,addr+4-vsize(vfile));
+wc(vfile,addr,c);
+wc(vfile,addr+1,c>>8);
+wc(vfile,addr+2,c>>16);
+wc(vfile,addr+3,c>>24);
+return c;
+}
+
+void vread(v,blk,size)
+VFILE *v;
+char *blk;
+int size;
+{
+long addr=vtell(v);
+char *src;
+int x;
+while(size)
+ {
+ src=vlock(v,addr);
+ x=PGSIZE-(addr&(PGSIZE-1));
+ if(x>=size)
+  {
+  vseek(v,addr+size);
+  mcpy(blk,src,size);
+  vunlock(src);
+  return;
+  }
+ size-=x;
+ addr+=x;
+ mcpy(blk,src,x);
+ blk+=x;
+ vunlock(src);
+ }
+vseek(v,addr);
+}
+
+void vwrite(v,blk,size)
+VFILE *v;
+char *blk;
+int size;
+{
+long addr=vtell(v);
+char *src;
+int x;
+if(addr+size>vsize(v)) my_valloc(v,addr+size-vsize(v));
+while(size)
+ {
+ src=vlock(v,addr);
+ x=PGSIZE-(addr&(PGSIZE-1));
+ if(x>=size)
+  {
+  vseek(v,addr+size);
+  mcpy(src,blk,size);
+  vchanged(src);
+  vunlock(src);
+  return;
+  }
+ size-=x;
+ addr+=x;
+ mcpy(src,blk,x);
+ blk+=x;
+ vchanged(src);
+ vunlock(src);
+ }
+vseek(v,addr);
+d704 4
+a707 3
+void vputs(v,s)
+VFILE *v;
+char *s;
+d709 2
+a710 1
+while(*s) vputc(v,*s), ++s;
+d715 148
+a862 50
+char *vgets(v,s)
+VFILE *v;
+char *s;
+ {
+ char *b, *a, *x, *y;
+ int cnt;
+
+ /* Return with NULL if at end of file */
+ if(vtell(v)==vsize(v))
+  {
+  vsrm(s);
+  return 0;
+  }
+
+ /* Create string if it doesn't exist */
+ if(!s) s=vsmk(80);
+
+ /* Zero string length */
+ sLen(s)=0;
+
+ loop:
+
+ /* Set b to end of string, a to page pointer, and cnt to min which ever
+  * (string or page) has the least space left
+  */
+ b=s+sLen(s);
+ a=v->bufp;
+ cnt=Imin(sSIZ(s)-sLen(s),v->left-v->lv);
+
+ /* Copy until \n is found or until page or buffer out of space */
+ if(cnt>=16) do
+  {
+  if((b[0]=a[0])=='\n') { a+=1; b+=1; goto ovr; }
+  if((b[1]=a[1])=='\n') { a+=2; b+=2; cnt-=1; goto ovr; }
+  if((b[2]=a[2])=='\n') { a+=3; b+=3; cnt-=2; goto ovr; }
+  if((b[3]=a[3])=='\n') { a+=4; b+=4; cnt-=3; goto ovr; }
+  if((b[4]=a[4])=='\n') { a+=5; b+=5; cnt-=4; goto ovr; }
+  if((b[5]=a[5])=='\n') { a+=6; b+=6; cnt-=5; goto ovr; }
+  if((b[6]=a[6])=='\n') { a+=7; b+=7; cnt-=6; goto ovr; }
+  if((b[7]=a[7])=='\n') { a+=8; b+=8; cnt-=7; goto ovr; }
+  if((b[8]=a[8])=='\n') { a+=9; b+=9; cnt-=8; goto ovr; }
+  if((b[9]=a[9])=='\n') { a+=10; b+=10; cnt-=9; goto ovr; }
+  if((b[10]=a[10])=='\n') { a+=11; b+=11; cnt-=10; goto ovr; }
+  if((b[11]=a[11])=='\n') { a+=12; b+=12; cnt-=11; goto ovr; }
+  if((b[12]=a[12])=='\n') { a+=13; b+=13; cnt-=12; goto ovr; }
+  if((b[13]=a[13])=='\n') { a+=14; b+=14; cnt-=13; goto ovr; }
+  if((b[14]=a[14])=='\n') { a+=15; b+=15; cnt-=14; goto ovr; }
+  if((b[15]=a[15])=='\n') { a+=16; b+=16; cnt-=15; goto ovr; }
+  }
+  while(a+=16, b+=16, (cnt-=16)>=16);
+d888 29
+a916 20
+ if(cnt) do
+  if((*b++=*a++)=='\n') break;
+  while(--cnt);
+
+ ovr:
+ 
+ /* Update string and page data */
+ sLen(s)=b-s;
+ v->left-=a-v->bufp;
+ v->bufp=a;
+
+ if(!cnt)
+  if(vtell(v)==vsize(v)) b[0]=0;
+  else
+   {
+   if(sLen(s)==sSiz(s)) s=vsensure(s,sLen(s)+(sLen(s)>>1)+16);
+   if(!v->left) vseek(v,vtell(v));
+   goto loop;
+   }
+ else b[-1]=0;
+d918 2
+a919 2
+ return s;
+ }
+@
+
+
+1.2
+log
+@changes for joe-2.9.1
+@
+text
+@a25 1
+#include "zstr.h"
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d23 1
+a29 1
+#include "random.h"
+d354 1
+a354 1
+long valloc(vfile,size)
+d474 1
+a474 1
+if(addr+1>vsize(vfile)) valloc(vfile,addr+1-vsize(vfile));
+d496 1
+a496 1
+if(addr+2>vsize(vfile)) valloc(vfile,addr+2-vsize(vfile));
+d520 1
+a520 1
+if(addr+4>vsize(vfile)) valloc(vfile,addr+4-vsize(vfile));
+d564 1
+a564 1
+if(addr+size>vsize(v)) valloc(v,addr+size-vsize(v));
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

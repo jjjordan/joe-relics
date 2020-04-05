@@ -1,0 +1,1217 @@
+head	1.11;
+access;
+symbols
+	joe_3_5:1.11
+	joe-3_4:1.11
+	help:1.11
+	joe_3_1:1.10
+	joe_3_0:1.10
+	joe_2_9_8:1.9
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.11
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2003.03.04.17.37.41;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2002.01.15.09.25.11;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.57.30;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.26;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.26;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.11
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Dynamic string library
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_VS_H
+#define _JOE_VS_H 1
+
+/***
+ *
+ * This is a dynamic string library which supports strings which automatically
+ * resize themselves when needed.  The strings know their own size, so getting
+ * the length of a string is a fast operation and storing zeroes in the
+ * strings is permissable.
+ *
+ * The strings are stored in malloc blocks and have the following format:
+ *
+ *   <bksize><length><string><zero>
+ *
+ * 'bksize' and 'length' are ints which give the size of the malloc block
+ * and the length of the string.  A zero character always follows the string
+ * for compatibility with normal C zero-terminated strings.  The zero is not
+ * counted in the string length.
+ *
+ * To further the compatibility with C strings, the address of a dynamic string
+ * is at <string> above, not at <bksize> (whose address is the start of the
+ * malloc block).  Thus, dynamic strings can be passed as arguments to UNIX
+ * operating system functions and C library function, but they can not be freed
+ * with free()- a special function is provided in this library for freeing
+ * dynamic strings.
+ *
+ * The primary dynamic string function is:
+ *
+ * char *vsncpy(char *d, int off, char *s, int len);
+ *                              Copy a block of characters at address 's' of
+ *				length 'len' onto the dynamic string 'd' at
+ *				offset 'off'.  The dynamic string is expanded
+ *				to handle any values of 'len' and 'off' which
+ *				might be given.  If 'off' is greater than the
+ *				length of the string, SPACEs are placed in the
+ *				gap.  If 'd' is NULL, a string is created.  If
+ *				'len' is 0, no copying or string expansion
+ *				occurs.
+ *
+ * Three important macros are provided for helping with vsncpy():
+ *
+ * sc("Hello")   Gives -->  "Hello",sizeof("Hello")-1
+ * sz(s)         Gives -->  s,strlen(s)
+ * sv(d)         Gives -->  d,sLEN(d)
+ *
+ * These are used to build arguments for vsncpy().  Many functions
+ * can be created with combinations of sc/sz/sv with vsncpy:
+ *
+ *    s=vsncpy(NULL,0,NULL,0);		Create an empty dynamic string
+ *
+ *    s=vsncpy(NULL,0,sc("Hello"));	Create a dynamic string initialized
+ *					with "Hello"
+ *
+ *    d=vsncpy(NULL,0,sv(s));		Duplicate a dynamic string
+ *
+ *    d=vsncpy(NULL,0,sz(s));		Convert a C string into a dynamic
+ *                                      string.
+ *
+ *    d=vsncpy(sv(d),sv(s));		Append dynamic string s onto d.
+ *
+ *    d=vsncpy(sv(d),sc(".c"));		Append a ".c" extension to d.
+ *
+ *
+ * These lesser functions are also provided:
+ *
+ * void vsrm(char *s);		Free a string.  Do nothing if 's' is NULL.
+ *
+ * int sLEN(char *s);		Return the length of the string 's'.  If 's'
+ *				is NULL, return 0.
+ *
+ * char *vstrunc(char *d,int len);
+ *				Set the length of a string.  Expand the string
+ *				with blanks if necessary.
+ *
+ * char *vsensure(char *d,int len);
+ *				Expand the malloc block for the string if
+ *				necessary so that a string of 'len' chars can
+ *				fit in it.
+ *
+ * sLen(s)=10;			Set the length indicator of the string to 10.
+ *
+ * char *vsins(char *d,int off,int len);
+ *				Insert a gap into a string.
+ *
+ * char *vsdel(char *d,int off,int len);
+ *				Delete characters from a string.
+ *
+ * Other function are provided as well.  Look through the rest of the header
+ * file.  The header file is kind of weird looking because it is intended to
+ * handle dynamic arrays of any type with only a few changes.
+ */
+
+/* Functions and global variable you have to define.  Replace these with
+ * macros or defines here if they are not to be actual functions 
+ */
+
+/* An element with name 'a' */
+typedef unsigned char sELEMENT;
+
+/* Duplicate an element */
+/* sELEMENT sdup(); */
+#define sdup(a) (a)
+
+/* Delete an element */
+/* sELEMENT sdel(); */
+#define sdel(a) do {} while(0)		/* effectively do nothing ;-) */
+
+/* Compare a single element */
+/* int scmp(); */
+#define scmp(a, b) ((a) > (b) ? 1 : ((a) == (b) ? 0 : -1))
+
+/* Compare a single element- case insensitive */
+int sicmp(unsigned char a, unsigned char b);
+
+/* A blank element */
+/* extern sELEMENT sblank; */
+#define sblank ' '
+
+/* A termination element */
+/* extern sELEMENT sterm; */
+#define sterm '\0'
+
+/************************/
+/* Creation/Destruction */
+/************************/
+
+/* sELEMENT *vsmk(int len);
+ * Create a variable length array.  Space for 'len' elements is preallocated.
+ */
+sELEMENT *vsmk PARAMS((int len));
+
+/* void vsrm(sELEMENT *vary);
+ * Free an array and everything which is in it.  Does nothing if 'vary' is
+ * 0.
+ */
+void vsrm PARAMS((sELEMENT *vary));
+
+/********************/
+/* Space management */
+/********************/
+
+/* int sSIZ(sELEMENT *vary);
+ * int sSiz(sELEMENT *vary);
+ * Access size part of array.  This int indicates the number of elements which
+ * can fit in the array before realloc needs to be called.  It does not include
+ * the extra space needed for the terminator and the header.
+ *
+ * sSIZ returns 0 if you pass it 0.  sSiz does not do this checking,
+ * but can be used as an lvalue.
+ */
+#define sSIZ(a) ((a) ? *((int *)(a) - 2) : 0)
+#define sSiz(a) (*((int *)(a) - 2))
+
+/* int sLEN(sELEMENT *vary);
+ * int sLen(sELEMENT *vary);
+ * Access length part of array.  This int indicates the number of elements
+ * currently in the array (not including the terminator).  This should be
+ * used primarily for reading the size of the array.  It can be used for
+ * setting the size of the array, but it must be used with care since it
+ * does not eliminate elements (if the size decreases) or make sure there's
+ * enough room (if the size increases).  See vensure and vtrunc.
+ *
+ * sLEN return a length of zero if 'vary' is 0.
+ * sLen doesn't do this checking, but can be used as an lvalue
+ */
+#define sLEN(a) ((a) ? *((int *)(a) - 1) : 0)
+#define sLen(a) (*((int *)(a) - 1))
+
+/* int slen(sELEMENT *ary);
+ * Compute length of char or variable length array by searching for termination
+ * element.  Returns 0 if 'vary' is 0.
+ */
+int slen PARAMS((sELEMENT *ary));
+
+/* sELEMENT *vsensure(sELEMENT *vary, int len);
+ * Make sure there's enough space in the array for 'len' elements.  Whenever
+ * vsensure reallocs the array, it allocates 25% more than the necessary
+ * minimum space in anticipation of future expansion.  If 'vary' is 0,
+ * it creates a new array.
+ */
+sELEMENT *vsensure PARAMS((sELEMENT *vary, int len));
+
+/* sELEMENT *vstrunc(sELEMENT *vary, int len));
+ * Truncate array to indicated size.  This zaps or expands with blank elements
+ * and sets the LEN() of the array.  A new array is created if 'vary' is 0.
+ */
+sELEMENT *vstrunc PARAMS((sELEMENT *vary, int len));
+
+/************************************/
+/* Function which write to an array */
+/************************************/
+
+/* sELEMENT *vsfill(sELEMENT *vary, int pos, sELEMENT el, int len);
+ * Set 'len' element of 'vary' beginning at 'pos' to duplications of 'el'.
+ * Ok, if pos/len are past end of array.  If 'vary' is 0, a new array is
+ * created.
+ *
+ * This does not zap previous values.  If you need that to happen, call
+ * vszap first.  It does move the terminator around properly though.
+ */
+sELEMENT *vsfill PARAMS((sELEMENT *vary, int pos, sELEMENT el, int len));
+
+/* sELEMENT *vsncpy(sELEMENT *vary, int pos, sELEMENT *array, int len));
+ * Copy 'len' elements from 'array' onto 'vary' beginning at position 'pos'.
+ * 'array' can be a normal char array since the length is passed seperately.  The
+ * elements are copied, not duplicated.  A new array is created if 'vary' is
+ * 0.  This does not zap previous elements.
+ */
+sELEMENT *vsncpy PARAMS((sELEMENT *vary, int pos, sELEMENT *array, int len));
+
+/* sELEMENT *vsndup(sELEMENT *vary, int pos, sELEMENT *array, int len));
+ * Duplicate 'len' elements from 'array' onto 'vary' beginning at position
+ * 'pos'.  'array' can be a char array since its length is passed seperately.  A
+ * new array is created if 'vary' is 0.
+ */
+sELEMENT *vsndup PARAMS((sELEMENT *vary, int pos, sELEMENT *array, int len));
+
+/* sELEMENT *vsdup(sELEMENT *vary));
+ * Duplicate array.  This is just a functionalized version of:
+ *
+ *   vsndup(NULL, 0, vary, sLEN(vary));
+ *
+ * but since you need to be able to refer to this particular function by
+ * address often it's given here.
+ *
+ * (actually, there's bazillions of these simple combinations of the above
+ * functions and the macros of the next section.  You'll probably want to make
+ * functionalized instances of the ones you use most often - especially since
+ * the macros aren't safe).
+ */
+sELEMENT *vsdup PARAMS((sELEMENT *vary));
+
+/* sELEMENT *vsset(sELEMENT *vary, int pos, sELEMENT element);
+ * Set an element in an array.  Any value of 'pos' is valid.  A new array
+ * is created if 'vary' is 0.  The previous contents of the position is
+ * deleted.    This does not duplicate 'element'.  If you need 'element'
+ * duplicated, call: vsset(vary,pos,sdup(element));
+ */
+sELEMENT *_vsset PARAMS((sELEMENT *vary, int pos, sELEMENT el));
+
+#define vsset(v, p, el)  \
+ (!(v) || (p) > sLen(v) || (p) >= sSiz(v) ?  \
+  _vsset((v), (p), (el)) \
+ : \
+  ((p) == sLen(v) ? \
+   ((v)[(p) + 1] = 0, sLen(v) = (p) + 1, (v)[p] = (el), (v)) \
+  : \
+   ((v)[p] = (el), (v)) \
+  ) \
+ )
+
+/* sELEMENT *vsadd(sELEMENT *vary, sELEMENT element);
+ * Concatenate a single element to the end of 'vary'.  A new array is created
+ * if 'vary' is 0.  This does not duplicate element: call
+ * vsadd(vary,sdup(element));  If you need it duplicated.
+ */
+#define vsadd(v, el) \
+ (!(v) || sLen(v) == sSiz(v) ? \
+  _vsset((v), sLEN(v), (el)) \
+ : \
+  ((v)[sLen(v) + 1] = 0, (v)[sLen(v)] = (el), sLen(v) = sLen(v) + 1, (v)) \
+ )
+
+/**************************************/
+/* Functions which read from an array */
+/**************************************/
+
+/* These macros are used to generate the address/size pairs which get
+ * passed to the functions of the previous section.
+ */
+
+/* { sELEMENT *, int } sv(sELEMENT *array);
+ * Return array, size pair.  Uses sLEN to get size.
+ */
+#define sv(a) (a), sLEN(a)
+
+/* { sELEMENT *, int } sz(sELEMENT *array);
+ * Return array, size pair.  Uses slen to get size.
+ */
+#define sz(a) (a), slen(a)
+
+/* { sELEMENT *, int } sc(sELEMENT *array);
+ * Return array, size pair.  Uses 'sizeof' to get size.
+ */
+#define sc(a) (unsigned char *)(a), (sizeof(a) / sizeof(sELEMENT) - 1)
+
+/* { sELEMENT *, int } srest(sELEMENT *vary, int pos);
+ * Return array, size pair of rest of array beginning at pos.  If
+ * pos is past end of array, gives size of 0.
+ */
+#define srest(a, p) ((a) + (p)), (((p) > sLEN(a)) ? 0 : sLen(a) - (p))
+
+/* { sELEMENT *, int } spart(sELEMENT *vary, int pos, int len);
+ * Return array,size pair of 'len' elements of array beginning with pos.  If
+ * pos is past end of array, gives size of 0.  If pos+len is past end of array,
+ * returns number of elements to end of array.
+ */
+#define spart(a, p, l) \
+ ((a) + (p)), ((p) >= sLEN(a) ? 0 : ((p) + (l) > sLen(a) ? sLen(a) - (p) : (l)))
+
+/* sELEMENT vsget(sELEMENT *vary, int pos);
+ * Get an element from an array.  Any value of pos is valid; if it's past the
+ * end of the array or if 'vary' is 0, the terminator is returned.  This
+ * does not make a duplicate of the returned element.  If you want that, pass
+ * the return value of this to sdup.
+ */
+#define vsget(a, p) ((p) >= sLEN(a) ? sterm : (a)[p])
+
+/**********************/
+/* Insertion/Deletion */
+/**********************/
+#ifdef junk
+/* sELEMENT *vsins(sELEMENT *vary, int pos, int n));
+ * Insert n empty slots into the array.  If 'pos' >= the length of the array,
+ * the array is simply extended.  The new slots are not set to anything.
+ * This does not set the elements in the created hole to any particular
+ * value: use vsfill if you need that to occur.
+ */
+sELEMENT *vsins PARAMS((sELEMENT *vary, int pos, int n));
+
+/* sELEMENT *vsdel(sELEMENT *vary, int pos, int n));
+ * Delete n slots from the array.  This does not zap the elements first; call
+ * vszap first if you need this to happen.
+ */
+sELEMENT *vsdel PARAMS((SELEMENT *vary, int pos, int n));
+
+/*************************/
+/* Searching and Sorting */
+/*************************/
+
+/* sELEMENT *vssort(sELEMENT *ary, int len))
+ * Sort the elements of an array (char or variable length) using qsort().
+ */
+sELEMENT *vssort PARAMS((sELEMENT *ary, int len));
+#endif
+/* int vsbsearch(sELEMENT *ary, int len, sELEMENT element);
+ * Do a binary search on a sorted variable length or char array.  Returns position
+ * of matching element or the position where the element should be if it was
+ * not found.  (You should test with scmp to find out which).
+ *
+ * Hmm... this should really indicate whether or not the element was found.
+ */
+int vsbsearch PARAMS((sELEMENT *ary, int len, sELEMENT el));
+
+#ifdef junk
+/* int vsfirst(sELEMENT *ary, int len, sELEMENT element);
+ * Find offset to first matching element in 'vary' or return ~0 if not found.
+ */
+int vsfirst PARAMS((sELEMENT *ary, int len, sELEMENT element));
+
+/* int vslast(sELEMENT *ary, int len, sELEMENT element);
+ * Find offset to last matching element in 'vary' or return ~0 if none found.
+ */
+int vslast PARAMS((sELEMENT *ary, int len, sELEMENT element));
+
+/* int vss(sELEMENT *a, int alen, sELEMENT *b, int blen);
+ * Do a substring search on 'a'.  Return offset from 'a' to first matching
+ * occurance of 'b' in 'a' or return ~0 if none found.
+ */
+int vss PARAMS((sELEMENT *a, int alen, sELEMENT *b, int blen));
+#endif
+/* int vscmpn(sELEMENT *a, int alen, sELEMENT *b, int blen);
+ *
+ * Compare two arrays using scmp.  If 'a' > 'b', return 1.  If 'a' == 'b',
+ * return 0.  If 'a' < 'b', return -1.  Longer strings are > shorter ones if
+ * their beginning match.
+ */
+int vscmpn PARAMS((sELEMENT *a, int alen, sELEMENT *b, int blen));
+
+/* int vscmp(sELEMENT *a, sELEMENT *b);
+ *
+ * Functionalized version of: vscmpn(sv(a), sv(b));
+ */
+int vscmp PARAMS((sELEMENT *a, sELEMENT *b));
+
+#ifdef junk
+/* int vsicmpn(sELEMENT *a, int alen, sELEMENT *b, int blen);
+ *
+ * Compare two arrays using sicmp.  If 'a' > 'b', return 1.  If 'a' == 'b',
+ * return 0.  If 'a' < 'b', return -1.  Longer strings are > shorter ones if
+ * their beginning match.
+ *
+ * This is same as vscmpn except that it is case insensitive.
+ */
+int vsicmpn PARAMS((sELEMENT *a, int alen, sELEMENT *b, int blen));
+
+/* int vsicmp(sELEMENT *a, sELEMENT *b);
+ *
+ * Functionalized version of: vsicmpn(sv(a), sv(b));
+ */
+int vsicmp PARAMS((sELEMENT *a, sELEMENT *b));
+#endif
+/* int vsscan(sELEMENT *a, int alen, sELEMENT *b, int blen);
+ * Find offset of first matching element in 'a' which matches any
+ * of the elements passed in 'b'.  Array 'b' must be sorted.
+ *
+ * Hmm... this really needs to return what the found element is.
+ */
+int vsscan PARAMS((sELEMENT *a, int alen, sELEMENT *b, int blen));
+
+/* int vsspan(sELEMENT *a, int alen, sELEMENT *b, int blen);
+ * Find offset of first matching element in 'a' which does not match any
+ * of the elements passed in 'b'.  Array 'b' must be sorted.
+ */
+int vsspan PARAMS((sELEMENT *a, int alen, sELEMENT *b, int blen));
+
+/***************/
+/* Other stuff */
+/***************/
+#ifdef junk
+/* char *vsread(char *d, int p, int (*getC)(void *ptr), void *ptr);
+ * Replace 'd' with next line read from read-character function 'getC'.  If 
+ * 'd' is 0, a new string is allocated.  If there is no more input, the string
+ * is freed and 0 is returned.  The \n is deleted from the entered line.
+ *
+ * 'ptr' is passed as the first arg to 'getC'.  'getC' should return -1 if
+ * there is no more input.
+ */
+unsigned char *vsread PARAMS(());
+
+/* char *vwords(char *s, char **a, int len, char t);
+ *
+ * Generate a 't'-seperated word list from the words in the zero-terminated
+ * array of zero-terminated strings 'a'.  For example a simple 'echo.c':
+ *
+ * main(argc, argv)
+ * char *argv[];
+ * {
+ * printf("%s\n",vwords(NULL,argv,argc,' ')):
+ * }
+ *
+ */
+unsigned char *vwords PARAMS(());
+#endif
+#endif
+@
+
+
+1.10
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a10 4
+#include "config.h"
+
+#include <string.h>
+
+@
+
+
+1.9
+log
+@make vsrm() and slen() of type sELEMENT *
+@
+text
+@d109 1
+a109 1
+typedef char sELEMENT;
+d124 1
+a124 1
+int sicmp(char a, char b);
+d296 1
+a296 1
+#define sc(a) (a), (sizeof(a) / sizeof(sELEMENT) - 1)
+d430 1
+a430 1
+char *vsread PARAMS(());
+d444 1
+a444 1
+char *vwords PARAMS(());
+@
+
+
+1.8
+log
+@change sELEMENT #define to typedef
+@
+text
+@d147 1
+a147 1
+void vsrm PARAMS((char *vary));
+d184 1
+a184 1
+int slen PARAMS((char *ary));
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d40 1
+a40 1
+ * char *vsncpy(char *d,int off,char *s,int len);
+d109 1
+a109 4
+#define sELEMENT(a) char a
+
+/* Cast something to element type */
+#define sCAST char
+d112 1
+a112 1
+/* sELEMENT(sdup()); */
+d116 1
+a116 1
+/* sELEMENT(sdel()); */
+d121 1
+a121 1
+#define scmp(a,b) ((a)>(b)?1:((a)==(b)?0:-1))
+d127 1
+a127 1
+/* extern sELEMENT(sblank); */
+d131 1
+a131 1
+/* extern sELEMENT(sterm); */
+d138 1
+a138 1
+/* sELEMENT(*vsmk(int len));
+d141 1
+a141 1
+sELEMENT(*vsmk PARAMS((int len)));
+d143 1
+a143 1
+/* void vsrm(sELEMENT(*vary));
+d153 2
+a154 2
+/* int sSIZ(sELEMENT(*vary));
+ * int sSiz(sELEMENT(*vary));
+d162 2
+a163 2
+#define sSIZ(a) ((a)?*((int *)(a)-2):0)
+#define sSiz(a) (*((int *)(a)-2))
+d165 2
+a166 2
+/* int sLEN(sELEMENT(*vary));
+ * int sLen(sELEMENT(*vary));
+d177 2
+a178 2
+#define sLEN(a) ((a)?*((int *)(a)-1):0)
+#define sLen(a) (*((int *)(a)-1))
+d180 1
+a180 1
+/* int slen(sELEMENT(*ary));
+d186 1
+a186 1
+/* sELEMENT(*vsensure(sELEMENT(*vary),int len));
+d192 1
+a192 1
+sELEMENT(*vsensure PARAMS((char *vary, int len)));
+d194 1
+a194 1
+/* sELEMENT(*vstrunc(sELEMENT(*vary),int len));
+d198 1
+a198 1
+sELEMENT(*vstrunc PARAMS((char *vary, int len)));
+d204 1
+a204 1
+/* sELEMENT(*vsfill(sELEMENT(*vary),int pos,sELEMENT(el),int len));
+d212 1
+a212 1
+sELEMENT(*vsfill PARAMS((char *vary, int pos, char el, int len)));
+d214 1
+a214 1
+/* sELEMENT(*vsncpy(sELEMENT(*vary),int pos,sELEMENT(*array),int len));
+d220 1
+a220 1
+sELEMENT(*vsncpy PARAMS((char *vary, int pos, char *array, int len)));
+d222 1
+a222 1
+/* sELEMENT(*vsndup(sELEMENT(*vary),int pos,sELEMENT(*array),int len));
+d227 1
+a227 1
+sELEMENT(*vsndup PARAMS((char *vary, int pos, char *array, int len)));
+d229 1
+a229 1
+/* sELEMENT(*vsdup(sELEMENT(*vary)));
+d232 1
+a232 1
+ *   vsndup(NULL,0,vary,sLEN(vary));
+d242 1
+a242 1
+sELEMENT(*vsdup PARAMS((char *vary)));
+d244 1
+a244 1
+/* sELEMENT(*vsset(sELEMENT(*vary),int pos,sELEMENT(element)));
+d250 1
+a250 1
+sELEMENT(*_vsset PARAMS((char *vary, int pos, char el)));
+d252 3
+a254 3
+#define vsset(v,p,el)  \
+ (!(v) || (p)>sLen(v) || (p)>=sSiz(v) ?  \
+  _vsset((v),(p),(el)) \
+d256 2
+a257 2
+  ((p)==sLen(v) ? \
+   ((v)[(p)+1]=0, sLen(v)=(p)+1, (v)[p]=(el), (v)) \
+d259 1
+a259 1
+   ((v)[p]=(el), (v)) \
+d263 1
+a263 1
+/* sELEMENT(*vsadd(sELEMENT(*vary),sELEMENT(element)));
+d268 3
+a270 3
+#define vsadd(v,el) \
+ (!(v) || sLen(v)==sSiz(v) ? \
+  _vsset((v),sLEN(v),(el)) \
+d272 1
+a272 1
+  ((v)[sLen(v)+1]=0, (v)[sLen(v)]=(el), sLen(v)=sLen(v)+1, (v)) \
+d283 2
+a284 2
+/* { sELEMENT(*),int } sv(sELEMENT(*array));
+ * Return array,size pair.  Uses sLEN to get size.
+d286 1
+a286 1
+#define sv(a) (a),sLEN(a)
+d288 2
+a289 2
+/* { sELEMENT(*),int } sz(sELEMENT(*array));
+ * Return array,size pair.  Uses slen to get size.
+d291 1
+a291 1
+#define sz(a) (a),slen(a)
+d293 2
+a294 2
+/* { sELEMENT(*),int } sc(sELEMENT(*array));
+ * Return array,size pair.  Uses 'sizeof' to get size.
+d296 1
+a296 1
+#define sc(a) (a),(sizeof(a)/sizeof(sCAST)-1)
+d298 2
+a299 2
+/* { sELEMENT(*),int } srest(sELEMENT(*vary),int pos);
+ * Return array,size pair of rest of array beginning at pos.  If
+d302 1
+a302 1
+#define srest(a,p) ((a)+(p)),(((p)>sLEN(a))?0:sLen(a)-(p))
+d304 1
+a304 1
+/* { sELEMENT(*),int } spart(sELEMENT(*vary),int pos,int len);
+d309 2
+a310 2
+#define spart(a,p,l) \
+ ((a)+(p)),((p)>=sLEN(a)?0:((p)+(l)>sLen(a)?sLen(a)-(p):(l)))
+d312 1
+a312 1
+/* sELEMENT(vsget(sELEMENT(*vary),int pos));
+d318 1
+a318 1
+#define vsget(a,p) ((p)>=sLEN(a)?sterm:(a)[p])
+d324 1
+a324 1
+/* sELEMENT(*vsins(sELEMENT(*vary),int pos,int n));
+d330 1
+a330 1
+sELEMENT(*vsins PARAMS(()));
+d332 1
+a332 1
+/* sELEMENT(*vsdel(sELEMENT(*vary),int pos,int n));
+d336 1
+a336 1
+sELEMENT(*vsdel PARAMS(()));
+d342 1
+a342 1
+/* sELEMENT(*vssort(sELEMENT(*ary),int len))
+d345 1
+a345 1
+sELEMENT(*vssort PARAMS(()));
+d347 1
+a347 1
+/* int vsbsearch(sELEMENT(*ary),int len,sELEMENT(element));
+d354 1
+a354 1
+int vsbsearch PARAMS((char *ary, int len, char el));
+d357 1
+a357 1
+/* int vsfirst(sELEMENT(*ary),int len,sELEMENT(element));
+d360 1
+a360 1
+int vsfirst PARAMS(());
+d362 1
+a362 1
+/* int vslast(sELEMENT(*ary),int len,sELEMENT(element));
+d365 1
+a365 1
+int vslast PARAMS(());
+d367 1
+a367 1
+/* int vss(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+d371 1
+a371 1
+int vss PARAMS(());
+d373 1
+a373 1
+/* int vscmpn(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+d379 1
+a379 1
+int vscmpn PARAMS((char *a, int alen, char *b, int blen));
+d381 1
+a381 1
+/* int vscmp(sELEMENT(*a),sELEMENT(*b));
+d383 1
+a383 1
+ * Functionalized version of: vscmpn(sv(a),sv(b));
+d385 1
+a385 1
+int vscmp PARAMS((char *a, char *b));
+d388 1
+a388 1
+/* int vsicmpn(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+d396 1
+a396 1
+int vsicmpn PARAMS(());
+d398 1
+a398 1
+/* int vsicmp(sELEMENT(*a),sELEMENT(*b));
+d400 1
+a400 1
+ * Functionalized version of: vsicmpn(sv(a),sv(b));
+d402 1
+a402 1
+int vsicmp PARAMS(());
+d404 1
+a404 1
+/* int vsscan(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+d410 1
+a410 1
+int vsscan PARAMS((char *a, int alen, char *b, int blen));
+d412 1
+a412 1
+/* int vsspan(sELEMENT(*a),int alen,sELEMENT(*b),int blen);
+d416 1
+a416 1
+int vsspan PARAMS((char *a, int alen, char *b, int blen));
+d422 1
+a422 1
+/* char *vsread(char *d,int p,int (*getC)(void *ptr),void *ptr);
+d432 1
+a432 1
+/* char *vwords(char *s,char **a,int len,char t);
+d437 1
+a437 1
+ * main(argc,argv)
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a11 1
+#include "types.h"
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 2
+/* Dynamic string library
+   Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 10
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+a13 8
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Ivs
+#define _Ivs
+
+#include "config.h"
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d137 1
+a137 1
+int sicmp();
+d154 1
+a154 1
+sELEMENT(*vsmk());
+d160 1
+a160 1
+void vsrm();
+d197 1
+a197 1
+int slen();
+d205 1
+a205 1
+sELEMENT(*vsensure());
+d211 1
+a211 1
+sELEMENT(*vstrunc());
+d225 1
+a225 1
+sELEMENT(*vsfill());
+d233 1
+a233 1
+sELEMENT(*vsncpy());
+d240 1
+a240 1
+sELEMENT(*vsndup());
+d255 1
+a255 1
+sELEMENT(*vsdup());
+d263 1
+a263 1
+sELEMENT(*_vsset());
+d343 1
+a343 1
+sELEMENT(*vsins());
+d349 1
+a349 1
+sELEMENT(*vsdel());
+d358 1
+a358 1
+sELEMENT(*vssort());
+d367 1
+a367 1
+int vsbsearch();
+d373 1
+a373 1
+int vsfirst();
+d378 1
+a378 1
+int vslast();
+d384 1
+a384 1
+int vss();
+d392 1
+a392 1
+int vscmpn();
+d398 1
+a398 1
+int vscmp();
+d409 1
+a409 1
+int vsicmpn();
+d415 1
+a415 1
+int vsicmp();
+d423 1
+a423 1
+int vsscan();
+d429 1
+a429 1
+int vsspan();
+d443 1
+a443 1
+char *vsread();
+d457 1
+a457 1
+char *vwords();
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Dynamic string library
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+ */
+d130 1
+a130 1
+#define sdel(a) 0
+d137 1
+a137 1
+int sicmp ();
+d154 1
+a154 1
+sELEMENT (*vsmk ());
+d160 1
+a160 1
+void vsrm ();
+d197 1
+a197 1
+int slen ();
+d205 1
+a205 1
+sELEMENT (*vsensure ());
+d211 1
+a211 1
+sELEMENT (*vstrunc ());
+d225 1
+a225 1
+sELEMENT (*vsfill ());
+d233 1
+a233 1
+sELEMENT (*vsncpy ());
+d240 1
+a240 1
+sELEMENT (*vsndup ());
+d255 1
+a255 1
+sELEMENT (*vsdup ());
+d263 1
+a263 1
+sELEMENT (*_vsset ());
+d343 1
+a343 1
+sELEMENT (*vsins ());
+d349 1
+a349 1
+sELEMENT (*vsdel ());
+d358 1
+a358 1
+sELEMENT (*vssort ());
+d367 2
+a368 1
+int vsbsearch ();
+d373 1
+a373 1
+int vsfirst ();
+d378 1
+a378 1
+int vslast ();
+d384 1
+a384 1
+int vss ();
+d392 1
+a392 1
+int vscmpn ();
+d398 2
+a399 1
+int vscmp ();
+d409 1
+a409 1
+int vsicmpn ();
+d415 1
+a415 1
+int vsicmp ();
+d423 1
+a423 1
+int vsscan ();
+d429 1
+a429 1
+int vsspan ();
+d443 1
+a443 1
+char *vsread ();
+d457 1
+a457 1
+char *vwords ();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.2
+@
+text
+@d1 3
+a3 2
+/* Dynamic string library
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d126 1
+a126 1
+int sicmp();
+d143 1
+a143 1
+sELEMENT(*vsmk());
+d149 1
+a149 1
+void vsrm();
+d186 1
+a186 1
+int slen();
+d194 1
+a194 1
+sELEMENT(*vsensure());
+d200 1
+a200 1
+sELEMENT(*vstrunc());
+d214 1
+a214 1
+sELEMENT(*vsfill());
+d222 1
+a222 1
+sELEMENT(*vsncpy());
+d229 1
+a229 1
+sELEMENT(*vsndup());
+d243 2
+a244 2
+ */ 
+sELEMENT(*vsdup());
+d252 1
+a252 1
+sELEMENT(*_vsset());
+d263 1
+a263 1
+ )   
+d332 1
+a332 1
+sELEMENT(*vsins());
+d338 1
+a338 1
+sELEMENT(*vsdel());
+d347 1
+a347 1
+sELEMENT(*vssort());
+d356 1
+a356 1
+int vsbsearch();
+d361 1
+a361 1
+int vsfirst();
+d366 1
+a366 1
+int vslast();
+d372 1
+a372 1
+int vss();
+d380 1
+a380 1
+int vscmpn();
+d386 1
+a386 1
+int vscmp();
+d396 1
+a396 1
+int vsicmpn();
+d402 1
+a402 1
+int vsicmp();
+d410 1
+a410 1
+int vsscan();
+d416 1
+a416 1
+int vsspan();
+d430 1
+a430 1
+char *vsread();
+d444 1
+a444 1
+char *vwords();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d23 1
+d64 1
+a64 1
+ * sz(s)         Gives -->  s,zlen(s)
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

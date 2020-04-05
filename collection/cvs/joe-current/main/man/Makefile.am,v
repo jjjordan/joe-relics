@@ -1,0 +1,63 @@
+head	1.2;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.2
+date	2008.10.28.02.34.35;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2008.10.23.02.29.18;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@Update configure scripts to use docdir and datadir
+@
+text
+@sysconf_joedir = $(sysconfdir)/joe
+data_joedir = $(datadir)/joe
+data_docdir = $(docdir)
+
+SUBDIRS = ru
+
+man_MANS = joe.1
+
+EXTRA_DIST = joe.1.in
+
+joe.1 : joe.1.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(bindir),' $(srcdir)/joe.1.in > $@@
+
+MOSTLYCLEANFILES = $(man_MANS)
+
+@
+
+
+1.1
+log
+@Put JOE 3.5 in main/
+Co-routine stuff is to be considered a new branch with current
+release in main/
+
+Add some patches to main/
+	Get tags search to work again.
+	Fix bug where joe crashes when it can't write to a file
+	Fix bug where joe crashes if you try to entry an empty command
+@
+text
+@d2 2
+d12 1
+a12 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(bindir),' $(srcdir)/joe.1.in > $@@
+@
+

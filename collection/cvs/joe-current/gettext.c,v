@@ -1,0 +1,390 @@
+head	1.10;
+access;
+symbols
+	joe_3_5:1.8
+	joe-3_4:1.4
+	help:1.4;
+locks; strict;
+comment	@ * @;
+
+
+1.10
+date	2008.10.28.02.34.35;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2006.07.20.20.56.17;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2006.07.19.00.27.12;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2006.07.18.23.31.53;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2006.06.07.02.29.49;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2006.06.03.23.37.01;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2006.05.30.13.46.11;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.05.24.16.04.14;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.05.24.13.39.13;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.05.23.21.44.04;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.10
+log
+@Update configure scripts to use docdir and datadir
+@
+text
+@/* JOE's gettext() library.  Why?  Once again we can not rely on the
+ * system's or GNU's gettext being installed properly */
+
+/* One modification from standard gettext: comments are allowed at
+ * the start of strings: "|comment|comment|comment|foo".  The leading
+ * '|' is required to indicate the comment.
+ *
+ * Comments can be used to make two otherwise identical strings distinct.
+ */
+
+#include "types.h"
+
+HASH *gettext_ht;
+
+unsigned char *ignore_prefix(unsigned char *set)
+{
+	unsigned char *s = zrchr(set, '|');
+	if (s)
+		++s;
+	else
+		s = set;
+	return s;
+}
+
+unsigned char *my_gettext(unsigned char *s)
+{
+	if (gettext_ht) {
+		unsigned char *r = htfind(gettext_ht, s);
+		if (r)
+			s = r;
+	}
+	if (s[0] == '|')
+		return ignore_prefix(s);
+	else
+		return s;
+}
+
+int load_po(FILE *f)
+{
+	unsigned char *buf = 0;
+	unsigned char *msgid = vsdupz(USTR "");
+	unsigned char *msgstr = vsdupz(USTR "");
+	struct charmap *po_map = locale_map;
+	int preload_flag = 0;
+
+	while (preload_flag || vsgets(isfree(&buf) ,f)) {
+		unsigned char *p;
+		preload_flag = 0;
+		p = buf;
+		parse_ws(&p, '#');
+		if (!parse_field(&p, USTR "msgid")) {
+			int ofst = 0;
+			int len;
+			unsigned char *bf = 0;
+			msgid = vscpyz(msgid, USTR "");
+			parse_ws(&p, '#');
+			while ((len = parse_string(&p, &bf)) >= 0) {
+				msgid = vscat(msgid, sv(bf));
+				preload_flag = 0;
+				ofst += len;
+				parse_ws(&p, '#');
+				if (!*p) {
+					if (vsgets(isfree(&buf),f)) {
+						p = buf;
+						preload_flag = 1;
+						parse_ws(&p, '#');
+					} else {
+						goto bye;
+					}
+				}
+			}
+		} else if (!parse_field(&p, USTR "msgstr")) {
+			int ofst = 0;
+			int len;
+			unsigned char *bf = 0;
+			msgstr = vscpyz(msgstr, USTR "");
+			parse_ws(&p, '#');
+			while ((len = parse_string(&p, &bf)) >= 0) {
+				msgstr = vscat(msgstr, sv(bf));
+				preload_flag = 0;
+				ofst += len;
+				parse_ws(&p, '#');
+				if (!*p) {
+					if (vsgets(isfree(&buf),f)) {
+						p = buf;
+						preload_flag = 1;
+						parse_ws(&p, '#');
+					} else {
+						break;
+					}
+				}
+			}
+			if (msgid[0] && msgstr[0]) {
+				/* Convert to locale character map */
+				unsigned char *bf = my_iconv(NULL,locale_map,msgstr,po_map);
+				/* Add to hash table */
+				htadd(gettext_ht, zdup(msgid), zdup(bf));
+			} else if (!msgid[0] && msgstr[0]) {
+				unsigned char *p = (unsigned char *)strstr((char *)msgstr, "charset=");
+				msgid = vscpyz(msgid, msgstr); /* Make sure msgid is long enough */
+				msgid = vscpyz(msgid, USTR ""); /* Truncate it */
+				if (p) {
+					/* Copy character set name up to next delimiter */
+					int x;
+					p += sizeof("charset=") - 1;
+					while (*p == ' ' || *p == '\t') ++p;
+					for (x = 0; p[x] && p[x] !='\n' && p[x] != '\r' && p[x] != ' ' &&
+					            p[x] != '\t' && p[x] != ';' && p[x] != ','; ++x)
+					            msgid[x] = p[x];
+					msgid[x] = 0;
+					po_map = find_charmap(msgid);
+					if (!po_map)
+						po_map = locale_map;
+				}
+			}
+		}
+	}
+	bye:
+	fclose(f);
+	obj_free(msgid);
+	return 0;
+}
+
+/* Initialize my_gettext().  Call after locale_map has been set. */
+
+void init_gettext(unsigned char *s)
+{
+	FILE *f;
+	unsigned char *buf = vsfmt(NULL,0, USTR "%slang/%s.po",JOEDATA,s);
+	if ((f = fopen((char *)buf, "r"))) {
+		/* Try specific language, like en_GB */
+		gettext_ht = htmk(256);
+		load_po(f);
+	} else if (s[0] && s[1]) {
+		/* Try generic language, like en */
+		unsigned char *bf = vsfmt(NULL,0,USTR "%slang/%c%c.po",JOEDATA,s[0],s[1]);
+		if ((f = fopen((char *)bf, "r"))) {
+			gettext_ht = htmk(256);
+			load_po(f);
+		}
+	}
+	obj_free(buf);
+}
+@
+
+
+1.9
+log
+@semiautomatic variables
+@
+text
+@d129 1
+a129 1
+	unsigned char *buf = vsfmt(NULL,0, USTR "%slang/%s.po",JOERC,s);
+d136 1
+a136 1
+		unsigned char *bf = vsfmt(NULL,0,USTR "%slang/%c%c.po",JOERC,s[0],s[1]);
+@
+
+
+1.8
+log
+@UC -> USTR
+@
+text
+@a37 3
+/* Load a .po file, convert entries to local character set and add them to
+ * hash table */
+
+d40 3
+a42 4
+	unsigned char buf[1024];
+	unsigned char msgid[1024];
+	unsigned char msgstr[1024];
+	unsigned char bf[8192];
+d45 2
+a46 3
+	msgid[0] = 0;
+	msgstr[0] = 0;
+	while (preload_flag || fgets((char *)buf,sizeof(buf)-1,f)) {
+d54 2
+a55 1
+			msgid[0] = 0;
+d57 2
+a58 1
+			while ((len = parse_string(&p, msgid + ofst, sizeof(msgid)-ofst)) >= 0) {
+d63 1
+a63 1
+					if (fgets((char *)buf,sizeof(buf) - 1,f)) {
+d75 2
+a76 1
+			msgstr[0] = 0;
+d78 2
+a79 1
+			while ((len = parse_string(&p, msgstr + ofst, sizeof(msgstr)-ofst)) >= 0) {
+d84 1
+a84 1
+					if (fgets((char *)buf,sizeof(buf) - 1,f)) {
+d95 1
+a95 1
+				my_iconv(bf,locale_map,msgstr,po_map);
+d100 2
+d120 1
+d129 1
+a129 2
+	unsigned char buf[1024];
+	joe_snprintf_2(buf, sizeof(buf), "%slang/%s.po",JOERC,s);
+d136 2
+a137 2
+		joe_snprintf_3(buf, sizeof(buf), "%slang/%c%c.po",JOERC,s[0],s[1]);
+		if ((f = fopen((char *)buf, "r"))) {
+d142 1
+@
+
+
+1.7
+log
+@change US to UC
+@
+text
+@d56 1
+a56 1
+		if (!parse_field(&p, UC "msgid")) {
+d75 1
+a75 1
+		} else if (!parse_field(&p, UC "msgstr")) {
+@
+
+
+1.6
+log
+@|comments| in gettext strings
+@
+text
+@d56 1
+a56 1
+		if (!parse_field(&p, US "msgid")) {
+d75 1
+a75 1
+		} else if (!parse_field(&p, US "msgstr")) {
+@
+
+
+1.5
+log
+@hash table
+@
+text
+@d4 7
+d15 10
+d32 4
+a35 1
+	return s;
+@
+
+
+1.4
+log
+@fix bug found by egmont
+@
+text
+@d31 1
+a31 1
+	while (preload_flag || fgets(buf,sizeof(buf)-1,f)) {
+d46 1
+a46 1
+					if (fgets(buf,sizeof(buf) - 1,f)) {
+d65 1
+a65 1
+					if (fgets(buf,sizeof(buf) - 1,f)) {
+d80 1
+a80 1
+				unsigned char *p = strstr(msgstr, "charset=");
+d109 1
+a109 1
+	if ((f = fopen(buf, "r"))) {
+d116 1
+a116 1
+		if ((f = fopen(buf, "r"))) {
+@
+
+
+1.3
+log
+@Less annoying lock messages.
+@
+text
+@d84 1
+a84 1
+					p += sizeof("charset=");
+@
+
+
+1.2
+log
+@remove junk
+@
+text
+@a27 1
+	int utf8 = 0;
+d109 1
+a109 1
+	if (f = fopen(buf, "r")) {
+d116 1
+a116 1
+		if (f = fopen(buf, "r")) {
+@
+
+
+1.1
+log
+@remove gnu-gettext from joe
+@
+text
+@a5 2
+/* Load a .po file and add entries to hash table */
+
+d18 3
+@
+

@@ -1,0 +1,404 @@
+head	1.13;
+access;
+symbols
+	joe_3_5:1.13
+	joe-3_4:1.12
+	help:1.12
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.13
+date	2006.06.15.18.18.28;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2006.05.24.22.19.00;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.05.14.17.50.51;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2005.03.18.04.25.23;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.00.24;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.36;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.36;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.13
+log
+@Add builtins.  Fix syntax error in python.jsf.in
+@
+text
+@/*
+ *	Help system
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *		(C) 2001 Marek 'Marx' Grac
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_HELP_H
+#define _JOE_HELP_H 1
+
+void help_display PARAMS((Screen *t));		/* display text in help window */
+int help_on PARAMS((Screen *t));		/* turn help on */
+int help_init PARAMS((JFILE *fd,unsigned char *bf,int line)); /* read help from rc file */
+
+int u_help PARAMS((BASE *base));		/* toggle help on/off */
+int u_help_next PARAMS((BASE *base));		/* goto next help screen */
+int u_help_prev PARAMS((BASE *base));		/* goto prev help screen */
+extern int bg_help;				/* Background color for help */
+extern int help_is_utf8;			/* Set if help text is UTF-8 */
+
+#endif
+@
+
+
+1.12
+log
+@-help_is_utf8 option
+@
+text
+@d14 1
+a14 1
+int help_init PARAMS((FILE *fd,unsigned char *bf,int line)); /* read help from rc file */
+@
+
+
+1.11
+log
+@Change SCREEN to Screen
+@
+text
+@d20 1
+@
+
+
+1.10
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d12 2
+a13 2
+void help_display PARAMS((SCREEN *t));		/* display text in help window */
+int help_on PARAMS((SCREEN *t));		/* turn help on */
+@
+
+
+1.9
+log
+@parse rc file only once
+@
+text
+@a11 3
+#include "config.h"
+#include "types.h"
+
+d19 1
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d17 1
+a17 1
+int help_init PARAMS((unsigned char *filename));/* load help file */
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d17 1
+a17 1
+int help_init PARAMS((char *filename));		/* load help file */
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a14 2
+#include "w.h"				/* definitions of BASE & SCREEN */
+
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d2 9
+a10 10
+	Help system
+	Copyright
+		(C) 1992 Joseph H. Allen
+		(C) 2001 Marek 'Marx' Grac
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _JOEhelp
+#define _JOEhelp 1
+d13 1
+a15 7
+
+struct help {
+	unsigned char *text;		/* help text with attributes */
+	unsigned int lines;		/* number of lines */
+	struct help *prev;		/* previous help screen */
+	struct help *next;		/* nex help screen */
+};
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d14 1
+d24 3
+a26 3
+void help_display(SCREEN *t);		/* display text in help window */
+int help_on(SCREEN *t);			/* turn help on */
+int help_init(char *filename);		/* load help file */
+d28 3
+a30 3
+int u_help(BASE *base);			/* toggle help on/off */
+int u_help_next(BASE *base);		/* goto next help screen */
+int u_help_prev(BASE *base);		/* goto prev help screen */
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d13 2
+a14 2
+#include "config.h"		/* ???  */
+#include "w.h"			/* definitions of BASE & SCREEN  */
+d16 5
+a20 7
+struct help {				/* ??? */
+	char *hlptxt;		/* ??? */
+	int hlpsiz;		/* ??? */
+	int hlpbsz;		/* ??? */
+	int hlplns;		/* ??? */
+	char *name;		/* ??? */
+	struct help *next;	/* ??? */
+d23 3
+a25 3
+extern char *hlptxt;		/* ??? */
+extern int hlpsiz, hlpbsz, hlplns;	/* ??? */
+extern char **help_names;	/* ??? */
+d27 3
+a29 10
+extern struct help *help_first;	/* first screen of help list  */
+extern struct help **help_structs;	/* array of help screens */
+
+void help_display (SCREEN *t);	/* display text in help window */
+void help_to_array (void);	/* transform help list into array */
+int help_on (SCREEN *t);	/* turn help on */
+
+int u_help (BASE *base);	/* toggle help on/off */
+int u_help_next (BASE *base);	/* goto next help screen */
+int u_help_prev (BASE *base);	/* goto prev help screen */
+@
+
+
+1.2
+log
+@changed as of joe-2.9.4
+@
+text
+@d13 2
+a14 2
+#include "config.h"				// ???
+#include "w.h"					// definitions of BASE & SCREEN
+d16 7
+a22 7
+struct help {					// ???
+	char *hlptxt;				// ???
+	int hlpsiz;				// ???
+	int hlpbsz;				// ???
+	int hlplns;				// ???
+	char *name;				// ???
+	struct help *next;			// ???
+d25 14
+a38 16
+extern char *hlptxt;				// ???
+extern int hlpsiz, hlpbsz, hlplns;		// ???
+extern char **help_names;			// ???
+
+extern struct help *help_first;			// first screen of help list
+extern struct help **help_structs;		// array of help screens
+
+void help_display (SCREEN *t);			// display text in help window
+void help_to_array (void);			// transform help list into array
+int help_on (SCREEN *t);			// turn help on
+
+int u_help (BASE *base);			// toggle help on/off
+int u_help_next (BASE *base);			// goto next help screen
+int u_help_prev (BASE *base);			// goto prev help screen
+
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 38
+a38 2
+/* Help system
+   Copyright (C) 1992 Joseph H. Allen
+a39 1
+This file is part of JOE (Joe's Own Editor)
+a40 40
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+
+#ifndef _Ihelp
+#define _Ihelp 1
+
+#include "config.h"
+
+extern char *hlptxt;
+extern int hlpsiz, hlpbsz, hlplns;
+extern char **help_names;
+extern struct help **help_structs;
+extern struct help *first_help;
+
+void dsphlp();
+
+struct help
+ {
+ char *hlptxt;
+ int hlpsiz;
+ int hlpbsz;
+ int hlplns;
+ char *name;
+ struct help *next;
+ };
+
+int helpon();
+int uhelp();
+int uhnext();
+int uhprev();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

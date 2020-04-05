@@ -1,0 +1,779 @@
+head	1.15;
+access;
+symbols
+	joe_3_5:1.9
+	joe-3_4:1.9
+	help:1.9;
+locks; strict;
+comment	@# @;
+
+
+1.15
+date	2006.07.28.02.04.21;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2006.07.28.00.22.39;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2006.07.27.23.59.35;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2006.07.27.23.34.16;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.07.27.23.17.15;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2006.05.31.21.19.45;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2006.05.12.02.07.06;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2006.03.01.20.47.27;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2006.02.27.23.42.32;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2006.02.27.23.37.38;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2006.02.27.22.00.55;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.02.27.20.22.29;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.02.25.18.38.38;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.02.25.04.40.17;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.15
+log
+@update docs
+@
+text
+@<p></p>
+
+<p>JOE is a full featured terminal-based screen editor which is distributed
+under the GNU General Public License (GPL).  JOE has been around since 1988
+and comes standard with many Linux distributions.</p>
+
+<p>JOE is being maintained by its original author Joseph Allen, plus all of
+the people who send bug reports, feature suggestions and patches to the
+project web site.  JOE is hosted by SourceForge.net and its source code is
+controlled under CVS.  Over the last few years there has been about one
+major new release a year, usually in the April-May timeframe.</p>
+
+<p>JOE is a blending of MicroPro's venerable microcomputer word processor
+WordStar and Richard Stallman's famous LISP based text editor GNU-EMACS (but
+it does not use code from either program): most of the basic editing keys
+are the same as in WordStar as is the overall feel of the editor.  JOE also
+has some of the key bindings and many of the powerful features of EMACS.</p>
+
+<p>JOE is written in C and its only dependency is libc.  This makes JOE very
+easy to build (just "configure" and "make install"), making it feasible to
+include on small systems and recovery disks.  The compiled binary is about
+300K in x86.  Note that JOE can use either the termcap or terminfo terminal
+capabilities databases (or a built-in termcap entry for ANSI terminals).  The
+choice is controlled by a "configure" option.  If terminfo is used, a
+library is required to access the database (on some systems this library is
+ncurses, but JOE does not use curses to control the terminal- it has its own
+code for this).</p>
+
+<p>Much of the look and feel of JOE is determined by its simple
+configuration file "joerc".  Several variants of the editor are installed by
+default in addition to "joe": "jmacs" (emulate GNU-EMACS), "jstar" emulate
+WordStar, "jpico" emulate the Pine mailer editor PICO and "rjoe"- a
+restricted version of JOE which allows the used to only edit the file given
+on the command line.  JOE is linked to several names.  The name which is
+used to invoke the editor with "rc" tacked on the end gives the name of
+configuration file to use.  It is thus easy for you to make your own variant
+if you want.  Also you can customize the editor by copying the system
+"joerc" file to your home directory.</p>
+
+<p>Here is a basic screen shot of JOE running in a Cygwin console:</p>
+<img src="capture.gif" alt="screen capture">
+
+<p>Here is a screen shot showing several windows- the first has some example
+double-wide characters, the second is the same buffer as the first, but in
+hex-dump view mode, the third is a shell window and the fourth shows a
+selected rectangular block of numbers and their sum:</p>
+
+<img src="elaborate.gif" alt="elaborate screen capture">
+
+<p>JOE has the following features:</p>
+<ul>
+
+<li>Multi-file search and replace- file list is either given on command line
+or by a UNIX command (grep/find) run from within JOE.</li>
+
+<li>Mouse support, including wheel (works best when using xterm).  The mouse
+can resize windows, scroll windows, select and paste text, and select menu
+entries.</li>
+
+<li>Context display on status line: allows you to see name of function
+cursor is in.</li>
+
+<li>UTF-8 support, optional auto-detect of UTF-8 files.</li>
+
+<li>Syntax highlighting for more than 40 languages.</li>
+
+<li>Hexadecimal edit mode.  Use JOE as a disk editor: joe -overwrite -hex
+/dev/hda1,0,512 (edit first sector of /dev/hda1).</li>
+
+<li>Non-destructive editing of binary files even when handling MS-DOS or
+UNIX line endings.</li>
+
+<li>Swap file allows editing files larger than memory.</li>
+
+<li>Context sensitive on-line help.</li>
+
+<li>Bash-like TAB completion and history for all prompts, or jump into the
+completion menu and use it to traverse the file system.</li>
+
+<li>Complete word in edit buffer by hitting ESC Enter (uses other words in
+buffer for dictionary).</li>
+
+<li>EMACS-compatible file locks and file modification checking.</li>
+
+<li>Shell windows.</li>
+
+<li>Multiple-windows onto same or different files.</li>
+
+<li>Compile and step through errors or Grep and step through finds.</li>
+
+<li>Goto matching character delimiter ( [ { &lt; which skips comments and
+quoted matter.</li>
+
+<li>Goto matching word delimiter, including XML tags and C preprocessor
+directives.</li>
+
+<li>Ctrl-arrow key block selection.</li>
+
+<li>Search and replace system, including regular expression and optional
+incremental search.  Regular expression key for matching balanced C
+expressions.</li>
+
+<li>Tags file search (tab completion at tags search prompt uses tags file as
+database).</li>
+
+<li>Spell check commands which invoke aspell or ispell.  Language for aspell
+can be passed through editor.</li>
+
+<li>Paragraph format which preserves news/mail quoting indentation
+characters.</li>
+
+<li>Unlimited Undo and Redo.</li>
+
+<li>Yank buffer allows stepping through and insertion of previously deleted
+text.</li>
+
+<li>State file restores history buffers, yank buffer and last file cursor
+positions.</li>
+
+<li>Cursor position history allows you to step through previously visited areas
+of a file.</li>
+
+<li>Multiple interactive keyboard macros.  Macros can be assigned to key
+sequences in joerc file.</li>
+
+<li>Block move/copy/delete/filter.</li>
+
+<li>Rectangle (columnar) block mode- search and replace can be narrowed to
+the rectangular block.  Rectangular blocks can be filtered through UNIX
+commands.</li>
+
+<li>Overtype/Insert modes.</li>
+
+<li>Indent/Unindent (shift block left or right).</li>
+
+<li>Auto-indent mode.</li>
+
+<li>Picture mode for ASCII graphics.</li>
+
+<li>Line number mode displays line number of each line.</li>
+
+<li>Powerful scientific calculator with block statistics functions
+(sum/standard-deviation/count highlighted block of numbers).</li>
+
+<li>Termcap/Terminfo support allows JOE to use any terminal or terminal
+emulator.</li>
+
+<li>Can accept data from a pipe, for example: ls | joe</li>
+</ul>
+
+<p>JOE does not have these features (yet):</p>
+<ul>
+
+<li>Vertical windows, but JOE will probably have this in version 3.6</li>
+
+<li>Folding</li>
+
+<li>Right to left editing for Hebrew and Arabic</li>
+
+<li>Direct editing of 16-bit character sets such as UCS-16 and BIG5</li>
+
+<li>All encompassing macro language like elisp in GNU-EMACS</li>
+
+<li>Background spell checking, like Microsoft WORD</li>
+
+<li>Highlight all matching words</li>
+
+<li>Automatic unzip/untar</li>
+
+<li>Built-in FTP</li>
+
+<li>X-Window version (use inside a terminal emulator)</li>
+
+<li>Native Windows version (but you can use JOE in Cygwin)</li>
+
+<li>Interface to debugger</li>
+
+</ul>
+
+<p>Here are some other editors to consider:</p>
+<a href="http://www.gnu.org/software/emacs">http://www.gnu.org/software/emacs</a>
+Richard Stallman's powerful LISP-based editor.
+<br><br>
+<a href="http://www.jedsoft.org/jed">http://www.jedsoft.org/jed</a> John E.
+Davis' version of EMACS using the S-Lang language.
+<br><br>
+<a href="http://www.jasspa.com">http://www.jasspa.com</a> Micro Emacs
+<br><br>
+<a href="http://www.vile.cx">http://www.vile.cx</a> Paul Fox's vi clone
+(built on top of Micro Emacs).  Now maintained by Tom Dickey and others.
+<br><br>
+<a href="http://www.nano-editor.org">http://www.nano-editor.org</a> An open
+source PICO clone.
+<br><br>
+<a
+href="http://www.washington.edu/pine/faq/whatis.html">http://www.washington.edu.pine/faq/whatis.html</a>
+PICO: A simple editor built on Micro Emacs.
+<br><br>
+<a href="http://www.vim.org">http://www.vim.org</a> Bram Moolenaar's vi
+clone</a>
+<br><br>
+<a href="http://elvis.the-little-red-haired-girl.org/whatiselvis/index.html">
+http://elvis.the-little-red-haired-girl.org</a> Elvis: A
+small vi clone
+<br><br>
+<a href="http://www.jedit.org">http://www.jedit.org</a> Powerful editor
+written in Java
+<br><br>
+<a href="http://www.nedit.org">http://www.nedit.org</a> X-Windowing System
+editor
+<br><br>
+<a href="http://www.ibiblio.org/mc">http://www.ibiblio.org/mc</a> Midnight
+Commander file manager with built-in text editor with highlighting.  Can
+browse ZIP and TAR files.
+<br><br>
+
+<a href="http://www.cs.yorku.ca/~oz/wily">http://www.cs.yorku.ca/~oz/wily</a> A
+UNIX/X clone of Rob Pike's Plan9 editor ACME.  Originally written by Gary
+Capell, but now maintained by Ozan Yigit.  This is an interesting minimalist
+IDE.
+<br><br>
+
+<a
+href="http://www.eclipse.org/downloads">http://www.eclipse.org/downloads</a>
+Huge IDE written in Java.  Performs same function as Wily, but is literally
+1300 times larger.
+<br><br>
+
+<a href="ftp://netlib.bell-labs.com/netlib/research/sam.shar.gz">ftp://netlib.bell-labs.com/netlib/research/sam.shar.gz</a>
+UNIX/X port of Rob Pike's Plan9 editor SAM.  This interesting editor
+supports multi-file regular expression search &amp; replace with unlimited
+undo.
+<br><br>
+
+<a href="http://sed.sourceforge.net">http://sed.sourceforge.net</a>
+UNIX Stream EDitor.  If you're on UNIX, you already have this editor, but follow
+this link to see the amazing things that can be done with it.
+<br><br>
+
+@
+
+
+1.14
+log
+@more updates
+@
+text
+@d52 1
+d54 16
+a69 5
+or by a UNIX command (grep/find) run from within JOE</li>
+<li>Mouse support, including wheel</li>
+<li>UTF-8 support</li>
+<li>Syntax highlighting for more than 40 languages</li>
+<li>Hexadecimal edit mode</li>
+d71 18
+a88 6
+UNIX line endings</li>
+<li>Swap file allows editing files larger than memory</li>
+<li>On-line help</li>
+<li>Bash-like TAB completion and history for all prompts</li>
+<li>EMACS-compatible file locks</li>
+<li>Shell windows</li>
+d90 1
+d93 1
+d96 3
+a98 1
+<li>Ctrl-arrow key block selection</li>
+d100 28
+a127 7
+incremental search</li>
+<li>Tags file search</li>
+<li>Paragraph format</li>
+<li>Unlimited Undo and Redo</li>
+<li>Cursor position history</li>
+<li>Multiple interactive keyboard macros</li>
+<li>Block move/copy/delete/filter</li>
+d131 14
+a144 6
+<li>Overtype/Insert modes</li>
+<li>Indent/Unindent</li>
+<li>Auto-indent mode</li>
+<li>Picture mode for ASCII graphics</li>
+<li>Line number mode display line number of each line</li>
+<li>Powerful scientific calculator with block statistics functions</li>
+d146 2
+a147 1
+emulator</li>
+d153 1
+d155 1
+d157 1
+d159 1
+d161 1
+d163 1
+d165 1
+d167 1
+d169 1
+d171 1
+d173 1
+d175 3
+@
+
+
+1.13
+log
+@update
+@
+text
+@d52 2
+a53 1
+<li>Multi-file search and replace</li>
+d56 1
+a56 1
+<li>Syntax highlighting</li>
+d60 4
+a63 2
+<li>TAB completion and history for all prompts</li>
+<li>EMACS-style file locks</li>
+d65 5
+a69 2
+<li>Goto matching ( [ { &lt;</li>
+<li>Goto matching word delimiter, including XML tags</li>
+d75 1
+a75 1
+<li>Undo and Redo</li>
+d77 1
+a77 1
+<li>Multiple keyboard macros</li>
+d79 3
+a81 1
+<li>Rectangle (columnar) mode</li>
+d85 2
+d90 1
+d105 1
+a105 1
+<li>Native Windows version (use Cygwin)</li>
+@
+
+
+1.12
+log
+@update docs
+@
+text
+@d143 1
+a143 1
+4000 times larger.
+@
+
+
+1.11
+log
+@update docs
+@
+text
+@d140 6
+d155 2
+a156 1
+<br>
+@
+
+
+1.10
+log
+@semiautomatic variables
+@
+text
+@d100 1
+a100 1
+<br>
+d103 1
+a103 1
+<br>
+d105 1
+a105 1
+<br>
+d108 1
+a108 1
+<br>
+d111 1
+a111 1
+<br>
+d115 1
+a115 1
+<br>
+d118 1
+a118 1
+<br>
+d122 1
+a122 1
+<br>
+d125 1
+a125 1
+<br>
+d128 1
+a128 1
+<br>
+d132 17
+@
+
+
+1.9
+log
+@update html
+@
+text
+@d84 1
+a84 1
+<li>Vertical windows, but JOE will probably have this in version 3.4</li>
+@
+
+
+1.8
+log
+@new cvs server
+@
+text
+@d52 1
+@
+
+
+1.7
+log
+@Clarification in document.
+@
+text
+@d17 1
+a17 1
+has some of key bindings and many of the powerful features of EMACS.</p>
+@
+
+
+1.6
+log
+@update web page
+@
+text
+@d13 1
+a13 1
+<p>JOE is blending of MicroPro's venerable microcomputer word processor
+d22 6
+a27 1
+300K in x86.</p>
+@
+
+
+1.5
+log
+@more web page
+@
+text
+@d38 4
+a41 4
+<p>Here is a screen shot showing several windows onto the same buffer- some
+example double-wide characters, the same buffer in hex-dump view mode, a
+shell window and taking the sum of a rectangular block of numbers and the
+help screen for the calculator:</p>
+@
+
+
+1.4
+log
+@web site update
+@
+text
+@d38 4
+a41 4
+<p>Here is a screen shot showing several windows onto the same buffer- a
+shell window, one of the windows is in hex-dump mode.  Also the on screen
+help is enabled, a rectangular block is selected, and a file name completion
+list is shown:</p>
+@
+
+
+1.3
+log
+@Update web page
+@
+text
+@d35 1
+a35 1
+<p>Here is a basic screen shot:</p>
+d72 2
+d90 37
+@
+
+
+1.2
+log
+@latest web page
+@
+text
+@d1 1
+a1 6
+<p align=center>Joe's Own Editor 3.2</p>
+
+<p align=center>A Free ASCII-Text Screen Editor for UNIX</p>
+<p align=center>by Joseph Allen (<= 2.8)</p>
+<p align=center>Marek 'Marx' Grac (=> 2.9)</p>
+<p align=center>by Joseph Allen again (=>3.0)</p>
+d3 31
+d35 1
+d38 4
+a41 38
+<p>Get it from:</p>
+<p>http://sourceforge.net/projects/joe-editor</p>
+
+<p>If you have questions, problems or suggestions, 
+Use sourceforge: mailing list, bug tracker, discussion groups.</p>
+
+<p>JOE is the professional freeware ASCII text screen editor for UNIX. 
+It makes full use of the power and versatility of UNIX, but lacks the steep
+learning curve and basic nonsense you have to deal with in every other UNIX
+editor. JOE has the feel of most IBM PC text editors: The key-sequences are
+reminiscent of WordStar and Turbo-C.  JOE is much more powerful than those
+editors, however.  JOE has all of the features a UNIX user should expect:
+full use of termcap/terminfo, excellent screen update optimizations (JOE is
+fully usable at 2400 baud), simple installation, and all of the
+UNIX-integration features of VI.</p>
+
+<p>JOE's initialization file determines much of JOE's personality and
+the name of the initialization file is simply the name of the editor
+executable followed by "rc".  JOE comes with four "rc" files in addition to
+the basic "joerc", which allow it to emulate these editors:</p>
+
+<ul>
+<li>JPICO</li>
+<p>An enhanced version of the Pine mailer system's PICO editor.</p>
+
+<li>JSTAR</li>
+<p>A complete imitation of WordStar including many "JOE" extensions.</p>
+
+<li>RJOE</li>
+<p>A restricted version of JOE which allowed you to edit 
+only the files specified on the command line.</p>
+
+<li>JMACS</li>
+<p>A GNU-EMACS imitation which is about one order of magnitude smaller than real
+GNU-EMACS.</p>
+</ul>
+
+<p>Features:</p>
+d43 1
+a43 90
+<p>JOE has a well thought-out user-interface with great attention to
+detail.  The Page Up and Page Down functions do not move the cursor relative
+to the edges of the screen.  Left and Right arrow keys work at the beginning
+and ends of lines.  The cursor can move past the ends of lines without
+jumping, but also without inserting or deleting extra spaces at the ends of
+lines. Control characters and characters above 127 can be displayed and
+entered- even ^Q and ^S.  The cursor's row and column number can be
+displayed in the status line.</p>
+
+<p>The key layout is made to reduce terminal incompatibility nonsense. 
+^Q and ^S are not used and both ^H and DEL are mapped to backspace.  Case
+does not matter in key sequences- ^K E, ^K e, and ^K ^E are each mapped to
+the same function.  The arrow keys and PageUp, PageDown, Home, End, Insert
+and Delete keypad keys are read from the termcap entry and are assigned to
+the proper functions.  A simple initialization file, similar to Semware's
+Q-EDIT, allows key-bindings, simple macros and help windows to be
+defined.</p>
+
+<p>JOE has full termcap/terminfo support and will work on any terminal. 
+JOE has the best screen update optimization algorithm available.  It uses
+VT100-style scrolling regions the way they are supposed to be used (I.E.,
+without building insert and delete line functions out of them) and has a
+powerful line shifting (insert/delete character) algorithm which works even
+if text goes past the ends of lines.  JOE has deferred screen update to
+handle typeahead and uses the baud rate reported by 'stty' to ensure that
+deferral is not bypassed by tty buffering.</p>
+
+<p>JOE has multiple windows and lacks the confusing notion of a named
+buffers.  You just have files and windows.  When there are more windows than
+can fit on the screen, the Goto-Next-Window function scrolls through them. 
+The same file can have multiple windows opened on it.</p>
+
+<p>JOE has VI-style unix integration.  You can filter a highlighted
+block through a UNIX command.  Also, each place in joe which accepts a file
+name (including the command line) will also accept:</p>
+
+<ul>
+<li>!command</li>
+<p>to pipe into or out of a command</p>
+<li>&gt;&gt;filename</li>
+<p>to append to a file</p>
+<li>filename,start,size</li>
+<p>to edit a portion of a file/device</p>
+<li>-</li>
+<p>to use stdin or stdout</p>
+</ul>
+
+<p>File names on the command line may be preceded by +nnn to start
+editing at a specified line.</p>
+
+<p>JOE has shell windows.  You can run a shell in a window and any
+output from commands run in the shell gets stored in a buffer.</p>
+
+<p>JOE has an orthogonal event-driven design.  Each prompt is actually
+a normal edit buffer containing a history of all of the responses entered
+for that prompt.  You can use all of the normal edit commands to create file
+names and search strings.  You can use the up arrow key (or search backwards
+and any other appropriate edit command) to go back through the history of
+previous responses.  Prompts are reentrant- meaning that edit commands which
+require prompts can still be used inside of prompts.</p>
+
+<p>JOE has TAB-completion and file selection menus.  If you hit tab in
+a file name prompt, the name is either completed or a menu of possible
+matches appears.</p>
+
+<p>JOE stores edit files in a doubly linked list of gap buffers which
+can spill into a temporary file.  You can edit files of any size up to the
+amount of free disk space and there are no line-length restrictions.  Since
+the buffering system is block-based, JOE will incur only a minimum of
+swapping on heavily loaded systems.</p>
+
+<p>When you ask for help, one of six small help reference cards appears
+on the screen and remains while you continue to use the editor.  Here is the
+first help card:</p>
+
+<p>
+<pre>
+CURSOR           GO TO            BLOCK      DELETE   MISC         EXIT
+^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save
+^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^T  options  ^C  abort
+^Z previous word ^A  beg. of line ^KM move   ^W &gt;word ^@@  insert   ^KZ shell
+^X next word     ^E  end of line  ^KC copy   ^O word&lt; ^R  retype   FILE
+SEARCH           ^KU top of file  ^KW file   ^J &gt;line SPELL        ^KE new
+^KF find text    ^KV end of file  ^KY delete ^_ undo  ^[N word     ^KR insert
+^L  find next    ^KL to line No.  ^K/ filter ^^ redo  ^[L file     ^KD save
+</pre>
+</p>
+
+<p>JOE has a powerful set of editing commands suitable for editing both
+text files and programs:</p>
+d45 1
+d47 1
+d50 22
+a71 15
+<li>search and replace system, including powerful regular expressions (including matching of balanced C
+expressions).</li>
+<li>tags file search</li>
+<li>paragraph format</li>
+<li>undo and redo</li>
+<li>position history allows you to get back to previous
+editing contexts and allows you to quickly flip between
+editing contexts</li>
+<li>multiple keyboard macros</li>
+<li>block move/copy/delete/filter</li>
+<li>rectangle (columnar) mode</li>
+<li>overtype/insert modes</li>
+<li>indent/unindent</li>
+<li>goto matching ( [ {</li>
+<li>auto-indent mode</li>
+d73 2
+a74 1
+<p>Plus many options can be set:</p>
+d76 11
+a86 8
+<li>can have EMACS-style cursor re-centering on scrolls</li>
+<li>characters between 128-255 can be shown as-is for non-English character
+sets</li>
+<li>Final newline can be forced on end of file</li>
+<li>Can start with a help screen on</li>
+<li>Left/Right margin settings</li>
+<li>Tab width</li>
+<li>Indentation step and fill character</li>
+@
+
+
+1.1
+log
+@web page files
+@
+text
+@d8 3
+d126 1
+d130 3
+a132 3
+^Z previous word ^A  beg. of line ^KM move   ^W >word ^@@  insert   ^KZ shell
+^X next word     ^E  end of line  ^KC copy   ^O word< ^R  retype   FILE
+SEARCH           ^KU top of file  ^KW file   ^J >line SPELL        ^KE new
+d135 1
+@
+

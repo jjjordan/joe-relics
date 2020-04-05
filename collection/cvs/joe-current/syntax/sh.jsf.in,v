@@ -1,0 +1,663 @@
+head	1.13;
+access;
+symbols
+	joe_3_5:1.13
+	joe-3_4:1.10
+	help:1.10
+	joe_3_1:1.3
+	joe_3_0:1.1;
+locks; strict;
+comment	@# @;
+
+
+1.13
+date	2006.07.20.19.24.01;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2006.06.03.14.06.40;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.06.01.21.07.27;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.05.25.00.21.06;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2006.05.22.23.00.35;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2006.05.12.02.07.07;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2005.03.02.06.02.26;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2005.02.25.19.46.17;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2004.06.07.21.22.28;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.06.07.20.00.47;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.05.09.20.18.29;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.05.09.06.29.59;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.04.13.20.12.41;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.13
+log
+@Fix $#
+@
+text
+@# JOE syntax highlight file for sh/ksh/bash
+
+# Think about:
+# $'....'
+# $(...)
+# ${...}
+
+# cat <<EOF xxxxxx
+# xxxxx should be interpreted as other arguments for 'cat'.
+
+# Colors
+
+=Idle
+=Comment 	green
+=Constant 	cyan
+=Escape 	bold cyan
+=Keyword 	bold
+=Var		magenta
+
+# Syntax
+
+:idle Idle
+	*		idle
+#	")"		subst_char	recolor=-1
+	"`"		subst_char	recolor=-1
+	"#"		comment		recolor=-1
+	"\\"		escape		recolor=-1
+	"$"		subst		recolor=-1
+	"'"		string_sq	recolor=-1
+	"\""		string_dq	recolor=-1
+	"<"		maybe_inc
+	"a-zA-Z{}![_"	ident		buffer
+
+:subst_char Var
+	*		idle	noeat
+
+:maybe_inc Idle
+	*		idle		noeat
+	"<"		maybe_inc1
+
+:maybe_inc1 Idle
+	*		inc		buffer noeat
+	"\""		inc_quote
+	"'"		inc_quote
+	" 	"	maybe_inc1
+	"\n"		toeof
+	"`&()\\|;<>"	idle	noeat
+	"\\"		skipquote
+	"-"		skipminus
+
+:skipminus Idle
+	*		inc1		buffer noeat
+	" 	"	skipminus
+	"\\"		skipquote
+	"\""		inc1_quote
+	"'"		inc1_quote
+	"`&()\\|;<>\n"	idle	noeat
+
+:skipquote Idle
+	*		inc		buffer noeat
+	"`&()\\|;'\"<> 	\n"	idle	noeat
+
+# All of these are for case of leading -
+
+:inc1 Var
+	*		inc1
+	"`&()\\|;'\"<> 	\n"	skipline1	noeat save_s
+
+:inc1_quote Var
+	*		inc1	buffer noeat
+
+:skipline1 Idle
+	*		skipline1
+	"\n"		next_line1
+
+:todelim1 Constant
+	*		todelim1
+	"\n"		next_line1	strings
+	"&"		founddelim1
+done
+
+:next_line1 Constant
+	*		todelim1	buffer
+	"\t"		next_line1
+	"\n"		next_line1
+
+:founddelim1 Var
+	*		idle		noeat
+
+# No leading -
+
+:inc Var
+	*		inc
+	"`&()\\|;'\"<> 	\n"	skipline	noeat save_s
+
+:inc_quote Var
+	*		inc	noeat buffer
+
+# Should be treated as a normal line here...
+
+:skipline Idle
+	*		skipline
+	"\n"		next_line
+
+:todelim Constant
+	*		todelim
+	"\n"		next_line	strings
+	"&"		founddelim
+done
+
+# eat \n so it's not in string.
+:next_line Constant
+	*		todelim		buffer
+	"\n"		next_line
+
+:founddelim Var
+	*		idle		noeat
+
+# << with no word.  Rest of file is a constant.
+
+:toeof Constant
+	*		toeof
+
+:comment Comment
+	*		comment
+	"\n"		idle
+
+:escape Escape
+	*		idle
+
+:subst Var
+	*		idle noeat
+	"("		idle	recolor=-2 # don't try for now
+	"\""		string_dq	recolor=-2
+	"\'"		string_sq	recolor=-2
+	"{"		subst_brack
+	"a-zA-Z_"	subst_name
+	"0-9*@@?\-$_!#"	idle
+
+:subst_name Var
+	*		idle		noeat recolor=-1
+	"a-zA-Z0-9_"	subst_name
+
+:subst_brack Var
+	*		subst_brack
+	"}"		idle
+
+# Simplest case: no quoting allowed
+:string_sq Constant
+	*		string_sq
+	"\'"		idle
+
+
+# double-quote: quoting, backqoutes and substitution allowed
+:string_dq Constant
+	*		string_dq
+	"$"		string_dq_subst	recolor=-1
+	"\""		idle
+	"\\"		string_dq_esc	recolor=-1
+	"`"		string_dq_bq	recolor=-1
+
+:string_dq_subst Var
+	*		string_dq	noeat recolor=-2
+	"$0-9!_\-?*@@"	string_dq
+	"a-zA-Z_"	string_dq_subst_name
+	"{"		string_dq_subst_brack
+
+:string_dq_subst_name Var
+	*		string_dq	recolor=-1 noeat
+	"a-zA-Z0-9_"	string_dq_subst_name
+
+:string_dq_subst_brack Var
+	*		string_dq_subst_brack
+	"}"		string_dq
+
+:string_dq_esc Escape
+	*		string_dq	recolor=-2
+	"$`\"\\"	string_dq
+	"\n"		string_dq	recolor=-2
+
+:string_dq_bq Constant
+	*		string_dq_bq
+	"$"		string_dq_bq_subst	recolor=-1
+	"\`"		string_dq
+	"\\"		string_dq_bq_esc	recolor=-1
+
+:string_dq_bq_subst Var
+	*		string_dq_bq	noeat recolor=-2
+	"$0-9!_\-?*@@"	string_dq_bq
+	"a-zA-Z_"	string_dq_bq_subst_name
+	"{"		string_dq_bq_subst_brack
+
+:string_dq_bq_subst_name Var
+	*		string_dq_bq	recolor=-1 noeat
+	"a-zA-Z0-9_"	string_dq_bq_subst_name
+
+:string_dq_bq_subst_brack Var
+	*		string_dq_bq_subst_brack
+	"}"		string_dq_bq
+
+:string_dq_bq_esc Escape
+	*		string_dq_bq	recolor=-2
+	"$`\"\\"	string_dq_bq
+	"\n"		string_dq_bq	recolor=-2
+
+
+# backquote
+:string_bq Constant
+	*		string_bq
+	"$"		string_bq_subst	recolor=-1
+	"\`"		idle
+	"\\"		string_bq_esc	recolor=-1
+
+# escape in backquote
+:string_bq_esc Escape
+	*		string_bq	recolor=-2
+	"$`\"\\"	string_bq
+	"\n"		string_bq	recolor=-2
+
+# Substitution in a backquote
+:string_bq_subst Var
+	*		string_bq	noeat recolor=-2
+	"$0-9!_\-?*@@"	string_bq
+	"a-zA-Z_"	string_bq_subst_name
+	"{"		string_bq_subst_brack
+
+:string_bq_subst_name Var
+	*		string_bq	recolor=-1 noeat
+	"a-zA-Z0-9_"	string_bq_subst_name
+
+:string_bq_subst_brack Var
+	*		string_bq_subst_brack
+	"}"		string_bq
+
+:ident Idle
+	*		idle		noeat strings
+	"!"		kw
+	"{"		kw
+	"}"		kw
+	"["		kw
+	"]"		kw
+# primary keywords
+	"case"		kw
+	"do"		kw
+	"done"		kw
+	"elif"		kw
+	"else"		kw
+	"esac"		kw
+	"fi"		kw
+	"for"		kw
+	"if"		kw
+	"in"		kw
+	"then"		kw
+	"until"		kw
+	"while"		kw
+# I think these are basically keywords too
+	"break"		kw
+	"continue"	kw
+	"return"	kw
+	"eval"		kw
+	"exec"		kw
+	"exit"		kw
+	"test"		kw	# doesn't have to be a shell command
+# variable management
+	"shift"		kw
+	"unset"		kw
+	"export"	kw
+	"readonly"	kw
+# input
+	"read"		kw
+# job control (not likely to be used in scripts)
+	"bg"		kw
+	"fg"		kw
+	"jobs"		kw
+	"suspend"	kw
+# job control (useful in scripts)
+	"kill"		kw
+	"wait"		kw
+# environment control
+	"cd"		kw
+	"chdir"		kw
+	"pwd"		kw
+	"ulimit"	kw
+	"umask"		kw
+# signal handling
+	"trap"		kw
+# misc shell control
+	"hash"		kw
+	"type"		kw
+	"times"		kw
+	"set"		kw
+# shell builtins
+	"echo"		kw
+	"getopts"	kw
+	"login"		kw	# not bash (logout is)
+	"newgrp"	kw	# not in bash
+	"stop"		kw	# not in bash (suspends a process)
+# additional ksh builtins
+	"alias"		kw
+	"select"	kw
+	"function"	kw
+	"command"	kw
+	"fc"		kw
+	"let"		kw
+	"print"		kw
+	"unalias"	kw
+	"whence"	kw
+	"history"	kw
+	"time"		kw
+	"typeset"	kw
+	"local"		kw
+# additional bash builtins
+	"source"	kw
+	"bind"		kw
+	"builtin"	kw
+	"compgen"	kw
+	"complete"	kw
+	"declare"	kw
+	"dirs"		kw
+	"disown"	kw
+	"enable"	kw
+	"help"		kw
+	"logout"	kw
+	"popd"		kw
+	"printf"	kw
+	"pushd"		kw
+	"shopt"		kw
+done
+	"a-zA-Z0-9_"	ident
+
+:kw Keyword
+	*	idle	noeat
+@
+
+
+1.12
+log
+@make rc parsing faster
+@
+text
+@d138 1
+a138 1
+	"0-9*@@?\-$_!"	idle
+@
+
+
+1.11
+log
+@fix sh bug
+@
+text
+@d24 1
+a24 1
+	")"		subst_char	recolor=-1
+d133 1
+a133 1
+	"("		idle
+@
+
+
+1.10
+log
+@Improve sh.  Move joerc.ru to jicerc.ru
+@
+text
+@d24 2
+a30 1
+	"\`"		string_bq	recolor=-1
+d34 3
+d133 1
+a133 1
+	"("		string_bq1	recolor=-2
+a234 31
+
+# $( backquote
+:string_bq1 Constant
+	*		string_bq1
+	"$"		string_bq1_subst	recolor=-1
+	")"		idle
+	"\\"		string_bq1_esc	recolor=-1
+
+# escape in backquote
+:string_bq1_esc Escape
+	*		string_bq1	recolor=-2
+	"$`\"\\"	string_bq1
+	"\n"		string_bq1	recolor=-2
+
+# Substitution in a backquote
+:string_bq1_subst Var
+	*		string_bq1	noeat recolor=-2
+	"$0-9!_\-?*@@"	string_bq1
+	"a-zA-Z_"	string_bq1_subst_name
+	"{"		string_bq1_subst_brack
+
+:string_bq1_subst_name Var
+	*		string_bq1	recolor=-1 noeat
+	"a-zA-Z0-9_"	string_bq1_subst_name
+
+:string_bq1_subst_brack Var
+	*		string_bq1_subst_brack
+	"}"		string_bq1
+
+
+
+@
+
+
+1.9
+log
+@Some sh highlighting fixes.  Now it will highlight the configure script.
+@
+text
+@d39 5
+a43 1
+	"`&()\\|;'\"<> 	\n"	idle	noeat
+d49 1
+d51 3
+a53 1
+	"`&()\\|;'\"<> 	\n"	idle	noeat
+d59 2
+d65 4
+a68 1
+:skipline1 Constant
+d86 2
+d92 3
+d97 1
+a97 1
+:skipline Constant
+d115 5
+@
+
+
+1.8
+log
+@new cvs server
+@
+text
+@d40 1
+d45 5
+d106 1
+a106 1
+	*		idle
+@
+
+
+1.7
+log
+@Fix syntax file warnings.
+Add -jump_menu
+@
+text
+@d31 1
+a31 1
+	"a-zA-Z{}!["	ident		buffer
+d43 1
+a43 1
+	*		inc		buffer noeat
+d46 22
+d101 1
+d204 30
+d328 1
+a328 1
+	"a-zA-Z0-9"	ident
+@
+
+
+1.6
+log
+@fix bash highlighter
+@
+text
+@d59 1
+a59 1
+	"&"		founddelim	noeat
+@
+
+
+1.5
+log
+@Few last minute perl and sh fixes.
+@
+text
+@d79 2
+@
+
+
+1.4
+log
+@Highlighter state now includes a saved string.
+This improves shell and perl highlighters.
+@
+text
+@d65 1
+@
+
+
+1.3
+log
+@Fix spelling errors in joe.1.in
+@
+text
+@d8 2
+a9 3
+# <<EOF
+#  ....
+# EOF
+d30 1
+d33 36
+@
+
+
+1.2
+log
+@Improved shell highlighter.
+Removed debug printfs.
+@
+text
+@d3 8
+a10 4
+# TODO:
+#  * octal escape sequences
+#  * highlight variables
+#  * heredoc support (is this even possible?)
+d19 1
+a19 1
+=Var		bold cyan
+@
+
+
+1.1
+log
+@Moved syntax definition files to subdirectory.
+@
+text
+@d1 1
+a1 1
+# JOE syntax highlight file for the POSIX shell
+d15 1
+d23 1
+a23 1
+	"$"		expand		recolor=-1
+d27 1
+a27 1
+	"a-zA-Z{}!"	ident		buffer
+a34 1
+	"\n"		idle		recolor=-2
+d36 1
+a36 1
+:expand Idle
+d38 11
+d50 1
+a53 1
+	"\\"		string_sq_esc	recolor=-1
+a54 3
+:string_sq_esc Escape
+	*		string_sq
+	"\n"		string_sq	recolor=-2
+d56 1
+d59 1
+d62 15
+d79 2
+a80 1
+	*		string_dq
+d83 27
+d112 1
+d116 1
+d118 2
+a119 1
+	*		string_bq
+d121 17
+a137 1
+	
+d143 3
+d159 72
+@
+

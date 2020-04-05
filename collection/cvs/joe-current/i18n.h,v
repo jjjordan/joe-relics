@@ -1,0 +1,137 @@
+head	1.4;
+access;
+symbols
+	joe_3_5:1.4
+	joe-3_4:1.4
+	help:1.4
+	joe_3_1:1.3;
+locks; strict;
+comment	@ * @;
+
+
+1.4
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.05.07.19.43.29;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.05.04.16.35.11;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.05.03.12.17.01;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.4
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@#ifndef _Ii18n
+#define _Ii18n 1
+
+int joe_iswupper PARAMS((struct charmap *,int c));
+int joe_iswlower PARAMS((struct charmap *,int c));
+
+int joe_iswalpha PARAMS((struct charmap *,int c));	/* or _ */
+int joe_iswalpha_ PARAMS((struct charmap *,int c));
+
+int joe_iswalnum PARAMS((struct charmap *,int c));
+int joe_iswalnum_ PARAMS((struct charmap *,int c));
+
+int joe_iswdigit PARAMS((struct charmap *,int c));
+int joe_iswspace PARAMS((struct charmap *,int c));
+int joe_iswctrl PARAMS((struct charmap *,int c));
+int joe_iswpunct PARAMS((struct charmap *,int c));
+int joe_iswgraph PARAMS((struct charmap *,int c));
+int joe_iswprint PARAMS((struct charmap *,int c));
+int joe_iswxdigit PARAMS((struct charmap *,int c));
+int joe_iswblank PARAMS((struct charmap *,int c));
+
+int joe_wcwidth PARAMS((int wide,int c));
+/* Looking for wswidth? Take a look at scrn.c/txtwidth() */
+
+int joe_towupper PARAMS((struct charmap *,int c));
+int joe_towlower PARAMS((struct charmap *,int c));
+
+int unictrl PARAMS((int c));
+
+#endif
+@
+
+
+1.3
+log
+@joe a b c, now windows are in order a, b, c.
+
+TAB completion now works on last path in prompt window:
+for example '!ls foo', tab will complete the foo.
+
+Added menu_explorer option.  When set: menu stays up when
+a directory is seleted.  When clear: directory is added
+to path and menu is closed.
+
+Menus are now 40% of window size (or smaller if they are
+not filled).
+
+Cursor is now position after selected menu entry.
+@
+text
+@a3 3
+#include "config.h"
+#include "types.h"
+
+@
+
+
+1.2
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d26 1
+@
+
+
+1.1
+log
+@Fix highlighter when there are utf-8 characters in file.
+
+No longer depend on wctype.h (working towards not depending on
+iconv()).
+@
+text
+@d7 17
+a23 11
+int joe_iswupper PARAMS((int c));
+int joe_iswlower PARAMS((int c));
+int joe_iswalpha PARAMS((int c));
+int joe_iswdigit PARAMS((int c));
+int joe_iswspace PARAMS((int c));
+int joe_iswctrl PARAMS((int c));
+int joe_iswpunct PARAMS((int c));
+int joe_iswgraph PARAMS((int c));
+int joe_iswprint PARAMS((int c));
+int joe_iswxdigit PARAMS((int c));
+int joe_iswblank PARAMS((int c));
+d27 4
+a30 2
+int joe_towupper PARAMS((int c));
+int joe_towlower PARAMS((int c));
+@
+

@@ -1,0 +1,416 @@
+head	1.14;
+access;
+symbols
+	joe_3_5:1.14
+	joe-3_4:1.14
+	help:1.14
+	joe_3_1:1.9
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.14
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.04.02.06.47.52;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2005.03.14.16.35.54;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2005.02.27.05.29.32;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.05.11.14.14.04;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2003.02.20.07.18.19;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.33;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.34;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.34;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.14
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Command execution
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_CMD_H
+#define _JOE_CMD_H 1
+
+/* Command entry */
+
+struct cmd {
+	unsigned char	*name;		/* Command name */
+	int	flag;		/* Execution flags */
+	int	(*func) ();	/* Function bound to name */
+	MACRO	*m;		/* Macro bound to name */
+	int	arg;		/* 0= arg is meaningless, 1= ok */
+	unsigned char	*negarg;	/* Command to use if arg was negative */
+};
+
+extern CMD cmds[];		/* Built-in commands */
+extern int joe_beep;		/* Enable beep on command error */
+
+/* Command execution flags */
+
+#define EMID		  1	/* Recenter screen */
+#define ECHKXCOL	  2	/* Don't execute command if cursor column is wrong */
+#define EFIXXCOL	  4	/* Fix column position after command has executed */
+#define EMINOR		  8	/* Full screen update not needed */
+#define EPOS		 16	/* A position history command */
+#define EMOVE		 32	/* A movement for position history purposes */
+#define EKILL		 64	/* Function is a kill */
+#define EMOD		128	/* Not allowed on readonly files */
+/* These use same bits as TYPE* in types.h */
+#define EBLOCK		0x4000	/* Finish block selection (call udropon) */
+#define EMETA		0x10000	/* JM: Executes even when if flag is zero */
+
+/* CMD *findcmd(char *s);
+ * Return command address for given name
+ */
+CMD *findcmd PARAMS((unsigned char *s));
+void addcmd PARAMS((unsigned char *s, MACRO *m));
+
+/* Execute a command.  Returns return value of command */
+int execmd PARAMS((CMD *cmd, int k));
+void do_auto_scroll();
+
+extern B *cmdhist; /* Command history buffer */
+
+int try_lock PARAMS((BW *bw,B *b));
+int modify_logic PARAMS((BW *bw,B *b));
+
+int uexecmd PARAMS((BW *bw));
+
+extern int nolocks; /* Disable file locking */
+extern int nomodcheck; /* Disable file modified check */
+
+#endif
+@
+
+
+1.13
+log
+@Autoscroll
+@
+text
+@d11 10
+a20 2
+#include "config.h"
+#include "types.h"
+d23 1
+a23 1
+extern int beep;
+d49 6
+a54 1
+extern B *cmdhist;
+d56 2
+a57 2
+int try_lock(BW *bw,B *b);
+int modify_logic(BW *bw,B *b);
+@
+
+
+1.12
+log
+@FIx some math and first change bugs.
+@
+text
+@d39 1
+@
+
+
+1.11
+log
+@Jesse McGrew's xterm mouse support.
+@
+text
+@d42 3
+@
+
+
+1.10
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d29 1
+@
+
+
+1.9
+log
+@Improved Ctrl-space marking.
+@
+text
+@d39 2
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d27 2
+@
+
+
+1.7
+log
+@change type of variables holding string to unsigned char *
+@
+text
+@d31 1
+a31 1
+CMD *findcmd PARAMS((char *s));
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d32 1
+a32 1
+void addcmd PARAMS((char *s, MACRO *m));
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d15 1
+d19 8
+a26 8
+#define EMID 1			/* Recenter screen */
+#define ECHKXCOL 2		/* Don't execute command if cursor column is wrong */
+#define EFIXXCOL 4		/* Fix column position after command has executed */
+#define EMINOR 8		/* Full screen update not needed */
+#define EPOS 16			/* A position history command */
+#define EMOVE 32		/* A movement for position history purposes */
+#define EKILL 64		/* Function is a kill */
+#define EMOD 128		/* Not allowed on readonly files */
+a35 2
+
+extern int beep;
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 2
+#ifndef _Icmd
+#define _Icmd 1
+d12 1
+a12 14
+
+typedef struct cmd CMD;
+typedef struct macro MACRO;
+
+/* Command entry */
+
+struct cmd {
+	char *name;		/* Command name */
+	int flag;		/* Execution flags */
+	int (*func) ();		/* Function bound to name */
+	MACRO *m;		/* Macro bound to name */
+	int arg;		/* 0= arg is meaningless, 1= ok */
+	char *negarg;		/* Command to use if arg was negative */
+};
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d4 2
+d36 2
+a37 2
+CMD *findcmd();
+void addcmd();
+d40 1
+a40 1
+int execmd();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d9 1
+a9 2
+struct cmd
+{
+d34 2
+a35 2
+CMD *findcmd ();
+void addcmd ();
+d38 1
+a38 1
+int execmd ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d10 8
+a17 8
+ {
+ char *name;		/* Command name */
+ int flag;		/* Execution flags */
+ int (*func)();		/* Function bound to name */
+ MACRO *m;		/* Macro bound to name */
+ int arg;		/* 0= arg is meaningless, 1= ok */
+ char *negarg;		/* Command to use if arg was negative */
+ };
+d19 1
+a19 1
+extern CMD cmds[];	/* Built-in commands */
+d23 8
+a30 8
+#define EMID 1		/* Recenter screen */
+#define ECHKXCOL 2	/* Don't execute command if cursor column is wrong */
+#define EFIXXCOL 4	/* Fix column position after command has executed */
+#define EMINOR 8	/* Full screen update not needed */
+#define EPOS 16		/* A position history command */
+#define EMOVE 32	/* A movement for position history purposes */
+#define EKILL 64	/* Function is a kill */
+#define EMOD 128	/* Not allowed on readonly files */
+d35 2
+a36 2
+CMD *findcmd();
+void addcmd();
+d39 1
+a39 1
+int execmd();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

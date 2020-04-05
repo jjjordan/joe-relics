@@ -1,0 +1,581 @@
+head	1.19;
+access;
+symbols
+	joe_3_5:1.18
+	joe-3_4:1.18
+	help:1.18
+	joe_3_1:1.11
+	joe_3_0:1.9
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.19
+date	2007.06.04.01.13.32;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.05.26.22.44.04;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.05.14.17.50.51;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2006.03.05.04.50.00;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2006.03.05.04.17.53;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.03.30.00.39.17;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2005.03.26.05.47.32;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.05.08.04.42.41;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.05.07.00.48.43;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.03.21.04.43.49;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.12.15.55.00;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.19
+log
+@More work on coroutine refactoring.
+@
+text
+@/*
+ *	Menu selection window
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_MENU_H
+#define _JOE_MENU_H 1
+
+/* A menu window */
+
+struct menu {
+	W	*parent;	/* Window we're in */
+	unsigned char	**list;		/* List of items */
+	int	top;		/* First item on screen */
+	int	cursor;		/* Item cursor is on */
+	int	width;		/* Width of widest item, up to 'w' max */
+	int 	fitline;	/* Number of items we can fit on each line */
+	int	perline;	/* Number of items we place on each line */
+	int	lines;		/* Total no. of lines */
+	int	nitems;		/* No. items in list */
+	Screen	*t;		/* Screen we're on */
+	int	h, w, x, y;
+	int	(*abrt) ();	/* Abort callback function */
+	int	(*func) ();	/* Return callback function */
+	int	(*backs) ();	/* Backspace callback function */
+	void	*object;
+};
+
+/* Create a menu */
+/* FIXME: ??? ---> */
+MENU *mkmenu PARAMS((W *loc, W *targ, unsigned char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object));
+
+/* Menu user functions */
+
+int umuparw PARAMS((MENU *m));
+int umdnarw PARAMS((MENU *m));
+int umpgup PARAMS((MENU *m));
+int umpgdn PARAMS((MENU *m));
+int umscrup PARAMS((MENU *m));
+int umscrdn PARAMS((MENU *m));
+int umltarw PARAMS((MENU *m));
+int umrtarw PARAMS((MENU *m));
+int umtab PARAMS((MENU *m));
+int umbof PARAMS((MENU *m));
+int umeof PARAMS((MENU *m));
+int umbol PARAMS((MENU *m));
+int umeol PARAMS((MENU *m));
+int umbacks PARAMS((MENU *m));
+
+void ldmenu PARAMS((MENU *m, unsigned char **s, int cursor));
+
+unsigned char *mcomplete PARAMS((MENU *m));
+unsigned char *find_longest PARAMS((unsigned char **lst));
+
+void menujump PARAMS((MENU *m, int x, int y));
+
+extern int lines; /* Number of menu lines */
+
+extern WATOM watommenu; /* Menu WATOM */
+
+extern int menu_above; /* Menu position: above or below */
+extern int bg_menu; /* Background color for menu */
+extern int transpose;
+
+int choose(W *w,W *targ,unsigned char **s,int *cursor);
+
+#endif
+@
+
+
+1.18
+log
+@transpose menus
+@
+text
+@d33 1
+a33 1
+MENU *mkmenu PARAMS((W *loc, W *targ, unsigned char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object, int *notify));
+d67 2
+@
+
+
+1.17
+log
+@Change SCREEN to Screen
+@
+text
+@d19 3
+a21 1
+	int	perline;	/* Number of items on each line */
+d65 1
+@
+
+
+1.16
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d21 1
+a21 1
+	SCREEN	*t;		/* Screen we're on */
+@
+
+
+1.15
+log
+@menu_above option
+@
+text
+@d11 17
+a27 2
+#include "config.h"
+#include "types.h"
+d57 7
+@
+
+
+1.14
+log
+@File selection menu is now above prompt instead of below it.
+@
+text
+@d16 1
+a16 1
+MENU *mkmenu PARAMS((W *w, W *targ, unsigned char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object, int *notify));
+@
+
+
+1.13
+log
+@Mnior mouse fixes
+@
+text
+@d16 1
+a16 1
+MENU *mkmenu PARAMS((W *w, unsigned char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object, int *notify));
+@
+
+
+1.12
+log
+@        Reformat mouse.c
+
+        Apply diff patch
+
+        Apply vpath patch
+
+        Apply electrum's mouse patch (send mouse off code during
+        shell escape)
+
+        Mouse can now resize windows
+
+        Mouse can position cursor in menus.  Double-click selects
+        an item.  Need to add scroll.
+
+@
+text
+@d24 2
+@
+
+
+1.11
+log
+@Tab completion insanity!  Completion in ^K F plus ESC-TAB in text windows.
+@
+text
+@d38 2
+@
+
+
+1.10
+log
+@TAB key now cycles through menu entries.  This is useful
+for tab completion: just keep hitting tab until you see the
+file you want, then hit enter.
+
+TAB completion is more "bash"-like: if you complete a directory
+name a menu does not appear, the directory just gets added to the
+prompt.
+@
+text
+@d36 1
+@
+
+
+1.9
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d26 1
+@
+
+
+1.8
+log
+@Menus are now four lines instead of one.
+@
+text
+@d16 1
+a16 1
+MENU *mkmenu PARAMS((W *w, char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object, int *notify));
+d32 1
+a32 1
+void ldmenu PARAMS((MENU *m, char **s, int cursor));
+d34 1
+a34 1
+char *mcomplete PARAMS((MENU *m));
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d22 2
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "w.h"
+
+@
+
+
+1.5
+log
+@use mkmenu(W *, ...) instead of mkmenu(BASE *, ...)
+@
+text
+@d1 9
+a9 20
+/* Menu selection window
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Imenu
+#define _Imenu 1
+d12 1
+a14 20
+
+typedef struct menu MENU;
+
+struct menu {
+	W *parent;		/* Window we're in */
+	char **list;		/* List of items */
+	int top;		/* First item on screen */
+	int cursor;		/* Item cursor is on */
+	int width;		/* Width of widest item, up to 'w' max */
+	int perline;		/* Number of items on each line */
+	int nitems;		/* No. items in list */
+	SCREEN *t;		/* Screen we're on */
+	int h, w, x, y;
+	int (*abrt) ();		/* Abort callback function */
+	int (*func) ();		/* Return callback function */
+	int (*backs) ();	/* Backspace callback function */
+	void *object;
+};
+
+#define TYPEMENU 0x800
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d48 1
+a48 1
+MENU *mkmenu PARAMS((BASE *obw, char **s, int (*func) (/* ??? */), int (*abrt) (/* ??? */), int (*backs) (/* ??? */), int cursor, void *object, int *notify));
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d23 1
+d47 2
+a48 2
+
+MENU *mkmenu();
+d52 9
+a60 9
+int umuparw();
+int umdnarw();
+int umltarw();
+int umrtarw();
+int umbof();
+int umeof();
+int umbol();
+int umeol();
+int umbacks();
+d62 1
+a62 1
+void ldmenu();
+d64 1
+a64 1
+char *mcomplete();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Menu selection window
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d47 1
+a47 1
+MENU *mkmenu ();
+d51 9
+a59 9
+int umuparw (MENU *m);
+int umdnarw (MENU *m);
+int umltarw (MENU *m);
+int umrtarw (MENU *m);
+int umbof (MENU *m);
+int umeof (MENU *m);
+int umbol (MENU *m);
+int umeol (MENU *m);
+int umbacks (MENU *m);
+d61 1
+a61 1
+void ldmenu (MENU *m, char **s, int cursor);
+d63 1
+a63 1
+char *mcomplete (MENU *m);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Menu selection window
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d16 15
+a30 16
+struct menu
+ {
+ W *parent;		/* Window we're in */
+ char **list;		/* List of items */
+ int top;		/* First item on screen */
+ int cursor;		/* Item cursor is on */
+ int width;		/* Width of widest item, up to 'w' max */
+ int perline;		/* Number of items on each line */
+ int nitems;		/* No. items in list */
+ SCREEN *t;		/* Screen we're on */
+ int h,w,x,y;
+ int (*abrt)();		/* Abort callback function */
+ int (*func)();		/* Return callback function */
+ int (*backs)();	/* Backspace callback function */
+ void *object;
+ };
+d36 1
+a36 1
+MENU *mkmenu();
+d40 9
+a48 9
+int umuparw();
+int umdnarw();
+int umltarw();
+int umrtarw();
+int umbof();
+int umeof();
+int umbol();
+int umeol();
+int umbacks();
+d50 1
+a50 1
+void ldmenu();
+d52 1
+a52 1
+char *mcomplete();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

@@ -1,0 +1,155 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.05.11.03.17.45;	author polesapart;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.36.09;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.36.09;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@removed files, attempting to re-create module from scratch
+@
+text
+@/*
+	Directory and path functions
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _joePATH
+#define _joePATH 1
+
+#include "config.h"
+
+char *ossep ();
+char *joesep ();
+
+/* char *namprt(char *path);
+ * Return name part of a path.  There is no name if the last character
+ * in the path is '/'.
+ *
+ * The name part of "/hello/there" is "there"
+ * The name part of "/hello/" is ""
+ * The name part if "/" is ""
+ */
+char *namprt ();
+char *namepart ();
+
+/* char *dirprt(char *path);
+ * Return directory and drive part of a path.  I.E., everything to the
+ * left of the name part.
+ *
+ * The directory part of "/hello/there" is "/hello/"
+ * The directory part of "/hello/" is "/hello/"
+ * The directory part of "/" is "/"
+ */
+char *dirprt ();
+
+/* char *begprt(char *path);
+ * Return the beginning part of a path.
+ *
+ * The beginning part of "/hello/there" is "/hello/"
+ * The beginning part of "/hello/" is "/"
+ * The beginning part of "/" is "/"
+ */
+char *begprt ();
+
+/* char *endprt(char *path);
+ * Return the ending part of a path.
+ *
+ * The ending part of "/hello/there" is "there"
+ * The ending part of "/hello/" is "hello/"
+ * The ending part of "/" is ""
+ */
+char *endprt ();
+
+/* int mkpath(char *path);
+ * Make sure path exists.  If it doesn't, try to create it
+ *
+ * Returns 1 for error or 0 for success.  The current directory
+ * and drive will be at the given path if successful, otherwise
+ * the drive and path will be elsewhere (not necessarily where they
+ * were before mkpath was called).
+ */
+int mkpath ();
+
+/* char *mktmp(char *);
+ * Create an empty temporary file.  The file name created is the string passed
+ * to this function postfixed with JXXXXXX.tmp, where XXXXXX is some number.
+ */
+char *mktmp ();
+
+/* Change drive and directory */
+#define chddir chdir
+
+/* int rmatch(char *pattern,char *string);
+ * Return true if string matches pattern
+ *
+ * Pattern is:
+ *     *                 matches 0 or more charcters
+ *     ?                 matches any 1 character
+ *     [...]             matches 1 character in set
+ *     [^...]            matches 1 character not in set
+ *     [[]               matches [
+ *     [*]               matches *
+ *     [?]               matches ?
+ *     any other         matches self
+ *
+ *  Ranges of characters may be specified in sets with 'A-B'
+ *  '-' may be specified in sets by placing it at the ends
+ *  '[' may be specified in sets by placing it first
+ */
+int rmatch ();
+int isreg ();
+
+/* char **rexpnd(char *path,char *pattern);
+ * Generate array (see va.h) of file names from directory in 'path'
+ * which match the pattern 'pattern'
+ */
+char **rexpnd ();
+
+int chpwd ();
+
+#endif
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+
+Initial CVS entry
+@
+text
+@@

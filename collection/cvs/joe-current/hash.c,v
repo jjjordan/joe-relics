@@ -1,0 +1,560 @@
+head	1.15;
+access;
+symbols
+	joe_3_5:1.15
+	joe-3_4:1.14
+	help:1.14
+	joe_3_1:1.12
+	joe_3_0:1.12
+	joe_2_9_8:1.11
+	joe_2_9_8_pre1:1.8
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.5
+	joe_2_9_6:1.4
+	joe_2_9_5:1.3
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.15
+date	2006.06.03.23.37.01;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.04.24.04.30.49;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2003.03.04.17.38.57;	author vsamel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2002.06.10.12.15.16;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2002.06.10.12.14.12;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.12.10.14.01.27;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.10.13.59.06;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.57.30;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.36;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.36;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.15
+log
+@hash table
+@
+text
+@/*
+ *	Simple hash table
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+static HENTRY *freentry = NULL;
+
+/* Compute hash value of string */
+
+#define hnext(accu, c) (((accu) << 4) + ((accu) >> 28) + (c))
+
+unsigned long hash(unsigned char *s)
+{
+	unsigned long accu = 0;
+
+	while (*s) {
+		accu = hnext(accu, *s++);
+	}
+	return accu;
+}
+
+/* Create hash table */
+
+HASH *htmk(int len)
+{
+	HASH *t = (HASH *) joe_malloc(sizeof(HASH));
+	t->nentries = 0;
+	t->len = len;
+	t->tab = (HENTRY **) joe_calloc(sizeof(HENTRY *), len);
+	return t;
+}
+
+/* Delete hash table.  Only the hash table is deleted, not the names and values */
+
+void htrm(HASH *ht)
+{
+	int x;
+	for (x = 0; x != ht->len; ++x) {
+		HENTRY *p, *n;
+		for (p = ht->tab[x]; p; p = n) {
+			n = p->next;
+			p->next = freentry;
+			freentry = p;
+		}
+	}
+	joe_free(ht->tab);
+	joe_free(ht);
+}
+
+/* Expand hash table */
+
+void htexpand(HASH *h)
+{
+	unsigned x;
+	/* Allocate new table */
+	unsigned new_size = h->len * 2;
+	HENTRY **new_table = (HENTRY **)joe_calloc(new_size, sizeof(HENTRY *));
+	/* Copy entries from old table to new */
+	for (x = 0; x != h->len; ++x) {
+		HENTRY *e;
+		while ((e = h->tab[x])) {
+			h->tab[x] = e->next;
+			e->next = new_table[e->hash_val & (new_size - 1)];
+			new_table[e->hash_val & (new_size - 1)] = e;
+		}
+	}
+	/* Replace old table with new */
+	free(h->tab);
+	h->tab = new_table;
+	h->len = new_size;
+}
+
+/* Bind a value to a name.  This does not check for duplicate entries.  The
+ * name and value are not duplicated: it's up to you to keep them around for
+ * the life of the hash table. */
+
+void *htadd(HASH *ht, unsigned char *name, void *val)
+{
+	unsigned hval = hash(name);
+	unsigned idx = hval & (ht->len - 1);
+	HENTRY *entry;
+	int x;
+
+	if (!freentry) {
+		entry = (HENTRY *) joe_malloc(sizeof(HENTRY) * 64);
+		for (x = 0; x != 64; ++x) {
+			entry[x].next = freentry;
+			freentry = entry + x;
+		}
+	}
+	entry = freentry;
+	freentry = entry->next;
+	entry->next = ht->tab[idx];
+	ht->tab[idx] = entry;
+	entry->name = name;
+	entry->val = val;
+	entry->hash_val = hval;
+	if (++ht->nentries == (ht->len >> 1) + (ht->len >> 2))
+		htexpand(ht);
+	return val;
+}
+
+/* Return value associated with name or NULL if there is none */
+
+void *htfind(HASH *ht, unsigned char *name)
+{
+	HENTRY *e;
+
+	for (e = ht->tab[hash(name) & (ht->len - 1)]; e; e = e->next) {
+		if (!zcmp(e->name, name)) {
+			return e->val;
+		}
+	}
+	return NULL;
+}
+@
+
+
+1.14
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d10 4
+a15 2
+static HENTRY *freentry = NULL;
+
+d26 2
+d31 1
+a31 1
+
+d37 2
+d54 27
+d83 2
+a84 1
+	int idx = hash(name) & (ht->len - 1);
+d89 1
+a89 1
+		entry = (HENTRY *) joe_malloc(sizeof(HENTRY) *64);
+d100 5
+a104 1
+	return entry->val = val;
+d107 2
+@
+
+
+1.13
+log
+@fix gcc-4.0.0 warnings
+@
+text
+@a7 1
+#include "config.h"
+a9 4
+
+#include "hash.h"
+#include "utils.h"
+
+d28 1
+a28 1
+	t->len = len - 1;
+d35 9
+d50 1
+a50 1
+	int idx = hash(name) & ht->len;
+d73 1
+a73 1
+	for (e = ht->tab[hash(name) & ht->len]; e; e = e->next) {
+@
+
+
+1.12
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a10 1
+#include <string.h>
+d70 1
+a70 1
+		if (!strcmp(e->name, name)) {
+@
+
+
+1.11
+log
+@change 0 to NULL where we're talking about pointers
+@
+text
+@d20 1
+a20 1
+unsigned long hash(char *s)
+d45 1
+a45 1
+void *htadd(HASH *ht, char *name, void *val)
+d66 1
+a66 1
+void *htfind(HASH *ht, char *name)
+@
+
+
+1.10
+log
+@change "expr, expr" to "expr; expr" where appropriate (take 2)
+@
+text
+@d18 1
+a18 1
+static HENTRY *freentry = 0;
+d75 1
+a75 1
+	return 0;
+@
+
+
+1.9
+log
+@move hnext() definition into hash.c
+@
+text
+@d54 2
+a55 1
+			entry[x].next = freentry, freentry = entry + x;
+@
+
+
+1.8
+log
+@change (m|re|c)alloc() and free() into joe_(m|re|c)alloc() and joe_free()
+(preparation for further error checking)
+@
+text
+@d16 2
+@
+
+
+1.7
+log
+@change function declaration "void a(P * p)" to "void a(P *p)"
+@
+text
+@a10 3
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+d12 1
+d14 1
+d30 1
+a30 1
+	HASH *t = (HASH *) malloc(sizeof(HASH));
+d33 1
+a33 1
+	t->tab = (HENTRY **) calloc(sizeof(HENTRY *), len);
+d39 2
+a40 2
+	free(ht->tab);
+	free(ht);
+d50 1
+a50 1
+		entry = (HENTRY *) malloc(sizeof(HENTRY) *64);
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d38 1
+a38 1
+void htrm(HASH * ht)
+d44 1
+a44 1
+void *htadd(HASH * ht, char *name, void *val)
+d51 1
+a51 1
+		entry = (HENTRY *) malloc(sizeof(HENTRY) * 64);
+d64 1
+a64 1
+void *htfind(HASH * ht, char *name)
+@
+
+
+1.5
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d1 9
+a9 1
+/* Simple hash table */
+a10 1
+#include "config.h"
+@
+
+
+1.4
+log
+@changed as of joe-2.9.6
+@
+text
+@d3 4
+d12 2
+a13 1
+unsigned long hash (char *s) {
+d17 1
+a17 1
+		accu = hnext (accu, *s++);
+d22 3
+a24 2
+HASH *htmk (int len) {
+	HASH *t = (HASH *) malloc (sizeof (HASH));
+d27 1
+a27 1
+	t->tab = (HENTRY **) calloc (sizeof (HENTRY *), len);
+d31 4
+a34 3
+void htrm (HASH *ht) {
+	free (ht->tab);
+	free (ht);
+d37 3
+a39 2
+void *htadd (HASH *ht, char *name, void *val) {
+	int idx = hash (name) & ht->len;
+d44 1
+a44 1
+		entry = (HENTRY *) malloc (sizeof (HENTRY) * 64);
+d57 2
+a58 1
+void *htfind (HASH *ht, char *name) {
+d61 2
+a62 2
+	for (e = ht->tab[hash (name) & ht->len]; e; e = e->next) {
+		if (!strcmp (e->name, name)) {
+@
+
+
+1.3
+log
+@changed as of joe-2.9.5
+@
+text
+@d6 1
+a6 1
+static HENTRY *freentry=0;
+d8 51
+a58 53
+unsigned long hash(s)
+char *s;
+ {
+ unsigned long accu=0;
+ while(*s) accu=hnext(accu,*s++);
+ return accu;
+ }
+
+HASH *htmk(len)
+ {
+ HASH *t=(HASH *)malloc(sizeof(HASH));
+ t->len=len-1;
+ t->tab=(HENTRY **)calloc(sizeof(HENTRY *),len);
+ return t;
+ }
+
+void htrm(ht)
+HASH *ht;
+ {
+ free(ht->tab);
+ free(ht);
+ }
+
+void *htadd(ht,name,val)
+HASH *ht;
+char *name;
+void *val;
+ {
+ int idx=hash(name)&ht->len;
+ HENTRY *entry;
+ if(!freentry)
+  {
+  int x;
+  entry=(HENTRY *)malloc(sizeof(HENTRY)*64);
+  for(x=0;x!=64;++x) entry[x].next=freentry, freentry=entry+x;
+  }
+ entry=freentry;
+ freentry=entry->next;
+ entry->next=ht->tab[idx];
+ ht->tab[idx]=entry;
+ entry->name=name;
+ return entry->val=val;
+ }
+
+void *htfind(ht,name)
+HASH *ht;
+char *name;
+ {
+ HENTRY *e;
+ for(e=ht->tab[hash(name)&ht->len];e;e=e->next)
+  if(!strcmp(e->name,name)) return e->val;
+ return 0;
+ }
+@
+
+
+1.2
+log
+@changed as of joe-2.9.2
+@
+text
+@a3 1
+#include "zstr.h"
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d3 1
+d59 1
+a59 1
+  if(!zcmp(e->name,name)) return e->val;
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

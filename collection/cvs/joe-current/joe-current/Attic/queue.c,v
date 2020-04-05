@@ -1,0 +1,86 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.04.19.16.32.17;	author marx_sk;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.12.10;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.12.10;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@/*
+ 	Doubly linked list primitives
+ 	Copyright (C) 1992 Joseph H. Allen
+ 
+ 	This file is part of JOE (Joe's Own Editor)
+ */
+
+#include "config.h"
+#include "queue.h"
+
+void *QUEUE;
+void *ITEM;
+void *LAST;
+
+void *ALITEM (STDITEM *freelist, int itemsize) {
+	if (qempty (STDITEM, link, freelist)) {
+		STDITEM *i = (STDITEM *) malloc (itemsize * 16);
+		STDITEM *z = (STDITEM *) ((char *) i + itemsize * 16);
+		while (i != z) {
+			enquef (STDITEM, link, freelist, i);
+			i = (STDITEM *) ((char *) i + itemsize);
+		}
+	}
+	return (void *) deque (STDITEM, link, freelist->link.prev);
+}
+
+void FRCHN (STDITEM *freelist, STDITEM *chn) {
+	STDITEM *i;
+
+	if ((i = chn->link.prev) != chn) {
+		  deque (STDITEM, link, chn);
+		  splicef (STDITEM, link, freelist, i);
+	}
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+Project was succesfully moved to CVS repository
+@
+text
+@@

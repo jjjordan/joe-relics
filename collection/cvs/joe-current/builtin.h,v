@@ -1,0 +1,70 @@
+head	1.3;
+access;
+symbols
+	joe_3_5:1.2;
+locks; strict;
+comment	@ * @;
+
+
+1.3
+date	2006.07.20.20.56.17;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.07.18.23.16.09;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.07.02.16.54.51;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.3
+log
+@semiautomatic variables
+@
+text
+@/* Support for built-in config files */
+
+struct jfile {
+	FILE *f;		/* Regular file, or NULL for built-in */
+	unsigned char *p;	/* Built-in file pointer */
+};
+
+JFILE *jfopen(unsigned char *name, const char *mode);
+unsigned char *jfgets(unsigned char **buf,JFILE *f);
+int jfclose(JFILE *f);
+
+extern unsigned char *builtins[];
+@
+
+
+1.2
+log
+@compiler warns
+@
+text
+@d8 2
+a9 2
+JFILE *jfopen(unsigned char *name, char *mode);
+unsigned char *jfgets(unsigned char *buf,int len,JFILE *f);
+@
+
+
+1.1
+log
+@forgot to check these in
+@
+text
+@d8 1
+a8 1
+JFILE *jfopen(unsigned char *name, unsigned char *mode);
+@
+

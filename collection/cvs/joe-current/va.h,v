@@ -1,0 +1,764 @@
+head	1.9;
+access;
+symbols
+	joe_3_5:1.9
+	joe-3_4:1.9
+	help:1.9
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.9
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2002.06.10.12.11.52;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.21;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.21;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.9
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Variable length arrays of strings
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_VA_H
+#define _JOE_VA_H 1
+
+/* Functions and global variable you have to define.  Replace these with
+ * macros or defines here if they are not to be actual functions 
+ */
+
+typedef unsigned char *aELEMENT;
+
+/* aELEMENT adup(); */
+#define adup(s) vsdup(s)
+/* aELEMENT adel(); */
+#define adel(s) vsrm(s)
+/* int acmp(); */
+#define acmp(a,b) vscmp((a),(b))
+/* extern aELEMENT ablank; */
+#define ablank NULL
+/* extern aELEMENT aterm; */
+#define aterm NULL
+
+/************************/
+/* Creation/Destruction */
+/************************/
+
+/* aELEMENT *vamk(int len);
+ * Create a variable length array.  Space for 'len' elements is preallocated.
+ */
+aELEMENT *vamk PARAMS((int len));
+
+/* void varm(aELEMENT *vary);
+ * Free an array and everything which is in it.  Does nothing if 'vary' is
+ * 0.
+ */
+void varm PARAMS((aELEMENT *vary));
+
+/********************/
+/* Space management */
+/********************/
+
+/* int aSIZ(aELEMENT *vary);
+ * int aSiz(aELEMENT *vary);
+ * Access size part of array.  This int indicates the number of elements which
+ * can fit in the array before realloc needs to be called.  It does not include
+ * the extra space needed for the terminator and the header.
+ *
+ * aSIZ returns 0 if you pass it 0.  aSiz does not do this checking,
+ * but can be used as an lvalue.
+ */
+#define aSIZ(a) ((a) ? *((int *)(a) - 2) : 0)
+#define aSiz(a) (*((int *)(a) - 2))
+
+/* int aLEN(aELEMENT *vary);
+ * int aLen(aELEMENT *vary);
+ * Access length part of array.  This int indicates the number of elements
+ * currently in the array (not including the terminator).  This should be
+ * used primarily for reading the size of the array.  It can be used for
+ * setting the size of the array, but it must be used with care since it
+ * does not eliminate elements (if the size decreases) or make sure there's
+ * enough room (if the size increases).  See vensure and vtrunc.
+ *
+ * aLEN return a length of zero if 'vary' is 0.
+ * aLen doesn't do this checking, but can be used as an lvalue
+ */
+#define aLEN(a) ((a) ? *((int *)(a) - 1) : 0)
+#define aLen(a) (*((int *)(a) - 1))
+
+/* int alen(aELEMENT *ary);
+ * Compute length of char or variable length array by searching for termination
+ * element.  Returns 0 if 'vary' is 0.
+ */
+int alen PARAMS((aELEMENT *ary));
+
+/* aELEMENT *vaensure(aELEMENT *vary, int len);
+ * Make sure there's enough space in the array for 'len' elements.  Whenever
+ * vaensure reallocs the array, it allocates 25% more than the necessary
+ * minimum space in anticipation of future expansion.  If 'vary' is 0,
+ * it creates a new array.
+ */
+aELEMENT *vaensure PARAMS((aELEMENT *vary, int len));
+
+/* aELEMENT *vazap(aELEMENT *vary, int pos, int n);
+ * Destroy n elements from an array beginning at pos.  Is ok if pos/n go
+ * past end of array.  This does not change the aLEN() value of the array.
+ * This does nothing and returns 0 if 'vary' is 0.  Note that this
+ * function does not actually write to the array.  This does not stop if
+ * a aterm is encountered.
+ */
+aELEMENT *vazap PARAMS((aELEMENT *vary, int pos, int n));
+
+/* aELEMENT *vatrunc(aELEMENT *vary, int len);
+ * Truncate array to indicated size.  This zaps or expands with blank elements
+ * and sets the LEN() of the array.  A new array is created if 'vary' is 0.
+ */
+aELEMENT *vatrunc PARAMS((aELEMENT *vary, int len));
+
+/************************************/
+/* Function which write to an array */
+/************************************/
+
+/* aELEMENT *vafill(aELEMENT *vary, int pos, aELEMENT el, int len);
+ * Set 'len' element of 'vary' beginning at 'pos' to duplications of 'el'.
+ * Ok, if pos/len are past end of array.  If 'vary' is 0, a new array is
+ * created.
+ *
+ * This does not zap previous values.  If you need that to happen, call
+ * vazap first.  It does move the terminator around properly though.
+ */
+aELEMENT *vafill PARAMS((aELEMENT *vary, int pos, aELEMENT el, int len));
+
+#ifdef junk
+/* aELEMENT *vancpy(aELEMENT *vary, int pos, aELEMENT *array, int len);
+ * Copy 'len' elements from 'array' onto 'vary' beginning at position 'pos'.
+ * 'array' can be a normal char array since the length is passed seperately.  The
+ * elements are copied, not duplicated.  A new array is created if 'vary' is
+ * 0.  This does not zap previous elements.
+ */
+aELEMENT *vancpy PARAMS((aELEMENT *vary, int pos, aELEMENT *array, int len));
+#endif
+
+/* aELEMENT *vandup(aELEMENT *vary, int pos, aELEMENT *array, int len);
+ * Duplicate 'len' elements from 'array' onto 'vary' beginning at position
+ * 'pos'.  'array' can be a char array since its length is passed seperately.  A
+ * new array is created if 'vary' is 0.
+ */
+aELEMENT *vandup PARAMS((aELEMENT *vary, int pos, aELEMENT *array, int len));
+
+/* aELEMENT *vadup(aELEMENT *vary);
+ * Duplicate array.  This is just a functionalized version of:
+ *
+ *   vandup(NULL,0,vary,aLEN(vary));
+ *
+ * but since you need to be able to refer to this particular function by
+ * address often it's given here.
+ *
+ * (actually, there's bazillions of these simple combinations of the above
+ * functions and the macros of the next section.  You'll probably want to make
+ * functionalized instances of the ones you use most often - especially since
+ * the macros aren't safe).
+ */
+aELEMENT *vadup PARAMS((aELEMENT *vary));
+
+/* aELEMENT *vaset(aELEMENT *vary, int pos, aELEMENT element);
+ * Set an element in an array.  Any value of 'pos' is valid.  A new array
+ * is created if 'vary' is 0.  The previous contents of the position is
+ * deleted.    This does not duplicate 'element'.  If you need 'element'
+ * duplicated, call: vaset(vary,pos,adup(element));
+ */
+aELEMENT *_vaset PARAMS((aELEMENT *vary, int pos, aELEMENT el));
+
+#define vaset(v,p,el)  \
+ (!(v) || (p) > aLen(v) || ((p) == aLen(v) && (p) == aSiz(v)) ?  \
+  _vaset((v),(p),(el)) \
+ : \
+  ((p) == aLen(v) ? \
+   ((v)[(p)+1] = (v)[p], (v)[p] = (el), aLen(v) = (p)+1, (v)) \
+  : \
+   (adel((v)[p]), (v)[p] = (el), (v)) \
+  ) \
+ )
+
+/* aELEMENT *vaadd(aELEMENT *vary, aELEMENT element);
+ * Concatenate a single element to the end of 'vary'.  A new array is created
+ * if 'vary' is 0.  This does not duplicate element: call
+ * vaadd(vary,adup(element));  If you need it duplicated.
+ */
+#define vaadd(v,el) \
+ (!(v) || aLen(v) == aSiz(v) ? \
+  _vaset((v), aLEN(v), (el)) \
+ : \
+  ((v)[aLen(v) + 1] = (v)[aLen(v)], (v)[aLen(v)] = (el), \
+   aLen(v) = aLen(v) + 1, (v)) \
+ )
+
+/**************************************/
+/* Functions which read from an array */
+/**************************************/
+
+/* These macros are used to generate the address/size pairs which get
+ * passed to the functions of the previous section.
+ */
+
+/* { aELEMENT *, int } av(aELEMENT *array);
+ * Return array,size pair.  Uses aLEN to get size.
+ */
+#define av(a) (a), aLEN(a)
+
+/* { aELEMENT *, int } az(aELEMENT *array);
+ * Return array,size pair.  Uses alen to get size.
+ */
+#define az(a) (a), alen(a)
+
+/* { aELEMENT *, int } ac(aELEMENT *array);
+ * Return array,size pair.  Uses 'sizeof' to get size.
+ */
+#define ac(a) (a), (sizeof(a) / sizeof(aELEMENT))
+
+/* { aELEMENT *, int } arest(aELEMENT *vary, int pos);
+ * Return array,size pair of rest of array beginning at pos.  If
+ * pos is past end of array, gives size of 0.
+ */
+#define arest(a, p) ((a) + (p)), (((p) > aLEN(a)) ? 0 : aLen(a) - (p))
+
+/* { aELEMENT *, int } apart(aELEMENT *vary, int pos, int len);
+ * Return array,size pair of 'len' elements of array beginning with pos.  If
+ * pos is past end of array, gives size of 0.  If pos+len is past end of array,
+ * returns number of elements to end of array.
+ */
+#define apart(a, p, l) \
+ ((a) + (p)), ((p) >= aLEN(a) ? 0 : ((p) + (l) > aLen(a) ? aLen(a) - (p) : (l)))
+
+/* aELEMENT vaget(aELEMENT *vary, int pos);
+ * Get an element from an array.  Any value of pos is valid; if it's past the
+ * end of the array or if 'vary' is 0, the terminator is returned.  This
+ * does not make a duplicate of the returned element.  If you want that, pass
+ * the return value of this to adup.
+ */
+#define vaget(a, p) ((p) >= aLEN(a) ? aterm : (a)[p])
+
+/*************************/
+/* Searching and Sorting */
+/*************************/
+
+/* aELEMENT *vasort(aELEMENT *ary, int len)
+ * Sort the elements of an array (char or variable length) using qsort().
+ */
+aELEMENT *vasort PARAMS((aELEMENT *ary, int len));
+
+/* aELEMENT *vawords(aELEMENT *a, char *s, int len, char *sep, int seplen);
+ * Generate list of strings out of words in 's' seperated with the characters
+ * in 'sep'.  The characters in 'sep' must be sorted.
+ */
+aELEMENT *vawords PARAMS((aELEMENT *a, unsigned char *s, int len, unsigned char *sep, int seplen));
+
+#endif
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a10 4
+#include "config.h"
+
+#include "vs.h"
+
+@
+
+
+1.7
+log
+@change aELEMENT #define to typedef
+@
+text
+@d19 1
+a19 1
+typedef char *aELEMENT;
+d243 1
+a243 1
+aELEMENT *vawords PARAMS((aELEMENT *a, char *s, int len, char *sep, int seplen));
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d19 3
+a21 3
+#define aELEMENT(a) char *a
+#define aCAST char *
+/* aELEMENT(adup()); */
+d23 1
+a23 1
+/* aELEMENT(adel()); */
+d27 1
+a27 1
+/* extern aELEMENT(ablank); */
+d29 1
+a29 1
+/* extern aELEMENT(aterm); */
+d36 1
+a36 1
+/* aELEMENT(*vamk(int len));
+d39 1
+a39 1
+aELEMENT(*vamk PARAMS((int len)));
+d41 1
+a41 1
+/* void varm(aELEMENT(*vary));
+d45 1
+a45 1
+void varm PARAMS((char **vary));
+d51 2
+a52 2
+/* int aSIZ(aELEMENT(*vary));
+ * int aSiz(aELEMENT(*vary));
+d60 2
+a61 2
+#define aSIZ(a) ((a)?*((int *)(a)-2):0)
+#define aSiz(a) (*((int *)(a)-2))
+d63 2
+a64 2
+/* int aLEN(aELEMENT(*vary));
+ * int aLen(aELEMENT(*vary));
+d75 2
+a76 2
+#define aLEN(a) ((a)?*((int *)(a)-1):0)
+#define aLen(a) (*((int *)(a)-1))
+d78 1
+a78 1
+/* int alen(aELEMENT(*ary));
+d82 1
+a82 1
+int alen PARAMS((char **ary));
+d84 1
+a84 1
+/* aELEMENT(*vaensure(aELEMENT(*vary),int len));
+d90 1
+a90 1
+aELEMENT(*vaensure PARAMS((aELEMENT(*vary), int len)));
+d92 1
+a92 1
+/* aELEMENT(*vazap(aELEMENT(*vary),int pos,int n));
+d99 1
+a99 1
+aELEMENT(*vazap PARAMS((aELEMENT(*vary), int pos, int n)));
+d101 1
+a101 1
+/* aELEMENT(*vatrunc(aELEMENT(*vary),int len));
+d105 1
+a105 1
+aELEMENT(*vatrunc PARAMS((aELEMENT(*vary), int len)));
+d111 1
+a111 1
+/* aELEMENT(*vafill(aELEMENT(*vary),int pos,aELEMENT(el),int len));
+d119 2
+a120 1
+aELEMENT(*vafill PARAMS((aELEMENT(*vary), int pos, aELEMENT(el), int len)));
+d122 1
+a122 1
+/* aELEMENT(*vancpy(aELEMENT(*vary),int pos,aELEMENT(*array),int len));
+d128 1
+a128 1
+aELEMENT(*vancpy PARAMS((aELEMENT(*vary), int pos, aELEMENT(*array), int len)));
+d130 2
+a131 1
+/* aELEMENT(*vandup(aELEMENT(*vary),int pos,aELEMENT(*array),int len));
+d136 1
+a136 1
+aELEMENT(*vandup PARAMS((aELEMENT(*vary), int pos, aELEMENT(*array), int len)));
+d138 1
+a138 1
+/* aELEMENT(*vadup(aELEMENT(*vary)));
+d151 1
+a151 1
+aELEMENT(*vadup PARAMS((aELEMENT(*vary))));
+d153 1
+a153 1
+/* aELEMENT(*vaset(aELEMENT(*vary),int pos,aELEMENT(element)));
+d159 1
+a159 1
+aELEMENT(*_vaset PARAMS((aELEMENT(*vary), int pos, aELEMENT(el))));
+d172 1
+a172 1
+/* aELEMENT(*vaadd(aELEMENT(*vary),aELEMENT(element)));
+d178 2
+a179 2
+ (!(v) || aLen(v)==aSiz(v) ? \
+  _vaset((v),aLEN(v),(el)) \
+d181 2
+a182 2
+  ((v)[aLen(v)+1]=(v)[aLen(v)], (v)[aLen(v)]=(el), \
+   aLen(v)=aLen(v)+1, (v)) \
+d193 1
+a193 1
+/* { aELEMENT(*),int } av(aELEMENT(*array));
+d196 1
+a196 1
+#define av(a) (a),aLEN(a)
+d198 1
+a198 1
+/* { aELEMENT(*),int } az(aELEMENT(*array));
+d201 1
+a201 1
+#define az(a) (a),alen(a)
+d203 1
+a203 1
+/* { aELEMENT(*),int } ac(aELEMENT(*array));
+d206 1
+a206 1
+#define ac(a) (a),(sizeof(a)/sizeof(aCAST))
+d208 1
+a208 1
+/* { aELEMENT(*),int } arest(aELEMENT(*vary),int pos);
+d212 1
+a212 1
+#define arest(a,p) ((a)+(p)),(((p)>aLEN(a))?0:aLen(a)-(p))
+d214 1
+a214 1
+/* { aELEMENT(*),int } apart(aELEMENT(*vary),int pos,int len);
+d219 2
+a220 2
+#define apart(a,p,l) \
+ ((a)+(p)),((p)>=aLEN(a)?0:((p)+(l)>aLen(a)?aLen(a)-(p):(l)))
+d222 1
+a222 1
+/* aELEMENT(vaget(aELEMENT(*vary),int pos));
+d228 1
+a228 1
+#define vaget(a,p) ((p)>=aLEN(a)?aterm:(a)[p])
+d234 1
+a234 1
+/* aELEMENT(*vasort(aELEMENT(*ary),int len))
+d237 1
+a237 1
+aELEMENT(*vasort PARAMS((aELEMENT(*ary), int len)));
+d239 1
+a239 1
+/* aELEMENT(*vawords(aELEMENT(*a),char *s,int len,char *sep,int seplen));
+d243 1
+a243 1
+aELEMENT(*vawords PARAMS((aELEMENT(*a), char *s, int len, char *sep, int seplen)));
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a11 1
+#include "types.h"
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 2
+/* Variable length arrays of strings
+   Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 10
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+a13 8
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Iva
+#define _Iva
+
+#include "config.h"
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d49 1
+a49 1
+aELEMENT(*vamk());
+d55 1
+a55 1
+void varm();
+d92 1
+a92 1
+int alen();
+d100 1
+a100 1
+aELEMENT(*vaensure());
+d109 1
+a109 1
+aELEMENT(*vazap());
+d115 1
+a115 1
+aELEMENT(*vatrunc());
+d129 1
+a129 1
+aELEMENT(*vafill());
+d137 1
+a137 1
+aELEMENT(*vancpy());
+d144 1
+a144 1
+aELEMENT(*vandup());
+d159 1
+a159 1
+aELEMENT(*vadup());
+d167 1
+a167 1
+aELEMENT(*_vaset());
+d245 1
+a245 1
+aELEMENT(*vasort());
+d251 1
+a251 1
+aELEMENT(*vawords());
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Variable length arrays of strings
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d49 1
+a49 1
+aELEMENT (*vamk (int len));
+d55 1
+a55 1
+void varm (aELEMENT (*vary));
+d92 1
+a92 1
+int alen (aELEMENT (*ary));
+d100 1
+a100 1
+aELEMENT (*vaensure (aELEMENT (*vary), int len));
+d109 1
+a109 1
+aELEMENT (*vazap (aELEMENT (*vary), int pos, int n));
+d115 1
+a115 1
+aELEMENT (*vatrunc (aELEMENT (*vary), int len));
+d129 1
+a129 1
+aELEMENT (*vafill (aELEMENT (*vary), int pos, aELEMENT (el), int len));
+d137 1
+a137 1
+aELEMENT (*vancpy (aELEMENT (*vary), int pos, aELEMENT (*array), int len));
+d144 1
+a144 1
+aELEMENT (*vandup (aELEMENT (*vary), int pos, aELEMENT (*array), int len));
+d159 1
+a159 1
+aELEMENT (*vadup (aELEMENT (*vary)));
+d167 1
+a167 2
+aELEMENT (*_vaset (aELEMENT (*vary), int pos, aELEMENT (el)));
+
+d170 1
+a170 1
+ (!(v) || (p)>aLen(v) || (p)==aLen(v) && (p)==aSiz(v) ?  \
+d173 2
+a174 2
+  ((p)==aLen(v) ? \
+   ((v)[(p)+1]=(v)[p], (v)[p]=(el), aLen(v)=(p)+1, (v)) \
+d176 1
+a176 1
+   (adel((v)[p]), (v)[p]=(el), (v)) \
+d245 1
+a245 1
+aELEMENT (*vasort (aELEMENT (*ary), int len));
+d251 1
+a251 1
+aELEMENT (*vawords (aELEMENT (*a), char *s, int len, char *sep, int seplen));
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Variable length arrays of strings
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d38 1
+a38 1
+aELEMENT(*vamk());
+d44 1
+a44 1
+void varm();
+d81 1
+a81 1
+int alen();
+d89 1
+a89 1
+aELEMENT(*vaensure());
+d98 1
+a98 1
+aELEMENT(*vazap());
+d104 1
+a104 1
+aELEMENT(*vatrunc());
+d118 1
+a118 1
+aELEMENT(*vafill());
+d126 1
+a126 1
+aELEMENT(*vancpy());
+d133 1
+a133 1
+aELEMENT(*vandup());
+d147 2
+a148 2
+ */ 
+aELEMENT(*vadup());
+d156 2
+a157 1
+aELEMENT(*_vaset());
+d168 1
+a168 1
+ )   
+d235 1
+a235 1
+aELEMENT(*vasort());
+d241 1
+a241 1
+aELEMENT(*vawords());
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

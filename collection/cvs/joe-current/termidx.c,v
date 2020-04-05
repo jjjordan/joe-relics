@@ -1,0 +1,435 @@
+head	1.10;
+access;
+symbols
+	joe_3_5:1.10
+	joe-3_4:1.10
+	help:1.10
+	joe_3_1:1.9
+	joe_3_0:1.9
+	joe_2_9_8:1.8
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.10
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2002.06.10.12.09.40;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.04.13.14.16;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.57.30;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.07;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.07;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.10
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Program to generate termcap index file
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ * This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+static void gen(unsigned char *s, FILE *fd)
+{
+	int c, x;
+	long addr = 0, oaddr;
+
+      loop:
+	while (c = getc(fd), c == ' ' || c == '\t' || c == '#')
+		do {
+			c = getc(fd);
+		} while (!(c == -1 || c == '\n'));
+	if (c == -1)
+		return;
+	if (c == '\n')
+		goto loop;
+	oaddr = addr;
+	addr = ftell(fd) - 1;
+	ungetc(c, fd);
+	s[x = 0] = 0;
+	while (1) {
+		c = getc(fd);
+		if (c == -1 || c == '\n') {
+			if (x != 0 && s[x - 1] == '\\')
+				--x;
+			if (x) {
+				int y, z, flg;
+
+				s[x] = 0;
+				z = 0;
+				flg = 0;
+				do {
+					for (y = z; s[y] && s[y] != '|' && s[y] != ':'; ++y) ;
+					c = s[y];
+					s[y] = 0;
+					if (strlen((char *)(s + z)) > 2 && !strchr((char *)(s + z), ' ') && !strchr((char *)(s + z), '\t')) {
+						if(flg)
+							putchar(' ');
+						fputs((char *)(s + z), stdout);
+						flg = 1;
+					}
+					s[y] = c;
+					z = y + 1;
+				} while (c && c != ':');
+				if (flg)
+					printf(" %lx\n", addr - oaddr);
+			}
+			goto loop;
+		} else if (c == '\r')
+			/* do nothing */ ;
+		else
+			s[x++] = c;
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	unsigned char array[65536];
+
+	gen(array, stdin);
+	return(0);
+}
+@
+
+
+1.9
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a7 1
+#include "config.h"
+a9 3
+#include <stdio.h>
+#include <string.h>
+
+@
+
+
+1.8
+log
+@change "expr, expr" to "expr; expr" where appropriate
+@
+text
+@d14 1
+a14 1
+static void gen(char *s, FILE *fd)
+d47 1
+a47 1
+					if (strlen(s + z) > 2 && !strchr(s + z, ' ') && !strchr(s + z, '\t')) {
+d50 1
+a50 1
+						fputs(s + z, stdout);
+d69 1
+a69 1
+	char array[65536];
+@
+
+
+1.7
+log
+@change indentation of do {} while() cycles
+@
+text
+@d60 2
+a61 1
+		} else if (c == '\r') ;
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d21 1
+a21 1
+		do
+d23 1
+a23 1
+		while (!(c == -1 || c == '\n'));
+d55 1
+a55 2
+				}
+				while (c && c != ':');
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 5
+    Program to generate termcap index file
+    Copyright (C) 1992 Joseph H. Allen
+
+    This file is part of JOE (Joe's Own Editor)
+*/
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d11 1
+a11 3
+void gen(s, fd)
+char *s;
+FILE *fd;
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d11 3
+a13 3
+gen (s, fd)
+     char *s;
+     FILE *fd;
+d17 1
+d19 1
+a19 1
+	while (c = getc (fd), c == ' ' || c == '\t' || c == '#')
+d21 1
+a21 1
+			c = getc (fd);
+d28 2
+a29 2
+	addr = ftell (fd) - 1;
+	ungetc (c, fd);
+d31 20
+a50 30
+	while (1)
+	  {
+		  c = getc (fd);
+		  if (c == -1 || c == '\n')
+		    {
+			    if (x != 0 && s[x - 1] == '\\')
+				    --x;
+			    if (x)
+			      {
+				      int y, z, flg;
+				      s[x] = 0;
+				      z = 0;
+				      flg = 0;
+				      do
+					{
+						for (y = z;
+						     s[y] && s[y] != '|'
+						     && s[y] != ':'; ++y);
+						c = s[y];
+						s[y] = 0;
+						if (strlen (s + z) > 2
+						    && !strchr (s + z, ' ')
+						    && !strchr (s + z, '\t'))
+							(flg
+							 && putchar (' ')),
+								fputs (s + z,
+								       stdout),
+								flg = 1;
+						s[y] = c;
+						z = y + 1;
+d52 12
+a63 10
+				      while (c && c != ':');
+				      if (flg)
+					      printf (" %x\n", addr - oaddr);
+			      }
+			    goto loop;
+		    }
+		  else if (c == '\r');
+		  else
+			  s[x++] = c;
+	  }
+d66 1
+a66 1
+main ()
+d69 3
+a71 1
+	gen (array, stdin);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.2
+@
+text
+@d6 1
+a6 1
+*/ 
+d11 3
+a13 3
+gen(s,fd)
+char *s;
+FILE *fd;
+d15 56
+a70 38
+int c,x;
+long addr=0, oaddr;
+loop:
+while(c=getc(fd), c==' ' || c=='\t' || c=='#')
+ do c=getc(fd); while(!(c== -1 || c=='\n'));
+if(c== -1) return;
+if(c=='\n') goto loop;
+oaddr=addr;
+addr=ftell(fd)-1;
+ungetc(c,fd);
+s[x=0]=0;
+while(1)
+ {
+ c=getc(fd);
+ if(c== -1 || c=='\n')
+  {
+  if(x!=0 && s[x-1]=='\\') --x;
+  if(x)
+   {
+   int y,z,flg;
+   s[x]=0; z=0; flg=0;
+   do
+    {
+    for(y=z;s[y] && s[y]!='|' && s[y]!=':';++y);
+    c=s[y]; s[y]=0;
+    if(strlen(s+z)>2 && !strchr(s+z,' ') &&
+       !strchr(s+z,'\t')) (flg && putchar(' ')), fputs(s+z,stdout), flg=1;
+    s[y]=c;
+    z=y+1;
+    }
+    while(c && c!=':');
+   if(flg) printf(" %x\n",addr-oaddr);
+   }
+  goto loop;
+  }
+ else if(c=='\r') ;
+ else s[x++]=c;
+ }
+d73 1
+a73 1
+main()
+d75 2
+a76 2
+char array[65536];
+gen(array,stdin);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Program to generate termcap index file
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d9 1
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

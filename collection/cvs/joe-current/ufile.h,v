@@ -1,0 +1,540 @@
+head	1.21;
+access;
+symbols
+	joe_3_5:1.18
+	joe-3_4:1.16
+	help:1.16
+	joe_3_1:1.10
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.21
+date	2008.10.29.02.06.05;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2008.10.28.22.55.41;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2007.01.29.14.26.23;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.06.05.01.26.32;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.06.02.15.01.26;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2006.05.21.01.58.58;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2005.03.22.03.22.39;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.03.20.03.31.26;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2005.03.14.03.21.37;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.05.13.00.23.46;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.05.11.20.02.51;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.17;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.17;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.21
+log
+@Add reloadall command.
+@
+text
+@/*
+ * 	User file operations
+ *	Copyright
+ *	(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_UFILE_H
+#define _JOE_UFILE_H 1
+
+extern int exask; /* Ask for file name during ^K X */
+
+void genexmsg PARAMS((BW *bw, int saved, unsigned char *name));
+
+int ublksave PARAMS((BW *bw));
+int ushell PARAMS((BW *bw));
+int usys PARAMS((BW *bw));
+int usave PARAMS((BW *bw));
+int usavenow PARAMS((BW *bw));
+int uedit PARAMS((BW *bw));
+int uswitch PARAMS((BW *bw));
+int uscratch PARAMS((BW *bw));
+int uexsve PARAMS((BW *bw));
+int unbuf PARAMS((BW *bw));
+int upbuf PARAMS((BW *bw));
+int uask PARAMS((BW *bw));
+int ubufed PARAMS((BW *bw));
+int ulose PARAMS((BW *bw));
+int okrepl PARAMS((BW *bw));
+int doswitch PARAMS((BW *bw, unsigned char *s));
+int uquerysave PARAMS((BW *bw));
+int ukilljoe PARAMS((BW *bw));
+int get_buffer_in_window PARAMS((BW *bw, B *b));
+
+extern B *filehist; /* History of file names */
+
+extern int nobackups; /* Set to disable backup files */
+extern unsigned char *backpath; /* Path to backup files if not current directory */
+extern int orphan; /* Set to keep orphaned buffers (buffers with no windows)  */
+
+extern unsigned char *yes_key;
+extern unsigned char *no_key;
+#define YES_CODE -10
+#define NO_CODE -20
+int yncheck PARAMS((unsigned char *string, int c));
+int ynchecks PARAMS((unsigned char *string, unsigned char *s));
+
+int ureload(BW *bw);
+int ureload_all(BW *bw);
+
+#endif
+@
+
+
+1.20
+log
+@Add reload command
+@
+text
+@d49 1
+@
+
+
+1.19
+log
+@more refactoring
+@
+text
+@d48 2
+@
+
+
+1.18
+log
+@fix bugs: missing joe_gettext, core dump on re
+@
+text
+@a22 1
+int uinsf PARAMS((BW *bw));
+d30 1
+a30 1
+int doswitch PARAMS((BW *bw, unsigned char *s, void *obj, int *notify));
+@
+
+
+1.17
+log
+@i18n yes/no
+@
+text
+@d42 2
+a43 2
+extern unsigned char *yes_string;
+extern unsigned char *no_string;
+@
+
+
+1.16
+log
+@A option for search
+Restore cursor to old position
+@
+text
+@d42 7
+@
+
+
+1.15
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d34 1
+@
+
+
+1.14
+log
+@Fix bugs where doedit() was called and we expected the window to immediately
+change.
+
+Run -pedantic
+@
+text
+@d11 1
+a11 4
+#include "config.h"
+#include "types.h"
+
+extern int exask;
+d35 5
+a39 1
+extern B *filehist;
+@
+
+
+1.13
+log
+@Current directory stuff
+@
+text
+@d34 1
+a34 1
+int doedit PARAMS((BW *bw, unsigned char *s, void *obj, int *notify));
+@
+
+
+1.12
+log
+@Perforce macro and support for it.
+@
+text
+@d22 1
+@
+
+
+1.11
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d20 1
+@
+
+
+1.10
+log
+@Compile now uses shell window (so you can hit ^C during the
+compile).
+
+Shell window termination code fix: now all of the output always
+makes it to the window.
+
+Added query save loop to save all modified files before build.
+
+Added scratch buffers: they are ignored during ^K X, ^C and
+querysave.
+
+^X ^C in jmacs is now much more like emacs.
+@
+text
+@d36 2
+@
+
+
+1.9
+log
+@^K E prompts to load original file from disk.
+@
+text
+@d23 1
+d33 2
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d22 1
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d16 1
+a16 1
+void genexmsg PARAMS((BW *bw, int saved, char *name));
+d30 1
+a30 1
+int doedit PARAMS((BW *bw, char *s, void *obj, int *notify));
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "bw.h"
+
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 2
+	User file operations
+	Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d14 1
+a14 2
+#ifndef _Iufile
+#define _Iufile 1
+a16 3
+
+#include "config.h"
+#include "bw.h"
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d13 1
+d16 1
+a16 1
+void genexmsg();
+d18 13
+a30 13
+int ublksave();
+int ushell();
+int usave();
+int uedit();
+int uinsf();
+int uexsve();
+int unbuf();
+int upbuf();
+int uask();
+int ubufed();
+int ulose();
+int okrepl();
+int doedit();
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d15 1
+a15 1
+void genexmsg ();
+d17 13
+a29 13
+int ublksave ();
+int ushell ();
+int usave ();
+int uedit ();
+int uinsf ();
+int uexsve ();
+int unbuf ();
+int upbuf ();
+int uask ();
+int ubufed ();
+int ulose ();
+int okrepl ();
+int doedit ();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.5
+@
+text
+@d1 3
+a3 2
+/* User file operations
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+d29 1
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d17 1
+a17 1
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d26 1
+a26 1
+void genexmsg();
+d28 12
+a39 12
+int ublksave();
+int ushell();
+int usave();
+int uedit();
+int uinsf();
+int uexsve();
+int unbuf();
+int upbuf();
+int uask();
+int ubufed();
+int ulose();
+int okrepl();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

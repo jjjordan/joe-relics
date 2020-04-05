@@ -1,0 +1,91 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.04.19.16.32.17;	author marx_sk;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.12.09;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.12.09;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@/*
+	Prompt windows
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Ipw
+#define _Ipw 1
+
+#include "config.h"
+#include "bw.h"
+#include "b.h"
+#include "w.h"
+
+typedef struct pw PW;
+
+struct pw {
+	int (*pfunc) ();	/* Func which gets called when RTN is hit */
+	int (*abrt) ();		/* Func which gets called when window is aborted */
+	int (*tab) ();		/* Func which gets called when TAB is hit */
+	char *prompt;		/* Prompt string */
+	int promptlen;		/* Width of prompt string */
+	int promptofst;		/* Prompt scroll offset */
+	B *hist;		/* History buffer */
+	void *object;		/* Object */
+};
+
+#define TYPEPW 0x200
+
+/* BW *wmkpw(BW *bw,char *prompt,int (*func)(),char *huh,int (*abrt)(),
+             int (*tab)(),void *object,int *notify);
+ * Create a prompt window for the given window
+ */
+BW *wmkpw (W *w, char *prompt, B **history, int (*func) (), char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify);
+
+int ucmplt (BW *bw, int k);
+
+#endif
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+Project was succesfully moved to CVS repository
+@
+text
+@@

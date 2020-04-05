@@ -1,0 +1,566 @@
+head	1.23;
+access;
+symbols
+	joe_3_5:1.16
+	joe-3_4:1.16
+	help:1.16
+	joe_3_1:1.11
+	joe_3_0:1.10
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.23
+date	2008.10.29.22.58.48;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2007.06.04.01.13.32;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2007.05.31.20.51.39;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2007.03.20.12.48.57;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2007.01.29.14.26.23;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2007.01.21.04.57.23;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.07.26.03.59.18;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2005.03.20.03.50.59;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2005.03.20.03.31.26;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.03.18.03.29.32;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2005.03.16.21.37.35;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.05.04.16.35.12;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.04.23.02.14.08;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.04.17.13.13.16;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.10.13.59.06;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.23
+log
+@Turn off UTF-8 when we enter hex
+@
+text
+@/*
+ *	Prompt windows
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_PW_H
+#define _JOE_PW_H 1
+
+/* Prompt window (a BW) */
+
+struct pw {
+	int	(*pfunc) ();	/* Func which gets called when RTN is hit */
+	int	(*abrt) ();	/* Func which gets called when window is aborted */
+	int	(*tab) ();	/* Func which gets called when TAB is hit */
+	unsigned char	*prompt;	/* Prompt string */
+	int	promptlen;	/* Width of prompt string */
+	int	promptofst;	/* Prompt scroll offset */
+	B	*hist;		/* History buffer */
+	void	*object;	/* Object */
+	int	file_prompt;	/* Set if this is a file name prompt, so do ~ expansion */
+	int	oldcury;
+};
+
+/* BW *wmkpw(BW *bw,char *prompt,int (*func)(),char *huh,int (*abrt)(),
+             int (*tab)(),void *object);
+ * Create a prompt window for the given window
+ * file_prompt flags:
+ *   bit 0: ~ expansion
+ *   bit 1: update directory
+ *   bit 2: seed with directory
+ */
+BW *wmkpw PARAMS((W *w, unsigned char *prompt, B **history, int (*func) (), unsigned char *huh, int (*abrt) (), int (*tab) (), void *object, struct charmap *map, int file_prompt));
+
+unsigned char *ask(W *w, unsigned char *prompt, B **history, unsigned char *huh, int (*tab)(), struct charmap *map, int file_prompt, int retrieve_last, unsigned char *preload);
+
+int ucmplt PARAMS((BW *bw, int k));
+
+/* Function for TAB completion */
+
+unsigned char **regsub PARAMS((unsigned char **z, int len, unsigned char *s));
+
+void cmplt_ins PARAMS((BW *bw,unsigned char *line));
+
+int cmplt_abrt PARAMS((BW *bw,int x, unsigned char *line));
+
+int cmplt_rtn PARAMS((MENU *m,int x,unsigned char *line));
+
+int simple_cmplt PARAMS((BW *bw,unsigned char **list));
+
+void setup_history PARAMS((B **history));
+void append_history PARAMS((B *hist,unsigned char *s,int len));
+void promote_history PARAMS((B *hist, long line));
+void set_current_dir PARAMS((unsigned char *s,int simp));
+
+extern int bg_prompt;
+extern int nocurdir;
+
+extern WATOM watompw;
+
+#endif
+@
+
+
+1.22
+log
+@More work on coroutine refactoring.
+@
+text
+@d60 2
+@
+
+
+1.21
+log
+@more work on coroutine refactor
+prompt window experiment
+@
+text
+@d27 1
+a27 1
+             int (*tab)(),void *object,int *notify);
+d34 1
+a34 1
+BW *wmkpw PARAMS((W *w, unsigned char *prompt, B **history, int (*func) (), unsigned char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify, struct charmap *map, int file_prompt));
+@
+
+
+1.20
+log
+@add co_suspend
+@
+text
+@d23 1
+@
+
+
+1.19
+log
+@more refactoring
+@
+text
+@a22 2
+
+	Coroutine *task;	/* Task to continue when prompt done */
+@
+
+
+1.18
+log
+@fix obj_stack leak during coroutine switch
+@
+text
+@d37 1
+a37 1
+unsigned char *ask(W *w, unsigned char *prompt, B **history, unsigned char *huh, int (*tab)(), int *notify, struct charmap *map, int file_prompt, int retrieve_last, unsigned char *preload);
+@
+
+
+1.17
+log
+@coroutines
+@
+text
+@d37 1
+a37 1
+unsigned char *ask(W *w, unsigned char *prompt, B **history, unsigned char *huh, int (*tab)(), int *notify, struct charmap *map, int file_prompt);
+@
+
+
+1.16
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d23 2
+d37 2
+@
+
+
+1.15
+log
+@Get current directory from files on command line
+@
+text
+@d11 13
+a23 2
+#include "config.h"
+#include "types.h"
+d49 7
+a55 4
+void setup_history(B **history);
+void append_history(B *hist,unsigned char *s,int len);
+void promote_history(B *hist, long line);
+void set_current_dir(unsigned char *s,int simp);
+@
+
+
+1.14
+log
+@Current directory stuff
+@
+text
+@d41 1
+@
+
+
+1.13
+log
+@Save file names from command line in state file
+@
+text
+@d17 4
+@
+
+
+1.12
+log
+@Fix ~ expansion insanity
+@
+text
+@d34 4
+@
+
+
+1.11
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d18 1
+a18 1
+BW *wmkpw PARAMS((W *w, unsigned char *prompt, B **history, int (*func) (), unsigned char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify, struct charmap *map));
+@
+
+
+1.10
+log
+@Fixed uopen() ^] for overtype mode.
+
+Added 'istrings' option in syntax files for ignoring case
+in strings.
+
+Added ^T Y- allows you to select syntax during run time (tab
+completion works too!)
+
+Added ^T P- picture mode: can move and type anywhere on the screen,
+good for drawing ASCII art.
+@
+text
+@d18 1
+a18 1
+BW *wmkpw PARAMS((W *w, unsigned char *prompt, B **history, int (*func) (), unsigned char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify, int wide));
+@
+
+
+1.9
+log
+@UTF-8 now supported in file names and prompts.
+
+Search should be partially working.  \+ with
+a UTF-8 character following is broken and
+\[ ] only works for bytes.
+@
+text
+@d22 12
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d18 1
+a18 1
+BW *wmkpw PARAMS((W *w, unsigned char *prompt, B **history, int (*func) (), unsigned char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify));
+@
+
+
+1.7
+log
+@change function declaration "void a(P * p)" to "void a(P *p)"
+@
+text
+@d18 1
+a18 1
+BW *wmkpw PARAMS((W *w, char *prompt, B **history, int (*func) (), char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify));
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d18 1
+a18 1
+BW *wmkpw PARAMS((W * w, char *prompt, B ** history, int (*func) (), char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify));
+d20 1
+a20 1
+int ucmplt PARAMS((BW * bw, int k));
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 4
+#include "bw.h"
+#include "b.h"
+#include "w.h"
+
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 2
+	Prompt windows
+	Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 5
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Ipw
+#define _Ipw 1
+a13 1
+#include "config.h"
+a16 15
+
+typedef struct pw PW;
+
+struct pw {
+	int (*pfunc) ();	/* Func which gets called when RTN is hit */
+	int (*abrt) ();		/* Func which gets called when window is aborted */
+	int (*tab) ();		/* Func which gets called when TAB is hit */
+	char *prompt;		/* Prompt string */
+	int promptlen;		/* Width of prompt string */
+	int promptofst;		/* Prompt scroll offset */
+	B *hist;		/* History buffer */
+	void *object;		/* Object */
+};
+
+#define TYPEPW 0x200
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d35 1
+a35 1
+BW *wmkpw(W * w, char *prompt, B ** history, int (*func) (), char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify);
+d37 1
+a37 1
+int ucmplt(BW * bw, int k);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d35 1
+a35 1
+BW *wmkpw (W *w, char *prompt, B **history, int (*func) (), char *huh, int (*abrt) (), int (*tab) (), void *object, int *notify);
+d37 1
+a37 1
+int ucmplt (BW *bw, int k);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Prompt windows
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d13 2
+d18 10
+a27 11
+struct pw
+ {
+ int (*pfunc)();	/* Func which gets called when RTN is hit */
+ int (*abrt)();		/* Func which gets called when window is aborted */
+ int (*tab)();		/* Func which gets called when TAB is hit */
+ char *prompt;		/* Prompt string */
+ int promptlen;		/* Width of prompt string */
+ int promptofst;	/* Prompt scroll offset */
+ B *hist;		/* History buffer */
+ void *object;		/* Object */
+ };
+d35 1
+a35 1
+BW *wmkpw();
+d37 1
+a37 1
+int ucmplt();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

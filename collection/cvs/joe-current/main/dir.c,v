@@ -1,0 +1,79 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2008.10.23.02.29.17;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Put JOE 3.5 in main/
+Co-routine stuff is to be considered a new branch with current
+release in main/
+
+Add some patches to main/
+	Get tags search to work again.
+	Fix bug where joe crashes when it can't write to a file
+	Fix bug where joe crashes if you try to entry an empty command
+@
+text
+@/*
+ *	Directory package for older UNIXs
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+
+struct direct {
+	short d_ino;
+	unsigned char d_name[14];
+};
+
+void *opendir(unsigned char *name)
+{
+	return fopen(name, "r");
+}
+
+struct direct *readdir(void *f)
+{
+	static struct direct direct;
+
+	while (1 == fread(&direct, sizeof(struct direct), 1, (FILE *) f)) {
+		if (direct.d_ino) {
+			return &direct;
+		}
+	}
+	return 0;
+}
+
+void closedir(FILE *f)
+{
+	fclose(f);
+}
+
+int mkdir(unsigned char *s)
+{
+	unsigned char *y = NULL;
+	int rtval;
+
+	y = vsncpy(sv(y), sc("/bin/mkdir "));
+	y = vsncpy(sv(y), sz(s));
+	y = vsncpy(sv(y), sc(" 2>/dev/null"));
+	tickoff();
+	rtval = system(y);
+	tickon();
+	vsrm(y);
+	return rtval;
+}
+@

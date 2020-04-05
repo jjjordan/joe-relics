@@ -1,0 +1,593 @@
+head	1.9;
+access;
+symbols
+	joe-3_4:1.8
+	help:1.8
+	joe_3_1:1.7
+	joe_3_0:1.7
+	joe_2_9_8:1.6
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.9
+date	2006.07.19.00.05.55;	author jhallen;	state dead;
+branches;
+next	1.8;
+
+1.8
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.12.15.57.45;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.07;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.07;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.9
+log
+@more fixes
+@
+text
+@/*
+ * 	TERMCAP/TERMINFO header file
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */ 
+#ifndef _JOE_TERMCAP_H
+#define _JOE_TERMCAP_H 1
+ 
+struct sortentry {
+	unsigned char	*name;
+	unsigned char	*value;
+};
+
+struct cap {
+	unsigned char	*tbuf;		/* Termcap entry loaded here */
+
+	struct sortentry *sort;	/* Pointers to each capability stored in here */
+	int	sortlen;	/* Number of capabilities */
+
+	unsigned char	*abuf;		/* For terminfo compatible version */
+	unsigned char	*abufp;
+
+	int	div;		/* tenths of MS per char */
+	int	baud;		/* Baud rate */
+	unsigned char	*pad;		/* Padding string or NULL to use NUL */
+	void	(*out) (unsigned char *, unsigned char);		/* Character output routine */
+	void	*outptr;	/* First arg passed to output routine.  Second
+				   arg is character to write */
+	int	dopadding;	/* Set if pad characters should be used */
+};
+
+/* CAP *getcap(char *s,int baud,void (*out)(void *outptr,char c),void *outptr);
+ *
+ * Get CAP entry for terminal named in 's'.  If 's' is zero, the name in
+ * the environment variable 'TERM' is used instead.  Space for the returned
+ * CAP is allocated from the heap using malloc.
+ *
+ * 'baud'   is the baud rate used for 'texec' to calculate number of pad chars
+ * 'out'    is the function 'texec' uses to output characters
+ * 'outptr' is the passed as the first arg to 'out'
+ *          the second arg contains the char to output
+ *
+ * This is how 'getcap' finds the entry:  First a list of file names is
+ * built.  If the environment variable 'TERMCAP' begins with a '/', it
+ * is used as the list of file names.  Otherwise, if the environment
+ * variable 'TERMPATH' is set, it is used as the list of file names.  If
+ * that isn't set, then the string TERMPATH defined above is appended
+ * to value of the 'HOME' environment variable, and that is used as the
+ * list of names (a '/' is placed between the value of the environment
+ * variable and the string).  If HOME isn't set, then TERMPATH alone is
+ * used as the list of file names (without prepending a '/').
+ *
+ * Now the contents of the environment variable 'TERMCAP' (if it's defined and
+ * if it doesn't begin with a '/') and the files from the above list are
+ * scanned for the terminal name.  The contents of the environment variable
+ * are scanned first, then the files are scanned in the order they appear in
+ * the named list.
+ *
+ * If the last part of a matching termcap entry is a 'tc=filename', then
+ * the current file is rewound and rescanned for the matching entry (and if
+ * it's not found, the next entry in the file name list is searched).  If
+ * a matching termcap entry in the TERMCAP environment variable ends with
+ * a 'tc=filename', then all of the files in the name list are searched.
+ *
+ * There is no limit on the size of the termcap entries.  No checking is
+ * done for self-refering 'tc=filename' links (so all of core will be
+ * allocated if there are any).
+ */
+CAP *getcap PARAMS((unsigned char *name, unsigned int baud, void (*out) (unsigned char *, unsigned char), void *outptr));
+
+/* CAP *setcap(CAP *cap,int baud,void (*out)(void *outptr,char c),void *outptr);
+ *
+ * Reset baud, out and outptr for a CAP
+ */
+CAP *setcap PARAMS((CAP *cap, unsigned int baud, void (*out) (unsigned char *, unsigned char), void *outptr));
+
+/* char *jgetstr(CAP *cap,char *name);
+ *
+ * Get value of string capability or return NULL if it's not found.  A fast
+ * binary search is used to find the capability.  The char * returned points into
+ * the buffer used to load the termcap entry.  It should not be modified or
+ * freed.
+ */
+unsigned char *jgetstr PARAMS((CAP *cap, unsigned char *name));
+
+/* int getflag(CAP *cap,char *name);
+ *
+ * Return true if the named capability is found in 'cap'.  A fast binary
+ * search is used to lookup the capability.
+ */
+int getflag PARAMS((CAP *cap, unsigned char *name));
+
+/* int getnum(CAP *cap,char *name);
+ *
+ * Return value of numeric capability or return -1 if it's not found.  A fast
+ * binary search is used to lookup the capability.
+ */
+int getnum PARAMS((CAP *cap, unsigned char *name));
+
+/* void rmcap(CAP *cap);
+ *
+ * Eliminate a CAP entry.
+ */
+void rmcap PARAMS((CAP *cap));
+
+/* void texec(CAP *cap,char *str,int l,int a0,int a1,int a2,int a3);
+
+   Execute and output a termcap string capability.
+
+   'cap' is the CAP returned by getcap which contains the baud rate and output
+   function.
+   
+   'str' is the string to execute.  If 'str'==NULL, nothing happens.
+   
+   'l' is the number of lines effected by this string.  For example, if you
+   use the clear to end of screen capability, the number of lines between
+   the current cursor position and the end of the screen should be
+   given here.
+
+   'a0' - 'a1' are the arguments for the string
+*/
+void texec PARAMS((CAP *cap, unsigned char *s, int l, int a0, int a1, int a2, int a3));
+
+/* int tcost(CAP *cap,char *str, int l, int a0, int a1, int a2, int a3);
+   Return cost in number of characters which need to be sent
+   to execute a termcap string capability.
+
+   'cap' is the CAP returned by getcap which contains the baud rate and output
+   functions.
+   
+   'str' is the string to execute.  If 'str'==NULL, tcost return 10000.
+   
+   'l' is the number of lines effected by this string.  Ex: if you
+   use the clear to end of screen capability, the number of lines between
+   the current cursor position and the end of the screen should be
+   given here.
+
+   'a0' - 'a3' are arguements passed to the string
+*/
+int tcost PARAMS((CAP *cap, unsigned char *s, int l, int a0, int a1, int a2, int a3));
+
+/* char *tcompile(CAP *cap,char *str,int a0,int a1,int a2,int a3);
+
+   Compile a string capability.  Returns a pointer to a variable length
+   string (see vs.h) containing the compiled string capability.
+   Pad characters are not placed in the string.
+*/
+unsigned char *tcompile PARAMS((CAP *cap, unsigned char *s, int a0, int a1, int a2, int a3));
+
+/* Old termcap support */
+#ifdef junk
+int tgetent();
+unsigned char *tgetstr();
+int tgetflag();
+int tgetnum();
+unsigned char *tgoto();
+void tputs();
+extern short ospeed;
+extern unsigned char PC, *UP, *BC;
+#endif
+
+extern int dopadding;
+extern unsigned char *joeterm;
+
+#endif
+@
+
+
+1.8
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@@
+
+
+1.7
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d11 22
+a32 2
+#include "config.h"
+#include "types.h"
+d163 4
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d51 1
+a51 1
+CAP *getcap PARAMS((char *name, unsigned int baud, void (*out) (char *, char), void *outptr));
+d57 1
+a57 1
+CAP *setcap PARAMS((CAP *cap, unsigned int baud, void (*out) (char *, char), void *outptr));
+d66 1
+a66 1
+char *jgetstr PARAMS((CAP *cap, char *name));
+d73 1
+a73 1
+int getflag PARAMS((CAP *cap, char *name));
+d80 1
+a80 1
+int getnum PARAMS((CAP *cap, char *name));
+d104 1
+a104 1
+void texec PARAMS((CAP *cap, char *s, int l, int a0, int a1, int a2, int a3));
+d122 1
+a122 1
+int tcost PARAMS((CAP *cap, char *s, int l, int a0, int a1, int a2, int a3));
+d130 1
+a130 1
+char *tcompile PARAMS((CAP *cap, char *s, int a0, int a1, int a2, int a3));
+d135 1
+a135 1
+char *tgetstr();
+d138 1
+a138 1
+char *tgoto();
+d141 1
+a141 1
+extern char PC, *UP, *BC;
+@
+
+
+1.5
+log
+@put correct prototype to the output routine in the CAP structure (and setcap()/getcap())
+@
+text
+@d1 10
+a10 21
+/* TERMCAP/TERMINFO header file
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Itermcap
+#define _Itermcap 1
+
+d12 1
+a12 25
+
+typedef struct cap CAP;
+
+struct sortentry {
+	char *name;
+	char *value;
+};
+
+struct cap {
+	char *tbuf;		/* Termcap entry loaded here */
+
+	struct sortentry *sort;	/* Pointers to each capability stored in here */
+	int sortlen;		/* Number of capabilities */
+
+	char *abuf;		/* For terminfo compatible version */
+	char *abufp;
+
+	int div;		/* tenths of MS per char */
+	int baud;		/* Baud rate */
+	char *pad;		/* Padding string or NULL to use NUL */
+	void (*out) (char *, char);		/* Character output routine */
+	void *outptr;		/* First arg passed to output routine.  Second
+				   arg is character to write */
+	int dopadding;		/* Set if pad characters should be used */
+};
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d43 1
+a43 1
+	void (*out) ();		/* Character output routine */
+d86 1
+a86 1
+CAP *getcap PARAMS((char *name, unsigned int baud, void (*out) (/* ??? */), void *outptr));
+d92 1
+a92 1
+CAP *setcap PARAMS((CAP *cap, unsigned int baud, void (*out) (/* ??? */), void *outptr));
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d86 1
+a86 1
+CAP *getcap();
+d92 1
+a92 1
+CAP *setcap();
+d101 1
+a101 1
+char *jgetstr();
+d108 1
+a108 1
+int getflag();
+d115 1
+a115 1
+int getnum();
+d121 1
+a121 1
+void rmcap();
+d139 1
+a139 1
+void texec();
+d157 1
+a157 1
+int tcost();
+d165 1
+a165 1
+char *tcompile();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	TERMCAP/TERMINFO header file
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+ */
+d26 1
+a26 2
+struct sortentry
+{
+d31 1
+a31 2
+struct cap
+{
+d86 1
+a86 1
+CAP *getcap ();
+d92 1
+a92 1
+CAP *setcap ();
+d101 1
+a101 1
+char *jgetstr ();
+d108 1
+a108 1
+int getflag ();
+d115 1
+a115 1
+int getnum ();
+d121 1
+a121 1
+void rmcap ();
+d139 1
+a139 1
+void texec ();
+d157 1
+a157 1
+int tcost ();
+d165 1
+a165 1
+char *tcompile ();
+d169 6
+a174 6
+int tgetent ();
+char *tgetstr ();
+int tgetflag ();
+int tgetnum ();
+char *tgoto ();
+void tputs ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* TERMCAP/TERMINFO header file
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d16 4
+a19 4
+ {
+ char *name;
+ char *value;
+ };
+d22 2
+a23 2
+ {
+ char *tbuf;			/* Termcap entry loaded here */
+d25 2
+a26 2
+ struct sortentry *sort;	/* Pointers to each capability stored in here */
+ int sortlen;			/* Number of capabilities */
+d28 11
+a38 11
+ char *abuf;			/* For terminfo compatible version */
+ char *abufp;
+ 
+ int div;			/* tenths of MS per char */
+ int baud;			/* Baud rate */
+ char *pad;			/* Padding string or NULL to use NUL */
+ void (*out)();			/* Character output routine */
+ void *outptr;			/* First arg passed to output routine.  Second
+ 				   arg is character to write */
+ int dopadding;			/* Set if pad characters should be used */
+ };
+d77 1
+a77 1
+CAP *getcap();
+d82 2
+a83 2
+ */ 
+CAP *setcap();
+d92 1
+a92 1
+char *jgetstr();
+d99 1
+a99 1
+int getflag();
+d106 1
+a106 1
+int getnum();
+d112 1
+a112 1
+void rmcap();
+d130 1
+a130 1
+void texec();
+d148 1
+a148 1
+int tcost();
+d156 1
+a156 1
+char *tcompile();
+d160 6
+a165 6
+int tgetent();
+char *tgetstr();
+int tgetflag();
+int tgetnum();
+char *tgoto();
+void tputs();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

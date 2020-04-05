@@ -1,0 +1,205 @@
+head	1.5;
+access;
+symbols
+	joe_3_5:1.5
+	joe-3_4:1.5
+	help:1.5
+	joe_3_1:1.4;
+locks; strict;
+comment	@ * @;
+
+
+1.5
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.05.12.02.06.37;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.05.04.16.35.11;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.05.03.22.55.50;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.05.03.18.29.00;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.5
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Character sets
+ *	Copyright
+ *		(C) 2004 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+
+#ifndef _Icharmap
+#define _Icharmap 1
+
+/* For sorted from_map entries */
+
+struct pair {
+	int first;			/* Unicode */
+	int last;			/* Byte */
+};
+
+/* A character set */
+
+struct charmap {
+	struct charmap *next;		/* Linked list of loaded character maps */
+	unsigned char *name;		/* Name of this one */
+
+	int type;			/* 0=byte, 1=UTF-8 */
+
+	/* Character predicate functions */
+
+	int (*is_punct)(struct charmap *map,int c);
+	int (*is_print)(struct charmap *map,int c);
+	int (*is_space)(struct charmap *map,int c);
+	int (*is_alpha_)(struct charmap *map,int c);
+	int (*is_alnum_)(struct charmap *map,int c);
+
+	/* Character conversion functions */
+
+	int (*to_lower)(struct charmap *map,int c);
+	int (*to_upper)(struct charmap *map,int c);
+	int (*to_uni)(struct charmap *map,int c);
+	int (*from_uni)(struct charmap *map,int c);
+
+	/* Information for byte-oriented character sets */
+
+	int *to_map;			/* Convert byte to unicode */
+
+	unsigned char lower_map[256];	/* Convert to lower case */
+	unsigned char upper_map[256];
+
+	struct pair from_map[256];	/* Convert from unicode to byte */
+
+	int from_size;			/* No. paris in from_map */
+
+	unsigned char print_map[32];	/* Bit map of printable characters */
+	unsigned char alpha__map[32];	/* Bit map of alphabetic characters and _ */
+	unsigned char alnum__map[32];	/* Bit map of alphanumeric characters and _ */
+};
+
+/* Predicates */
+
+#define joe_ispunct(map,c) ((map)->is_punct((map),(c)))
+#define joe_isprint(map,c) ((map)->is_print((map),(c)))
+#define joe_isspace(map,c) ((map)->is_space((map),(c)))
+#define joe_isalpha_(map,c) ((map)->is_alpha_((map),(c)))
+#define joe_isalnum_(map,c) ((map)->is_alnum_((map),(c)))
+int joe_isblank PARAMS((struct charmap *map,int c));
+int joe_isspace_eof PARAMS((struct charmap *map,int c));
+
+/* Conversion functions */
+
+#define joe_tolower(map,c) ((map)->to_lower((map),(c)))
+#define joe_toupper(map,c) ((map)->to_upper((map),(c)))
+#define joe_to_uni(map,c) ((map)->to_uni((map),(c)))
+#define joe_from_uni(map,c) ((map)->from_uni((map),(c)))
+unsigned char *lowerize PARAMS((unsigned char *s));
+
+/* Find (load if necessary) a character set */
+struct charmap *find_charmap PARAMS((unsigned char *name));
+
+/* Get available encodings */
+unsigned char **get_encodings PARAMS((void));
+
+int from_uni PARAMS((struct charmap *cset, int c));
+int to_uni PARAMS((struct charmap *cset, int c));
+
+#endif
+@
+
+
+1.4
+log
+@Added "upper" and "lower" functions (no longer depend on "tr" command).
+Fix jmacs transpose word command.
+@
+text
+@a11 4
+#include "config.h"
+#include "utf8.h"
+#include "types.h"
+
+d82 3
+@
+
+
+1.3
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d42 1
+d51 1
+d75 1
+@
+
+
+1.2
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@d2 1
+a2 1
+ *	UNICODE/ISO-10646 conversion utilities
+d13 1
+d16 2
+d23 2
+d28 19
+d48 3
+d52 6
+a57 1
+	int from_size;
+d60 17
+a79 6
+/* Convert byte to unicode */
+int to_uni PARAMS((struct charmap *cset, int c));
+
+/* Convert unicode to byte */
+int from_uni PARAMS((struct charmap *cset, int c));
+
+a82 3
+/* Convert byte to upper case */
+int joe_toupper PARAMS((struct charmap *map,int c));
+
+@
+
+
+1.1
+log
+@Eliminate iconv() dependency.
+@
+text
+@d23 1
+a23 1
+	int to_map[256];		/* Convert byte to unicode */
+d37 6
+@
+

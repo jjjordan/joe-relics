@@ -1,0 +1,245 @@
+head	1.5;
+access;
+symbols
+	joe_3_5:1.4
+	joe-3_4:1.4
+	help:1.4;
+locks; strict;
+comment	@ * @;
+
+
+1.5
+date	2008.10.28.22.55.41;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2006.05.20.13.21.28;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.05.03.21.01.30;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.01.10.18.24.28;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.5
+log
+@Add reload command
+@
+text
+@/*
+ *	Line attribute cache
+ *	Copyright
+ *		(C) 2006 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+
+struct lattr_db
+  {
+  struct lattr_db *next;	/* Linked list of attribute databases owned by a B */
+  struct high_syntax *syn;	/* This database is for this syntax */
+  B *b;				/* This database is for this buffer */
+
+  /* Use a gap buffer for the attribute records */
+
+  HIGHLIGHT_STATE *buffer;	/* Address of buffer */
+  long hole;			/* Offset to hole */
+  long ehole;			/* Offset to end of hole */
+  long end;			/* Malloc() size of buffer */
+
+  long first_invalid;		/* Lines beginning with this are invalid */
+  long invalid_window;		/* Lines beyond first_invalid+invalid_window might be valid */
+                                /* -1 means all lines are valid */
+  };
+
+struct lattr_db *mk_lattr_db PARAMS((B *new_b, struct high_syntax *new_syn));
+                                /* Create database structure */
+
+void rm_lattr_db PARAMS((struct lattr_db *db));
+                                /* Delete database structure */
+
+void rm_all_lattr_db PARAMS((struct lattr_db *db));
+                                /* Delete linked-list of databases */
+
+void reset_all_lattr_db PARAMS((struct lattr_db *db));
+                                /* Delete linked-list of databases */
+
+struct lattr_db *find_lattr_db PARAMS((B *b, struct high_syntax *y));
+                                /* Find database for a particular syntax.  If one doesn't
+                                   exist, create it and add it to the list for the B */
+
+void drop_lattr_db PARAMS((B *b, struct lattr_db *db));
+                                /* Drop a database if it's no longer needed. This checks through all BWs on a B
+                                   to see if any of them refer to db.  If none, the db is dropped. */
+
+#define lattr_size(db) ((db)->end - ((db)->ehole - (db)->hole))
+
+void lattr_hole PARAMS((struct lattr_db *db, long pos));
+  /* Set hole position */
+
+void lattr_check PARAMS((struct lattr_db *db, long size));
+  /* Make sure we have enough space for insert.  If not, expand buffer. */
+
+void lattr_ins PARAMS((struct lattr_db *db,long line,long size));
+  /* An insert occured, beginning on specified line.  'size' lines were inserted.
+     Adjust invalid window to cover inserted area.
+  */
+
+void lattr_del PARAMS((struct lattr_db *db,long line,long size));
+  /* A deletion occured, beginning on specified line.  'size' lines were deleted.
+     Adjust invalid window to cover deleted area.
+  */
+
+HIGHLIGHT_STATE lattr_get PARAMS((struct lattr_db *db,struct high_syntax *y,P *p,long line));
+  /* Get state for specified line.  If we don't have it, compute it.
+     Records results of any computation so that we don't have to do it again.
+     If first_invalid is < number of lines we have, compute forward until we
+     start matching again as this is a very common case. */
+
+#define lattr_lvalue(db, line) ((line) >= (db)->hole ? (db)->buffer[(line) - (db)->hole + (db)->ehole] : (db)->buffer[line])
+@
+
+
+1.4
+log
+@update some comments
+@
+text
+@d36 3
+@
+
+
+1.3
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d11 1
+a11 1
+  struct lattr_db *next;	/* Linked list of attribute databases */
+d24 1
+d54 1
+a54 6
+        If this is the first insert, or insert is to same place as last time (either first_invalid==number of
+        lines we have or first_invalid==line+1):
+           Do the insert,
+             set first_invalid to line+1.
+        Otherwise:
+           Delete everything from min(first_invalid,line+1) to end.
+d59 1
+a59 6
+        If this is the first delete, or delete is to same place as last time (either first_invalid==number of
+        lines we have or first_invalid==line+1):
+           Do the delete,
+             set first_invalid to line+1.
+        Otherwise:
+           Delete everything from min(first_invalid,line+1) to end.
+@
+
+
+1.2
+log
+@New line attribute cache.
+@
+text
+@d26 1
+a26 1
+struct lattr_db *mk_lattr_db(B *new_b, struct high_syntax *new_syn);
+d29 1
+a29 1
+void rm_lattr_db(struct lattr_db *db);
+d32 1
+a32 1
+void rm_all_lattr_db(struct lattr_db *db);
+d35 1
+a35 1
+struct lattr_db *find_lattr_db(B *b, struct high_syntax *y);
+d39 1
+a39 1
+void drop_lattr_db(B *b, struct lattr_db *db);
+d45 1
+a45 1
+void lattr_hole(struct lattr_db *db, long pos);
+d48 1
+a48 1
+void lattr_check(struct lattr_db *db, long size);
+d51 1
+a51 1
+void lattr_ins(struct lattr_db *db,long line,long size);
+d61 1
+a61 1
+void lattr_del(struct lattr_db *db,long line,long size);
+d71 1
+a71 1
+HIGHLIGHT_STATE lattr_get(struct lattr_db *db,struct high_syntax *y,P *p,long line);
+@
+
+
+1.1
+log
+@Improve highlighting performance.
+@
+text
+@d1 7
+a7 1
+/* Line attribute database */
+d9 1
+a9 6
+typedef long lattr_key_t;
+typedef HIGHLIGHT_STATE lattr_value_t;
+#define lattr_SKIP_DEPTH 10	/* Max pointers in a node */
+#define lattr_hist 1024		/* Max no. of nodes */
+
+struct lattr_node
+d11 10
+a20 6
+  LINK(struct lattr_node) link;	/* Doubly-linked list of nodes in age order */
+  lattr_key_t key;		/* Key for this node */
+  int nptrs;			/* No. pointers */
+  lattr_value_t value;		/* Value */
+  struct lattr_node *ptrs[1];	/* Node pointers */
+  };
+d22 2
+a23 7
+struct lattr_db
+  {
+  struct lattr_node *top;	/* Skip list root node */
+  struct lattr_node nil;	/* Ending skiplist node and doubly-linked list base */
+  struct lattr_node *update[lattr_SKIP_DEPTH];
+                                /* Search path record */
+  int count;			/* No. nodes */
+d26 2
+a27 2
+struct lattr_db *mk_lattr_db();
+                                /* Initialize database structure */
+d32 2
+a33 2
+void lattr_set(struct lattr_db *db,lattr_key_t key,lattr_value_t value);
+                                /* Set key to value */
+d35 41
+a75 2
+int lattr_get(struct lattr_db *db,lattr_key_t *key,lattr_value_t *value);
+                                /* Get nearest key/value */
+d77 1
+a77 2
+void lattr_cut(struct lattr_db *db,lattr_key_t key);
+                                /* Delete all nodes which follow key */
+@
+

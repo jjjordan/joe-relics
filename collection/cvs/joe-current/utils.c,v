@@ -1,0 +1,1852 @@
+head	1.32;
+access;
+symbols
+	joe_3_5:1.27
+	joe-3_4:1.27
+	help:1.27
+	joe_3_1:1.19
+	joe_3_0:1.15
+	joe_2_9_8:1.11
+	joe_2_9_8_pre1:1.8
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.32
+date	2008.11.02.20.20.41;	author jhallen;	state Exp;
+branches;
+next	1.31;
+
+1.31
+date	2008.10.29.02.40.47;	author jhallen;	state Exp;
+branches;
+next	1.30;
+
+1.30
+date	2008.10.25.19.37.31;	author jhallen;	state Exp;
+branches;
+next	1.29;
+
+1.29
+date	2007.06.04.01.13.33;	author jhallen;	state Exp;
+branches;
+next	1.28;
+
+1.28
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.27;
+
+1.27
+date	2006.05.21.01.58.58;	author jhallen;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2006.05.12.02.07.06;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2006.05.05.18.18.45;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2005.04.24.04.30.52;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2005.03.02.18.55.39;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2004.06.21.14.47.43;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2004.05.05.14.27.22;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.05.04.16.35.13;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2004.05.03.22.55.53;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2004.05.03.18.29.00;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2004.04.23.02.14.08;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2004.04.14.17.09.48;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.03.30.05.10.15;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2002.06.03.12.14.29;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2002.01.15.09.24.38;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.12.10.14.01.27;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.04.13.20.52;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.32
+log
+@Fix more compiler warnings.  Update builtins.c
+@
+text
+@/*
+ *	Various utilities
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *		(C) 2001 Marek 'Marx' Grac
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+
+#if 0
+int joe_ispunct(int wide,struct charmap *map,int c)
+{
+	if (joe_isspace(c))
+		return 0;
+
+	if (c=='_')
+		return 1;
+
+	if (isalnum_(wide,map,c))
+		return 0;
+
+	return joe_isprint(wide,map,c);
+}
+#endif
+
+int escape(int utf8,unsigned char **a, int *b)
+{
+	int c;
+	unsigned char *s = *a;
+	int l = *b;
+
+	if (*s == '\\' && l >= 2) {
+		++s; --l;
+		switch (*s) {
+		case 'n':
+			c = 10;
+			++s; --l;
+			break;
+		case 't':
+			c = 9;
+			++s; --l;
+			break;
+		case 'a':
+			c = 7;
+			++s; --l;
+			break;
+		case 'b':
+			c = 8;
+			++s; --l;
+			break;
+		case 'f':
+			c = 12;
+			++s; --l;
+			break;
+		case 'e':
+			c = 27;
+			++s; --l;
+			break;
+		case 'r':
+			c = 13;
+			++s; --l;
+			break;
+		case '8':
+			c = 8;
+			++s; --l;
+			break;
+		case '9':
+			c = 9;
+			++s; --l;
+			break;
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+			c = *s - '0';
+			++s; --l;
+			if (l > 0 && *s >= '0' && *s <= '7') {
+				c = c * 8 + s[1] - '0';
+				++s; --l;
+			}
+			if (l > 0 && *s >= '0' && *s <= '7') {
+				c = c * 8 + s[1] - '0';
+				++s; --l;
+			}
+			break;
+		case 'x':
+		case 'X':
+			c = 0;
+			++s; --l;
+			if (l > 0 && *s >= '0' && *s <= '9') {
+				c = c * 16 + *s - '0';
+				++s; --l;
+			} else if (l > 0 && *s >= 'A' && *s <= 'F') {
+				c = c * 16 + *s - 'A' + 10;
+				++s; --l;
+			} else if (l > 0 && *s >= 'a' && *s <= 'f') {
+				c = c * 16 + *s - 'a' + 10;
+				++s; --l;
+			}
+
+			if (l > 0 && *s >= '0' && *s <= '9') {
+				c = c * 16 + *s - '0';
+				++s; --l;
+			} else if (l > 0 && *s >= 'A' && *s <= 'F') {
+				c = c * 16 + *s - 'A' + 10;
+				++s; --l;
+			} else if (l > 0 && *s >= 'a' && *s <= 'f') {
+				c = c * 16 + *s - 'a' + 10;
+				++s; --l;
+			}
+			break;
+		default:
+			if (utf8)
+				c = utf8_decode_fwrd(&s, &l);
+			else {
+				c = *s++;
+				--l;
+			}
+			break;
+		}
+	} else if (utf8) {
+		c = utf8_decode_fwrd(&s,&l);
+	} else {
+		c = *s++;
+		--l;
+	}
+	*a = s;
+	*b = l;
+	return c;
+}
+
+/*
+ * return minimum/maximum of two numbers
+ */
+unsigned int uns_min(unsigned int a, unsigned int b)
+{
+	return a < b ? a : b;
+}
+
+signed int int_min(signed int a, signed int b)
+{
+	return a < b ? a : b;
+}
+
+signed long int long_max(signed long int a, signed long int b)
+{
+	return a > b ? a : b;
+}
+
+signed long int long_min(signed long int a, signed long int b)
+{
+	return a < b ? a : b;
+}
+
+#if 0
+/* 
+ * Characters which are considered as word characters 
+ * 	_ is considered as word character because is often used 
+ *	in the names of C/C++ functions
+ */
+int isalnum_(int wide,struct charmap *map,int c)
+{
+	/* Fast... */
+	if (c>='0' && c<='9' ||
+	    c>='a' && c<='z' ||
+	    c>='A' && c<='Z' ||
+	    c=='_')
+	  return 1;
+	else if(c<128)
+	  return 0;
+
+	/* Slow... */
+	if (wide)
+		return joe_iswalpha(c);
+	else
+		return joe_iswalpha(to_uni(map,c));
+}
+
+int isalpha_(int wide,struct charmap *map,int c)
+{
+	/* Fast... */
+	if (c>='a' && c<='z' ||
+	    c>='A' && c<='Z' ||
+	    c=='_')
+	  return 1;
+	else if(c<128)
+	  return 0;
+
+	/* Slow... */
+	if (wide)
+		return joe_iswalpha(c);
+	else
+		return joe_iswalpha(to_uni(map,c));
+}
+#endif
+
+/* Versions of 'read' and 'write' which automatically retry when interrupted */
+ssize_t joe_read(int fd, void *buf, size_t size)
+{
+	ssize_t rt;
+
+	do {
+		rt = read(fd, buf, size);
+	} while (rt < 0 && errno == EINTR);
+	return rt;
+}
+
+ssize_t joe_write(int fd, void *buf, size_t size)
+{
+	ssize_t rt;
+
+	do {
+		rt = write(fd, buf, size);
+	} while (rt < 0 && errno == EINTR);
+	return rt;
+}
+
+int joe_ioctl(int fd, int req, void *ptr)
+{
+	int rt;
+	do {
+		rt = ioctl(fd, req, ptr);
+	} while (rt == -1 && errno == EINTR);
+	return rt;
+}
+
+/* Heap checking versions of malloc() */
+
+/* #define HEAP_CHECK 1 */
+
+#ifdef HEAP_CHECK
+
+struct mcheck {
+	struct mcheck *next;
+	int state;		/* 0=malloced, 1=free */
+	int size;		/* size in bytes */
+	int magic;
+};
+
+struct mcheck *first;
+struct mcheck *last;
+
+void check_malloc()
+{
+	struct mcheck *m;
+	int y = 0;
+	for(m=first;m;m=m->next) {
+		unsigned char *ptr = (unsigned char *)m+sizeof(struct mcheck);
+		int x;
+		if(m->magic!=0x55AA55AA) {
+			printf("corrupt heap: head %x\n",ptr);
+			*(int *)0=0;
+		}
+		for(x=0;x!=16384;++x)
+			if(ptr[x+m->size]!=0xAA) {
+				printf("Corrupt heap: tail %x\n",ptr);
+				*(int *)0=0;
+			}
+		if(m->state)
+			for(x=0;x!=m->size;++x)
+				if(ptr[x]!=0x41) {
+					printf("Corrupt heap: modified free block %x\n",ptr);
+					*(int *)0=0;
+				}
+		++y;
+	}
+}
+
+void *joe_malloc(size_t size)
+{
+	struct mcheck *m = (struct mcheck *)malloc(size+sizeof(struct mcheck)+16384);
+	unsigned char *ptr = (unsigned char *)m+sizeof(struct mcheck);
+	int x;
+	m->state = 0;
+	m->size = size;
+	m->magic=0x55AA55AA;
+	m->next = 0;
+
+	if(!size) {
+		printf("0 passed to malloc\n");
+		*(int *)0=0;
+	}
+	for(x=0;x!=16384;++x)
+		ptr[x+size]=0xAA;
+	if(first) {
+		last->next = m;
+		last = m;
+	} else {
+		first = last = m;
+	}
+	check_malloc();
+	/* printf("malloc size=%d addr=%x\n",size,ptr); fflush(stdout); */
+	return ptr;
+}
+
+void *joe_calloc(size_t nmemb, size_t size)
+{
+	size_t sz = nmemb*size;
+	int x;
+	unsigned char *ptr;
+	ptr = joe_malloc(sz);
+	for(x=0;x!=sz;++x)
+		ptr[x] = 0;
+	return ptr;
+}
+
+void *joe_realloc(void *ptr, size_t size)
+{
+	struct mcheck *n;
+	unsigned char *np;
+	struct mcheck *m = (struct mcheck *)((char *)ptr-sizeof(struct mcheck));
+
+	if(!size) {
+		printf("0 passed to realloc\n");
+		*(int *)0=0;
+	}
+
+	np = joe_malloc(size);
+
+	n = (struct mcheck *)(np-sizeof(struct mcheck));
+
+	if(m->size>size)
+		memcpy(np,ptr,size);
+	else
+		memcpy(np,ptr,m->size);
+
+	joe_free(ptr);
+
+	return np;
+}
+
+void joe_free(void *ptr)
+{
+	struct mcheck *m = (struct mcheck *)((char *)ptr-sizeof(struct mcheck));
+	int x;
+	if (m->magic!=0x55AA55AA) {
+		printf("Free non-malloc block %x\n",ptr);
+		*(int *)0=0x0;
+	}
+	if (m->state) {
+		printf("Double-free %x\n",ptr);
+		*(int *)0=0x0;
+	}
+	for(x=0;x!=m->size;++x)
+		((unsigned char *)ptr)[x]=0x41;
+	m->state = 1;
+	check_malloc();
+	/* printf("free=%x\n",ptr); */
+}
+
+#else
+
+void *joe_malloc(size_t size)
+{
+	void *p = malloc(size);
+	if (!p)
+		ttsig(-1);
+	return p;
+}
+
+void *joe_calloc(size_t nmemb,size_t size)
+{
+	void *p = calloc(nmemb, size);
+	if (!p)
+		ttsig(-1);
+	return p;
+}
+
+void *joe_realloc(void *ptr,size_t size)
+{
+	void *p = realloc(ptr, size);
+	if (!p)
+		ttsig(-1);
+	return p;
+}
+
+void joe_free(void *ptr)
+{
+	free(ptr);
+}
+
+#endif
+
+size_t zlen(unsigned char *s)
+{
+	return strlen((char *)s);
+}
+
+int zcmp(unsigned char *a, unsigned char *b)
+{
+	return strcmp((char *)a, (char *)b);
+}
+
+int zncmp(unsigned char *a, unsigned char *b, size_t len)
+{
+	return strncmp((char *)a, (char *)b, len);
+}
+
+unsigned char *zdup(unsigned char *bf)
+{
+	int size = zlen(bf);
+	unsigned char *p = (unsigned char *)joe_malloc(size+1);
+	memcpy(p,bf,size+1);
+	return p;
+}
+
+unsigned char *zcpy(unsigned char *a, unsigned char *b)
+{
+	strcpy((char *)a,(char *)b);
+	return a;
+}
+
+unsigned char *zstr(unsigned char *a, unsigned char *b)
+{
+	return (unsigned char *)strstr((char *)a,(char *)b);
+}
+
+unsigned char *zncpy(unsigned char *a, unsigned char *b, size_t len)
+{
+	strncpy((char *)a,(char *)b,len);
+	return a;
+}
+
+unsigned char *zcat(unsigned char *a, unsigned char *b)
+{
+	strcat((char *)a,(char *)b);
+	return a;
+}
+
+unsigned char *zchr(unsigned char *s, int c)
+{
+	return (unsigned char *)strchr((char *)s,c);
+}
+
+unsigned char *zrchr(unsigned char *s, int c)
+{
+	return (unsigned char *)strrchr((char *)s,c);
+}
+
+#ifndef SIG_ERR
+#define SIG_ERR ((sighandler_t) -1)
+#endif
+
+/* wrapper to hide signal interface differrencies */
+int joe_set_signal(int signum, sighandler_t handler)
+{
+	int retval;
+#ifdef HAVE_SIGACTION
+	struct sigaction sact;
+
+	mset(&sact, 0, sizeof(sact));
+	sact.sa_handler = handler;
+#ifdef SA_INTERRUPT
+	sact.sa_flags = SA_INTERRUPT;
+#endif
+	retval = sigaction(signum, &sact, NULL);
+#elif defined(HAVE_SIGVEC)
+	struct sigvec svec;
+
+	mset(&svec, 0, sizeof(svec));
+	svec.sv_handler = handler;
+#ifdef HAVE_SV_INTERRUPT
+	svec.sv_flags = SV_INTERRUPT;
+#endif
+	retval = sigvec(signum, &svec, NULL);
+#else
+	retval = (signal(signum, handler) != SIG_ERR) ? 0 : -1;
+#ifdef HAVE_SIGINTERRUPT
+	siginterrupt(signum, 1);
+#endif
+#endif
+	return(retval);
+}
+
+/* Helpful little parsing utilities */
+
+/* Skip whitespace and return first non-whitespace character */
+
+int parse_ws(unsigned char **pp,int cmt)
+{
+	unsigned char *p = *pp;
+	while (*p==' ' || *p=='\t')
+		++p;
+	if (*p=='\r' || *p=='\n' || *p==cmt)
+		*p = 0;
+	*pp = p;
+	return *p;
+}
+
+/* Parse an identifier into a buffer.  Identifier is truncated to a maximum of len-1 chars. */
+
+int parse_ident(unsigned char **pp, unsigned char **buf)
+{
+	unsigned char *p = *pp;
+	unsigned char *bf = *buf;
+	bf = vstrunc(bf, 0);
+	if (joe_isalpha_(locale_map,*p)) {
+		while(joe_isalnum_(locale_map,*p)) {
+			bf = vsadd(bf, *p++);
+		}
+		while(joe_isalnum_(locale_map,*p))
+			++p;
+		*pp = p;
+		*buf = bf;
+		return 0;
+	} else {
+		*buf = bf;
+		return -1;
+	}
+}
+
+/* Parse to next whitespace */
+
+int parse_tows(unsigned char **pp, unsigned char **bf)
+{
+	unsigned char *buf = *bf;
+	unsigned char *p = *pp;
+	buf = vstrunc(buf, 0);
+	while (*p && *p!=' ' && *p!='\t' && *p!='\n' && *p!='\r' && *p!='#')
+		buf = vsadd(buf, *p++);
+
+	*pp = p;
+	*bf = buf;
+	return 0;
+}
+
+/* Parse over a specific keyword */
+
+int parse_kw(unsigned char **pp, unsigned char *kw)
+{
+	unsigned char *p = *pp;
+	while(*kw && *kw==*p)
+		++kw, ++p;
+	if(!*kw && !joe_isalnum_(locale_map,*p)) {
+		*pp = p;
+		return 0;
+	} else
+		return -1;
+}
+
+/* Parse a field (same as parse_kw, but string must be terminated with whitespace) */
+
+int parse_field(unsigned char **pp, unsigned char *kw)
+{
+	unsigned char *p = *pp;
+	while(*kw && *kw==*p)
+		++kw, ++p;
+	if(!*kw && (!*p || *p==' ' || *p=='\t' || *p=='#' || *p=='\n' || *p=='\r')) {
+		*pp = p;
+		return 0;
+	} else
+		return -1;
+}
+
+/* Parse a specific character */
+
+int parse_char(unsigned char **pp, unsigned char c)
+{
+	unsigned char *p = *pp;
+	if (*p == c) {
+		*pp = p+1;
+		return 0;
+	} else
+		return -1;
+}
+
+/* Parse an integer.  Returns 0 for success. */
+
+int parse_int(unsigned char **pp, int *buf)
+{
+	unsigned char *p = *pp;
+	if ((*p>='0' && *p<='9') || *p=='-') {
+		*buf = atoi((char *)p);
+		if(*p=='-')
+			++p;
+		while(*p>='0' && *p<='9')
+			++p;
+		*pp = p;
+		return 0;
+	} else
+		return -1;
+}
+
+/* Parse a long */
+
+int parse_long(unsigned char **pp, long *buf)
+{
+	unsigned char *p = *pp;
+	if ((*p>='0' && *p<='9') || *p=='-') {
+		*buf = atol((char *)p);
+		if(*p=='-')
+			++p;
+		while(*p>='0' && *p<='9')
+			++p;
+		*pp = p;
+		return 0;
+	} else
+		return -1;
+}
+
+/* Parse a string of the form "xxxxx" into a fixed-length buffer.  The
+ * address of the buffer is 'buf'.  The length of this buffer is 'len'.  A
+ * terminating NUL is added to the parsed string.  If the string is larger
+ * than the buffer, the string is truncated.
+ *
+ * C string escape sequences are handled.
+ *
+ * 'p' holds an address of the input string pointer.  The pointer
+ * is updated to point right after the parsed string if the function
+ * succeeds.
+ *
+ * Returns the length of the string (not including the added NUL), or
+ * -1 if there is no string or if the input ended before the terminating ".
+ */
+
+int parse_string(unsigned char **pp, unsigned char **dst)
+{
+	unsigned char *start = vstrunc(*dst, 0);
+	unsigned char *p= *pp;
+	if(*p=='\"') {
+		++p;
+		while(*p && *p!='\"') {
+			int x = 50;
+			int c = escape(0, &p, &x);
+			start = vsadd(start, c);
+		}
+		if(*p == '\"') {
+			*pp = p + 1;
+			*dst = start;
+			return vslen(start);
+		}
+	}
+	*dst = 0;
+	return -1;
+}
+
+/* Emit a string with escape sequences */
+
+#ifdef junk
+
+/* Used originally for printing macros */
+
+void emit_string(FILE *f,unsigned char *s,int len)
+{
+	unsigned char buf[8];
+	unsigned char *p, *q;
+	fputc('\"',f);
+	while(len) {
+		p = unescape(buf,*s++);
+		for(q=buf;q!=p;++q)
+			fputc(*q,f);
+		--len;
+	}
+	fputc('\"',f);
+}
+#endif
+
+/* Emit a string */
+
+void emit_string(FILE *f,unsigned char *s,int len)
+{
+	fputc('"',f);
+	while(len) {
+		if (*s=='"' || *s=='\\')
+			fputc('\\',f), fputc(*s,f);
+		else if(*s=='\n')
+			fputc('\\',f), fputc('n',f);
+		else if(*s=='\r')
+			fputc('\\',f), fputc('r',f);
+		else if(*s==0)
+			fputc('\\',f), fputc('0',f), fputc('0',f), fputc('0',f);
+		else
+			fputc(*s,f);
+		++s;
+		--len;
+	}
+	fputc('"',f);
+}
+
+/* Parse a character range: a-z */
+
+int parse_range(unsigned char **pp, int *first, int *second)
+{
+	unsigned char *p= *pp;
+	int a, b;
+	if(!*p)
+		return -1;
+	if(*p=='\\' && p[1]) {
+		++p;
+		if(*p=='n')
+			a = '\n';
+		else if(*p=='t')
+  			a = '\t';
+		else
+			a = *p;
+		++p;
+	} else
+		a = *p++;
+	if(*p=='-' && p[1]) {
+		++p;
+		if(*p=='\\' && p[1]) {
+			++p;
+			if(*p=='n')
+				b = '\n';
+			else if(*p=='t')
+				b = '\t';
+			else
+				b = *p;
+			++p;
+		} else
+			b = *p++;
+	} else
+		b = a;
+	*first = a;
+	*second = b;
+	*pp = p;
+	return 0;
+}
+@
+
+
+1.31
+log
+@Abort cleanly when malloc returns NULL
+@
+text
+@d11 3
+@
+
+
+1.30
+log
+@Check for EINTR from ioctl.  Improve xml.jsf.in a little mor.
+@
+text
+@a358 2
+/* Normal malloc() */
+
+d361 4
+a364 1
+	return malloc(size);
+d369 4
+a372 1
+	return calloc(nmemb,size);
+d377 4
+a380 1
+	return realloc(ptr,size);
+@
+
+
+1.29
+log
+@More work on coroutine refactoring.
+@
+text
+@d224 9
+@
+
+
+1.28
+log
+@semiautomatic variables
+@
+text
+@a429 66
+#ifdef junk
+
+void *replenish(void **list,int size)
+{
+	unsigned char *i = joe_malloc(size*16);
+	int x;
+	for (x=0; x!=15; ++x) {
+		fr_single(list, i);
+		i += size;
+	}
+	return i;
+}
+
+/* Destructors */
+
+GC *gc_free_list = 0;
+
+void gc_add(GC **gc, void **var, void (*rm)(void *val))
+{
+	GC *g;
+	for (g = *gc; g; g=g->next)
+		if (g->var == var)
+			return;
+	g = al_single(&gc_free_list, GC);
+	g = gc_free_list;
+	gc_free_list = g->next;
+	g->next = *gc;
+	*gc = g;
+	g->var = var;
+	g->rm = rm;
+}
+
+void gc_collect(GC **gc)
+{
+	GC *g = *gc;
+	while (g) {
+		GC *next = g->next;
+		if (*g->var) {
+			g->rm(*g->var);
+			*g->var = 0;
+		}
+		fr_single(&gc_free_list,g);
+		g = next;
+	}
+	*gc = 0;
+}
+
+#endif
+
+/* Zstrings */
+
+void rm_zs(ZS z)
+{
+	joe_free(z.s);
+}
+
+ZS raw_mk_zs(GC **gc,unsigned char *s,int len)
+{
+	ZS zs;
+	zs.s = (unsigned char *)joe_malloc(len+1);
+	if (len)
+		memcpy(zs.s,s,len);
+	zs.s[len] = 0;
+	return zs;
+}
+
+@
+
+
+1.27
+log
+@A option for search
+Restore cursor to old position
+@
+text
+@d28 110
+d548 1
+a548 1
+int parse_ident(unsigned char **pp, unsigned char *buf, int len)
+d551 2
+d554 3
+a556 3
+		while(len > 1 && joe_isalnum_(locale_map,*p))
+			*buf++= *p++, --len;
+		*buf=0;
+d560 1
+d562 2
+a563 1
+	} else
+d565 1
+d570 1
+a570 1
+int parse_tows(unsigned char **pp, unsigned char *buf)
+d572 1
+d574 1
+d576 1
+a576 1
+		*buf++ = *p++;
+d579 1
+a579 1
+	*buf = 0;
+d672 1
+a672 1
+int parse_string(unsigned char **pp, unsigned char *buf, int len)
+d674 1
+a674 1
+	unsigned char *start = buf;
+d678 1
+a678 1
+		while(len > 1 && *p && *p!='\"') {
+d681 1
+a681 2
+			*buf++ = c;
+			--len;
+a682 6
+		*buf = 0;
+		while(*p && *p!='\"')
+			if(*p=='\\' && p[1])
+				p += 2;
+			else
+				p++;
+d685 2
+a686 1
+			return buf - start;
+d689 1
+@
+
+
+1.26
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d523 17
+@
+
+
+1.25
+log
+@new cvs server
+@
+text
+@d9 1
+a9 18
+#include "config.h"
+
+#include <errno.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#include <string.h>
+
+#include "i18n.h"
+#include "utf8.h"
+#include "charmap.h"
+#include "blocks.h"
+#include "macro.h"
+#include "regex.h"
+#include "utils.h"
+d320 2
+d367 2
+d511 1
+a511 1
+	if (*p>='0' && *p<='9' || *p=='-') {
+@
+
+
+1.24
+log
+@Allow escape sequences in strings.
+@
+text
+@d579 1
+a579 1
+#if 0
+@
+
+
+1.23
+log
+@fix gcc-4.0.0 warnings
+@
+text
+@d449 1
+a449 1
+/* Parse an identifier into a buffer.  Identifier is truncated to a maximum of len chars. */
+d455 1
+a455 1
+		while(len && joe_isalnum_(locale_map,*p))
+d479 1
+a479 1
+/* Parse a keyword */
+d493 1
+a493 1
+/* Parse a field */
+d507 1
+a507 1
+/* Parse a character */
+d536 14
+a549 2
+/* Parse a string into a buffer.  Returns 0 for success.
+   Leaves escape sequences in string. */
+d553 1
+d557 6
+a562 9
+		while(len && *p && *p!='\"')
+			if(*p=='\\' && p[1] && len>2) {
+				*buf++ = *p++;
+				*buf++ = *p++;
+				len-=2;
+			} else {
+				*buf++ = *p++;
+				--len;
+			}
+d566 1
+a566 1
+				p+=2;
+d569 3
+a571 3
+		if(*p=='\"') {
+			*pp= p+1;
+			return 0;
+d577 1
+a577 1
+/* Parse string escape sequences (fixes them in place- returns new string length) */
+d579 1
+a579 11
+int parse_escapes(unsigned char *buf,int len)
+{
+	int x;
+	unsigned char *p;
+	x=0;
+	for(p=buf;len;) {
+		int c = escape(0,&p,&len);
+		buf[x++] = c;
+	}
+	return x;
+}
+d581 1
+a581 1
+/* Emit a string with escape sequences */
+a595 79
+
+/* Parse an HDLC string (returns length or -1 for error) */
+
+int parse_hdlc(unsigned char **pp, unsigned char *buf, int len)
+{
+#if 0
+	unsigned char *p= *pp;
+	int x = 0;
+	if(*p=='~') {
+		++p;
+		while(len && *p && *p!='~')
+			if(*p=='}' && p[1]) {
+				++p;
+				buf[x++] = 0x20 + *p++;
+				--len;
+			} else {
+				buf[x++] = *p++;
+				--len;
+			}
+		buf[x] = 0;
+		while(*p && *p!='~')
+			++p;
+		if(*p=='~') {
+			*pp= p+1;
+			return x;
+		}
+	}
+	return -1;
+#else
+	unsigned char *p= *pp;
+	int x = 0;
+	if(*p=='"') {
+		++p;
+		while (len && *p && *p!='"')
+			if (*p=='\\') {
+				if (p[1]=='\\' || p[1]=='"') {
+					++p;
+					buf[x++] = *p++;
+					--len;
+				} else if (p[1]=='n') {
+					p+=2;
+					buf[x++] = '\n';
+					--len;
+				} else if (p[1]=='r') {
+					p+=2;
+					buf[x++] = '\r';
+					--len;
+				} else if (p[1]=='0' && p[2]=='0' && p[3]=='0') {
+					p+=4;
+					buf[x++] = 0;
+					--len;
+				} else
+					return -1;
+			} else {
+				buf[x++] = *p++;
+				--len;
+			}
+		buf[x] = 0;
+		while (*p && *p!='"')
+			if (*p=='\\') {
+				if (p[1]=='\\' || p[1]=='"') {
+					p+=2;
+				} else if (p[1]=='n') {
+					p+=2;
+				} else if (p[1]=='r') {
+					p+=2;
+				} else if (p[1]=='0' && p[2]=='0' && p[3]=='0') {
+					p+=4;
+				} else
+					return -1;
+			} else {
+				++p;
+			}
+		if(*p=='"') {
+			*pp= p+1;
+			return x;
+		}
+	}
+	return -1;
+a596 1
+}
+d598 1
+a598 1
+/* Emit an HDLC string */
+d600 1
+a600 1
+void emit_hdlc(FILE *f,unsigned char *s,int len)
+a601 12
+#if 0
+	fputc('~',f);
+	while(len) {
+		if(*s=='~' || *s=='}' || *s==0 || *s=='\n')
+			fputc('}',f), fputc(*s-0x20,f);
+		else
+			fputc(*s,f);
+		++s;
+		--len;
+	}
+	fputc('~',f);
+#else
+a617 1
+#endif
+@
+
+
+1.22
+log
+@option for mouse support
+use \ for escape in joe_state
+@
+text
+@d18 1
+d281 1
+a281 1
+unsigned char *joe_strdup(unsigned char *bf)
+d283 16
+a298 1
+	int size = strlen((char *)bf);
+d304 95
+@
+
+
+1.21
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d490 1
+d513 52
+d571 1
+d582 18
+@
+
+
+1.20
+log
+@Fix -pedantic warnings.
+@
+text
+@d23 2
+d456 74
+d543 1
+a543 1
+			a = '\t';
+@
+
+
+1.19
+log
+@Fix c++ keywords.
+Fix parse_ident, which was breaking fortran highlighter.
+@
+text
+@d128 42
+a169 1
+/* wrappers to *alloc routines */
+d172 23
+a194 1
+	return malloc(size);
+d199 7
+a205 1
+	return calloc(nmemb, size);
+d210 59
+a268 1
+	return realloc(ptr, size);
+d276 9
+@
+
+
+1.18
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d206 1
+a206 1
+		while(len && joe_isalpha_(locale_map,*p))
+@
+
+
+1.17
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@d21 1
+a24 55
+int joe_isspace(int c)
+{
+	if (c==' ' || c=='\t' || c=='\f' || c=='\n' || c=='\r' || c=='\v')
+		return 1;
+	if (c<128)
+		return 0;
+
+	/* Check in character set? */
+	return 0;
+}
+
+/*
+ * Whitespace characters are characters like tab, space, ...
+ *      Every config line in *rc must be end by whitespace but
+ *      EOF is not considered as whitespace by isspace()
+ *      This is because I don't want to be forced to end
+ *      *rc file with \n
+ */
+int isspace_eof(int c)
+{
+	return(joe_isspace(c) || (!c));
+}
+
+/*
+ * Define function isblank(c)
+ *	!!! code which uses isblank() assumes tested char is evaluated
+ *	only once, so it musn't be a macro
+ */
+/* GNU is blank does not work properly for wide characters */
+
+int joe_isblank(int c)
+{
+	return((c == 32) || (c == 9));
+}
+
+int joe_isprint(int wide,struct charmap *map,int c)
+{
+	if (c<32)
+		return 0;
+	if (c==127)
+		return 0;
+	if (c<128)
+		return 1;
+
+	if (wide)
+		return joe_iswprint(c);
+	else {
+		c = to_uni(map,c);
+
+		if (c==-1)
+			return 0;
+
+		return joe_iswprint(c);
+	}
+}
+d26 1
+d40 1
+a40 8
+
+unsigned char *lowerize(unsigned char *s)
+{
+	unsigned char *t;
+	for (t=s;*t;t++)
+		*t = joe_tolower(locale_map,*t);
+	return s;
+}
+d65 1
+d105 1
+d205 2
+a206 2
+	if (isalpha_(0,locale_map,*p)) {
+		while(len && isalnum_(0,locale_map,*p))
+d209 1
+a209 1
+		while(isalnum_(0,locale_map,*p))
+d237 1
+a237 1
+	if(!*kw && !isalnum_(0,locale_map,*p)) {
+@
+
+
+1.16
+log
+@Eliminate iconv() dependency.
+@
+text
+@a10 1
+#include <ctype.h>
+d19 2
+d24 11
+d44 1
+a44 1
+	return(isspace(c) || (!c));
+d59 35
+d98 1
+a98 1
+		*t = (unsigned char)tolower((char)*t);
+d130 19
+a148 1
+int isalnum_(int wide,int c)
+d150 9
+d160 1
+a160 1
+		return (iswalnum(c) || (c == 95));
+d162 1
+a162 1
+		return (isalnum(c) || (c == 95));
+d263 2
+a264 2
+	if(isalpha(*p) || *p=='_') {
+		while(len && isalnum_(0,*p))
+d267 1
+a267 1
+		while(isalnum_(0,*p))
+d295 1
+a295 1
+	if(!*kw && !isalnum_(0,*p)) {
+d333 1
+a333 1
+	if (isdigit(*p) || *p=='-') {
+d337 1
+a337 1
+		while(isdigit(*p))
+@
+
+
+1.15
+log
+@Fixed uopen() ^] for overtype mode.
+
+Added 'istrings' option in syntax files for ignoring case
+in strings.
+
+Added ^T Y- allows you to select syntax during run time (tab
+completion works too!)
+
+Added ^T P- picture mode: can move and type anywhere on the screen,
+good for drawing ASCII art.
+@
+text
+@d173 1
+a173 1
+int parse_ws(unsigned char **pp)
+d178 1
+a178 1
+	if (*p=='\r' || *p=='\n' || *p=='#')
+d201 13
+@
+
+
+1.14
+log
+@Fix many edit fuctions for UTF-8.  Now we use iswalnum() when in UTF-8 mode.
+Paragraph format works.
+
+Search is still broken.
+@
+text
+@d47 8
+@
+
+
+1.13
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d40 3
+a42 2
+#ifndef HAVE_WORKING_ISBLANK
+int isblank(int c)
+a45 1
+#endif
+d75 1
+a75 1
+int isalnum_(int c)
+d77 4
+a80 1
+	return (isalnum(c) || (c == 95));
+d182 1
+a182 1
+		while(len && isalnum_(*p))
+d185 1
+a185 1
+		while(isalnum_(*p))
+d200 1
+a200 1
+	if(!*kw && !isalnum_(*p)) {
+@
+
+
+1.12
+log
+@More changes for syntax highlighting.
+@
+text
+@d162 1
+a162 1
+int parse_ws(char **pp)
+d164 1
+a164 1
+	char *p = *pp;
+d175 1
+a175 1
+int parse_ident(char **pp, char *buf, int len)
+d177 1
+a177 1
+	char *p = *pp;
+d192 1
+a192 1
+int parse_kw(char **pp, char *kw)
+d194 1
+a194 1
+	char *p = *pp;
+d206 1
+a206 1
+int parse_field(char **pp, char *kw)
+d208 1
+a208 1
+	char *p = *pp;
+d220 1
+a220 1
+int parse_char(char **pp, char c)
+d222 1
+a222 1
+	char *p = *pp;
+d232 1
+a232 1
+int parse_int(char **pp, int *buf)
+d234 1
+a234 1
+	char *p = *pp;
+d236 1
+a236 1
+		*buf = atoi(p);
+d250 1
+a250 1
+int parse_string(char **pp, char *buf, int len)
+d252 1
+a252 1
+	char *p= *pp;
+d280 1
+a280 1
+int parse_range(char **pp, int *first, int *second)
+d282 1
+a282 1
+	char *p= *pp;
+@
+
+
+1.11
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d157 160
+@
+
+
+1.10
+log
+@kill warnings when compilling with -Wundef
+@
+text
+@d43 1
+a43 1
+        return((c == 32) || (c == 9));
+d75 1
+a75 1
+unsigned int isalnum_(unsigned int c)
+@
+
+
+1.9
+log
+@cleanup signals handling (sigaction() / sigvec() / signal())
+@
+text
+@d131 1
+a131 1
+#if HAVE_SIGACTION
+d136 1
+a136 1
+#if SA_INTERRUPT
+d140 1
+a140 1
+#elif HAVE_SIGVEC
+d145 1
+a145 1
+#if HAVE_SV_INTERRUPT
+d151 1
+a151 1
+#if HAVE_SIGINTERRUPT
+@
+
+
+1.8
+log
+@change (m|re|c)alloc() and free() into joe_(m|re|c)alloc() and joe_free()
+(preparation for further error checking)
+@
+text
+@d20 1
+d120 36
+@
+
+
+1.7
+log
+@move jread() / jwrite() into utils.c
+@
+text
+@d16 3
+d98 21
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d12 4
+d65 1
+d74 21
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a9 1
+#include "types.h"
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d2 7
+a8 8
+	Various utilities
+	Copyright
+		(C) 1992 Joseph H. Allen
+		(C) 2001 Marek 'Marx' Grac
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+d10 1
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d11 3
+d16 23
+a38 1
+#include <ctype.h>
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d18 2
+a19 1
+unsigned int uns_min (unsigned int a, unsigned int b) {
+d23 2
+a24 1
+signed int int_min (signed int a, signed int b) {
+d28 2
+a29 1
+signed long int long_max (signed long int a, signed long int b) {
+d33 2
+a34 1
+signed long int long_min (signed long int a, signed long int b) {
+a36 1
+
+d42 3
+a44 13
+unsigned int isalnum_ (unsigned int c) {
+	return (isalnum (c) || ( c == 95 ));
+}
+
+/* 
+ * Whitespace characters are characters like tab, space, ...
+ *	Every config line in *rc must be end by whitespace but
+ *	EOF is not considered as whitespace by isspace()
+ *	This is because I don't want to be forced to end 
+ *	*rc file with \n
+ */
+unsigned int isspace_eof (unsigned int c) {
+	return (isspace(c) || (!(c)));
+@
+
+
+1.1
+log
+@changed as of joe-2.9.5
+@
+text
+@d10 1
+d13 2
+d18 1
+a18 1
+unsigned uns_min (unsigned a, unsigned b) {
+d22 1
+a22 1
+int int_min (int a, int b) {
+d26 1
+a26 1
+long long_max (long a, long b) {
+d30 1
+a30 1
+long long_min (long a, long b) {
+d32 20
+@
+

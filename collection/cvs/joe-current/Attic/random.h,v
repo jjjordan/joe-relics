@@ -1,0 +1,94 @@
+head	1.2;
+access;
+symbols
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@/* Berkeley random number generator */
+
+#ifndef _Irandom
+#define _Irandom 1
+
+#include "config.h"
+
+/* x**31 + x**3 + 1.  */
+#define	DEG 31
+#define	SEP 3
+
+struct state
+ {
+ long state[DEG];
+ long *fptr;
+ long *rptr;
+ };
+
+/* State information.  You can save and restore this variable */
+extern struct state state;
+
+/* long random(void);
+ * Return 31 bit pseudo-random number
+ */
+long random();
+
+/* void srandom(int seed);
+ *
+ * Initialize random number generator with specified seed
+ *
+ * Note that values returned by 'random' are not the entire state, and
+ * therefore can not be used as seeds to 'srandom' to revert to a previous
+ * state.  Instead, save and restore the entire variable 'state' for this
+ * purpose.
+ */
+void srandom();
+
+#endif
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

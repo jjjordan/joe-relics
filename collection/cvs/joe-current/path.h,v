@@ -1,0 +1,500 @@
+head	1.11;
+access;
+symbols
+	joe_3_5:1.11
+	joe-3_4:1.11
+	help:1.11
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.2
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.11
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2005.03.20.03.31.26;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2005.03.16.23.19.29;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.04.13.21.47;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.48.08;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.55;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.11
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Directory and path functions
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_PATH_H
+#define _JOE_PATH_H 1
+
+unsigned char *joesep PARAMS((unsigned char *path));
+
+/* char *namprt(char *path);
+ * Return name part of a path.  There is no name if the last character
+ * in the path is '/'.
+ *
+ * The name part of "/hello/there" is "there"
+ * The name part of "/hello/" is ""
+ * The name part if "/" is ""
+ */
+unsigned char *namprt PARAMS((unsigned char *path));
+unsigned char *namepart PARAMS((unsigned char *tmp, unsigned char *path));
+
+/* char *dirprt(char *path);
+ * Return directory and drive part of a path.  I.E., everything to the
+ * left of the name part.
+ *
+ * The directory part of "/hello/there" is "/hello/"
+ * The directory part of "/hello/" is "/hello/"
+ * The directory part of "/" is "/"
+ */
+unsigned char *dirprt PARAMS((unsigned char *path));
+
+/* char *begprt(char *path);
+ * Return the beginning part of a path.
+ *
+ * The beginning part of "/hello/there" is "/hello/"
+ * The beginning part of "/hello/" is "/"
+ * The beginning part of "/" is "/"
+ */
+unsigned char *begprt PARAMS((unsigned char *path));
+
+/* char *endprt(char *path);
+ * Return the ending part of a path.
+ *
+ * The ending part of "/hello/there" is "there"
+ * The ending part of "/hello/" is "hello/"
+ * The ending part of "/" is ""
+ */
+unsigned char *endprt PARAMS((unsigned char *path));
+
+/* int mkpath(char *path);
+ * Make sure path exists.  If it doesn't, try to create it
+ *
+ * Returns 1 for error or 0 for success.  The current directory
+ * and drive will be at the given path if successful, otherwise
+ * the drive and path will be elsewhere (not necessarily where they
+ * were before mkpath was called).
+ */
+int mkpath PARAMS((unsigned char *path));
+
+/* char *mktmp(char *);
+ * Create an empty temporary file.  The file name created is the string passed
+ * to this function postfixed with /joe.tmp.XXXXXX, where XXXXXX is some
+ * string six chars long which makes this file unique.
+*/
+unsigned char *mktmp PARAMS((unsigned char *where));
+
+/* Change drive and directory */
+#define chddir chdir
+
+/* int rmatch(char *pattern,char *string);
+ * Return true if string matches pattern
+ *
+ * Pattern is:
+ *     *                 matches 0 or more charcters
+ *     ?                 matches any 1 character
+ *     [...]             matches 1 character in set
+ *     [^...]            matches 1 character not in set
+ *     [[]               matches [
+ *     [*]               matches *
+ *     [?]               matches ?
+ *     any other         matches self
+ *
+ *  Ranges of characters may be specified in sets with 'A-B'
+ *  '-' may be specified in sets by placing it at the ends
+ *  '[' may be specified in sets by placing it first
+ */
+int rmatch PARAMS((unsigned char *a, unsigned char *b));
+int isreg PARAMS((unsigned char *s));
+
+/* char **rexpnd(char *path,char *pattern);
+ * Generate array (see va.h) of file names from directory in 'path'
+ * which match the pattern 'pattern'
+ */
+unsigned char **rexpnd PARAMS((unsigned char *word));
+unsigned char **rexpnd_users PARAMS((unsigned char *word));
+
+int chpwd PARAMS((unsigned char *path));
+unsigned char *pwd PARAMS((void));
+unsigned char *simplify_prefix PARAMS((unsigned char *path));
+
+#endif
+@
+
+
+1.10
+log
+@Current directory stuff
+@
+text
+@a10 2
+#include "config.h"
+
+d101 1
+a101 1
+unsigned char *simplify_prefix(unsigned char *path);
+@
+
+
+1.9
+log
+@Get tab completion to work on user names.
+@
+text
+@d103 1
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d99 1
+@
+
+
+1.7
+log
+@move pwd() into path.c
+@
+text
+@d13 1
+a13 1
+char *joesep PARAMS((char *path));
+d23 2
+a24 2
+char *namprt PARAMS((char *path));
+char *namepart PARAMS((char *tmp, char *path));
+d34 1
+a34 1
+char *dirprt PARAMS((char *path));
+d43 1
+a43 1
+char *begprt PARAMS((char *path));
+d52 1
+a52 1
+char *endprt PARAMS((char *path));
+d62 1
+a62 1
+int mkpath PARAMS((char *path));
+d69 1
+a69 1
+char *mktmp PARAMS((char *where));
+d91 2
+a92 2
+int rmatch PARAMS((char *a, char *b));
+int isreg PARAMS((char *s));
+d98 1
+a98 1
+char **rexpnd PARAMS((char *word));
+d100 2
+a101 2
+int chpwd PARAMS((char *path));
+char *pwd PARAMS((void));
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d101 1
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a11 1
+#include "types.h"
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 8
+	Directory and path functions
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _joePATH
+#define _joePATH 1
+d12 1
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d13 1
+a13 1
+char *joesep();
+d23 2
+a24 2
+char *namprt();
+char *namepart();
+d34 1
+a34 1
+char *dirprt();
+d43 1
+a43 1
+char *begprt();
+d52 1
+a52 1
+char *endprt();
+d62 1
+a62 1
+int mkpath();
+d69 1
+a69 1
+char *mktmp();
+d91 2
+a92 2
+int rmatch();
+int isreg();
+d98 1
+a98 1
+char **rexpnd();
+d100 1
+a100 1
+int chpwd();
+@
+
+
+1.2
+log
+@changes for joe-2.9.1
+@
+text
+@d13 1
+a13 2
+char *ossep ();
+char *joesep ();
+d23 2
+a24 2
+char *namprt ();
+char *namepart ();
+d34 1
+a34 1
+char *dirprt ();
+d43 1
+a43 1
+char *begprt ();
+d52 1
+a52 1
+char *endprt ();
+d62 1
+a62 1
+int mkpath ();
+d66 4
+a69 3
+ * to this function postfixed with JXXXXXX.tmp, where XXXXXX is some number.
+ */
+char *mktmp ();
+d91 2
+a92 2
+int rmatch ();
+int isreg ();
+d98 1
+a98 1
+char **rexpnd ();
+d100 1
+a100 1
+int chpwd ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Directory and path functions
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 1
+This file is part of JOE (Joe's Own Editor)
+d8 2
+a9 15
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+
+#ifndef _Ipath
+#define _Ipath 1
+d13 2
+a14 22
+#ifdef junk
+/* char *abspth(char *path);
+ * Convert given path into an absolute path (a path beginning with a drive
+ * letter and backslash "C:\" and with no "."s or ".."s).
+ *
+ * This can be used to check if two paths refer to the same file:  Convert the
+ * two paths into absolute paths and then compare the absolute paths.
+ *
+ * Also, this can be used to get the current drive and directory:
+ * Use abspath("")
+ *
+ * Or, to get the current directory on another drive:  Use abspath("a:")
+ *
+ * Returns an malloc block containing the absolute path string or
+ * 0 if the given path was in error or if couldn't read the current
+ * directory (because the floppy was removed from the drive).
+ */
+char *abspth();
+#endif
+
+char *ossep();
+char *joesep();
+d24 2
+a25 2
+char *namprt();
+char *namepart();
+d35 1
+a35 1
+char *dirprt();
+d44 1
+a44 1
+char *begprt();
+d53 1
+a53 1
+char *endprt();
+d63 1
+a63 1
+int mkpath();
+d69 1
+a69 1
+char *mktmp();
+d71 1
+a71 2
+/* Change drive and directory
+ */
+d91 2
+a92 2
+int rmatch();
+int isreg();
+d98 1
+a98 1
+char **rexpnd();
+d100 1
+a100 1
+int chpwd();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

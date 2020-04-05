@@ -1,0 +1,1133 @@
+head	1.22;
+access;
+symbols
+	joe_3_5:1.21
+	joe-3_4:1.21
+	help:1.21
+	joe_3_1:1.6
+	joe_3_0:1.1;
+locks; strict;
+comment	@# @;
+
+
+1.22
+date	2008.10.26.18.44.46;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2006.05.20.02.16.28;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2006.05.19.23.54.22;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2006.05.19.23.41.48;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.02.27.06.43.42;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.02.27.06.35.36;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2005.03.18.03.54.10;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2005.03.13.02.34.08;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2005.03.09.21.02.01;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.03.02.06.02.26;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2005.02.21.03.51.18;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2005.02.21.03.19.18;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.06.21.15.49.01;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.06.07.21.22.28;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.06.07.21.00.31;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.06.07.20.00.47;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2004.04.29.19.50.45;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2004.04.29.15.41.17;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.04.28.23.29.52;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.04.28.03.37.06;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.04.26.22.03.13;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.04.13.20.12.41;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.22
+log
+@New diff syntax.  Fix to mason.
+@
+text
+@# JOE syntax highlight file for Perl
+
+# Define colors
+
+=Idle
+=Preproc blue
+=Comment green
+=POD green
+=Constant cyan
+=Escape bold cyan
+=Type bold
+=Keyword bold
+=Bad bold red
+=Var yellow
+
+
+:begin Idle
+	*		begin noeat call=.perl()
+
+#
+# Perl as a subroutine for Mason
+#
+
+.subr perl
+
+# Detect pod
+
+:idle Idle
+	*		idle1		noeat
+.ifdef mason_line
+	"\n"		idle return
+.else
+	"\n"		idle
+.endif
+	"="		pod_start
+
+# allow keywords
+
+:idle1 Idle
+	*		idle1
+	"#"		line_comment_i	recolor=-1
+	"\n"		idle noeat
+	"0"		first_digit	recolor=-1
+	"1-9"		decimal	recolor=-1
+	"."		maybe_float
+	"\""		string		recolor=-1
+	"'"		char		recolor=-1
+	"`"		backtick	recolor=-1
+	"<"		maybe_inc
+	"$"		not_string	buffer
+.ifdef mason_block
+	"&%"		perl_maybe_done	buffer
+	"-a-zA-Z_@@"	ident		buffer
+.else
+	"/"		regex		recolor=-1
+	"-a-zA-Z_@@%&"	ident		buffer
+.endif
+
+:perl_maybe_done Idle
+	*		ident noeat
+	">"		idle1	recolor=-2 return
+
+# prevent keywords
+
+:rest Idle
+	*		rest
+	"({;~"		idle1
+	"#"		line_comment	recolor=-1
+	"\n"		idle noeat
+	"0"		first_digit	recolor=-1
+	"1-9"		decimal	recolor=-1
+	"."		maybe_float
+	"\""		string		recolor=-1
+	"'"		char		recolor=-1
+	"`"		backtick	recolor=-1
+	"$"		not_string	buffer
+	"<"		maybe_inc
+.ifdef mason_block
+	"&%"		perl_maybe_done buffer
+	"a-zA-Z_@@"	maybe_string	buffer
+.else
+	"a-zA-Z_@@%&"	maybe_string	buffer
+.endif
+
+:pod_start Idle
+	*		pod_start
+	"\n"		pod_block
+
+:pod_block POD
+	*		pod_block
+	"="		pod_ident	buffer
+
+:pod_ident POD
+	*		pod_block	noeat strings
+	"=cut"		rest
+done
+	"a-zA-Z0-9_"	pod_ident
+
+:maybe_inc Idle
+	*		rest		noeat
+.ifdef mason_block
+	"/"		perl_maybe_done_2
+.endif
+	"<"		maybe_inc1
+
+:perl_maybe_done_2 Idle
+	*		perl_idle	noeat
+	"a-z"		perl_maybe_done_2
+	">"		idle
+
+
+:maybe_inc1 Idle
+	*		rest		noeat
+	" 	"	maybe_inc1
+	"'\""		quoted_inc_start	save_c recolor=-1
+	"A-Za-z_"	inc		buffer noeat
+
+:quoted_inc_start Var
+	*		quoted_inc	buffer
+
+:quoted_inc Var
+	*		quoted_inc
+	&		skipline	save_s
+
+:inc Var
+	*		skipline	save_s noeat
+	"A-Za-z0-9_"	inc
+
+# Should be treated as a normal line here...
+
+:skipline Idle
+	*		skipline
+	"\n"		next_line
+
+:todelim Constant
+	*		todelim
+	"\n"		next_line	strings
+	"&"		founddelim
+done
+
+# eat \n so it's not in string.
+:next_line Constant
+	*		todelim		buffer
+	"\n"		next_line
+
+:founddelim Var
+	*		idle		noeat
+
+:regex Constant
+	*		regex
+	"\\"		regex_quote	recolor=-1
+	"/"		rest
+
+:regex_quote Escape
+	*		regex
+
+:not_string Idle
+	*		rest noeat
+	"A-Za-z_"	ident
+	"\"'`#"		rest
+
+:line_comment Comment
+	*		line_comment
+	"\n"		rest
+
+:line_comment_i Comment
+	*		line_comment_i
+	"\n"		idle noeat
+
+:end_of_file_comment Comment
+	*		end_of_file_comment
+
+:first_digit Constant
+	*		rest	noeat
+	"x"		hex
+	"b"		binary
+	"."		float
+	"eE"		epart
+	"0-7"		octal
+	"89"		bad_number	recolor=-1
+
+:bad_number Bad
+	*		rest	noeat
+	"0-9"		bad_number
+
+:octal Constant
+	*		rest	noeat
+	"0-7_"		octal
+	"89"		bad_number	recolor=-1
+
+:binary Constant
+	*		rest	noeat
+	"01_"		binary
+	"2-9"		bad_number	recolor=-1
+
+:hex Constant
+	*		rest	noeat
+	"0-9A-Fa-f_"	hex
+
+:decimal Constant
+	*		rest	noeat
+	"0-9_"		decimal
+	"eE"		epart
+	"."		float
+
+:maybe_float Constant
+	*		rest	recolor=-2	noeat
+	"0-9"		float		recolor=-2
+
+:float Constant
+	*		rest	noeat
+	"eE"		epart
+	"0-9_"		float
+
+:epart Constant
+	*		rest	noeat
+	"0-9+\-"	enum
+
+:enum Constant
+	*		rest	noeat
+	"0-9_"		enum
+
+:string	Constant
+	*		string
+	"\""		rest
+	"\\"		string_escape	recolor=-1
+	"$@@"		string_subst	recolor=-1
+
+:string_subst Escape
+	*		string	noeat recolor=-1
+	"a-zA-Z_0-9"	string_subst
+
+:string_escape Escape
+	*		string
+	"x"		string_hex1
+	"c"		string_ctrl
+	"N"		string_named
+	"0-7"		string_octal2
+	"\n"		string		recolor=-2
+
+:string_named Escape
+	*		string
+	"{"		string_named_rest
+
+:string_named_rest Escape
+	*		string_named_rest
+	"}"		string
+
+:string_ctrl Escape
+	*		string
+
+:string_hex1 Escape
+	*		string		noeat
+	"{"		string_unicode
+	"0-9a-fA-F"	string_hex2
+
+:string_unicode Escape
+	*		string_unicode
+	"}"		string
+
+:string_hex2 Escape
+	*		string		noeat
+	"0-9a-fA-F"	string
+
+:string_octal2 Escape
+	*		string		noeat
+	"0-7"		string_octal3
+
+:string_octal3 Escape
+	*		string		noeat
+	"0-7"		string
+
+:char Constant
+	*		char
+	"\n"		idle noeat
+	"'"		rest
+	"\\"		char_escape	recolor=-1
+
+:char_escape	Escape
+	*		char		recolor=-2
+	"\\'"	char
+
+:backtick	Constant
+	*		backtick
+	"`"		rest
+	"\\"		backtick_escape	recolor=-1
+	"$@@"		backtick_subst recolor=-1
+
+:backtick_subst Escape
+	*		backtick	noeat recolor=-1
+	"a-zA-Z_0-9"	backtick_subst
+
+:backtick_escape Escape
+	*		backtick
+	"x"		backtick_hex1
+	"c"		backtick_ctrl
+	"N"		backtick_named
+	"0-7"		backtick_octal2
+	"\n"		backtick		recolor=-2
+
+:backtick_named Escape
+	*		backtick
+	"{"		backtick_named_rest
+
+:backtick_named_rest Escape
+	*		backtick_named_rest
+	"}"		backtick
+
+:backtick_ctrl Escape
+	*		backtick
+
+:backtick_hex1 Escape
+	*		backtick		noeat
+	"{"		backtick_unicode
+	"0-9a-fA-F"	backtick_hex2
+
+:backtick_unicode Escape
+	*		backtick_unicode
+	"}"		backtick
+
+:backtick_hex2 Escape
+	*		backtick		noeat
+	"0-9a-fA-F"	backtick
+
+:backtick_octal2 Escape
+	*		backtick		noeat
+	"0-7"		backtick_octal3
+
+:backtick_octal3 Escape
+	*		backtick		noeat
+	"0-7"		backtick
+
+:ident	Idle
+	*		rest		noeat strings
+	"BEGIN"		kw
+	"END"		kw
+	"if"		kw
+	"unless"	kw
+	"while"		kw
+	"until"		kw
+	"foreach"	kw
+	"sub"		kw
+	"my"		kw
+	"do"		kw
+	"if"		kw
+	"else"		kw
+	"elsif"		kw
+	"for"		kw
+	"continue"	kw
+	"last"		kw
+	"print"		kw
+	"reset"		kw
+	"die"		kw
+	"goto"		kw
+	"require"	kw
+	"use"		kw
+	"eval"		kw
+	"redo"		kw
+	"next"		kw
+	"warn"		kw
+	"return"	kw
+	"printf"	kw
+	"close"		kw
+	"package"	kw
+	"m"		match
+	"qr"		match
+	"qq"		match
+	"qx"		match
+	"qw"		match
+	"q"		match
+	"s"		subst
+	"tr"		subst
+	"y"		subst
+	"__END__"	end_of_file_comment
+	"__DATA__"	end_of_file_comment
+done
+	"a-zA-Z0-9_"	ident
+
+:maybe_string Idle
+	*		rest		noeat strings
+	"qr"		match
+	"qq"		match
+	"qx"		match
+	"qw"		match
+	"q"		match
+done
+	"a-zA-Z0-9_"	maybe_string
+
+:type Type
+	*	rest	noeat
+
+:kw Keyword
+	*	rest	noeat
+
+:match Idle
+	*		inmatch		save_c recolor=-1
+	" 	"	match
+
+:inmatch Constant
+	*		inmatch
+	&		rest
+	"\\"		inmatch_quote	recolor=-1
+
+:inmatch_quote Escape
+	*		inmatch
+
+:subst Idle
+	*		insubst		save_c recolor=-1
+	"<([{`"		delim_insubst	save_c recolor=-1
+	" 	"	subst
+
+:insubst Constant
+	*		insubst
+	&		inrepl
+	"\\"		insubst_quote	recolor=-1
+
+:insubst_quote Escape
+	*		insubst
+
+:inrepl Constant
+	*		inrepl
+	&		rest
+	"\\"		inrepl_quote
+
+:inrepl_quote Escape
+	*		inrepl
+
+:delim_insubst Constant
+	*		delim_insubst
+	&		delim_repl
+	"\\"		delim_quote
+
+:delim_quote Escape
+	*		delim_insubst
+
+:delim_repl Constant
+	*		repl		save_c recolor=-1
+	" 	"	delim_repl
+
+:repl Constant
+	*		repl
+	&		rest
+	"\\"		repl_quote
+
+:repl_quote Escape
+	*		repl
+
+.end
+@
+
+
+1.21
+log
+@minor color fixes
+@
+text
+@a48 1
+	"/"		regex		recolor=-1
+d55 1
+d79 1
+a79 1
+	"%&"		perl_maybe_done1 buffer
+a84 4
+:perl_maybe_done Idle
+	*		maybe_string noeat
+	">"		idle1	recolor=-2 return
+
+@
+
+
+1.20
+log
+@fix mason bug
+@
+text
+@d61 1
+a61 1
+	">"		idle1	return
+d87 1
+a87 1
+	">"		idle1	return
+@
+
+
+1.19
+log
+@Mason now calls perl and html as subroutines.
+@
+text
+@d18 1
+a18 1
+	*		begin call=.perl()
+@
+
+
+1.18
+log
+@more work on perl.jsf
+@
+text
+@a2 22
+-1000
+
+# Still need:
+
+# _ in numbers
+# 0b for binary
+# \cC for Ctrl-C
+# \x{hex} unicode
+# no escapes in single quotes (except \\ and \')
+# \N{NAME} named character
+
+# / .. / regex
+# s/ .. / .. /
+# $name allowed in regex
+# m//  same as //
+# s///
+# tr/// y///
+# qr//
+
+# can also do this: s(egg)<larva>
+# s' ' ' - no interpolation
+
+d16 10
+d30 5
+d42 1
+a42 1
+	"\n"		idle
+d52 4
+d57 5
+d69 1
+a69 1
+	"\n"		idle
+d78 4
+d83 5
+d105 3
+d110 6
+d172 1
+a172 1
+	"\n"		idle
+d279 1
+a279 1
+	"\n"		reset
+d451 2
+@
+
+
+1.17
+log
+@Fix perl highligting bug: $q not handled properly.
+@
+text
+@d59 1
+a59 1
+	"-a-zA-Z_"	ident		buffer
+d76 1
+a76 1
+	"a-zA-Z_"	maybe_string	buffer
+@
+
+
+1.16
+log
+@fix -s in perl
+@
+text
+@d58 1
+a58 1
+	"$"		not_string
+d74 1
+a74 1
+	"$"		not_string
+d143 1
+@
+
+
+1.15
+log
+@fix perl again
+@
+text
+@d59 1
+a59 1
+	"a-zA-Z_"	ident		buffer
+@
+
+
+1.14
+log
+@^KW prints a message
+Perl highlighter fixes
+@
+text
+@d38 2
+d41 7
+a47 2
+	*		rest
+	" 	"	idle
+a53 1
+#	"\\"		not_string
+d60 2
+a61 1
+	"="		pod_start
+d65 1
+a65 1
+	"({;~"		idle				# should be rest, need to check
+a71 1
+#	"\\"		not_string
+d349 5
+@
+
+
+1.13
+log
+@Fix syntax file warnings.
+Add -jump_menu
+@
+text
+@d3 2
+d39 2
+a40 1
+	*		idle
+d58 1
+a58 1
+	"({;~"		idle
+d60 1
+a60 1
+	"\n"		rest
+@
+
+
+1.12
+log
+@Fix another perl highlighter bug.
+@
+text
+@d34 1
+d113 1
+a113 1
+	"&"		founddelim	noeat
+d339 4
+a342 4
+	"m"		match		noeat
+	"s"		subst		noeat
+	"tr"		subst		noeat
+	"y"		subst		noeat
+d350 5
+a354 5
+	"qr"		match		noeat
+	"qq"		match		noeat
+	"qx"		match		noeat
+	"qw"		match		noeat
+	"q"		match		noeat
+@
+
+
+1.11
+log
+@Fix perl highlighter bug, enhance ^G
+@
+text
+@d43 1
+a43 1
+	"\\"		not_string
+d61 1
+a61 1
+	"\\"		not_string
+@
+
+
+1.10
+log
+@Added tex and css highlighters.
+Display tabs as a single space on status line.
+Update perl, php and c highlighters (php has too many colors, perl needs '-'
+for POD to work).
+@
+text
+@d66 1
+a66 1
+	"q"		maybe_string	buffer
+@
+
+
+1.9
+log
+@Few last minute perl and sh fixes.
+@
+text
+@d28 1
+d50 1
+d66 15
+d143 3
+d308 2
+d342 2
+a343 1
+	"qr"		subst		noeat
+d347 10
+@
+
+
+1.8
+log
+@Improve perl again...
+@
+text
+@d47 1
+d62 1
+d101 1
+d116 1
+a116 1
+	"\"'`"		rest
+@
+
+
+1.7
+log
+@Highlighter state now includes a saved string.
+This improves shell and perl highlighters.
+@
+text
+@d36 1
+a36 1
+	"#"		line_comment	recolor=-1
+d45 1
+a45 1
+#	"/"		regex		recolor=-1
+d49 14
+d64 1
+a64 1
+	*		idle		noeat
+d68 1
+a68 1
+	*		idle		noeat
+d106 1
+a106 1
+	"/"		idle
+d112 2
+a113 2
+	*		idle noeat
+	"\"'`"		idle
+d117 4
+d124 1
+a124 1
+	*		idle	noeat
+d133 1
+a133 1
+	*		idle	noeat
+d137 1
+a137 1
+	*		idle	noeat
+d142 1
+a142 1
+	*		idle	noeat
+d147 1
+a147 1
+	*		idle	noeat
+d151 1
+a151 1
+	*		idle	noeat
+d157 1
+a157 1
+	*		idle	recolor=-2	noeat
+d161 1
+a161 1
+	*		idle	noeat
+d166 1
+a166 1
+	*		idle	noeat
+d170 1
+a170 1
+	*		idle	noeat
+d175 1
+a175 1
+	"\""		idle
+d226 1
+a226 1
+	"'"		idle
+d235 1
+a235 1
+	"`"		idle
+d284 1
+a284 1
+	*		idle		noeat strings
+d309 4
+d322 1
+a322 1
+	*	idle	noeat
+d325 1
+a325 1
+	*	idle	noeat
+d333 1
+a333 1
+	&		idle
+d354 1
+a354 1
+	&		idle
+d374 1
+a374 1
+	&		idle
+@
+
+
+1.6
+log
+@Improve fortran and perl syntax files.
+@
+text
+@d45 2
+d49 48
+d291 5
+d304 53
+@
+
+
+1.5
+log
+@Improved fortran highlighter.
+@
+text
+@d9 1
+a11 2
+# no escapes in single quotes (except \\ and \')
+
+d42 1
+d47 4
+d57 2
+a58 1
+	"xX"		hex
+d70 1
+a70 1
+	"0-7"		octal
+d73 5
+d80 1
+a80 1
+	"0-9A-Fa-f"	hex
+d84 1
+a84 1
+	"0-9"		decimal
+d95 1
+a95 1
+	"0-9"		float
+d103 1
+a103 1
+	"0-9"		enum
+d109 5
+a113 1
+	"%"		string_control	recolor=-1
+d118 2
+d123 11
+d136 1
+d139 4
+a154 5
+:string_control Escape
+	*		string_control
+	"\n"		reset
+	"diouxXeEfFgGaAcspn%SC"	string
+
+d162 2
+a163 20
+	*		char
+	"x"		char_hex1
+	"0-7"		char_octal2
+	"\n"		char		recolor=-2
+
+:char_hex1 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char_hex2
+
+:char_hex2 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char
+
+:char_octal2 Escape
+	*		char		noeat
+	"0-7"		char_octal3
+
+:char_octal3 Escape
+	*		char		noeat
+	"0-7"		char
+a166 1
+	"\n"		idle
+d169 5
+d175 1
+a175 1
+:backtick_escape	Escape
+d177 37
+a213 1
+	"\n"		backtick	recolor=-2
+@
+
+
+1.4
+log
+@More syntax files: tcl
+
+Now 'noeat' implies 'recolor=-1', which reduces debug time
+for syntax definition files.
+@
+text
+@d3 21
+d33 1
+d39 2
+a40 1
+	"0-9"		first_digit	recolor=-1
+d55 12
+a66 1
+	"0-9_"		first_number
+d70 1
+a70 1
+	"0-9A-Fa-f_"	hex
+d72 1
+a72 1
+:first_number Constant
+d74 2
+a75 1
+	"0-9_"		first_number
+d87 1
+a87 1
+:epart	Constant
+d91 1
+a91 1
+:enum	Constant
+d103 2
+d107 16
+d125 1
+a125 1
+	"\n"		idle
+d128 1
+a128 1
+:char	Constant
+d130 1
+a130 1
+	"\n"		idle
+d136 2
+d140 16
+d178 1
+a178 1
+	"elseif"	kw
+@
+
+
+1.3
+log
+@Added XML.  Improved HTML.
+Now allow comment lines in syntax file string lists.
+@
+text
+@d29 1
+a29 1
+	*		idle	noeat	recolor=-1
+d35 1
+a35 1
+	*		idle	noeat	recolor=-1
+d39 1
+a39 1
+	*		idle	noeat	recolor=-1
+d48 1
+a48 1
+	*		idle	noeat	recolor=-1
+d53 1
+a53 1
+	*		idle	noeat	recolor=-1
+d57 1
+a57 1
+	*		idle	noeat	recolor=-1
+@
+
+
+1.2
+log
+@Forgot .pm files for perl.
+
+Update colors for perl and verilog.
+
+Added mail.jsf: works nicely with mutt
+
+Oops- was displaying characters between 0xA0 - 0xBF as
+control characters in UTF-8.
+@
+text
+@d21 1
+d85 10
+@
+
+
+1.1
+log
+@Moved syntax definition files to subdirectory.
+@
+text
+@d6 6
+a11 6
+=Preproc bold blue
+=Comment bold cyan
+=Constant bold magenta
+=Escape bold red
+=Type bold green
+=Keyword bold yellow
+@
+

@@ -1,0 +1,1028 @@
+head	1.12;
+access;
+symbols
+	joe_3_5:1.12
+	joe-3_4:1.11
+	help:1.11
+	joe_3_1:1.10
+	joe_3_0:1.10
+	joe_2_9_8:1.9
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.2
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.12
+date	2006.06.07.01.56.34;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2003.01.02.10.46.09;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.48.08;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.25;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.25;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@large file patch, makefile fix, tty.c fix.
+@
+text
+@/*
+ *	Software virtual memory system
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_VFILE_H
+#define _JOE_VFILE_H 1
+
+/* Page header */
+
+struct vpage {
+	VPAGE	*next;		/* Next page with same hash value */
+	VFILE	*vfile;		/* Owner vfile */
+	off_t	addr;		/* Address of this page */
+	int	count;		/* Reference count */
+	int	dirty;		/* Set if page changed */
+	unsigned char	*data;		/* The data in the page */
+};
+
+/* File structure */
+
+struct vfile {
+	LINK(VFILE)	link;	/* Doubly linked list of vfiles */
+	off_t	size;		/* Number of bytes in physical file */
+	off_t	alloc;		/* Number of bytes allocated to file */
+	int	fd;		/* Physical file */
+	int	writeable;	/* Set if we can write */
+	unsigned char	*name;		/* File name.  0 if unnamed */
+	int	flags;		/* Set if this is only a temporary file */
+
+	/* For array I/O */
+	unsigned char	*vpage1;	/* Page address */
+	long	addr;		/* File address of above page */
+
+	/* For stream I/O */
+	unsigned char	*bufp;		/* Buffer pointer */
+	unsigned char	*vpage;		/* Buffer pointer points in here */
+	int	left;		/* Space left in bufp */
+	int	lv;		/* Amount of append space at end of buffer */
+};
+/* Additions:
+ *
+ * Should we remove size checking from rc()?  Would make it faster...
+ *
+ * Should be able to open more than one stream on a file so that vseek
+ * doesn't have to get called so much when more than one user is involed
+ *
+ * Also should have dupopen call to make more streams for a file
+ *
+ * Make vputs faster
+ *
+ * Should have a version which will use memory mapped files, if they exist
+ * in the os.
+ *
+ * Would be nice if we could transparantly open non-file streams and pipes.
+ * Should there be an buffering option for that?  So we can seek on pipes to
+ * get previously read data?
+ */
+
+extern unsigned char *vbase;		/* Data first entry in vheader refers to */
+extern VPAGE **vheaders;	/* Array of headers */
+
+/* VFILE *vtmp(V);
+ *
+ * Open a temporary virtual file.  File goes away when closed.  No actual
+ * file is generated if everything fits in memory.
+ */
+VFILE *vtmp PARAMS((void));
+
+#ifdef junk
+/* VFILE *vopen(char *name);
+ *
+ * Open a file for reading and if possible, writing.  If the file could not
+ * be opened, NULL is returned.
+ */
+VFILE *vopen PARAMS(());
+#endif
+
+/* off_t vsize(VFILE *);
+ *
+ * Return size of file
+ */
+
+#define vsize(vfile) \
+	( \
+	  (vfile)->left<(vfile)->lv ? \
+	    (vfile)->alloc+(vfile)->lv-(vfile)->left \
+	  : \
+	    (vfile)->alloc \
+	)
+
+/* void vclose(VFILE *vfile);
+ *
+ * Close a file.
+ */
+void vclose PARAMS((VFILE *vfile));
+
+#ifdef junk
+/* void vlimit(long amount);
+ *
+ * Set limit (in bytes) on amount of memory the virtual file system may
+ * use.  This limit can be exceeded if all existing vpages are being referenced
+ * and a new vpage is requested.
+ *
+ * When vlimit is called, the limit is immediatly enforced by elimiting
+ * non-referenced vpages.
+ */
+
+void vlimit PARAMS(());
+#endif
+
+/* void vflsh(void); 
+ *
+ * Write all changed pages to the disk
+ */
+
+void vflsh PARAMS((void));
+
+/* void vflshf(VFILE *vfile);
+ *
+ * Write changed pages for a specific file to the disk
+ */
+
+void vflshf PARAMS((VFILE *vfile));
+
+/* char *vlock(VFILE *vfile,off_t addr);
+ *
+ * Translate virtual address to physical address.  'addr' does not have
+ * to be on any particular alignment, but if you wish to access more than
+ * a single byte, you have to be aware of where page boundaries are (virtual
+ * address multiples of PGSIZE).
+ *
+ * The page containing the data is locked in memory (so that it won't be
+ * freed or used for something else) until 'vunlock' is used.
+ *
+ * Warning:  If you allocate more than one page and use (change) them out of
+ * order, vflsh will screw up if writing past the end of a file is illegal
+ * in the host filesystem.
+ *
+ * Also:  This function does not allocate space to the file.  Use valloc()
+ * for that.  You can vlock() pages past the allocated size of the file, but
+ * be careful when you do this (you normally shouldn't- the only time you
+ * ever might want to is to implement your own version of valloc()).
+ */
+
+unsigned char *vlock PARAMS((VFILE *vfile, off_t addr));
+
+/* VPAGE *vheader(char *);
+ * Return address of page header for given page
+ */
+
+#define vheader(p) (vheaders[(physical((unsigned char *)(p))-physical(vbase))>>LPGSIZE])
+
+/* void vchanged(char *);
+ *
+ * Indicate that a vpage was changed so that it will be written back to the
+ * file.  Any physical address which falls within the page may be given.
+ */
+
+#define vchanged(vpage) ( vheader(vpage)->dirty=1 )
+
+/* void vunlock(char *);
+ * Unreference a vpage (call one vunlock for every vlock)
+ * Any physical address which falls within the page may be given.
+ */
+
+#define vunlock(vpage)  ( --vheader(vpage)->count )
+
+/* void vupcount(char *);
+ * Indicate that another reference is being made to a vpage
+ */
+
+#define vupcount(vpage) ( ++vheader(vpage)->count )
+
+/* long valloc(VFILE *vfile,long size);
+ *
+ * Allocate space at end of file
+ *
+ * Returns file address of beginning of allocated space
+ */
+
+off_t my_valloc PARAMS((VFILE *vfile, off_t size));
+
+#ifdef junk
+/******************************************************************************
+ * The folloing functions implement stream I/O on top of the above software   *
+ * virtual memory system                                                      *
+ ******************************************************************************/
+
+/* void vseek(VFILE *vfile,long addr);
+ *
+ * Seek to a file address.  Allocates space to the file if you seek past the
+ * end.
+ */
+void vseek PARAMS(());
+
+/* int vrgetc(VFILE *);
+ * int vgetc(VFILE *);
+ *
+ * Get next character / Get previous character functions.
+ * They return NO_MORE_DATA for end of file / beginning of file.
+ */
+
+int _vgetc PARAMS(());
+int _vrgetc PARAMS(());
+
+#define vrgetc(v) \
+        ( (v)->left!=PGSIZE ? ( ++(v)->left, (int)(unsigned)*(--(v)->bufp) ) : _vrgetc(v) )
+
+#define vgetc(v) \
+	( (v)->left>(v)->lv ? ( --(v)->left, (int)(unsigned)*((v)->bufp++) ) : _vgetc(v) )
+
+/* int vputc(VFILE *,I);
+ *
+ * Put character.  Returns character which is written.
+ */
+
+int _vputc PARAMS(());
+
+#define vputc(v,c) \
+	( \
+	  (v)->left ? \
+	   ( \
+	   --(v)->left, \
+	   vchanged((v)->vpage), \
+ 	   (int)(unsigned)(*((v)->bufp++)=(c)) \
+	   ) \
+	  : \
+	   _vputc((v),(c)) \
+	)
+
+/* long vtell(VFILE *);
+ *
+ * Return current file position
+ */
+
+#define vtell(v) \
+	( \
+	 (v)->vpage ? \
+	  ( vheader((v)->vpage)->addr+(v)->bufp-(v)->vpage ) \
+	 : \
+	  0L \
+	)
+
+/* long vgetl(VFILE *);
+ *
+ * Get long.  No alignment requirements.  Returns -1 if goes past end of file.
+ */
+
+long vgetl PARAMS(());
+
+/* short vgetw(VFILE *);
+ *
+ * Get short.  No alignment requirements.  Returns -1 if goes past end of file.
+ */
+
+short vgetw PARAMS(());
+
+/* long vputl(VFILE *,long);
+ *
+ * Put long.  No alignment requirements.
+ * Returns value written.
+ */
+
+long vputl PARAMS(());
+
+/* short vputw(VFILE *,short);
+ *
+ * Put long.  No alignement requirements.
+ * Returns value written.
+ */
+
+short vputw PARAMS(());
+
+/* char *vgets(VFILE *v,char *s);
+ *
+ * Read up to next '\n' or end of file into a variable length string.  If 's'
+ * is 0, a new string is created.  The \n is not copied into the string.
+ *
+ * Eliminates the variable length string and returns NULL if
+ * vgets is called on the end of the file.
+ *
+ * This requires that you use the 'vs.h' / 'vs.c' library.
+ */
+
+unsigned char *vgets PARAMS(());
+
+/* void vputs(VFILE *v,char *s);
+ *
+ * Write zero terminated string. \n is not appended */
+
+void vputs PARAMS(());
+
+/* void vread(VFILE *,char *,int size);
+ *
+ * Read bytes from a virtual file into a local data block
+ */
+
+void vread PARAMS(());
+
+/* void vwrite(VFILE *,char *,int size);
+ *
+ * Write bytes from a local data block into a virtual file
+ */
+
+void vwrite PARAMS(());
+
+/*************************************************************************** 
+ * The following functions implement array I/O on top of the above virtual *
+ * memory system (cheap memory mapped files)                               *
+ ***************************************************************************/
+
+/* int rc(VFILE *vfile,long addr);
+ *
+ * Read character.  Returns NO_MORE_DATA if past end of file.
+ */
+
+int _rc();
+
+#define rc(v,a) \
+	( \
+	  (a)>=vsize(v) ? NO_MORE_DATA : \
+	    ( \
+	      (v)->addr==((a)&~(PGSIZE-1)) ? \
+	       (v)->vpage1[(a)&(PGSIZE-1)] \
+	      : \
+	       _rc((v),(a)) \
+	    ) \
+	)
+
+/* int wc(VFILE *vfile,long addr,char c);
+ *
+ * Write character.  Return character written.  This automatically allocates
+ * space to the file.
+ */
+
+int _wc();
+
+#define wc(v,a,c) \
+	( \
+	  (v)->addr==((a)&~(PGSIZE-1)) ? \
+	   ( \
+	   vheader((v)->vpage1)->dirty=1, \
+	   ((a)+1>vsize(v) && my_valloc(v,(a)+1-vsize(v))), \
+	   (v)->vpage1[(a)&(PGSIZE-1)]=(c) \
+	   ) \
+	  : \
+	   _wc((v),(a),(c)) \
+	)
+
+/* long rl(VFILE *vfile,long addr);
+ * Read big-endian long.  No alignment requirements.  Returns -1 if goes past
+ * end of file.
+ */
+
+long rl PARAMS(());
+
+/* long wl(VFILE *vfile,long addr,long c);
+ * Write big-endian long.  No alignment requirements.  Automatically expands
+ * file if necessary.
+ */
+
+long wl PARAMS(());
+
+/* short rw(VFILE *vfile,long addr);
+ * Read big-endian short.  No alignment requirements.  Returns -1 if goes past
+ * end of file.
+ */
+
+short rw PARAMS(());
+
+/* short ww(VFILE *vfile,long addr,short c);
+ * Write big-endian short.  No alignment requirements.  Automatically expands
+ * file if necessary.
+ */
+
+short ww PARAMS(());
+
+#endif /* junk */
+#endif
+@
+
+
+1.11
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d16 1
+a16 1
+	long	addr;		/* Address of this page */
+d26 2
+a27 2
+	long	size;		/* Number of bytes in physical file */
+	long	alloc;		/* Number of bytes allocated to file */
+d81 1
+a81 1
+/* long vsize(VFILE *);
+d128 1
+a128 1
+/* char *vlock(VFILE *vfile,long addr);
+d148 1
+a148 1
+unsigned char *vlock PARAMS((VFILE *vfile, unsigned long addr));
+d184 1
+a184 1
+long my_valloc PARAMS((VFILE *vfile, long int size));
+d381 1
+a381 1
+#endif
+@
+
+
+1.10
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d11 1
+a11 2
+#include "config.h"
+#include "types.h"
+d13 30
+@
+
+
+1.9
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d33 1
+a33 1
+extern char *vbase;		/* Data first entry in vheader refers to */
+d119 1
+a119 1
+char *vlock PARAMS((VFILE *vfile, unsigned long addr));
+d125 1
+a125 1
+#define vheader(p) (vheaders[(physical((char *)(p))-physical(vbase))>>LPGSIZE])
+d259 1
+a259 1
+char *vgets PARAMS(());
+@
+
+
+1.8
+log
+@64bit arch fixes: don't expect pointer fits into int
+@
+text
+@d174 1
+a174 1
+ * They return MAXINT for end of file / beginning of file.
+d288 1
+a288 1
+ * Read character.  Returns MAXINT if past end of file.
+d295 1
+a295 1
+	  (a)>=vsize(v) ? MAXINT : \
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d119 1
+a119 1
+char *vlock PARAMS((VFILE *vfile, long int addr));
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "queue.h"	/* for LINK() macro */
+
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 2
+/* Software virtual memory system
+   Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 1
+This file is part of JOE (Joe's Own Editor)
+d14 1
+a14 12
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+a33 54
+
+#ifndef _Ivfile
+#define _Ivfile 1
+
+#include "config.h"
+#include "queue.h"	/* for LINK() macro */
+
+typedef struct vpage VPAGE;
+typedef struct vfile VFILE;
+
+/* These are now defined in config.h */
+#ifdef junk
+/* Minimum page size for MS-DOS is 128 (for 32K vheaders table) or 256 (for
+ * 64K vheaders table) */
+#define PGSIZE 512		/* Page size in bytes (Must be power of 2) */
+#define LPGSIZE 9		/* LOG base 2 of PGSIZE */
+#define ILIMIT (PGSIZE*128L)	/* Max amount to buffer */
+#define HTSIZE 128		/* Entries in hash table.  Must be pwr of 2 */
+#endif
+
+#define INC 16			/* Pages to allocate each time */
+
+/* Page header */
+
+struct vpage {
+	VPAGE *next;		/* Next page with same hash value */
+	VFILE *vfile;		/* Owner vfile */
+	long addr;		/* Address of this page */
+	int count;		/* Reference count */
+	int dirty;		/* Set if page changed */
+	char *data;		/* The data in the page */
+};
+
+/* File structure */
+
+struct vfile {
+	LINK(VFILE) link;	/* Doubly linked list of vfiles */
+	long size;		/* Number of bytes in physical file */
+	long alloc;		/* Number of bytes allocated to file */
+	int fd;			/* Physical file */
+	int writeable;		/* Set if we can write */
+	char *name;		/* File name.  0 if unnamed */
+	int flags;		/* Set if this is only a temporary file */
+
+	/* For array I/O */
+	char *vpage1;		/* Page address */
+	long addr;		/* File address of above page */
+
+	/* For stream I/O */
+	char *bufp;		/* Buffer pointer */
+	char *vpage;		/* Buffer pointer points in here */
+	int left;		/* Space left in bufp */
+	int lv;			/* Amount of append space at end of buffer */
+};
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d42 1
+a42 1
+#include "queue.h"
+d100 1
+a100 1
+VFILE *vtmp();
+d108 1
+a108 1
+VFILE *vopen();
+d128 1
+a128 1
+void vclose();
+d141 1
+a141 1
+void vlimit();
+d149 1
+a149 1
+void vflsh();
+d156 1
+a156 1
+void vflshf();
+d178 1
+a178 1
+char *vlock();
+d214 1
+a214 1
+long my_valloc();
+d227 1
+a227 1
+void vseek();
+d236 2
+a237 2
+int _vgetc();
+int _vrgetc();
+d250 1
+a250 1
+int _vputc();
+d282 1
+a282 1
+long vgetl();
+d289 1
+a289 1
+short vgetw();
+d297 1
+a297 1
+long vputl();
+d305 1
+a305 1
+short vputw();
+d318 1
+a318 1
+char *vgets();
+d324 1
+a324 1
+void vputs();
+d331 1
+a331 1
+void vread();
+d338 1
+a338 1
+void vwrite();
+d388 1
+a388 1
+long rl();
+d395 1
+a395 1
+long wl();
+d402 1
+a402 1
+short rw();
+d409 1
+a409 1
+short ww();
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Software virtual memory system
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d61 1
+a61 2
+struct vpage
+{
+d72 2
+a73 3
+struct vfile
+{
+	LINK (VFILE) link;	/* Doubly linked list of vfiles */
+d100 1
+a100 1
+VFILE *vtmp ();
+d108 1
+a108 1
+VFILE *vopen ();
+d128 1
+a128 1
+void vclose ();
+d141 1
+a141 1
+void vlimit ();
+d149 1
+a149 1
+void vflsh ();
+d156 1
+a156 1
+void vflshf ();
+d178 1
+a178 1
+char *vlock ();
+d214 1
+a214 1
+long my_valloc ();
+d227 1
+a227 1
+void vseek ();
+d236 2
+a237 2
+int _vgetc ();
+int _vrgetc ();
+d250 1
+a250 1
+int _vputc ();
+d282 1
+a282 1
+long vgetl ();
+d289 1
+a289 1
+short vgetw ();
+d297 1
+a297 1
+long vputl ();
+d305 1
+a305 1
+short vputw ();
+d318 1
+a318 1
+char *vgets ();
+d324 1
+a324 1
+void vputs ();
+d331 1
+a331 1
+void vread ();
+d338 1
+a338 1
+void vwrite ();
+d350 1
+a350 1
+int _rc ();
+d369 1
+a369 1
+int _wc ();
+d388 1
+a388 1
+long rl ();
+d395 1
+a395 1
+long wl ();
+d402 1
+a402 1
+short rw ();
+d409 1
+a409 1
+short ww ();
+@
+
+
+1.2
+log
+@changes for joe-2.9.1
+@
+text
+@d1 3
+a3 2
+/* Software virtual memory system
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d40 4
+a43 4
+#define PGSIZE 512              /* Page size in bytes (Must be power of 2) */
+#define LPGSIZE 9               /* LOG base 2 of PGSIZE */
+#define ILIMIT (PGSIZE*128L)    /* Max amount to buffer */
+#define HTSIZE 128              /* Entries in hash table.  Must be pwr of 2 */
+d46 1
+a46 1
+#define INC 16                  /* Pages to allocate each time */
+d51 8
+a58 8
+ {
+ VPAGE *next;			/* Next page with same hash value */
+ VFILE *vfile;			/* Owner vfile */
+ long addr;			/* Address of this page */
+ int count;			/* Reference count */
+ int dirty;			/* Set if page changed */
+ char *data;			/* The data in the page */
+ };
+d63 19
+a81 19
+ {
+ LINK(VFILE) link;		/* Doubly linked list of vfiles */
+ long size;			/* Number of bytes in physical file */
+ long alloc;			/* Number of bytes allocated to file */
+ int fd;			/* Physical file */
+ int writeable;			/* Set if we can write */
+ char *name;			/* File name.  0 if unnamed */
+ int flags;			/* Set if this is only a temporary file */
+
+ /* For array I/O */
+ char *vpage1;			/* Page address */
+ long addr;			/* File address of above page */
+
+ /* For stream I/O */
+ char *bufp;			/* Buffer pointer */
+ char *vpage;			/* Buffer pointer points in here */
+ int left;			/* Space left in bufp */
+ int lv;			/* Amount of append space at end of buffer */
+ };
+d91 1
+a91 1
+VFILE *vtmp();
+d99 1
+a99 1
+VFILE *vopen();
+d119 1
+a119 1
+void vclose();
+d132 1
+a132 1
+void vlimit();
+d140 1
+a140 1
+void vflsh();
+d147 1
+a147 1
+void vflshf();
+d169 1
+a169 1
+char *vlock();
+d205 1
+a205 1
+long my_valloc();
+d218 1
+a218 1
+void vseek();
+d227 2
+a228 2
+int _vgetc();
+int _vrgetc();
+d241 1
+a241 1
+int _vputc();
+d273 1
+a273 1
+long vgetl();
+d280 1
+a280 1
+short vgetw();
+d288 1
+a288 1
+long vputl();
+d296 1
+a296 1
+short vputw();
+d309 1
+a309 1
+char *vgets();
+d315 1
+a315 1
+void vputs();
+d322 1
+a322 1
+void vread();
+d329 1
+a329 1
+void vwrite();
+d341 1
+a341 1
+int _rc();
+d360 1
+a360 1
+int _wc();
+d379 1
+a379 1
+long rl();
+d386 1
+a386 1
+long wl();
+d393 1
+a393 1
+short rw();
+d400 1
+a400 1
+short ww();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d216 1
+a216 1
+long valloc();
+d378 1
+a378 1
+	   ((a)+1>vsize(v) && valloc(v,(a)+1-vsize(v))), \
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

@@ -1,0 +1,482 @@
+head	1.9;
+access;
+symbols
+	joe_3_5:1.9
+	joe-3_4:1.9
+	help:1.9
+	joe_3_1:1.7
+	joe_3_0:1.7
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.9
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2005.02.27.05.29.32;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2003.02.20.07.18.19;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.54;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.54;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.9
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Key-map handler
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_KBD_H
+#define _JOE_KBD_H 1
+
+/* A key binding */
+struct key {
+	int	k;			/* Flag: 0=binding, 1=submap */
+	union {
+		void	*bind;		/* What key is bound to */
+		KMAP	*submap;	/* Sub KMAP address (for prefix keys) */
+	} value;
+};
+
+/* A map of keycode to command/sub-map bindings */
+struct kmap {
+	KEY	keys[KEYS];	/* KEYs */
+};
+
+/** A keyboard handler **/
+struct kbd {
+	KMAP	*curmap;	/* Current keymap */
+	KMAP	*topmap;	/* Top-level keymap */
+	int	seq[16];	/* Current sequence of keys */
+	int	x;		/* What we're up to */
+};
+
+/* KMAP *mkkmap(void);
+ * Create an empty keymap
+ */
+KMAP *mkkmap PARAMS((void));
+
+/* void rmkmap(KMAP *kmap);
+ * Free a key map
+ */
+void rmkmap PARAMS((KMAP *kmap));
+
+/* int kadd(KMAP *kmap,char *seq,void *bind);
+ * Add a key sequence binding to a key map
+ *
+ * Returns 0 for success
+ *        -1 for for invalid key sequence
+ *
+ * A valid key sequence is one or more keys seperated with spaces.  A key
+ * is a single character or one of the following strings:
+ *
+ *    ^?	                   127 (DEL)
+ *
+ *    ^@@   -   ^_                  Control characters
+ *
+ *    SP                           32 (space character)
+ *
+ *    UP, DOWN, LEFT, RIGHT,
+ *    F0 - F10, DEL, INS, HOME,
+ *    END, PGUP, PGDN              termcap special characters
+ *
+ * In addition, the last key of a key sequence may be replaced with
+ * a range-fill of the form: <KEY> TO <KEY>
+ *
+ * So for example, if the sequence: ^K A TO Z
+ * is speicified, then the key sequences
+ * ^K A, ^K B, ^K C, ... ^K Z are all bound.
+ */
+int kadd PARAMS((CAP *cap, KMAP *kmap, unsigned char *seq, void *bind));
+
+/* void kcpy(KMAP *dest,KMAP *src);
+ * Copy all of the entries in the 'src' keymap into the 'dest' keymap
+ */
+void kcpy PARAMS((KMAP *dest, KMAP *src));
+
+/* int kdel(KMAP *kmap,char *seq);
+ * Delete a binding from a keymap
+ *
+ * Returns 0 for success
+ *        -1 if the given key sequence was invalid
+ *         1 if the given key sequence did not exist
+ */
+int kdel PARAMS((KMAP *kmap, unsigned char *seq));
+
+/* KBD *mkkbd(KMAP *kmap);
+   Create a keyboard handler which uses the given keymap
+*/
+KBD *mkkbd PARAMS((KMAP *kmap));
+
+/* void rmkbd(KBD *);
+ *
+ * Eliminate a keyboard handler
+ */
+void rmkbd PARAMS((KBD *k));
+
+/* void *dokey(KBD *kbd,int k);
+   Handle a key for a KBD:
+
+     Returns 0 for invalid or prefix keys
+
+     Returns binding for a completed key sequence
+*/
+void *dokey PARAMS((KBD *kbd, int n));
+
+/* JM - user command handler */
+int ukeymap();
+
+#endif
+@
+
+
+1.8
+log
+@Jesse McGrew's xterm mouse support.
+@
+text
+@d11 21
+a31 2
+#include "config.h"
+#include "types.h"
+@
+
+
+1.7
+log
+@change type of variables holding string to unsigned char *
+@
+text
+@d86 3
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d50 1
+a50 1
+int kadd PARAMS((CAP *cap, KMAP *kmap, char *seq, void *bind));
+d64 1
+a64 1
+int kdel PARAMS((KMAP *kmap, char *seq));
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "scrn.h"
+
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 20
+/* Key-map handler
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Ikbd
+#define _Ikbd 1
+d12 1
+a14 32
+
+typedef struct kmap KMAP;
+typedef struct kbd KBD;
+
+#define KEYS 256
+
+typedef struct key KEY;
+
+/* A key binding */
+
+struct key {
+	int k;			/* Flag: 0=binding, 1=submap */
+	union {
+		void *bind;	/* What key is bound to */
+		KMAP *submap;	/* Sub KMAP address (for prefix keys) */
+	} value;
+};
+
+/* A map of keycode to command/sub-map bindings */
+
+struct kmap {
+	KEY keys[KEYS];		/* KEYs */
+};
+
+/** A keyboard handler **/
+
+struct kbd {
+	KMAP *curmap;		/* Current keymap */
+	KMAP *topmap;		/* Top-level keymap */
+	int seq[16];		/* Current sequence of keys */
+	int x;			/* What we're up to */
+};
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d23 1
+d61 1
+a61 1
+KMAP *mkkmap();
+d66 1
+a66 1
+void rmkmap();
+d94 1
+a94 1
+int kadd();
+d99 1
+a99 1
+void kcpy();
+d108 1
+a108 1
+int kdel();
+d113 1
+a113 1
+KBD *mkkbd();
+d119 1
+a119 1
+void rmkbd();
+d128 1
+a128 1
+void *dokey();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Key-map handler
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+ */
+d27 1
+d34 1
+a34 2
+struct key
+{
+d36 1
+a36 2
+	union
+	{
+d39 1
+a39 2
+	}
+	value;
+d44 1
+a44 2
+struct kmap
+{
+d50 1
+a50 2
+struct kbd
+{
+d60 1
+a60 1
+KMAP *mkkmap ();
+d65 1
+a65 1
+void rmkmap ();
+d93 1
+a93 1
+int kadd ();
+d98 1
+a98 1
+void kcpy ();
+d107 1
+a107 1
+int kdel ();
+d112 1
+a112 1
+KBD *mkkbd ();
+d118 1
+a118 1
+void rmkbd ();
+d127 1
+a127 1
+void *dokey ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Key-map handler
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d23 9
+a31 8
+ {
+ int k;			/* Flag: 0=binding, 1=submap */
+ union
+  {
+  void *bind;		/* What key is bound to */
+  KMAP *submap;		/* Sub KMAP address (for prefix keys) */
+  } value;
+ };
+d36 3
+a38 3
+ {
+ KEY keys[KEYS];	/* KEYs */
+ };
+d43 6
+a48 6
+ {
+ KMAP *curmap;		/* Current keymap */
+ KMAP *topmap;		/* Top-level keymap */
+ int seq[16];		/* Current sequence of keys */
+ int x;			/* What we're up to */
+ };
+d53 1
+a53 1
+KMAP *mkkmap();
+d58 1
+a58 1
+void rmkmap();
+d86 1
+a86 1
+int kadd();
+d91 1
+a91 1
+void kcpy();
+d100 1
+a100 1
+int kdel();
+d105 1
+a105 1
+KBD *mkkbd();
+d111 1
+a111 1
+void rmkbd();
+d120 1
+a120 1
+void *dokey();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

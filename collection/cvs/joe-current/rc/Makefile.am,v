@@ -1,0 +1,191 @@
+head	1.6;
+access;
+symbols
+	joe_3_5:1.5
+	joe-3_4:1.3
+	help:1.3;
+locks; strict;
+comment	@# @;
+
+
+1.6
+date	2008.10.28.02.34.36;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2006.06.07.01.56.35;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2006.06.01.15.53.39;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.05.31.02.24.57;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.05.26.15.37.35;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.05.25.01.47.50;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.6
+log
+@Update configure scripts to use docdir and datadir
+@
+text
+@sysconf_joedir = $(sysconfdir)/joe
+data_joedir = $(datadir)/joe
+data_docdir = $(docdir)
+
+sysconf_joe_built = joerc jicerc.ru jmacsrc jstarrc rjoerc jpicorc
+
+sysconf_joe_DATA = $(sysconf_joe_built) ftyperc
+
+EXTRA_DIST = joerc.in jicerc.ru.in jmacsrc.in jstarrc.in jpicorc.in rjoerc.in ftyperc
+
+joerc : joerc.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/joerc.in > $@@
+
+jicerc.ru : jicerc.ru.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jicerc.ru.in > $@@
+
+jmacsrc : jmacsrc.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jmacsrc.in > $@@
+
+jstarrc : jstarrc.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jstarrc.in > $@@
+
+jpicorc : jpicorc.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jpicorc.in > $@@
+
+rjoerc : rjoerc.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/rjoerc.in > $@@
+
+MOSTLYCLEANFILES = $(sysconf_joe_built)
+@
+
+
+1.5
+log
+@large file patch, makefile fix, tty.c fix.
+@
+text
+@d2 2
+d12 1
+a12 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/joerc.in > $@@
+d15 1
+a15 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jicerc.ru.in > $@@
+d18 1
+a18 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jmacsrc.in > $@@
+d21 1
+a21 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jstarrc.in > $@@
+d24 1
+a24 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/jpicorc.in > $@@
+d27 1
+a27 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $(srcdir)/rjoerc.in > $@@
+@
+
+
+1.4
+log
+@build fixes
+@
+text
+@d10 1
+a10 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d13 1
+a13 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d16 1
+a16 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d19 1
+a19 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d22 1
+a22 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d25 1
+a25 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+@
+
+
+1.3
+log
+@cygwin fixes
+@
+text
+@d3 3
+a5 1
+sysconf_joe_DATA = joerc jicerc.ru jmacsrc jstarrc rjoerc jpicorc ftyperc
+d10 1
+a10 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d13 1
+a13 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d16 1
+a16 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d19 1
+a19 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d22 1
+a22 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d25 1
+a25 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,' $< > $@@
+d27 1
+a27 1
+MOSTLYCLEANFILES = $(joerc jicerc.ru jmacsrc jstarrc rjoerc jpicorc)
+@
+
+
+1.2
+log
+@clean up joerc files
+@
+text
+@d25 1
+a25 1
+MOSTLYCLEANFILES = $(sysconf_joe_DATA)
+@
+
+
+1.1
+log
+@Makefile subdirectories
+@
+text
+@d3 1
+a3 1
+sysconf_joe_DATA = joerc jicerc.ru jmacsrc jstarrc rjoerc jpicorc
+d5 1
+a5 1
+EXTRA_DIST = joerc.in jicerc.ru.in jmacsrc.in jstarrc.in jpicorc.in rjoerc.in
+@
+

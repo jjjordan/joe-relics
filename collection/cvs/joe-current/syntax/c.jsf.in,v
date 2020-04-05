@@ -1,0 +1,964 @@
+head	1.19;
+access;
+symbols
+	joe_3_5:1.18
+	joe-3_4:1.18
+	help:1.18
+	joe_3_1:1.9
+	joe_3_0:1.4;
+locks; strict;
+comment	@# @;
+
+
+1.19
+date	2008.10.23.16.05.00;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.05.19.18.13.49;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.05.16.05.04.20;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2005.04.08.22.22.30;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2005.03.28.05.05.39;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2004.08.11.05.24.15;	author electrum;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2004.08.11.05.15.32;	author electrum;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.06.21.15.49.01;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.06.07.20.00.19;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.06.02.03.51.36;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.05.20.02.59.09;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.05.13.15.13.53;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.05.05.14.27.24;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2004.04.29.15.41.16;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2004.04.28.23.29.52;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.04.23.02.14.08;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.04.20.06.00.55;	author electrum;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.04.13.20.41.34;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.04.13.20.12.41;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.19
+log
+@Apply two years of good user supplied patches.  See NEWS file for details.
+@
+text
+@# JOE syntax highlight file for C and C++
+
+# A (deterministic) state machine which performs lexical analysis of C.
+# (This is the "assembly language" of syntax highlighting.  A separate
+# program could be used to convert a regular expression NFA syntax into this
+# format).
+
+# Each state begins with ':<name> <color-name>'
+# <color-name> is the color used for characters eaten by the state
+# (really a symbol for a user definable color).
+
+# The first state defined is the initial state.
+
+# Within a state, define transitions (jumps) to other states.  Each
+# jump has the form: <character-list> <target-state> [<option>s]
+
+# There are three ways to specify <character-list>s, either * for any
+# character not otherwise specified, & to match the character in the
+# delimiter match buffer or a literal list of characters within quotes
+# (ranges and escape sequences allowed).  When the next character matches
+# any in the list, a jump to the target-state is taken and the character is
+# eaten (we advance to the next character of the file to be colored).
+#
+# The * transition should be the first transition specified in the state.
+#
+# There are several options:
+#   noeat     	do not eat the character, instead feed it to the next state
+#             	(this tends to make the states smaller, but be careful: you
+#		can make infinite loops).  'noeat' implies 'recolor=-1'.
+#
+#   recolor=-N	Recolor the past N characters with the color of the
+#		target-state.  For example once /* is recognized as the
+#		start of C comment, you want to color the /* with the C
+#		comment color with recolor=-2.
+#
+#   mark	Mark beginning of a region with current position.
+#
+#   markend	Mark end of region.
+#
+#   recolormark Recolor all of the characters in the marked region with
+#               the color of the target-state.  If markend is not given,
+#		all of the characters up to the current position are recolored.
+#		Note that the marked region can not cross line boundaries and
+#               must be on the same line as recolormark.
+#
+#   buffer    	start copying characters to a string buffer, beginning with this
+#		one (it's ok to not terminate buffering with a matching
+#		'strings' option- the buffer is limited to leading 23
+#		characters).
+#
+#   save_c      Save character in delimiter match buffer.
+#
+#   save_s      Copy string buffer to delimiter match buffer.
+#
+#   strings	A list of strings follows.  If the buffer matches any of the
+#		given strings, a jump to the target-state in the string list
+#		is taken instead of the normal jump.
+#
+#   istrings	Same as strings, but case is ignored.
+#
+#               Note: strings and istrings should be the last option on the
+#		line.  They cause any options which follow them to be ignored.
+#
+#   hold        Stop buffering string- a future 'strings' or 'istrings' will
+#               look at contents of buffer at this point.  Useful for distinguishing
+#               commands and function calls in some languages 'write 7' is a command
+#               'write (' is a function call- hold lets us stop at the space and delay
+#               the string lookup until the ( or 7.
+#
+#   The format of the string list is:
+#
+#      "string"   <target-state> [<options>s]
+#      "string"   <target-state> [<options>s]
+#      "&"        <target-state> [<options>s]   # matches contents of delimiter match buffer
+#      done
+#
+#   (all of the options above are allowed except "strings", "istrings" and "noeat".  noeat is
+#    always implied after a matched string).
+#
+# Weirdness: only states have colors, not transitions.  This means that you
+# sometimes have to make dummy states with '* next-state noeat' just to get
+# a color specification.
+#
+# Delimiter match buffer is for perl and shell: a regex in perl can be s<..>(...)
+# and in shell you can say: <<EOS ....... EOS
+
+# New feature: subroutines
+
+# Highlighter state machines can now make subroutine calls.  This works by
+# template instantiation: the called state machine is included in your
+# current state machine, but is modified so that the return address points
+# to the called.  There is still no run-time stack (the state is represented
+# as a single integer plus the saved delimiter string).
+
+# Recursion is allowed, but is self limited to 5 levels.
+
+# To call a subroutine, use the 'call' option:
+#
+#	"\""	fred	call=string(dquote)
+#
+# The subroutine called 'string' is called and the jump to 'fred' is
+# ignored.  The 'dquote' option is passed to the subroutine.
+#
+# The subroutine itself returns to the caller like this:
+#       "\""	whatever  return
+#
+# If we're in a subroutine, the return is made.  Otherwise the jump
+# to 'whatever' is made.
+#
+# There are several ways of delimiting subroutines which show up in how it
+# is called.  Here are the options:
+#
+# call=string()		  A file called string.jsf is the subroutine.
+#                         The entire file is the subroutine.  The starting
+#                         point is the first state in the file.
+#
+# call=library.string()	  A file called library.jsf has the subroutine.
+#                         The subroutine within the file is called string.
+#
+# call=.string()          There is a subroutine called string in the current file.
+#
+# When a subroutine is within a file, but is not the whole file, it is delimited
+# as follows:
+#
+#  .subr string
+#
+#  . . . states for string subroutine . . .
+#
+#  .end
+#
+# Option flags can be passed to subroutines which control preprocessor-like
+# directives.  For example:
+#
+# .ifdef dquote
+#    "\""	idle	return
+# .endif
+# .ifdef squote
+#    "'"	idle 	return
+# .endif
+#
+# .else if also available.  .ifdefs can be nested.
+
+
+# Obsolete feature: the sync lines specification no longer matter.  We now always parse
+# from the beginning of the file.  Here is the old description:
+#
+# Define no. sync lines
+# You can say:
+# -200     means 200 lines
+# -        means always start parsing from beginning of file when we lose sync
+#          if nothing is specified, the default is -50
+-
+
+# Define colors and attributes.  Give a list of attributes, one
+# background color and one foreground color (default is used if
+# color is left out).
+#
+# Attributes:
+#   bold inverse blink dim underline
+#
+# Standard colors:
+#
+# Foreground:
+#   white cyan magenta blue yellow green red black
+#
+# Background:
+#   bg_white bg_cyan bg_magenta bg_blue bg_yellow bg_green bg_red bg_black
+#
+# For 16 color and 256 color xterms: "export TERM=xterm-16color", these
+# brighter than normal colors are available:
+#
+# Note that you need an xterm which was compiled to support 16 or 256 colors
+# and a matching termcap/terminfo entry for it.
+#
+# Foreground:
+#   WHITE CYAN MAGENTA BLUE YELLOW GREEN RED BLACK
+#
+# Background:
+#   bg_WHITE bg_CYAN bg_MAGENTA bg_BLUE bg_YELLOW bg_GREEN bg_RED bg_BLACK
+#
+# For 256 color xterm: "export TERM=xterm-256color", these become available:
+#
+# Note that you need an xterm which was compiled to support 256 colors and a
+# matching termcap/terminfo entry for it.
+#
+# fg_RGB and bg_RGB, where R, G, and B range from 0 - 5.  So: fg_500 is bright red.
+#
+# fg_NN and bg_NN give shades of grey, where the intensity, NN, ranges from 0 - 23.
+
+=Idle
+=Bad		bold red
+=Preproc 	blue
+=Define		bold blue
+=Comment 	green
+=IncLocal	cyan
+=IncSystem	bold cyan
+=Constant 	cyan
+=Escape 	bold cyan
+=Type 		bold
+=Keyword 	bold
+=CppKeyword	bold
+=Brace		magenta
+=Control
+
+:reset Idle
+	*		first		noeat
+	" \t"		reset
+
+:first Idle
+	*		idle		noeat
+	"#"		pre		recolor=-1
+
+:pre Preproc
+	*		preproc		noeat
+	" \t"		pre
+	"a-z"		preident	recolor=-1 buffer
+
+:preident Preproc
+	*		preproc		noeat strings
+	"define"	predef
+	"include"	preinc
+done
+	"a-z"		preident
+
+:preinc Preproc
+	*		preinc
+	" \t"		preinc_ws
+	"\n"		reset
+	
+:preinc_ws Preproc
+	*		prebad		recolor=-1
+	" \t"		preinc_ws
+	"\""		preinc_local	recolor=-1
+	"<"		preinc_system	recolor=-1
+
+:preinc_local IncLocal
+	*		preinc_local
+	"\"\n"		reset
+	
+:preinc_system IncSystem
+	*		preinc_system
+	">\n"		reset
+
+:prebad	Bad	
+	*		prebad
+	"\n"		reset
+
+
+:predef Preproc
+	*		predef
+	" \t"		predef_ws
+	"\n"		reset
+	
+:predef_ws Preproc
+	*		prebad		recolor=-1
+	" \t"		predef_ws
+	"a-zA-Z0-9_"	predef_ident	recolor=-1
+
+:predef_ident Define
+	*		idle		noeat
+	"a-zA-Z0-9_"	predef_ident
+
+
+:preproc Preproc
+	*		preproc
+	"\n"		reset
+	"\\"		preproc_cont
+	"/"		preproc_slash
+	
+:preproc_slash Preproc
+	*		preproc		noeat
+	"*"		comment		recolor=-2
+	"/"		line_comment	recolor=-2
+	
+:preproc_cont Preproc
+	*		preproc_cont
+	"\n"		preproc
+
+# All following states are for when we're not in a preprocessor line
+
+:idle Idle
+	*		idle
+	"\n"		reset
+	"/"		slash
+	"0"		first_digit	recolor=-1
+	"1-9"		decimal	recolor=-1
+	"."		maybe_float
+	"\""		string		recolor=-1
+	"'"		char		recolor=-1
+	"a-zA-Z_"	ident		buffer
+	"\\"		outside_escape	recolor=-1
+	"{}"		brace		recolor=-1
+	",:;=()><[]*&|!~+\-%^"	control		recolor=-1
+
+:outside_escape	Escape
+	*	idle
+
+:brace Brace
+	*	idle	noeat
+
+:control Control
+	*	idle	noeat
+
+:slash Idle
+	*		idle		noeat recolor=-2	# Not sure about this
+	"*"		comment		recolor=-2
+	"/"		line_comment	recolor=-2
+
+:comment Comment
+	*		comment
+	"*"		maybe_end_comment
+
+:maybe_end_comment Comment
+	*		comment
+	"/"		idle
+	"*"		maybe_end_comment
+
+:line_comment Comment
+	*		line_comment
+	"\n"		reset
+
+:first_digit Constant
+	*		idle	noeat
+	"xX"		hex
+	"."		float
+	"eE"		epart
+	"0-7"		octal
+	"89"		bad_number	recolor=-1
+
+:bad_number Bad
+	*		idle	noeat
+	"0-9"		bad_number
+
+:octal Constant
+	*		idle	noeat
+	"0-7"		octal
+	"89"		bad_number	recolor=-1
+
+:hex Constant
+	*		idle	noeat
+	"0-9A-Fa-f"	hex
+
+:decimal Constant
+	*		idle	noeat
+	"0-9"		decimal
+	"eE"		epart
+	"."		float
+
+:maybe_float Constant
+	*		idle	recolor=-2	noeat
+	"0-9"		float		recolor=-2
+
+:float Constant
+	*		idle	noeat
+	"eE"		epart
+	"0-9"		float
+
+:epart Constant
+	*		idle	noeat
+	"0-9+\-"	enum
+
+:enum Constant
+	*		idle	noeat
+	"0-9"		enum
+
+:string	Constant
+	*		string
+	"\""		idle
+	"\\"		string_escape	recolor=-1
+	"%"		string_control	recolor=-1
+
+:string_escape Escape
+	*		string
+	"x"		string_hex1
+	"0-7"		string_octal2
+	"\n"		string		recolor=-2
+
+:string_hex1 Escape
+	*		string		noeat
+	"0-9a-fA-F"	string_hex2
+
+:string_hex2 Escape
+	*		string		noeat
+	"0-9a-fA-F"	string
+
+:string_octal2 Escape
+	*		string		noeat
+	"0-7"		string_octal3
+
+:string_octal3 Escape
+	*		string		noeat
+	"0-7"		string
+
+:string_control Escape
+	*		string
+	"\""		string noeat
+	"\n"		reset
+	"0-9.\-+ #hjILtz$"	string_control
+
+:char Constant
+	*		char
+	"\n"		reset
+	"'"		idle
+	"\\"		char_escape	recolor=-1
+
+:char_escape	Escape
+	*		char
+	"x"		char_hex1
+	"0-7"		char_octal2
+	"\n"		char		recolor=-2
+
+:char_hex1 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char_hex2
+
+:char_hex2 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char
+
+:char_octal2 Escape
+	*		char		noeat
+	"0-7"		char_octal3
+
+:char_octal3 Escape
+	*		char		noeat
+	"0-7"		char
+
+:ident Idle
+	*		idle		noeat strings
+	"int"		type
+	"float"		type
+	"long"		type
+	"short"		type
+	"char"		type
+	"double"	type
+	"signed"	type
+	"unsigned"	type
+	"void"		type
+	"static"	type
+	"register"	type
+	"extern"	type
+	"inline"	type
+	"auto"		type
+	"const"		type
+	"volatile"	type
+	"if"		kw
+	"else"		kw
+	"while"		kw
+	"for"		kw
+	"break"		kw
+	"continue"	kw
+	"do"		kw
+	"case"		kw
+	"default"	kw
+	"switch"	kw
+	"goto"		kw
+	"struct"	kw
+	"enum"		kw
+	"return"	kw
+	"sizeof"	kw
+	"typedef"	kw
+	"union"		kw
+	"asm"		kw
+# C++ keywords
+	#"asm"			cppkw (listed above as a C keyword)
+	"bool"			cppkw
+	"catch"			cppkw
+	"class"			cppkw
+	"const_cast"		cppkw
+	"delete"		cppkw
+	"dynamic_cast"		cppkw
+	"explicit"		cppkw
+	"false"			cppkw
+	"friend"		cppkw
+	#"inline"		cppkw (listed above as a C keyword)
+	"mutable"		cppkw
+	"namespace"		cppkw
+	"new"			cppkw
+	"operator"		cppkw
+	"private"		cppkw
+	"protected"		cppkw
+	"public"		cppkw
+	"reinterpret_cast"	cppkw
+	"static_cast"		cppkw
+	"template"		cppkw
+	"this"			cppkw
+	"throw"			cppkw
+	"true"			cppkw
+	"try"			cppkw
+	"typeid"		cppkw
+	"typename"		cppkw
+	"using"			cppkw
+	"virtual"		cppkw
+	"wchar_t"		type
+# Non-Standard
+	"typeof"		cppkw
+done
+	"a-zA-Z0-9_"	ident
+
+:type Type
+	*	idle	noeat
+
+:kw Keyword
+	*	idle	noeat
+
+:cppkw CppKeyword
+	*	idle	noeat
+@
+
+
+1.18
+log
+@add lua syntax file
+@
+text
+@d465 32
+a496 15
+	"class"		cppkw
+	"public"	cppkw
+	"private"	cppkw
+	"protected"	cppkw
+	"friend"	cppkw
+	"new"		cppkw
+	"delete"	cppkw
+	"bool"		cppkw
+	"namespace"	cppkw
+	"operator"	cppkw
+	"template"	cppkw
+	"catch"		cppkw
+	"throw"		cppkw
+	"try"		cppkw
+	"typeof"	cppkw
+@
+
+
+1.17
+log
+@Subroutines for syntax highlighter.
+@
+text
+@d61 3
+@
+
+
+1.16
+log
+@LEX
+@
+text
+@d20 2
+a21 2
+# (ranges and escape sequences allows).  When the next character matches any
+# in the list, a jump to the target-state is taken and the character is
+d34 11
+a44 1
+#		comment color.
+d84 60
+@
+
+
+1.15
+log
+@Fix some resize window bugs, add 256 color support.
+@
+text
+@d218 1
+d222 3
+@
+
+
+1.14
+log
+@The last brace commit was bogus due to me running an old version of JOE
+@
+text
+@d81 3
+a83 1
+# Define colors
+d85 31
+a115 3
+# bold inverse blink dim underline
+# white cyan magenta blue yellow green red black
+# bg_white bg_cyan bg_magenta bg_blue bg_yellow bg_green bg_red bg_black
+@
+
+
+1.13
+log
+@Always sync from the beginning of file due to long comments, etc.
+Recolor the character following a brace
+@
+text
+@d192 1
+a192 1
+	*	idle	noeat		recolor=-1
+@
+
+
+1.12
+log
+@Added tex and css highlighters.
+Display tabs as a single space on status line.
+Update perl, php and c highlighters (php has too many colors, perl needs '-'
+for POD to work).
+@
+text
+@d79 1
+d192 1
+a192 1
+	*	idle	noeat
+@
+
+
+1.11
+log
+@Highlighter state now includes a saved string.
+This improves shell and perl highlighters.
+@
+text
+@d287 2
+a288 1
+	*		string_control
+d290 1
+a290 2
+	"\""		idle
+	"diouxXeEfFgGaAcspn%SC"	string
+@
+
+
+1.10
+log
+@Minor fix to c.jsf.in
+Recognize a bunch of other mail/news files.
+@
+text
+@d17 6
+a22 6
+# There are two ways to specify <character-list>s, either * for any
+# character not otherwise specified, or a literal list of characters within
+# quotes (ranges and escape sequences allows).  When the next character
+# matches any in the list, a jump to the target-state is taken and the
+# character is eaten (we advance to the next character of the file to be
+# colored).
+d36 1
+a36 1
+#   buffer    	start copying characters to a buffer, beginning with this
+d38 1
+a38 1
+#		'strings' option- the buffer is limited to leading 19
+d41 4
+d61 1
+d70 3
+@
+
+
+1.9
+log
+@Allow options after strings in syntax files.
+@
+text
+@d281 1
+@
+
+
+1.8
+log
+@Update readme, add some keywords to c.jsf.in
+@
+text
+@d29 1
+a29 1
+#		can make infinite loops).
+d37 1
+a37 1
+#		one (it's ok, to not terminate buffering with a matching
+d55 2
+a56 2
+#      "string"   <target-state>
+#      "string"   <target-state>
+d59 3
+a64 3
+#
+# Weirdness: noeat does not cause the character to be recolored by the next
+# state: you have to use recolor=-1 to have this happen.
+@
+
+
+1.7
+log
+@Fix c++ keywords.
+Fix parse_ident, which was breaking fortran highlighter.
+@
+text
+@d346 1
+d362 1
+@
+
+
+1.6
+log
+@Improved fortran highlighter.
+@
+text
+@d370 1
+a370 1
+:kw CppKeyword
+@
+
+
+1.5
+log
+@More syntax files: tcl
+
+Now 'noeat' implies 'recolor=-1', which reduces debug time
+for syntax definition files.
+@
+text
+@d1 1
+a1 1
+# JOE syntax highlight file for C
+d47 6
+d79 1
+d83 2
+d89 3
+d108 2
+a109 1
+	"define"	predefine
+d113 26
+a138 2
+:predefine Preproc
+	*		predefine
+d141 1
+a141 1
+
+d143 1
+a143 1
+	*		idle		noeat
+d151 1
+d156 7
+a162 1
+
+a165 1
+	
+d173 2
+a174 1
+	"0-9"		first_digit	recolor=-1
+d179 8
+d189 1
+a189 1
+	*		idle		noeat
+d210 12
+a221 1
+	"0-9"		first_number
+d227 1
+a227 1
+:first_number Constant
+d229 2
+a230 1
+	"0-9"		first_number
+d258 2
+d262 16
+d291 2
+d295 16
+d346 15
+d369 3
+@
+
+
+1.4
+log
+@Fixed uopen() ^] for overtype mode.
+
+Added 'istrings' option in syntax files for ignoring case
+in strings.
+
+Added ^T Y- allows you to select syntax during run time (tab
+completion works too!)
+
+Added ^T P- picture mode: can move and type anywhere on the screen,
+good for drawing ASCII art.
+@
+text
+@d56 3
+a58 1
+
+d111 1
+a111 1
+	*		idle		noeat recolor=-1
+d155 1
+a155 1
+	*		idle	noeat	recolor=-1
+d161 1
+a161 1
+	*		idle	noeat	recolor=-1
+d165 1
+a165 1
+	*		idle	noeat	recolor=-1
+d174 1
+a174 1
+	*		idle	noeat	recolor=-1
+d179 1
+a179 1
+	*		idle	noeat	recolor=-1
+d183 1
+a183 1
+	*		idle	noeat	recolor=-1
+@
+
+
+1.3
+log
+@Fixed some bugs with preprocessor directives
+@
+text
+@d45 2
+@
+
+
+1.2
+log
+@Added way to specify no. lines back to start parsing when we don't know
+the syntax highlight parsing state.
+@
+text
+@d86 1
+a86 1
+	*		idle		noeat
+d88 1
+a88 1
+	"a-zA-Z"	preident	recolor=-1 buffer
+d94 1
+a94 1
+	"a-zA-Z0-9_"	preident
+d107 1
+a107 1
+	*		ident		noeat recolor=-1
+@
+
+
+1.1
+log
+@Moved syntax definition files to subdirectory.
+@
+text
+@d56 6
+@
+

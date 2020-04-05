@@ -1,0 +1,509 @@
+head	1.18;
+access;
+symbols
+	joe_3_5:1.16
+	joe-3_4:1.15
+	help:1.15
+	joe_3_1:1.8
+	joe_3_0:1.7;
+locks; strict;
+comment	@ * @;
+
+
+1.18
+date	2008.10.31.15.05.31;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2008.10.30.22.30.03;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2006.06.03.23.37.01;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2006.05.19.17.00.56;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2006.05.16.05.04.20;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2006.05.12.02.07.05;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.05.03.21.01.31;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2005.03.12.15.00.55;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.06.07.19.59.51;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.29.15.41.14;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.04.23.02.14.08;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2004.04.15.14.29.08;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2004.04.13.20.41.33;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.04.08.14.05.24;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.04.07.00.19.20;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.03.30.05.10.15;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.18
+log
+@Fix 64-bit problems
+@
+text
+@#ifndef _Isyntax
+#define _Isyntax 1
+
+/*
+ *	Syntax highlighting DFA interpreter
+ *	Copyright
+ *		(C) 2004 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+
+/* Color definition */
+
+struct high_color {
+	struct high_color *next;
+	unsigned char *name;		/* Symbolic name of color */
+	int color;			/* Color value */
+};
+
+/* State */
+
+struct high_state {
+	int no;				/* State number */
+	unsigned char *name;		/* Highlight state name */
+	int color;			/* Color for this state */
+	struct high_cmd *cmd[256];	/* Character table */
+	struct high_cmd *delim;		/* Matching delimiter */
+};
+
+/* Parameter list */
+
+struct high_param {
+	struct high_param *next;
+	unsigned char *name;
+};
+
+/* Command (transition) */
+
+struct high_cmd {
+	unsigned noeat : 1;		/* Set to give this character to next state */
+	unsigned start_buffering : 1;	/* Set if we should start buffering */
+	unsigned stop_buffering : 1;	/* Set if we should stop buffering */
+	unsigned save_c : 1;		/* Save character */
+	unsigned save_s : 1;		/* Save string */
+	unsigned ignore : 1;		/* Set to ignore case */
+	unsigned start_mark : 1;	/* Set to begin marked area including this char */
+	unsigned stop_mark : 1;		/* Set to end marked area excluding this char */
+	unsigned recolor_mark : 1;	/* Set to recolor marked area with new state */
+	unsigned rtn : 1;		/* Set to return */
+	unsigned reset : 1;		/* Set to reset the call stack */
+	int recolor;			/* No. chars to recolor if <0. */
+	struct high_state *new_state;	/* The new state */
+	HASH *keywords;			/* Hash table of keywords */
+	struct high_cmd *delim;		/* Matching delimiter */
+	struct high_syntax *call;	/* Syntax subroutine to call */
+};
+
+/* Call stack frame */
+
+struct high_frame {
+	struct high_frame *parent;		/* Caller's frame */
+	struct high_frame *child;		/* First callee's frame */
+	struct high_frame *sibling;		/* Caller's next callee's frame */
+	struct high_syntax *syntax;		/* Current syntax subroutine */
+	struct high_state *return_state;	/* Return state in the caller's subroutine */
+};
+
+/* Loaded form of syntax file or subroutine */
+
+struct high_syntax {
+	struct high_syntax *next;	/* Linked list of loaded syntaxes */
+	unsigned char *name;		/* Name of this syntax */
+	unsigned char *subr;		/* Name of the subroutine (or NULL for whole file) */
+	struct high_param *params;	/* Parameters defined */
+	struct high_state **states;	/* The states of this syntax.  states[0] is idle state */
+	HASH *ht_states;		/* Hash table of states */
+	int nstates;			/* No. states */
+	int szstates;			/* Malloc size of states array */
+	struct high_color *color;	/* Linked list of color definitions */
+	struct high_cmd default_cmd;	/* Default transition for new states */
+	struct high_frame *stack_base;  /* Root of run-time call tree */
+};
+
+/* Find a syntax.  Load it if necessary. */
+
+struct high_syntax *load_syntax PARAMS((unsigned char *name));
+
+/* Parse a lines.  Returns new state. */
+
+extern int *attr_buf;
+HIGHLIGHT_STATE parse PARAMS((struct high_syntax *syntax,P *line,HIGHLIGHT_STATE state));
+
+#define clear_state(s) (((s)->saved_s[0] = 0), ((s)->state = 0), ((s)->stack = 0))
+#define invalidate_state(s) ((s)->state = -1)
+#define move_state(to,from) (*(to)= *(from))
+#define eq_state(x,y) ((x)->state == (y)->state && (x)->stack == (y)->stack && !zcmp((x)->saved_s, (y)->saved_s))
+
+extern struct high_color *global_colors;
+void parse_color_def PARAMS((struct high_color **color_list,unsigned char *p,unsigned char *name,int line));
+
+void dump_syntax PARAMS((BW *bw));
+
+#endif
+@
+
+
+1.17
+log
+@Syntax highlighter stack
+@
+text
+@d93 1
+a93 1
+#define clear_state(s) ((s)->saved_s[0] = (s)->state = (s)->stack = 0)
+@
+
+
+1.16
+log
+@hash table
+@
+text
+@d32 2
+a33 2
+struct syparm {
+	struct syparm *next;
+d49 2
+d55 1
+a55 3
+	unsigned char *call;		/* Set with name of file with subroutine */
+	unsigned char *call_subr;	/* Set with name of subroutine (or NULL for whole file) */
+	struct syparm *parms;		/* Parameters for call */
+d58 11
+a68 1
+/* Loaded form of syntax file */
+d72 3
+a74 1
+	unsigned char *name;			/* Name of this syntax */
+a79 1
+	int sync_lines;			/* No. lines back to start parsing when we lose sync.  -1 means start at beginning */
+d81 1
+a81 2
+	int istates;			/* Loaded no. states */
+	int recur;			/* Recursion depth counter */
+d86 1
+a86 1
+struct high_syntax *load_dfa PARAMS((unsigned char *name));
+d93 1
+a93 1
+#define clear_state(s) ((s)->saved_s[0] = (s)->state = 0)
+d96 1
+a96 1
+#define eq_state(x,y) ((x)->state == (y)->state && !zcmp((x)->saved_s, (y)->saved_s))
+@
+
+
+1.15
+log
+@Add rexx.  Take advantage of highlighter subroutines.
+@
+text
+@d64 1
+@
+
+
+1.14
+log
+@Subroutines for syntax highlighter.
+@
+text
+@d90 2
+@
+
+
+1.13
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d30 7
+d53 3
+d69 2
+@
+
+
+1.12
+log
+@new cvs server
+@
+text
+@a3 2
+#include "hash.h"
+
+d63 1
+a63 1
+struct high_syntax *load_dfa(unsigned char *name);
+d68 1
+a68 1
+HIGHLIGHT_STATE parse(struct high_syntax *syntax,P *line,HIGHLIGHT_STATE state);
+d76 1
+a76 1
+void parse_color_def(struct high_color **color_list,unsigned char *p,unsigned char *name,int line);
+@
+
+
+1.11
+log
+@New line attribute cache.
+@
+text
+@d35 9
+a43 1
+	int noeat;			/* Set to give this character to next state */
+a44 4
+	int start_buffering;		/* Set if we should start buffering */
+	int stop_buffering;		/* Set if we should stop buffering */
+	int save_c;			/* Save character */
+	int save_s;			/* Save string */
+a47 1
+	int ignore;			/* Set to ignore case */
+@
+
+
+1.10
+log
+@Allow colors to controlled from joerc file
+@
+text
+@d72 1
+@
+
+
+1.9
+log
+@Highlighter state now includes a saved string.
+This improves shell and perl highlighters.
+@
+text
+@d73 3
+@
+
+
+1.8
+log
+@Improved fortran highlighter.
+@
+text
+@d29 1
+d39 2
+d43 1
+d67 5
+a71 1
+int parse(struct high_syntax *syntax,P *line,int state);
+@
+
+
+1.7
+log
+@Fixed uopen() ^] for overtype mode.
+
+Added 'istrings' option in syntax files for ignoring case
+in strings.
+
+Added ^T Y- allows you to select syntax during run time (tab
+completion works too!)
+
+Added ^T P- picture mode: can move and type anywhere on the screen,
+good for drawing ASCII art.
+@
+text
+@d37 1
+@
+
+
+1.6
+log
+@Fix syntax definition file loader so that you don't
+get seg faults when you refer to a state which doesn't
+exist.
+
+Fix outatr() to work with non-UTF-8 character sets again.
+Need to start thinking about iconv().
+
+Mess with option strings to make ^T look nicer: no longer
+four columns in 80 character terminal windows.
+
+Got rid of yellow selection bar from ^T.
+@
+text
+@d39 1
+@
+
+
+1.5
+log
+@Added way to specify no. lines back to start parsing when we don't know
+the syntax highlight parsing state.
+@
+text
+@a13 12
+/* Loaded form of syntax file */
+
+struct high_syntax {
+	struct high_syntax *next;	/* Linked list of loaded syntaxes */
+	unsigned char *name;			/* Name of this syntax */
+	struct high_state **states;	/* The states of this syntax.  states[0] is idle state */
+	int nstates;			/* No. states */
+	int szstates;			/* Malloc size of states array */
+	struct high_color *color;	/* Linked list of color definitions */
+	int sync_lines;			/* No. lines back to start parsing when we lose sync.  -1 means start at beginning */
+};
+
+d41 13
+@
+
+
+1.4
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d23 1
+@
+
+
+1.3
+log
+@Clean up syntax.c: use subroutine for allocating new states and use
+hash table for keywords.
+@
+text
+@d18 1
+a18 1
+	char *name;			/* Name of this syntax */
+d29 1
+a29 1
+	char *name;			/* Symbolic name of color */
+d37 1
+a37 1
+	char *name;			/* Highlight state name */
+d54 1
+a54 1
+struct high_syntax *load_dfa(char *name);
+@
+
+
+1.2
+log
+@Clean up meaning of default color.
+
+Allow syntax to be specified in joerc file: "-syntax perl"
+
+Add class definitions to syntax files.
+
+Add perl and verilog definitions (they need work).
+
+Change joerc to assume files with . in their name do not want word
+wrap enabled (except for .txt).
+@
+text
+@d1 5
+d21 1
+a41 8
+/* Keyword list */
+
+struct high_keyword {
+	struct high_keyword *next;
+	char *name;
+	struct high_state *new_state;
+};
+
+d49 1
+a49 2
+	struct high_keyword *keyword_list;
+  					/* If set, new state comes from matching keyword */
+d60 2
+@
+
+
+1.1
+log
+@More changes for syntax highlighting.
+@
+text
+@d16 9
+@
+

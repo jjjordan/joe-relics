@@ -1,0 +1,121 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.3
+date	2008.10.27.19.42.18;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2008.10.25.02.21.38;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2008.10.23.02.29.19;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.3
+log
+@Fix TeX highligher.  Don't use bold yellow in jsf highlighter.
+@
+text
+@# joe [La]TeX syntax highlighting
+
+=Idle
+=Comment 	green
+=Keyword 	bold
+=Mathmode 	cyan
+=Brace		magenta
+=Parameter	bold blue
+
+:idle Idle
+	*		idle
+	"%"		comment		recolor=-1
+	"$"		math		recolor=-1
+	"\\"		command		recolor=-1
+	"{[]}"		brace		recolor=-1
+	"#"		parameter	recolor=-1
+
+:comment Comment
+	*		comment
+	"\n"		idle
+
+:math Mathmode
+	*		math
+	"\\"		math_command	recolor=-1
+	"{[]}"		math_brace	recolor=-1
+	"$"		idle
+
+:command Keyword
+	*		idle
+	"a-zA-Z@@"	command2
+
+:command2 Keyword
+	*		idle		noeat
+	"a-zA-Z@@"	command2
+
+:math_command Keyword
+	*		math
+	"a-zA-Z@@"	math_command2
+
+:math_command2 Keyword
+	*		math		noeat
+	"a-zA-Z@@"	math_command2
+
+:parameter Parameter
+	*		idle		noeat
+	"0-9"		idle
+
+:brace Brace
+	*		idle		noeat
+
+:math_brace Brace
+	*		math		noeat
+@
+
+
+1.2
+log
+@Update tex syntax file- only one digit after #
+Fix de.po and fr.po.
+@
+text
+@a7 1
+=Umlaut		bold yellow
+a15 1
+	"\""		umlaut		recolor=-1
+a52 3
+
+:umlaut Umlaut
+	*		idle
+@
+
+
+1.1
+log
+@Put JOE 3.5 in main/
+Co-routine stuff is to be considered a new branch with current
+release in main/
+
+Add some patches to main/
+	Get tags search to work again.
+	Fix bug where joe crashes when it can't write to a file
+	Fix bug where joe crashes if you try to entry an empty command
+@
+text
+@d48 1
+a48 1
+	"0-9"		parameter
+@
+

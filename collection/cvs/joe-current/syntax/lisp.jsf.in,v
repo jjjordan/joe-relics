@@ -1,0 +1,58 @@
+head	1.1;
+access;
+symbols
+	joe_3_5:1.1
+	joe-3_4:1.1
+	help:1.1
+	joe_3_1:1.1;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2004.05.10.16.06.38;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@New status line escape sequence: %x shows current context (function
+cursor is in).
+
+More globs in *rc.in files.
+
+csh.jsf lisp.jsf
+@
+text
+@# JOE syntax highlight file for LISP
+
+# Needs lots of work...
+
+=Idle
+=Comment 	green
+=String 	cyan
+=Escape 	bold cyan
+
+:idle Idle
+	*		idle
+	";"		comment		recolor=-1
+	"\""		string		recolor=-1
+
+:comment Comment
+	*		comment
+	"\n"		idle
+
+:string String
+	*		string
+	"\""		idle
+	"\\"		string_escape	recolor=-1
+
+:string_escape Escape
+	*		string
+	"\n"		string		recolor=-2
+@

@@ -1,0 +1,395 @@
+head	1.12;
+access;
+symbols
+	joe_3_5:1.10
+	joe-3_4:1.9
+	help:1.9
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.12
+date	2007.06.04.01.13.33;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2007.01.29.14.26.23;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.06.01.03.08.20;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.12.15.53.40;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@More work on coroutine refactoring.
+@
+text
+@/*
+ *	Single-key query windows
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_QW_H
+#define _JOE_QW_H 1
+
+/* Single-key Query window */
+
+struct query_result {
+	Coroutine t;
+	int answer;
+};
+
+struct query {
+	W *parent;		/* Window we're in */
+	struct query_result *result;	/* Who gets the answer */
+	unsigned char *prompt;	/* Prompt string */
+	int promptlen;		/* Width of prompt string */
+	int org_w;
+	int org_h;
+	int flg;
+};
+
+/* Ask the user a question which requires just a single character answer.
+ * Returns with the answer.  Returns with -1 if window could not be created.
+ *
+ * Window is placed at the bottom of 'w'.
+ * prompt/len gives the prompt.
+ *
+ * Flags as defined below:
+ */
+
+/* Choose one of: */
+/* With no flags: window has type name "query" */
+#define QW_STAY 1	/* Cursor stays in original window, window has type name "querya" */
+#define QW_SR 2		/* Same as QW_STAY, but window has type name "querysr" (for search/replace) */
+/* Type selects which keymap will be used */
+
+/* Plus optionally this: */
+#define QW_NOMACRO 4	/* Do not take input from macro for this query */
+
+int query(W *w, unsigned char *prompt, int len, int flg);
+
+#endif
+@
+
+
+1.11
+log
+@more refactoring
+@
+text
+@d13 5
+d19 7
+a25 8
+	W	*parent;	/* Window we're in */
+	int	(*func) ();	/* Func. which gets called when key is hit */
+	int	(*abrt) ();
+	void	*object;
+	unsigned char	*prompt;	/* Prompt string */
+	int	promptlen;	/* Width of prompt string */
+	int	org_w;
+	int	org_h;
+d28 7
+a34 2
+/* QW *mkqw(W *w, char *prompt, int (*func)(), int (*abrt)(), void *object);
+ * Create a query window for the given window
+d36 9
+a44 4
+/* FIXME: ??? ----> */
+QW *mkqw PARAMS((W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwna PARAMS((W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwnsr PARAMS((W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+@
+
+
+1.10
+log
+@multi-line qw, startup log
+@
+text
+@d32 2
+@
+
+
+1.9
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d20 2
+a21 1
+	int	promptofst;	/* Prompt scroll offset */
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d11 11
+a21 2
+#include "config.h"
+#include "types.h"
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d18 3
+a20 3
+QW *mkqw PARAMS((W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwna PARAMS((W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwnsr PARAMS((W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "w.h"
+
+@
+
+
+1.5
+log
+@use mkqw(W *, ...) instead of mkqw(BASE *, ...) (ditto. mkqwna() and mkqwnsr())
+@
+text
+@d1 9
+a9 2
+/* Single-key query windows
+   Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+a13 4
+#ifndef _Iquery
+#define _Iquery 1
+
+#include "config.h"
+a14 13
+
+typedef struct query QW;
+struct query {
+	W *parent;		/* Window we're in */
+	int (*func) ();		/* Func. which gets called when key is hit */
+	int (*abrt) ();
+	void *object;
+	char *prompt;		/* Prompt string */
+	int promptlen;		/* Width of prompt string */
+	int promptofst;		/* Prompt scroll offset */
+};
+
+#define TYPEQW 0x1000
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d38 1
+a38 1
+/* QW *mkqw(BW *bw,char *prompt,int (*func)(),int (*abrt)(),void *object);
+d42 3
+a44 3
+QW *mkqw PARAMS((BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwna PARAMS((BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+QW *mkqwnsr PARAMS((BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify));
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d41 4
+a44 3
+QW *mkqw();
+QW *mkqwna();
+QW *mkqwnsr();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Single-key query windows
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d41 3
+a43 3
+QW *mkqw (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify);
+QW *mkqwna (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify);
+QW *mkqwnsr (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Single-key query windows
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d15 9
+a23 10
+struct query
+ {
+ W *parent;			/* Window we're in */
+ int (*func)();			/* Func. which gets called when key is hit */
+ int (*abrt)();
+ void *object;
+ char *prompt;			/* Prompt string */
+ int promptlen;			/* Width of prompt string */
+ int promptofst;		/* Prompt scroll offset */
+ };
+d30 3
+a32 3
+QW *mkqw();
+QW *mkqwna();
+QW *mkqwnsr();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

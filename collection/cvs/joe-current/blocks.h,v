@@ -1,0 +1,385 @@
+head	1.11;
+access;
+symbols
+	joe_3_5:1.11
+	joe-3_4:1.11
+	help:1.11
+	joe_3_1:1.9
+	joe_3_0:1.9
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.11
+date	2006.05.20.13.21.28;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.03.30.05.10.15;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.29.14.43.33;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.12.15.35.52;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.32;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.32;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.11
+log
+@update some comments
+@
+text
+@/*
+ *	Fast block move/copy subroutines
+ *
+ *      These exist because memmove on older UNIXs was really slow.
+ *
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_BLOCKS_H
+#define _JOE_BLOCKS_H 1
+
+/* char *mmove(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.
+ * Chooses either mbkwd or mfwrd to do this such that the data won't get
+ * clobbered.
+ */
+void *mmove PARAMS((void *d, void *s, int sz));
+
+/* char *mset(char *d,char c,int sz); Set 'sz' bytes at 'd' to 'c'.
+ * If 'sz'==0 nothing happens
+ * Return original value of 'd'
+ */
+unsigned char *mset PARAMS((void *dest, unsigned char c, int sz));
+
+/* int *msetI(int *d,int c,int sz); Set 'sz' ints at 'd' to 'c'.
+ * If 'sz'==0 nothing happens
+ * Returns orininal value of 'd'
+ */
+int *msetI PARAMS((void *dest, int c, int sz));
+
+/* void **msetP(void **d,void *c,int sz); Set 'sz' pointers at 'd' to 'c'.
+ * If 'sz'==0 nothing happens
+ * Returns orininal value of 'd'
+ */
+void **msetP PARAMS((void **dest, void *c, int sz));
+
+/* int mcnt(char *blk,char c,int size);
+ *
+ * Count the number of occurances a character appears in a block
+ */
+int mcnt PARAMS((unsigned char *blk, unsigned char c, int size));
+
+#ifdef junk
+/* char *mchr(char *s,char c);
+ *
+ * Return address of first 'c' following 's'.
+ */
+unsigned char *mchr PARAMS(());
+#endif
+#endif
+@
+
+
+1.10
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d3 3
+@
+
+
+1.9
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@a10 2
+#include "config.h"
+
+@
+
+
+1.8
+log
+@More changes for syntax highlighting.
+@
+text
+@d23 1
+a23 1
+char *mset PARAMS((void *dest, unsigned char c, int sz));
+d41 1
+a41 1
+int mcnt PARAMS((char *blk, char c, int size));
+d48 1
+a48 1
+char *mchr PARAMS(());
+@
+
+
+1.7
+log
+@include only headers which are needed
+@
+text
+@d31 6
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a11 1
+#include "types.h"
+@
+
+
+1.5
+log
+@use mfwrd() and mbkwd() only as internal functions to mmove()
+@
+text
+@d2 8
+a9 8
+	Fast block move/copy subroutines
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Iblocks
+#define _Iblocks 1
+d12 1
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@a12 19
+/* Warning: Don't use mfwrd or mbkwd for filling an area.  Use them only
+ * for copying, inserting or deleting.  Since they copy ints at a time, they
+ * will not work for filling.
+ */
+
+/* char *mfwrd(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.
+   The copy occures in the forward direction (use for deletes)
+   Nothing happens if 'd'=='s' or 'sz'==0
+   Returns original value of 'd'
+ */
+char *mfwrd PARAMS((register char *d, register char *s, register int sz));
+
+/* char *mbkwd(char *d,char *s,int sz); Copy 'sz' bytes from 's' to 'd'.
+   The copy occures in the backward direction (use for inserts)
+   Nothing happens if 'd'=='s' or 'sz'==0
+   Returns original value of 'd'
+ */
+char *mbkwd PARAMS((register char *d, register char *s, register int sz));
+
+a18 3
+/* Use this for non-overlapping copies */
+#define mcpy mbkwd
+
+d23 1
+a23 1
+char *mset PARAMS((register void *dest, register unsigned char c, register int sz));
+d35 1
+a35 1
+int mcnt PARAMS((register char *blk, register char c, int size));
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d23 1
+a23 1
+char *mfwrd();
+d30 1
+a30 1
+char *mbkwd();
+d36 1
+a36 1
+char *mmove();
+d45 1
+a45 1
+char *mset();
+d51 1
+a51 1
+int *msetI();
+d57 1
+a57 1
+int mcnt();
+d64 1
+a64 1
+char *mchr();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d23 1
+a23 1
+char *mfwrd ();
+d30 1
+a30 1
+char *mbkwd ();
+d36 1
+a36 1
+char *mmove ();
+d45 1
+a45 1
+char *mset ();
+d51 1
+a51 1
+int *msetI ();
+d57 1
+a57 1
+int mcnt ();
+d64 1
+a64 1
+char *mchr ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Fast block move/copy subroutines
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d23 1
+a23 1
+char *mfwrd();
+d30 1
+a30 1
+char *mbkwd();
+d36 1
+a36 1
+char *mmove();
+d45 1
+a45 1
+char *mset();
+d51 1
+a51 1
+int *msetI();
+d57 1
+a57 1
+int mcnt();
+d64 1
+a64 1
+char *mchr();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

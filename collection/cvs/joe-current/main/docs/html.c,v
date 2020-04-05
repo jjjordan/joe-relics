@@ -1,0 +1,103 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@ * @;
+
+
+1.1
+date	2008.10.23.02.29.18;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Put JOE 3.5 in main/
+Co-routine stuff is to be considered a new branch with current
+release in main/
+
+Add some patches to main/
+	Get tags search to work again.
+	Fix bug where joe crashes when it can't write to a file
+	Fix bug where joe crashes if you try to entry an empty command
+@
+text
+@/* Convert text file into html */
+
+void fix(char *o, char *i)
+  {
+  for (; *i; ++i)
+    if (*i=='&')
+      {
+      *o++ = '&';
+      *o++ = 'a';
+      *o++ = 'm';
+      *o++ = 'p';
+      *o++ = ';';
+      }
+    else if (*i=='<')
+      {
+      *o++ = '&';
+      *o++ = 'l';
+      *o++ = 't';
+      *o++ = ';';
+      }
+    else if (*i=='>')
+      {
+      *o++ = '&';
+      *o++ = 'g';
+      *o++ = 't';
+      *o++ = ';';
+      }
+    else
+      *o++ = *i;
+  *o = 0;
+  }
+
+main()
+  {
+  char buf[1024];
+  char fixed[1024];
+  int inpara = 0;
+  while(gets(buf))
+    {
+    int x;
+    int isblank = 1;
+    fix(fixed, buf);
+    for (x = 0; buf[x]; ++x)
+      if(buf[x] != ' ' && buf[x] != '\t')
+        isblank = 0;
+    if (!inpara)
+      {
+      if (isblank)
+        {
+        printf("\n");
+        }
+      else
+        {
+        inpara = 1;
+        printf("<p>%s\n",fixed);
+        }
+      }
+    else
+      {
+      if (isblank)
+        {
+        printf("</p>\n");
+        inpara = 0;
+        }
+      else
+        {
+        printf("%s\n",fixed);
+        }
+      }
+    }
+  if (inpara)
+    printf("</p>\n");
+  }
+@

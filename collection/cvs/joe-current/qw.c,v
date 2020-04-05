@@ -1,0 +1,1563 @@
+head	1.27;
+access;
+symbols
+	joe_3_5:1.23
+	joe-3_4:1.18
+	help:1.18
+	joe_3_1:1.13
+	joe_3_0:1.12
+	joe_2_9_8:1.10
+	joe_2_9_8_pre1:1.9
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.27
+date	2008.11.02.20.20.41;	author jhallen;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2007.06.04.01.13.32;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2007.01.29.14.26.23;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2006.07.20.20.56.17;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2006.07.19.00.27.12;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2006.07.18.23.31.54;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2006.07.13.19.45.20;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2006.06.05.02.28.25;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2006.06.01.03.08.20;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.03.01.00.40.35;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2005.03.28.15.13.13;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2005.03.28.06.17.08;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2005.03.21.04.46.59;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2004.05.05.22.05.56;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.04.18.02.26.36;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2003.03.04.17.39.07;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2001.12.10.14.01.27;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.12.15.53.40;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.27
+log
+@Fix more compiler warnings.  Update builtins.c
+@
+text
+@/*
+ *	Query windows
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+/* Event handler: display query window */
+
+static void dispqw(QW *qw)
+{
+	int y;
+	W *w = qw->parent;
+
+	/* Generate prompt */
+	for (y = 0; y != w->h; ++y) {
+		unsigned char *s = qw->prompt;
+		int l = qw->promptlen;
+		break_height(locale_map, &s, &l, qw->org_w, y);
+		w->t->t->updtab[w->y + y] = 1;
+		genfield(w->t->t,
+		         w->t->t->scrn + (w->y + y) * w->t->t->co + w->x,
+		         w->t->t->attr + (w->y + y) * w->t->t->co + w->x,
+		         w->x,
+		         w->y + y,
+		         0,
+		         s,
+		         l,
+		         BG_COLOR(bg_prompt),
+		         w->w - w->x,
+		         1,NULL);
+		w->cury = y;
+		w->curx = w->x + txtwidth(locale_map, s, l);
+	}
+}
+
+/* Display query window: leave cursor in target window */
+
+static void dispqwn(QW *qw)
+{
+	W *w = qw->parent;
+	/* Set cursor position */
+	if (w->win->watom->follow && w->win->object)
+		w->win->watom->follow(w->win->object);
+	if (w->win->watom->disp && w->win->object)
+		w->win->watom->disp(w->win->object, 1);
+	dispqw(qw);
+	w->curx = w->win->curx;
+	w->cury = w->win->cury + w->win->y - w->y;
+}
+
+/* When user hits a key in a query window */
+
+struct utf8_sm qw_sm;
+
+static int utypeqw(QW *qw, int c)
+{
+	struct query_result *r;
+	int flg = qw->flg;
+	W *w = qw->parent;
+	if (locale_map->type) {
+		c = utf8_decode(&qw_sm, c);
+		if (c < 0)
+			return 0;
+	}
+	r = qw->result;
+	obj_free(qw->prompt);
+	joe_free(qw);
+	w->object = NULL;
+	wabort(w);
+	r->answer = c;
+	if (flg & QW_NOMACRO) {
+		co_sched(&r->t, 0);
+		return 0;
+	} else
+		return co_resume(&r->t, 0);
+}
+
+static int abortqw(QW *qw)
+{
+	struct query_result *r = qw->result;
+	int flg = qw->flg;
+	obj_free(qw->prompt);
+	joe_free(qw);
+	r->answer = -1;
+	if (flg & QW_NOMACRO) {
+		co_sched(&r->t, -1);
+		return -1;
+	} else
+		return co_resume(&r->t, -1);
+}
+
+static WATOM watomqw = {
+	USTR "query",
+	dispqw,
+	NULL,
+	abortqw,
+	NULL,
+	utypeqw,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	TYPEQW
+};
+
+static WATOM watqwn = {
+	USTR "querya",
+	dispqwn,
+	NULL,
+	abortqw,
+	NULL,
+	utypeqw,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	TYPEQW
+};
+
+static WATOM watqwsr = {
+	USTR "querysr",
+	dispqwn,
+	NULL,
+	abortqw,
+	NULL,
+	utypeqw,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	TYPEQW
+};
+
+int query(W *w,				/* Prompt goes below this window */
+          unsigned char *prompt,	/* Prompt text */
+          int len,			/* Length of prompt text */
+          int flg)			/* Options: 0 = normal, 1 = cursor left in original,
+						    2 = same as 1, but QW type code is different. */
+{
+	struct query_result t;
+	QW *qw;
+	WATOM *a = &watomqw;
+	W *n;
+	unsigned char *s = prompt;
+	int l = len;
+	int h = break_height(locale_map, &s, &l, w->w, -1);
+	a = &watomqw;
+	if (flg & QW_STAY)
+		a = &watqwn;
+	if (flg & QW_SR)
+		a = &watqwsr;
+	n = wcreate(w->t, a, w, w, w->main, h, NULL);
+	if (!n) {
+		return -1;
+	}
+	wfit(n->t);
+	n->object = (void *) (qw = (QW *) joe_malloc(sizeof(QW)));
+	qw->parent = n;
+	qw->prompt = vsncpy(NULL, 0, prompt, len);
+	obj_perm(qw->prompt);
+	qw->promptlen = len;
+	qw->org_w = w->w;
+	qw->org_h = h;
+	qw->result = &t;
+	qw->flg = flg;
+	w->t->curwin = n;
+	/* We get woken up when user hits a key */
+	t.answer = -1;
+	if (flg & QW_NOMACRO)
+		co_suspend(&t.t, 0);
+	else
+		co_yield(&t.t, 0);
+	return t.answer;
+}
+@
+
+
+1.26
+log
+@More work on coroutine refactoring.
+@
+text
+@a42 1
+	int y;
+a84 1
+	W *win = qw->parent->win;
+@
+
+
+1.25
+log
+@more refactoring
+@
+text
+@d10 1
+a10 63
+/* Return width of a string */
+
+int joe_wcswidth(struct charmap *map,unsigned char *s, int len)
+{
+	if (!map->type) {
+		return len;
+	} else {
+		int width = 0;
+		while (len) {
+			int c = utf8_decode_fwrd(&s, &len);
+			if (c >= 0) {
+				width += joe_wcwidth(1, c);
+			} else
+				++width;
+		}
+		return width;
+	}
+}
+
+/* Calculate number of lines needed for a given prompt string and a given window width.
+   Also this finds the nth line and returns the position of the substring which is
+   that line. Set n to -1 if you just want the height. */
+
+int break_height(struct charmap *map,unsigned char **src,int *src_len,int wid,int n)
+{
+	unsigned char *s = *src;
+	int len = *src_len;
+	int h = 1; /* Number of lines */
+	int col = 0; /* Current column */
+	int x = 0; /* Offset into string */
+	int start_of_line = 0; /* Start of most recent line */
+	while (x != len) {
+		int space = 0;
+		int word = 0;
+		int start = x;
+		int start_word;
+		while (x != len && s[x] == ' ') {
+			++space;
+			++x;
+		}
+		start_word = x;
+		while (x != len && s[x] != ' ') {
+			++x;
+		}
+		word = joe_wcswidth(map, s + start_word, x - start_word);
+		if (col + space + word < wid || !col) {
+			/* Leading space and word fit on current line */
+			col += space + word;
+		} else {
+			/* They don't fit, start a new line */
+			if (!n--) {
+				x = start;
+				break;
+			}
+			++h;
+			col = word;
+			start_of_line = start_word;
+		}
+	}
+	*src = s + start_of_line;
+	*src_len = x - start_of_line;
+	return h;
+}
+d35 1
+a35 1
+		w->curx = w->x + joe_wcswidth(locale_map, s, l);
+d39 2
+a44 1
+
+d50 1
+a52 21
+
+	/* Generate prompt */
+	for (y = 0; y != w->h; ++y) {
+		unsigned char *s = qw->prompt;
+		int l = qw->promptlen;
+		break_height(locale_map, &s, &l, qw->org_w, y);
+		w->t->t->updtab[w->y + y] = 1;
+		genfield(w->t->t,
+		         w->t->t->scrn + (w->y + y) * w->t->t->co + w->x,
+		         w->t->t->attr + (w->y + y) * w->t->t->co + w->x,
+		         w->x,
+		         w->y + y,
+		         0,
+		         s,
+		         l,
+		         BG_COLOR(bg_prompt),
+		         w->w - w->x,
+		         1,NULL);
+		w->cury = y;
+		w->curx = w->x + joe_wcswidth(locale_map, s, l);
+	}
+d61 2
+a62 1
+	W *win;
+a63 4
+	int *notify = w->notify;
+	int (*func) ();
+	void *object = qw->object;
+
+d66 1
+a66 1
+		if (c<0)
+d69 1
+a69 3
+
+	win = qw->parent->win;
+	func = qw->func;
+a72 1
+	w->notify = NULL;
+d74 6
+a79 3
+	if (func)
+		return func(win->object, c, object, notify);
+	return -1;
+d84 2
+a86 3
+	void *object = qw->object;
+	int (*abrt) () = qw->abrt;
+
+d89 3
+a91 3
+	if (abrt)
+		return abrt(win->object, object);
+	else
+d93 2
+d139 5
+a143 3
+/* Create a query window */
+
+QW *mkqw(W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+d145 1
+a145 1
+	W *new;
+d147 2
+d152 8
+a159 6
+
+	new = wcreate(w->t, &watomqw, w, w, w->main, h, NULL, notify);
+	if (!new) {
+		if (notify)
+			*notify = 1;
+		return NULL;
+d161 3
+a163 3
+	wfit(new->t);
+	new->object = (void *) (qw = (QW *) joe_malloc(sizeof(QW)));
+	qw->parent = new;
+d169 7
+a175 112
+	qw->func = func;
+	qw->abrt = abrt;
+	qw->object = object;
+	w->t->curwin = new;
+	return qw;
+}
+
+/* Same as above, but cursor is left in original window */
+/* For Ctrl-Meta thing */
+
+QW *mkqwna(W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+{
+	W *new;
+	QW *qw;
+	unsigned char *s = prompt;
+	int l = len;
+	int h = break_height(locale_map, &s, &l, w->w, -1);
+
+	new = wcreate(w->t, &watqwn, w, w, w->main, h, NULL, notify);
+	if (!new) {
+		if (notify)
+			*notify = 1;
+		return NULL;
+	}
+	wfit(new->t);
+	new->object = (void *) (qw = (QW *) joe_malloc(sizeof(QW)));
+	qw->parent = new;
+	qw->prompt = vsncpy(NULL, 0, prompt, len);
+	obj_perm(qw->prompt);
+	qw->promptlen = len;
+	qw->org_w = w->w;
+	qw->org_h = h;
+	qw->func = func;
+	qw->abrt = abrt;
+	qw->object = object;
+	w->t->curwin = new;
+	return qw;
+}
+
+/* Same as above, but cursor is left in original window */
+/* For search and replace thing */
+
+QW *mkqwnsr(W *w, unsigned char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+{
+	W *new;
+	QW *qw;
+	unsigned char *s = prompt;
+	int l = len;
+	int h = break_height(locale_map, &s, &l, w->w, -1);
+
+	new = wcreate(w->t, &watqwsr, w, w, w->main, h, NULL, notify);
+	if (!new) {
+		if (notify)
+			*notify = 1;
+		return NULL;
+	}
+	wfit(new->t);
+	new->object = (void *) (qw = (QW *) joe_malloc(sizeof(QW)));
+	qw->parent = new;
+	qw->prompt = vsncpy(NULL, 0, prompt, len);
+	obj_perm(qw->prompt);
+	qw->promptlen = len;
+	qw->org_w = w->w;
+	qw->org_h = h;
+	qw->func = func;
+	qw->abrt = abrt;
+	qw->object = object;
+	w->t->curwin = new;
+	return qw;
+}
+
+/* Simplified prompting... convert original event-driven style to
+ * coroutine model */
+
+struct query_result {
+	Coroutine t;
+	int answer;
+};
+
+int query_cont(BW *bw, int c, void *object, int *notify)
+{
+	struct query_result *r = (struct query_result *)object;
+	r->answer = c;
+
+	co_resume(&r->t, 0);
+
+	/* This can't be right: caller must decide when to set notify */
+	if (notify)
+		*notify = 1;
+
+	return 0;
+}
+
+int query_abrt(BW *bw, void *object)
+{
+	struct query_result *r = (struct query_result *)object;
+	co_resume(&r->t, -1);
+	return -1;
+}
+
+int query(W *w,				/* Prompt goes below this window */
+          unsigned char *prompt,	/* Prompt text */
+          int len,			/* Length of prompt text */
+          int flg)			/* Options: 0 = normal, 1 = cursor left in original,
+						    2 = same as 1, but QW type code is different. */
+{
+	struct query_result t;
+	QW *qw;
+	if (flg == 2)
+		qw = mkqwnsr(w, prompt, len, query_cont, query_abrt, &t, NULL);
+	else if (flg == 1)
+		qw = mkqwna(w, prompt, len, query_cont, query_abrt, &t, NULL);
+d177 2
+a178 12
+		qw = mkqw(w, prompt, len, query_cont, query_abrt, &t, NULL);
+
+	if (!qw)
+		return -1;
+
+	/* We get woken up when user hits a key */
+	if (!co_yield(&t.t, 0)) {
+		/* Moving answer to original coroutine's stack */
+		return t.answer;
+	} else {
+		return -1;
+	}
+@
+
+
+1.24
+log
+@semiautomatic variables
+@
+text
+@d316 56
+@
+
+
+1.23
+log
+@UC -> USTR
+@
+text
+@d131 2
+d156 1
+a156 1
+	vsrm(qw->prompt);
+d172 1
+a172 1
+	vsrm(qw->prompt);
+d242 1
+d274 1
+d306 1
+@
+
+
+1.22
+log
+@change US to UC
+@
+text
+@d179 1
+a179 1
+	UC "query",
+d193 1
+a193 1
+	UC "querya",
+d207 1
+a207 1
+	UC "querysr",
+@
+
+
+1.21
+log
+@fix bugs
+@
+text
+@d179 1
+a179 1
+	US "query",
+d193 1
+a193 1
+	US "querya",
+d207 1
+a207 1
+	US "querysr",
+@
+
+
+1.20
+log
+@valgrind fix
+@
+text
+@a130 2
+		w->cury = y;
+		w->curx = w->x + joe_wcswidth(locale_map, s, l);
+@
+
+
+1.19
+log
+@multi-line qw, startup log
+@
+text
+@d110 1
+a110 1
+		w->win->watom->disp(w->win->object);
+@
+
+
+1.18
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d10 64
+d76 1
+a78 10
+	/* Scroll buffer and position prompt */
+	if (qw->promptlen > w->w - 5)
+		qw->promptofst = qw->promptlen - w->w / 2;
+	else
+		qw->promptofst = 0;
+
+	/* Set cursor position */
+	w->curx = qw->promptlen - qw->promptofst;
+	w->cury = 0;
+
+d80 19
+a98 12
+	w->t->t->updtab[w->y] = 1;
+	genfield(w->t->t,
+	         w->t->t->scrn + w->y * w->t->t->co + w->x,
+	         w->t->t->attr + w->y * w->t->t->co + w->x,
+	         w->x,
+	         w->y,
+	         qw->promptofst,
+	         qw->prompt,
+	         qw->promptlen,
+	         BG_COLOR(bg_prompt),
+	         w->w - w->x,
+	         1,NULL);
+d103 1
+a105 6
+	/* Scroll buffer and position prompt */
+	if (qw->promptlen > w->w / 2 + w->w / 4)
+		qw->promptofst = qw->promptlen - w->w / 2;
+	else
+		qw->promptofst = 0;
+
+d115 19
+a133 12
+	w->t->t->updtab[w->y] = 1;
+	genfield(w->t->t,
+	         w->t->t->scrn + w->y * w->t->t->co + w->x,
+	         w->t->t->attr + w->y * w->t->t->co + w->x,
+	         w->x,
+	         w->y,
+	         qw->promptofst,
+	         qw->prompt,
+	         qw->promptlen,
+	         BG_COLOR(bg_prompt),
+	         w->w - w->x,
+	         1,NULL);
+d228 3
+d232 1
+a232 1
+	new = wcreate(w->t, &watomqw, w, w, w->main, 1, NULL, notify);
+d243 2
+a244 1
+	qw->promptofst = 0;
+d259 3
+d263 1
+a263 1
+	new = wcreate(w->t, &watqwn, w, w, w->main, 1, NULL, notify);
+d274 2
+a275 1
+	qw->promptofst = 0;
+d290 3
+d294 1
+a294 1
+	new = wcreate(w->t, &watqwsr, w, w, w->main, 1, NULL, notify);
+d305 2
+a306 1
+	qw->promptofst = 0;
+@
+
+
+1.17
+log
+@improve lock message
+@
+text
+@a7 1
+#include "config.h"
+a9 9
+#include "scrn.h"
+#include "utils.h"
+#include "vs.h"
+#include "charmap.h"
+#include "utf8.h"
+#include "w.h"
+
+extern int bg_prompt;
+
+@
+
+
+1.16
+log
+@Background color for screen item
+@
+text
+@d25 1
+a25 1
+	if (qw->promptlen > w->w / 2 + w->w / 4)
+@
+
+
+1.15
+log
+@Background color
+@
+text
+@d18 1
+a18 1
+extern int bg_color;
+d44 1
+a44 1
+	         BG_COLOR(bg_color),
+d77 1
+a77 1
+	         BG_COLOR(bg_color),
+@
+
+
+1.14
+log
+@Blocks to work in hex mode.
+Overtype mode for hex.
+@
+text
+@d11 1
+d18 2
+d44 1
+a44 1
+	         0,
+d77 1
+a77 1
+	         0,
+@
+
+
+1.13
+log
+@Regex search now works properly with UTF-8 chars.
+Incremental search now works with UTF-8.
+@
+text
+@d43 1
+a43 1
+	         1);
+d76 1
+a76 1
+	         1);
+@
+
+
+1.12
+log
+@Allow UTF-8 in menu entries.
+
+Clear up genfield() and genfmt() stuff.  Now control characters in
+file names are properly displayed.
+
+When UTF-8 character decodes to 127 - 159, 0 - 31, display it
+as a control character.
+@
+text
+@d13 2
+d81 2
+d91 6
+@
+
+
+1.11
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d31 11
+a41 1
+	gentxt(w->t->t, w->x, w->y, qw->promptofst, qw->prompt, qw->promptlen, 1);
+d64 11
+a74 1
+	gentxt(w->t->t, w->x, w->y, qw->promptofst, qw->prompt, qw->promptlen, 1);
+@
+
+
+1.10
+log
+@change 0 to NULL where we're talking about pointers
+@
+text
+@d94 1
+a94 1
+	"query",
+d108 1
+a108 1
+	"querya",
+d122 1
+a122 1
+	"querysr",
+d137 1
+a137 1
+QW *mkqw(W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+d164 1
+a164 1
+QW *mkqwna(W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+d191 1
+a191 1
+QW *mkqwnsr(W *w, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+@
+
+
+1.9
+log
+@change (m|re|c)alloc() and free() into joe_(m|re|c)alloc() and joe_free()
+(preparation for further error checking)
+@
+text
+@d71 2
+a72 2
+	w->object = 0;
+	w->notify = 0;
+d96 1
+a96 1
+	0,
+d98 1
+a98 1
+	0,
+d100 4
+a103 4
+	0,
+	0,
+	0,
+	0,
+d110 1
+a110 1
+	0,
+d112 1
+a112 1
+	0,
+d114 4
+a117 4
+	0,
+	0,
+	0,
+	0,
+d124 1
+a124 1
+	0,
+d126 1
+a126 1
+	0,
+d128 4
+a131 4
+	0,
+	0,
+	0,
+	0,
+d146 1
+a146 1
+		return 0;
+d173 1
+a173 1
+		return 0;
+d200 1
+a200 1
+		return 0;
+@
+
+
+1.8
+log
+@include only headers which are needed
+@
+text
+@d11 1
+a11 4
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+d70 1
+a70 1
+	free(qw);
+d86 1
+a86 1
+	free(qw);
+d149 1
+a149 1
+	new->object = (void *) (qw = (QW *) malloc(sizeof(QW)));
+d176 1
+a176 1
+	new->object = (void *) (qw = (QW *) malloc(sizeof(QW)));
+d203 1
+a203 1
+	new->object = (void *) (qw = (QW *) malloc(sizeof(QW)));
+@
+
+
+1.7
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d14 2
+a16 2
+#include "vs.h"
+#include "qw.h"
+@
+
+
+1.6
+log
+@use mkqw(W *, ...) instead of mkqw(BASE *, ...) (ditto. mkqwna() and mkqwnsr())
+@
+text
+@d1 9
+a9 8
+/* Query windows
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+a10 10
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#include "config.h"
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d149 1
+a149 1
+QW *mkqw(BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+a152 1
+	W *w = obw->parent;
+d176 1
+a176 1
+QW *mkqwna(BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+a179 1
+	W *w = obw->parent;
+d203 1
+a203 1
+QW *mkqwnsr(BASE *obw, char *prompt, int len, int (*func) (/* ??? */), int (*abrt) (/* ??? */), void *object, int *notify)
+a206 1
+	W *w = obw->parent;
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d27 1
+a27 2
+static void dispqw(qw)
+QW *qw;
+d46 1
+a46 2
+static void dispqwn(qw)
+QW *qw;
+d71 1
+a71 2
+int utypeqw(qw, c)
+QW *qw;
+d91 1
+a91 2
+static int abortqw(qw)
+QW *qw;
+d149 1
+a149 7
+QW *mkqw(obw, prompt, len, func, abrt, object, notify)
+BASE *obw;
+char *prompt;
+int (*func) ();
+int (*abrt) ();
+void *object;
+int *notify;
+d177 1
+a177 7
+QW *mkqwna(obw, prompt, len, func, abrt, object, notify)
+BASE *obw;
+char *prompt;
+int (*func) ();
+int (*abrt) ();
+void *object;
+int *notify;
+d205 1
+a205 7
+QW *mkqwnsr(obw, prompt, len, func, abrt, object, notify)
+BASE *obw;
+char *prompt;
+int (*func) ();
+int (*abrt) ();
+void *object;
+int *notify;
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Query windows
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+ */
+d20 3
+d27 3
+a29 1
+static void dispqw (QW *qw) {
+d33 1
+a33 1
+	if (qw->promptlen > w->w / 2 + w->w / 4) {
+d35 1
+a35 1
+	} else {
+a36 1
+	}
+d44 1
+a44 1
+	gentxt (w->t->t, w->x, w->y, qw->promptofst, qw->prompt, qw->promptlen, 1);
+d47 3
+a49 1
+static void dispqwn (QW *qw) {
+d53 1
+a53 1
+	if (qw->promptlen > w->w / 2 + w->w / 4) {
+d55 1
+a55 1
+	} else {
+a56 1
+	}
+d59 4
+a62 6
+	if (w->win->watom->follow && w->win->object) {
+		w->win->watom->follow (w->win->object);
+	}
+	if (w->win->watom->disp && w->win->object) {
+		w->win->watom->disp (w->win->object);
+	}
+d68 1
+a68 1
+	gentxt (w->t->t, w->x, w->y, qw->promptofst, qw->prompt, qw->promptlen, 1);
+d73 3
+a75 1
+int utypeqw (QW *qw, int c) {
+d81 1
+d84 2
+a85 2
+	vsrm (qw->prompt);
+	free (qw);
+d88 3
+a90 4
+	wabort (w);
+	if (func) {
+		return func (win->object, c, object, notify);
+	}
+d94 3
+a96 1
+static int abortqw (QW *qw) {
+d100 6
+a105 5
+	vsrm (qw->prompt);
+	free (qw);
+	if (abrt) {
+		return abrt (win->object, object);
+	} else {
+a106 1
+	}
+d110 11
+a120 1
+	"query", dispqw, 0, abortqw, 0,	utypeqw, 0, 0, 0, 0, TYPEQW
+d124 11
+a134 1
+	"querya", dispqwn, 0, abortqw, 0, utypeqw, 0, 0, 0, 0, TYPEQW
+d137 12
+a148 2
+static WATOM watqwsr = { 
+	"querysr", dispqwn, 0, abortqw, 0, utypeqw, 0, 0, 0, 0, TYPEQW
+d153 8
+a160 1
+QW *mkqw (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify) {
+d163 1
+d165 1
+a165 1
+	new = wcreate (w->t, &watomqw, w, w, w->main, 1, NULL, notify);
+d167 2
+a168 3
+		if (notify) {
+			  *notify = 1;
+		}
+d171 2
+a172 2
+	wfit (new->t);
+	new->object = (void *) (qw = (QW *) malloc (sizeof (QW)));
+d174 1
+a174 1
+	qw->prompt = vsncpy (NULL, 0, prompt, len);
+d187 8
+a194 1
+QW *mkqwna (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify) {
+d197 1
+d199 1
+a199 1
+	new = wcreate (w->t, &watqwn, w, w, w->main, 1, NULL, notify);
+d201 2
+a202 3
+		if (notify) {
+			  *notify = 1;
+		}
+d205 2
+a206 2
+	wfit (new->t);
+	new->object = (void *) (qw = (QW *) malloc (sizeof (QW)));
+d208 1
+a208 1
+	qw->prompt = vsncpy (NULL, 0, prompt, len);
+d221 8
+a228 1
+QW *mkqwnsr (W *w, char *prompt, int len, int (*func) (), int (*abrt) (), void *object, int *notify) {
+d231 1
+d233 1
+a233 1
+	new = wcreate (w->t, &watqwsr, w, w, w->main, 1, NULL, notify);
+d235 1
+a235 1
+		if (notify) {
+a236 1
+		}
+d239 2
+a240 2
+	wfit (new->t);
+	new->object = (void *) (qw = (QW *) malloc (sizeof (QW)));
+d242 1
+a242 1
+	qw->prompt = vsncpy (NULL, 0, prompt, len);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.5
+@
+text
+@d1 3
+a3 2
+/* Query windows
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d13 43
+a55 37
+static void dispqw(qw)
+QW *qw;
+ {
+ W *w=qw->parent;
+
+ /* Scroll buffer and position prompt */
+ if(qw->promptlen>w->w/2+w->w/4) qw->promptofst=qw->promptlen-w->w/2;
+ else qw->promptofst=0;
+
+ /* Set cursor position */
+ w->curx=qw->promptlen-qw->promptofst;
+ w->cury=0;
+
+ /* Generate prompt */
+ w->t->t->updtab[w->y]=1;
+ gentxt(w->t->t,w->x,w->y,qw->promptofst,qw->prompt,qw->promptlen,1);
+ }
+
+static void dispqwn(qw)
+QW *qw;
+ {
+ W *w=qw->parent;
+
+ /* Scroll buffer and position prompt */
+ if(qw->promptlen>w->w/2+w->w/4) qw->promptofst=qw->promptlen-w->w/2;
+ else qw->promptofst=0;
+
+ /* Set cursor position */
+ if(w->win->watom->follow && w->win->object) w->win->watom->follow(w->win->object);
+ if(w->win->watom->disp && w->win->object) w->win->watom->disp(w->win->object);
+ w->curx=w->win->curx;
+ w->cury=w->win->cury+w->win->y-w->y;
+
+ /* Generate prompt */
+ w->t->t->updtab[w->y]=1;
+ gentxt(w->t->t,w->x,w->y,qw->promptofst,qw->prompt,qw->promptlen,1);
+ }
+d59 43
+a101 75
+int utypeqw(qw,c)
+QW *qw;
+ {
+ W *win;
+ W *w=qw->parent;
+ int *notify=w->notify;
+ int (*func)();
+ void *object=qw->object;
+ win=qw->parent->win;
+ func=qw->func;
+ vsrm(qw->prompt);
+ free(qw);
+ w->object=0;
+ w->notify=0;
+ wabort(w);
+ if(func) return func(win->object,c,object,notify);
+ return -1;
+ }
+
+static int abortqw(qw)
+QW *qw;
+ {
+ W *win=qw->parent->win;
+ void *object=qw->object;
+ int (*abrt)()=qw->abrt;
+ vsrm(qw->prompt);
+ free(qw);
+ if(abrt) return abrt(win->object,object);
+ else return -1;
+ }
+
+static WATOM watomqw=
+ {
+ "query",
+ dispqw,
+ 0,
+ abortqw,
+ 0,
+ utypeqw,
+ 0,
+ 0,
+ 0,
+ 0,
+ TYPEQW
+ };
+
+static WATOM watqwn=
+ {
+ "querya",
+ dispqwn,
+ 0,
+ abortqw,
+ 0,
+ utypeqw,
+ 0,
+ 0,
+ 0,
+ 0,
+ TYPEQW
+ };
+
+static WATOM watqwsr=
+ {
+ "querysr",
+ dispqwn,
+ 0,
+ abortqw,
+ 0,
+ utypeqw,
+ 0,
+ 0,
+ 0,
+ 0,
+ TYPEQW
+ };
+d105 23
+a127 29
+QW *mkqw(obw,prompt,len,func,abrt,object,notify)
+BASE *obw;
+char *prompt;
+int (*func)();
+int (*abrt)();
+void *object;
+int *notify;
+ {
+ W *new;
+ QW *qw;
+ W *w=obw->parent;
+ new=wcreate(w->t,&watomqw,w,w,w->main,1,NULL,notify);
+ if(!new)
+  {
+  if(notify) *notify=1;
+  return 0;
+  }
+ wfit(new->t);
+ new->object=(void *)(qw=(QW *)malloc(sizeof(QW)));
+ qw->parent=new;
+ qw->prompt=vsncpy(NULL,0,prompt,len);
+ qw->promptlen=len;
+ qw->promptofst=0;
+ qw->func=func;
+ qw->abrt=abrt;
+ qw->object=object;
+ w->t->curwin=new;
+ return qw;
+ }
+d132 23
+a154 29
+QW *mkqwna(obw,prompt,len,func,abrt,object,notify)
+BASE *obw;
+char *prompt;
+int (*func)();
+int (*abrt)();
+void *object;
+int *notify;
+ {
+ W *new;
+ QW *qw;
+ W *w=obw->parent;
+ new=wcreate(w->t,&watqwn,w,w,w->main,1,NULL,notify);
+ if(!new)
+  {
+  if(notify) *notify=1;
+  return 0;
+  }
+ wfit(new->t);
+ new->object=(void *)(qw=(QW *)malloc(sizeof(QW)));
+ qw->parent=new;
+ qw->prompt=vsncpy(NULL,0,prompt,len);
+ qw->promptlen=len;
+ qw->promptofst=0;
+ qw->func=func;
+ qw->abrt=abrt;
+ qw->object=object;
+ w->t->curwin=new;
+ return qw;
+ }
+d159 23
+a181 29
+QW *mkqwnsr(obw,prompt,len,func,abrt,object,notify)
+BASE *obw;
+char *prompt;
+int (*func)();
+int (*abrt)();
+void *object;
+int *notify;
+ {
+ W *new;
+ QW *qw;
+ W *w=obw->parent;
+ new=wcreate(w->t,&watqwsr,w,w,w->main,1,NULL,notify);
+ if(!new)
+  {
+  if(notify) *notify=1;
+  return 0;
+  }
+ wfit(new->t);
+ new->object=(void *)(qw=(QW *)malloc(sizeof(QW)));
+ qw->parent=new;
+ qw->prompt=vsncpy(NULL,0,prompt,len);
+ qw->promptlen=len;
+ qw->promptofst=0;
+ qw->func=func;
+ qw->abrt=abrt;
+ qw->object=object;
+ w->t->curwin=new;
+ return qw;
+ }
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@a20 1
+#include "zstr.h"
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

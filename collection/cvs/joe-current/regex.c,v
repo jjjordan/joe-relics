@@ -1,0 +1,2395 @@
+head	1.31;
+access;
+symbols
+	joe_3_5:1.30
+	joe-3_4:1.28
+	help:1.28
+	joe_3_1:1.26
+	joe_3_0:1.21
+	joe_2_9_8:1.17
+	joe_2_9_8_pre1:1.11
+	joe_2_9_7:1.6
+	joe_2_9_7_pre3:1.6
+	joe_2_9_7_pre2:1.5
+	joe_2_9_6:1.4
+	joe_2_9_5:1.3
+	joe_2_9_4:1.2
+	joe_2_9_2:1.2
+	joe_2_9_1:1.2
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.31
+date	2006.07.20.20.56.17;	author jhallen;	state Exp;
+branches;
+next	1.30;
+
+1.30
+date	2006.07.19.00.27.12;	author jhallen;	state Exp;
+branches;
+next	1.29;
+
+1.29
+date	2006.07.18.23.31.54;	author jhallen;	state Exp;
+branches;
+next	1.28;
+
+1.28
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.27;
+
+1.27
+date	2006.03.08.03.00.57;	author jhallen;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2004.05.09.06.29.59;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2004.05.05.22.05.56;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2004.05.04.16.35.12;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2004.05.03.22.55.51;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2004.05.03.12.17.01;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2004.04.17.13.13.16;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2004.03.20.00.20.19;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.03.19.02.29.59;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2003.03.04.17.39.12;	author vsamel;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2003.02.20.07.18.19;	author vsamel;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2002.06.10.12.15.16;	author vsamel;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2002.06.10.12.09.39;	author vsamel;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2002.01.15.09.27.08;	author vsamel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2001.12.04.13.17.42;	author vsamel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2001.12.04.13.14.16;	author vsamel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.12.15.56.31;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.06.35;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.03.48.08;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.59;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.59;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.31
+log
+@semiautomatic variables
+@
+text
+@/*
+ *	Regular expression subroutines
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+static int brack(int utf8,unsigned char **a, int *la, int c)
+{
+	int inverse = 0;
+	int flag = 0;
+	unsigned char *s = *a;
+	int l = *la;
+
+	if (!l)
+		return 0;
+	if (*s == '^' || *s == '*') {
+		inverse = 1;
+		++s;
+		--l;
+	}
+	if (l && *s == ']') {
+		++s;
+		--l;
+		if (c == ']')
+			flag = 1;
+	}
+	while (l)
+		if (*s == ']') {
+			++s;
+			--l;
+			break;
+		} else {
+			int cl, cr;
+
+			cl = escape(utf8, &s, &l);
+
+			if (l >= 2 && s[0] == '-' && s[1] != ']') {
+				--l;
+				++s;
+				cr = escape(utf8, &s, &l);
+				if (c >= cl && c <= cr)
+					flag = 1;
+			} else if (c == cl)
+				flag = 1;
+		}
+	*a = s;
+	*la = l;
+	if (inverse)
+		return !flag;
+	else
+		return flag;
+}
+
+static void savec(int utf8,unsigned char **pieces, int n, int c)
+{
+	unsigned char buf[16];
+	int len;
+	unsigned char *s = NULL;
+
+	if (utf8)
+		len = utf8_encode(buf,c);
+	else {
+		buf[0] = c;
+		len = 1;
+	}
+
+	if (pieces[n])
+		obj_free(pieces[n]);
+	s = vsncpy(s, 0, buf, len);
+	obj_perm(s);
+	pieces[n] = s;
+}
+
+#define MAX_REGEX_SAVED 16384 /* Largest regex string we will save */
+
+static void saves(unsigned char **pieces, int n, P *p, long int szz)
+{
+	if (szz > MAX_REGEX_SAVED)
+		pieces[n] = vstrunc(pieces[n], 0);
+	else {
+		pieces[n] = vstrunc(pieces[n], (int) szz);
+		brmem(p, pieces[n], (int) szz);
+	}
+	obj_perm(pieces[n]);
+}
+
+/* Returns -1 (NO_MORE_DATA) for end of file.
+ * Returns -2 if we skipped a special sequence and didn't take the character
+ * after it (this happens for "strings").
+ * Otherwise returns character after sequence (character will be >=0).
+ */
+
+static int skip_special(P *p)
+{
+	int to, s;
+
+	switch (s = pgetc(p)) {
+	case '"':
+		do {
+			if ((s = pgetc(p)) == '\\') {
+				pgetc(p);
+				s = pgetc(p);
+			}
+		} while (s != NO_MORE_DATA && s != '"');
+		if (s == '"')
+			return -2;
+		break;
+	case '\'':
+		if ((s = pgetc(p)) == '\\') {
+			s = pgetc(p);
+			s = pgetc(p);
+		}
+		if (s == '\'')
+			return -2;
+		if ((s = pgetc(p)) == '\'')
+			return -2;
+		if ((s = pgetc(p)) == '\'')
+			return -2;
+		break;
+	case '[':
+		to = ']';
+		goto skip;
+	case '(':
+		to = ')';
+		goto skip;
+	case '{':
+		to = '}';
+skip:
+		do {
+			s = skip_special(p);
+		} while (s != to && s != NO_MORE_DATA);
+		if (s == to)
+			return -2;
+		break;
+	case '/':
+		s = pgetc(p);
+		if (s == '*')
+			do {
+				s = pgetc(p);
+				while (s == '*')
+					if ((s = pgetc(p)) == '/')
+						return -2;
+			} while (s != NO_MORE_DATA);
+		else if (s != NO_MORE_DATA)
+			s = prgetc(p);
+		else
+			s = '/';
+		break;
+	}
+	return s;
+}
+
+int pmatch(unsigned char **pieces, unsigned char *regex, int len, P *p, int n, int icase)
+{
+	int c, d;
+	P *q = pdup(p, USTR "pmatch");
+	P *o = NULL;
+	int utf8 = p->b->o.charmap->type;
+	struct charmap *map = p->b->o.charmap;
+	struct utf8_sm sm;
+
+	utf8_init(&sm);
+
+	while (len) {
+		if (utf8) {
+			do {
+				c = utf8_decode(&sm,*regex++);
+				--len;
+			} while (len && c<0);
+			if (c<0)
+				return 0;
+		} else {
+			c = *regex++;
+			--len;
+		}
+
+		switch (c) {
+		case '\\':
+			if (!len--)
+				goto fail;
+			switch (c = *regex++) {
+			case '?':
+				d = pgetc(p);
+				if (d == NO_MORE_DATA)
+					goto fail;
+				savec(utf8, pieces, n++, d);
+				break;
+			case 'n':
+			case 'r':
+			case 'a':
+			case 'f':
+			case 'b':
+			case 't':
+			case 'e':
+			case 'x':
+			case 'X':
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				regex -= 2;
+				len += 2;
+				if (pgetc(p) != escape(utf8, &regex, &len))
+					goto fail;
+				break;
+			case '*':
+				/* Find shortest matching sequence */
+				o = pdup(p, USTR "pmatch");
+				do {
+					long pb = p->byte;
+
+					if (pmatch(pieces, regex, len, p, n + 1, icase)) {
+						saves(pieces, n, o, pb - o->byte);
+						goto succeed;
+					}
+					c = pgetc(p);
+				} while (c != NO_MORE_DATA && c != '\n');
+				goto fail;
+			case 'c':
+				o = pdup(p, USTR "pmatch");
+				do {
+					long pb = p->byte;
+
+					if (pmatch(pieces, regex, len, p, n + 1, icase)) {
+						saves(pieces, n, o, pb - o->byte);
+						goto succeed;
+					}
+				} while (skip_special(p) != NO_MORE_DATA);
+				goto fail;
+			case '[':
+				d = pgetc(p);
+				if (d == NO_MORE_DATA)
+					goto fail;
+				if (!brack(utf8, &regex, &len, d))
+					goto fail;
+				savec(utf8, pieces, n++, d);
+				break;
+			case '+':
+				{
+					unsigned char *oregex = regex;	/* Point to character to skip */
+					int olen = len;
+
+					unsigned char *tregex;
+					int tlen;
+
+					int match;
+
+					P *r = NULL;
+
+					int d = 0;
+
+					o = pdup(p, USTR "pmatch");
+
+					/* Advance over character to skip.  Save character in d unless
+					   we're skipping over a \[..] */
+					if (len >= 2 && regex[0] == '\\') {
+						if (regex[1] == '[') {
+							regex += 2;
+							len -= 2;
+							brack(utf8, &regex, &len, 0);
+						} else {
+							d = escape(utf8, &regex, &len);
+							if (icase)
+								d = joe_tolower(map,d);
+						}
+					} else if (utf8) {
+						if ((d = utf8_decode_fwrd(&regex, &len)) < 0)
+							goto done;
+						else if (icase)
+							d = joe_tolower(map,d);
+					} else {
+						if (len >= 1) {
+							--len;
+							d = *regex++;
+							if (icase)
+								d = joe_tolower(map,d);
+						} else
+							goto done;
+					}
+
+					/* Now oregex/olen point to character to skip over and
+					   regex/len point to sequence which follows */
+
+					do {
+						P *z = pdup(p, USTR "pmatch");
+
+						if (pmatch(pieces, regex, len, p, n + 1, icase)) {
+							saves(pieces, n, o, z->byte - o->byte);
+							if (r)
+								prm(r);
+							r = pdup(p, USTR "pmatch");
+						}
+						pset(p, z);
+						prm(z);
+						c = pgetc(p);
+						tregex = oregex;
+						tlen = olen;
+						if (*oregex == '\\') {
+							if (oregex[1] == '[') {
+								tregex += 2;
+								tlen -= 2;
+								match = brack(utf8, &tregex, &tlen, c);
+							} else
+								match = (d == c);
+						} else {
+							if(icase)
+								match = (joe_tolower(map,c) == d);
+							else
+								match = (c == d);
+						}
+					} while (c != NO_MORE_DATA && match);
+
+				      done:
+					if (r) {
+						pset(p, r);
+						prm(r);
+					}
+					if (r)
+						goto succeed;
+					else
+						goto fail;
+				}
+			case '^':
+				if (!pisbol(p))
+					goto fail;
+				break;
+			case '$':
+				if (!piseol(p))
+					goto fail;
+				break;
+			case '<':
+				if (!pisbow(p))
+					goto fail;
+				break;
+			case '>':
+				if (!piseow(p))
+					goto fail;
+				break;
+			case '\\':
+				d = pgetc(p);
+				if (d != c)
+					goto fail;
+				break;
+			default:
+				goto fail;
+			}
+			break;
+		default:
+			d = pgetc(p);
+			if (icase) {
+				if (joe_tolower(map,d) != joe_tolower(map,c))
+					goto fail;
+			} else {
+				if (d != c)
+					goto fail;
+			}
+		}
+	}
+succeed:
+	if (o)
+		prm(o);
+	prm(q);
+	return 1;
+
+fail:
+	if (o)
+		prm(o);
+	pset(p, q);
+	prm(q);
+	return 0;
+}
+@
+
+
+1.30
+log
+@UC -> USTR
+@
+text
+@a9 110
+int escape(int utf8,unsigned char **a, int *b)
+{
+	int c;
+	unsigned char *s = *a;
+	int l = *b;
+
+	if (*s == '\\' && l >= 2) {
+		++s; --l;
+		switch (*s) {
+		case 'n':
+			c = 10;
+			++s; --l;
+			break;
+		case 't':
+			c = 9;
+			++s; --l;
+			break;
+		case 'a':
+			c = 7;
+			++s; --l;
+			break;
+		case 'b':
+			c = 8;
+			++s; --l;
+			break;
+		case 'f':
+			c = 12;
+			++s; --l;
+			break;
+		case 'e':
+			c = 27;
+			++s; --l;
+			break;
+		case 'r':
+			c = 13;
+			++s; --l;
+			break;
+		case '8':
+			c = 8;
+			++s; --l;
+			break;
+		case '9':
+			c = 9;
+			++s; --l;
+			break;
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+			c = *s - '0';
+			++s; --l;
+			if (l > 0 && *s >= '0' && *s <= '7') {
+				c = c * 8 + s[1] - '0';
+				++s; --l;
+			}
+			if (l > 0 && *s >= '0' && *s <= '7') {
+				c = c * 8 + s[1] - '0';
+				++s; --l;
+			}
+			break;
+		case 'x':
+		case 'X':
+			c = 0;
+			++s; --l;
+			if (l > 0 && *s >= '0' && *s <= '9') {
+				c = c * 16 + *s - '0';
+				++s; --l;
+			} else if (l > 0 && *s >= 'A' && *s <= 'F') {
+				c = c * 16 + *s - 'A' + 10;
+				++s; --l;
+			} else if (l > 0 && *s >= 'a' && *s <= 'f') {
+				c = c * 16 + *s - 'a' + 10;
+				++s; --l;
+			}
+
+			if (l > 0 && *s >= '0' && *s <= '9') {
+				c = c * 16 + *s - '0';
+				++s; --l;
+			} else if (l > 0 && *s >= 'A' && *s <= 'F') {
+				c = c * 16 + *s - 'A' + 10;
+				++s; --l;
+			} else if (l > 0 && *s >= 'a' && *s <= 'f') {
+				c = c * 16 + *s - 'a' + 10;
+				++s; --l;
+			}
+			break;
+		default:
+			if (utf8)
+				c = utf8_decode_fwrd(&s, &l);
+			else {
+				c = *s++;
+				--l;
+			}
+			break;
+		}
+	} else if (utf8) {
+		c = utf8_decode_fwrd(&s,&l);
+	} else {
+		c = *s++;
+		--l;
+	}
+	*a = s;
+	*b = l;
+	return c;
+}
+
+d71 1
+a71 1
+		vsrm(pieces[n]);
+d73 1
+d87 1
+@
+
+
+1.29
+log
+@change US to UC
+@
+text
+@d267 1
+a267 1
+	P *q = pdup(p, UC "pmatch");
+d325 1
+a325 1
+				o = pdup(p, UC "pmatch");
+d337 1
+a337 1
+				o = pdup(p, UC "pmatch");
+d369 1
+a369 1
+					o = pdup(p, UC "pmatch");
+d402 1
+a402 1
+						P *z = pdup(p, UC "pmatch");
+d408 1
+a408 1
+							r = pdup(p, UC "pmatch");
+@
+
+
+1.28
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d267 1
+a267 1
+	P *q = pdup(p, US "pmatch");
+d325 1
+a325 1
+				o = pdup(p, US "pmatch");
+d337 1
+a337 1
+				o = pdup(p, US "pmatch");
+d369 1
+a369 1
+					o = pdup(p, US "pmatch");
+d402 1
+a402 1
+						P *z = pdup(p, US "pmatch");
+d408 1
+a408 1
+							r = pdup(p, US "pmatch");
+@
+
+
+1.27
+log
+@add joe_debug
+@
+text
+@a7 1
+#include "config.h"
+a9 7
+#include <stdio.h> 
+
+#include "b.h"
+#include "utf8.h"
+#include "charmap.h"
+#include "vs.h"
+
+a265 1
+        unsigned char buf[20];
+d367 1
+a367 1
+					int d;
+@
+
+
+1.26
+log
+@Improved shell highlighter.
+Removed debug printfs.
+@
+text
+@d276 1
+a276 1
+	P *q = pdup(p);
+d334 1
+a334 1
+				o = pdup(p);
+d346 1
+a346 1
+				o = pdup(p);
+d378 1
+a378 1
+					o = pdup(p);
+d411 1
+a411 1
+						P *z = pdup(p);
+d417 1
+a417 1
+							r = pdup(p);
+@
+
+
+1.25
+log
+@Regex search now works properly with UTF-8 chars.
+Incremental search now works with UTF-8.
+@
+text
+@a157 2
+			printf("[%x == %x]",cl,c); fflush(stdout);
+
+@
+
+
+1.24
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d18 1
+a18 1
+int escape(unsigned char **a, int *b)
+d25 1
+a25 2
+		++s;
+		--l;
+d29 1
+d33 1
+d37 1
+d41 1
+d45 1
+d49 1
+d53 1
+d57 1
+d61 1
+d72 2
+a73 1
+			if (l > 1 && s[1] >= '0' && s[1] <= '7') {
+d75 1
+a75 2
+				++s;
+				--l;
+d77 1
+a77 1
+			if (l > 1 && s[1] >= '0' && s[1] <= '7') {
+d79 1
+a79 2
+				++s;
+				--l;
+d85 10
+a94 12
+			if (l > 1 && s[1] >= '0' && s[1] <= '9') {
+				c = c * 16 + s[1] - '0';
+				++s;
+				--l;
+			} else if (l > 1 && s[1] >= 'A' && s[1] <= 'F') {
+				c = c * 16 + s[1] - 'A' + 10;
+				++s;
+				--l;
+			} else if (l > 1 && s[1] >= 'a' && s[1] <= 'f') {
+				c = c * 16 + s[1] - 'a' + 10;
+				++s;
+				--l;
+d96 10
+a105 12
+			if (l > 1 && s[1] >= '0' && s[1] <= '9') {
+				c = c * 16 + s[1] - '0';
+				++s;
+				--l;
+			} else if (l > 1 && s[1] >= 'A' && s[1] <= 'F') {
+				c = c * 16 + s[1] - 'A' + 10;
+				++s;
+				--l;
+			} else if (l > 1 && s[1] >= 'a' && s[1] <= 'f') {
+				c = c * 16 + s[1] - 'a' + 10;
+				++s;
+				--l;
+d109 6
+a114 1
+			c = *s;
+d117 2
+a118 2
+		++s;
+		--l;
+d128 1
+a128 1
+static int brack(unsigned char **a, int *la, unsigned char c)
+d156 4
+a159 1
+			cl = escape(&s, &l);
+d163 1
+a163 1
+				cr = escape(&s, &l);
+d177 1
+a177 1
+static void savec(unsigned char **pieces, int n, unsigned char c)
+d179 2
+d183 7
+d192 1
+a192 1
+	s = vsncpy(s, 0, &c, 1);
+d280 1
+a280 1
+	int local_utf8 = p->b->o.charmap->type;
+d287 1
+a287 1
+		if (local_utf8) {
+d308 1
+a308 1
+				savec(pieces, n++, d);
+d331 1
+a331 1
+				if (pgetc(p) != escape(&regex, &len))
+d362 1
+a362 1
+				if (!brack(&regex, &len, d))
+d364 1
+a364 1
+				savec(pieces, n++, d);
+d378 2
+d382 2
+a383 1
+					/* Advance over character to skip */
+d388 1
+a388 1
+							brack(&regex, &len, 0);
+d390 3
+a392 1
+							escape(&regex, &len);
+d394 14
+a407 5
+					} else if (len >= 1) {
+						--len;
+						++regex;
+					} else
+						goto done;
+d430 1
+a430 1
+								match = brack(&tregex, &tlen, c);
+d432 1
+a432 1
+								match = (escape(&tregex, &tlen) == c);
+d435 1
+a435 1
+								match = (joe_tolower(map,c) == joe_tolower(map,*tregex));
+d437 1
+a437 1
+								match = (c == *tregex);
+@
+
+
+1.23
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@d15 1
+d260 2
+a261 2
+	int local_utf8 = p->b->o.utf8;
+	struct charmap *local_map = p->b->o.charmap;
+d401 1
+a401 1
+								match = (joe_toupper(local_map,c) == joe_toupper(local_map,*tregex));
+d445 1
+a445 4
+				if (local_utf8) {
+					if (joe_towupper(d) != joe_towupper(c))
+						goto fail;
+				} else if (joe_toupper(local_map,d) != joe_toupper(local_map,c))
+@
+
+
+1.22
+log
+@Fix highlighter when there are utf-8 characters in file.
+
+No longer depend on wctype.h (working towards not depending on
+iconv()).
+@
+text
+@a11 1
+#include <ctype.h>
+d260 1
+d400 1
+a400 1
+								match = (toupper(c) == toupper(*tregex));
+d447 1
+a447 1
+				} else if (toupper(d) != toupper(c))
+@
+
+
+1.21
+log
+@UTF-8 now supported in file names and prompts.
+
+Search should be partially working.  \+ with
+a UTF-8 character following is broken and
+\[ ] only works for bytes.
+@
+text
+@a12 1
+#include <wctype.h>
+d445 1
+a445 1
+					if (towupper(d) != towupper(c))
+@
+
+
+1.20
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d13 1
+d16 1
+d261 2
+d264 16
+a279 2
+	while (len--)
+		switch (c = *regex++) {
+d433 5
+d439 1
+a439 8
+				d = pgetc(p);
+				if (icase) {
+					if (toupper(d) != toupper(c))
+						goto fail;
+				} else {
+					if (d != c)
+						goto fail;
+				}
+d445 4
+a448 1
+				if (toupper(d) != toupper(c))
+d455 1
+@
+
+
+1.19
+log
+@Update TODO.
+no change in regex.c.
+@
+text
+@d165 1
+a165 1
+static void savec(char **pieces, int n, char c)
+d167 1
+a167 1
+	char *s = NULL;
+d175 3
+a177 1
+static void saves(char **pieces, int n, P *p, long int szz)
+d179 1
+a179 1
+	if (szz >= MAXINT - 31)		/* FIXME: why MAXINT - 31 ? */
+d187 6
+a192 2
+/* FIXME: overloaded meaning of MAXINT below (MAXINT - 1) */
+/*        what's the meaning of this? */
+d206 1
+a206 1
+			return MAXINT - 1;
+d214 1
+a214 1
+			return MAXINT - 1;
+d216 1
+a216 1
+			return MAXINT - 1;
+d218 1
+a218 1
+			return MAXINT - 1;
+d233 1
+a233 1
+			return MAXINT - 1;
+d242 1
+a242 1
+						return MAXINT - 1;
+d253 1
+a253 1
+int pmatch(char **pieces, unsigned char *regex, int len, P *p, int n, int icase)
+d255 1
+a255 1
+        char buf[20];
+d270 1
+a270 1
+				savec(pieces, n++, (char) d);
+d326 1
+a326 1
+				savec(pieces, n++, (char) d);
+@
+
+
+1.18
+log
+@Allow full escape sequences in replacement strings
+@
+text
+@d10 2
+a11 1
+ 
+d249 1
+@
+
+
+1.17
+log
+@change 0 to NULL where we're talking about pointers
+@
+text
+@d16 1
+a16 1
+static int escape(unsigned char **a, int *b)
+@
+
+
+1.16
+log
+@change type of variables holding string to unsigned char *
+@
+text
+@d166 1
+a166 1
+	char *s = 0;
+d250 1
+a250 1
+	P *o = 0;
+d330 1
+a330 1
+					P *r = 0;
+@
+
+
+1.15
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d322 1
+a322 1
+					char *oregex = regex;	/* Point to character to skip */
+@
+
+
+1.14
+log
+@change "expr, expr" to "expr; expr" where appropriate (take 2)
+@
+text
+@d176 1
+a176 1
+	if (szz >= MAXINT - 31)
+d184 2
+d193 6
+a198 4
+			if ((s = pgetc(p)) == '\\')
+				pgetc(p), s = pgetc(p);
+		} while (s != MAXINT && s != '\"');
+		if (s == '\"')
+d224 1
+a224 1
+		} while (s != to && s != MAXINT);
+d236 2
+a237 2
+			} while (s != MAXINT);
+		else if (s != MAXINT)
+d260 1
+a260 1
+				if (d == MAXINT)
+d299 1
+a299 1
+				} while (c != MAXINT && c != '\n');
+d310 1
+a310 1
+				} while (skip_special(p) != MAXINT);
+d314 1
+a314 1
+				if (d == MAXINT)
+d379 1
+a379 1
+					} while (c != MAXINT && match);
+@
+
+
+1.13
+log
+@change "expr, expr" to "expr; expr" where appropriate
+@
+text
+@d198 4
+a201 2
+		if ((s = pgetc(p)) == '\\')
+			s = pgetc(p), s = pgetc(p);
+@
+
+
+1.12
+log
+@fix char escaping in \+ case when matching "regexps"
+@
+text
+@d62 10
+a71 4
+			if (l > 1 && s[1] >= '0' && s[1] <= '7')
+				c = c * 8 + s[1] - '0', ++s, --l;
+			if (l > 1 && s[1] >= '0' && s[1] <= '7')
+				c = c * 8 + s[1] - '0', ++s, --l;
+d76 26
+a101 12
+			if (l > 1 && s[1] >= '0' && s[1] <= '9')
+				c = c * 16 + s[1] - '0', ++s, --l;
+			else if (l > 1 && s[1] >= 'A' && s[1] <= 'F')
+				c = c * 16 + s[1] - 'A' + 10, ++s, --l;
+			else if (l > 1 && s[1] >= 'a' && s[1] <= 'f')
+				c = c * 16 + s[1] - 'a' + 10, ++s, --l;
+			if (l > 1 && s[1] >= '0' && s[1] <= '9')
+				c = c * 16 + s[1] - '0', ++s, --l;
+			else if (l > 1 && s[1] >= 'A' && s[1] <= 'F')
+				c = c * 16 + s[1] - 'A' + 10, ++s, --l;
+			else if (l > 1 && s[1] >= 'a' && s[1] <= 'f')
+				c = c * 16 + s[1] - 'a' + 10, ++s, --l;
+d109 4
+a112 2
+	} else
+		(c = *s++), --l;
+d127 5
+a131 2
+	if (*s == '^' || *s == '*')
+		inverse = 1, ++s, --l;
+d337 4
+a340 3
+					} else if (len >= 1)
+						--len, ++regex;
+					else
+d376 4
+a379 2
+					if (r)
+						pset(p, r), prm(r);
+@
+
+
+1.11
+log
+@change indentation of cases in the switch() statement
+@
+text
+@d297 2
+d304 8
+a311 4
+					if (len >= 2 && regex[0] == '\\' && regex[1] == '[') {
+						regex += 2;
+						len -= 2;
+						brack(&regex, &len, 0);
+d332 16
+a347 2
+					} while (c != MAXINT && (*oregex == '\\' ? (tregex = oregex + 2, tlen = olen - 2, brack(&tregex, &tlen, c))
+							       : (icase ? toupper(c) == toupper(*oregex) : c == *oregex)));
+@
+
+
+1.10
+log
+@change indentation of do {} while() cycles
+@
+text
+@d26 1
+a26 1
+			case 'n':
+d29 1
+a29 1
+			case 't':
+d32 1
+a32 1
+			case 'a':
+d35 1
+a35 1
+			case 'b':
+d38 1
+a38 1
+			case 'f':
+d41 1
+a41 1
+			case 'e':
+d44 1
+a44 1
+			case 'r':
+d47 1
+a47 1
+			case '8':
+d50 1
+a50 1
+			case '9':
+d53 8
+a60 9
+
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+d67 2
+a68 3
+
+			case 'x':
+			case 'X':
+d83 1
+a83 2
+
+			default:
+d164 1
+a164 1
+		case '"':
+d172 1
+a172 2
+
+		case '\'':
+d182 1
+a182 2
+
+		case '[':
+d185 1
+a185 1
+		case '(':
+d188 1
+a188 1
+		case '{':
+d190 1
+a190 1
+	      skip:
+d197 1
+a197 2
+
+		case '/':
+a210 1
+
+d223 1
+a223 1
+			case '\\':
+d227 1
+a227 1
+				case '?':
+d233 19
+a251 20
+
+				case 'n':
+				case 'r':
+				case 'a':
+				case 'f':
+				case 'b':
+				case 't':
+				case 'e':
+				case 'x':
+				case 'X':
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+d257 1
+a257 2
+
+				case '*':
+d270 1
+a270 2
+
+				case 'c':
+d281 1
+a281 2
+
+				case '[':
+d289 1
+a289 2
+
+				case '+':
+d337 1
+a337 2
+
+				case '^':
+d341 1
+a341 2
+
+				case '$':
+d345 1
+a345 2
+
+				case '<':
+d349 1
+a349 2
+
+				case '>':
+d353 1
+a353 2
+
+				default:
+d364 1
+a364 2
+
+			default:
+d374 1
+a374 1
+      succeed:
+d380 1
+a380 1
+      fail:
+@
+
+
+1.9
+log
+@include only headers which are needed
+@
+text
+@d168 1
+a168 1
+		do
+d171 1
+a171 1
+		while (s != MAXINT && s != '\"') ;
+d195 2
+a196 1
+	      skip:do
+d198 1
+a198 1
+		while (s != to && s != MAXINT);
+d211 1
+a211 2
+			}
+			while (s != MAXINT);
+d277 1
+a277 2
+				}
+				while (c != MAXINT && c != '\n');
+d289 1
+a289 2
+				}
+				while (skip_special(p) != MAXINT);
+d338 1
+a338 2
+					}
+					while (c != MAXINT && (*oregex == '\\' ? (tregex = oregex + 2, tlen = olen - 2, brack(&tregex, &tlen, c))
+@
+
+
+1.8
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d12 2
+a14 2
+#include "b.h"
+#include "regex.h"
+@
+
+
+1.7
+log
+@change regex pointer to be 'unsigned char *regex'
+@
+text
+@d1 10
+a10 18
+/* Regular expression subroutines
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+a11 1
+#include "config.h"
+@
+
+
+1.6
+log
+@version 2.9.7-pre3
+@
+text
+@d231 1
+a231 1
+int pmatch(char **pieces, char *regex, int len, P *p, int n, int icase)
+d317 1
+a317 1
+					char *tregex;
+@
+
+
+1.5
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d25 1
+a25 3
+int escape(a, b)
+unsigned char **a;
+int *b;
+d108 1
+a108 4
+static int brack(a, la, c)
+unsigned char **a;
+int *la;
+unsigned char c;
+d151 1
+a151 3
+static void savec(pieces, n, c)
+char *pieces[];
+char c;
+d161 1
+a161 4
+static void saves(pieces, n, p, szz)
+char *pieces[];
+P *p;
+long szz;
+d171 1
+a171 2
+static int skip_special(p)
+P *p;
+d231 1
+a231 4
+int pmatch(pieces, regex, len, p, n, icase)
+char *pieces[];
+char *regex;
+P *p;
+@
+
+
+1.4
+log
+@changed as of joe-2.9.6
+@
+text
+@d1 2
+a2 3
+/*
+	Regular expression subroutines
+	Copyright (C) 1992 Joseph H. Allen
+d4 14
+a17 2
+	This file is part of JOE (Joe's Own Editor)
+*/
+d25 3
+a27 4
+int
+escape (a, b)
+     unsigned char **a;
+     int *b;
+d32 72
+a103 74
+	if (*s == '\\' && l >= 2)
+	  {
+		  ++s;
+		  --l;
+		  switch (*s)
+		    {
+		    case 'n':
+			    c = 10;
+			    break;
+		    case 't':
+			    c = 9;
+			    break;
+		    case 'a':
+			    c = 7;
+			    break;
+		    case 'b':
+			    c = 8;
+			    break;
+		    case 'f':
+			    c = 12;
+			    break;
+		    case 'e':
+			    c = 27;
+			    break;
+		    case 'r':
+			    c = 13;
+			    break;
+		    case '8':
+			    c = 8;
+			    break;
+		    case '9':
+			    c = 9;
+			    break;
+
+		    case '0':
+		    case '1':
+		    case '2':
+		    case '3':
+		    case '4':
+		    case '5':
+		    case '6':
+		    case '7':
+			    c = *s - '0';
+			    if (l > 1 && s[1] >= '0' && s[1] <= '7')
+				    c = c * 8 + s[1] - '0', ++s, --l;
+			    if (l > 1 && s[1] >= '0' && s[1] <= '7')
+				    c = c * 8 + s[1] - '0', ++s, --l;
+			    break;
+
+		    case 'x':
+		    case 'X':
+			    c = 0;
+			    if (l > 1 && s[1] >= '0' && s[1] <= '9')
+				    c = c * 16 + s[1] - '0', ++s, --l;
+			    else if (l > 1 && s[1] >= 'A' && s[1] <= 'F')
+				    c = c * 16 + s[1] - 'A' + 10, ++s, --l;
+			    else if (l > 1 && s[1] >= 'a' && s[1] <= 'f')
+				    c = c * 16 + s[1] - 'a' + 10, ++s, --l;
+			    if (l > 1 && s[1] >= '0' && s[1] <= '9')
+				    c = c * 16 + s[1] - '0', ++s, --l;
+			    else if (l > 1 && s[1] >= 'A' && s[1] <= 'F')
+				    c = c * 16 + s[1] - 'A' + 10, ++s, --l;
+			    else if (l > 1 && s[1] >= 'a' && s[1] <= 'f')
+				    c = c * 16 + s[1] - 'a' + 10, ++s, --l;
+			    break;
+
+		    default:
+			    c = *s;
+			    break;
+		    }
+		  ++s;
+		  --l;
+	  }
+	else
+d110 4
+a113 5
+static int
+brack (a, la, c)
+     unsigned char **a;
+     int *la;
+     unsigned char c;
+d119 1
+d124 6
+a129 7
+	if (l && *s == ']')
+	  {
+		  ++s;
+		  --l;
+		  if (c == ']')
+			  flag = 1;
+	  }
+d131 17
+a147 21
+		if (*s == ']')
+		  {
+			  ++s;
+			  --l;
+			  break;
+		  }
+		else
+		  {
+			  int cl, cr;
+			  cl = escape (&s, &l);
+			  if (l >= 2 && s[0] == '-' && s[1] != ']')
+			    {
+				    --l;
+				    ++s;
+				    cr = escape (&s, &l);
+				    if (c >= cl && c <= cr)
+					    flag = 1;
+			    }
+			  else if (c == cl)
+				  flag = 1;
+		  }
+d156 3
+a158 4
+static void
+savec (pieces, n, c)
+     char *pieces[];
+     char c;
+d161 1
+d163 2
+a164 2
+		vsrm (pieces[n]);
+	s = vsncpy (s, 0, &c, 1);
+d168 4
+a171 5
+static void
+saves (pieces, n, p, szz)
+     char *pieces[];
+     P *p;
+     long szz;
+d174 5
+a178 6
+		pieces[n] = vstrunc (pieces[n], 0);
+	else
+	  {
+		  pieces[n] = vstrunc (pieces[n], (int) szz);
+		  brmem (p, pieces[n], (int) szz);
+	  }
+d181 2
+a182 3
+static int
+skip_special (p)
+     P *p;
+a184 53
+	switch (s = pgetc (p))
+	  {
+	  case '"':
+		  do
+			  if ((s = pgetc (p)) == '\\')
+				  pgetc (p), s = pgetc (p);
+		  while (s != MAXINT && s != '\"');
+		  if (s == '\"')
+			  return MAXINT - 1;
+		  break;
+
+	  case '\'':
+		  if ((s = pgetc (p)) == '\\')
+			  s = pgetc (p), s = pgetc (p);
+		  if (s == '\'')
+			  return MAXINT - 1;
+		  if ((s = pgetc (p)) == '\'')
+			  return MAXINT - 1;
+		  if ((s = pgetc (p)) == '\'')
+			  return MAXINT - 1;
+		  break;
+
+	  case '[':
+		  to = ']';
+		  goto skip;
+	  case '(':
+		  to = ')';
+		  goto skip;
+	  case '{':
+		  to = '}';
+		skip:do
+			  s = skip_special (p);
+		  while (s != to && s != MAXINT);
+		  if (s == to)
+			  return MAXINT - 1;
+		  break;
+
+	  case '/':
+		  s = pgetc (p);
+		  if (s == '*')
+			  do
+			    {
+				    s = pgetc (p);
+				    while (s == '*')
+					    if ((s = pgetc (p)) == '/')
+						    return MAXINT - 1;
+			    }
+			  while (s != MAXINT);
+		  else if (s != MAXINT)
+			  s = prgetc (p);
+		  else
+			  s = '/';
+		  break;
+d186 53
+a238 1
+	  }
+d242 4
+a245 5
+int
+pmatch (pieces, regex, len, p, n, icase)
+     char *pieces[];
+     char *regex;
+     P *p;
+d248 1
+a248 1
+	P *q = pdup (p);
+d250 1
+d252 107
+a358 70
+		switch (c = *regex++)
+		  {
+		  case '\\':
+			  if (!len--)
+				  goto fail;
+			  switch (c = *regex++)
+			    {
+			    case '?':
+				    d = pgetc (p);
+				    if (d == MAXINT)
+					    goto fail;
+				    savec (pieces, n++, (char) d);
+				    break;
+
+			    case 'n':
+			    case 'r':
+			    case 'a':
+			    case 'f':
+			    case 'b':
+			    case 't':
+			    case 'e':
+			    case 'x':
+			    case 'X':
+			    case '0':
+			    case '1':
+			    case '2':
+			    case '3':
+			    case '4':
+			    case '5':
+			    case '6':
+			    case '7':
+			    case '8':
+			    case '9':
+				    regex -= 2;
+				    len += 2;
+				    if (pgetc (p) != escape (&regex, &len))
+					    goto fail;
+				    break;
+
+			    case '*':
+				    /* Find shortest matching sequence */
+				    o = pdup (p);
+				    do
+				      {
+					      long pb = p->byte;
+					      if (pmatch
+						  (pieces, regex, len, p,
+						   n + 1, icase))
+						{
+							saves (pieces, n, o,
+							       pb - o->byte);
+							goto succeed;
+						}
+					      c = pgetc (p);
+				      }
+				    while (c != MAXINT && c != '\n');
+				    goto fail;
+
+			    case 'c':
+				    o = pdup (p);
+				    do
+				      {
+					      long pb = p->byte;
+					      if (pmatch
+						  (pieces, regex, len, p,
+						   n + 1, icase))
+						{
+							saves (pieces, n, o,
+							       pb - o->byte);
+							goto succeed;
+d360 58
+a417 130
+				      }
+				    while (skip_special (p) != MAXINT);
+				    goto fail;
+
+			    case '[':
+				    d = pgetc (p);
+				    if (d == MAXINT)
+					    goto fail;
+				    if (!brack (&regex, &len, d))
+					    goto fail;
+				    savec (pieces, n++, (char) d);
+				    break;
+
+			    case '+':
+				    {
+					    char *oregex = regex;	/* Point to character to skip */
+					    int olen = len;
+
+					    char *tregex;
+					    int tlen;
+
+					    P *r = 0;
+					    o = pdup (p);
+
+					    /* Advance over character to skip */
+					    if (len >= 2 && regex[0] == '\\'
+						&& regex[1] == '[')
+					      {
+						      regex += 2;
+						      len -= 2;
+						      brack (&regex, &len, 0);
+					      }
+					    else if (len >= 1)
+						    --len, ++regex;
+					    else
+						    goto done;
+
+					    /* Now oregex/olen point to character to skip over and
+					       regex/len point to sequence which follows */
+
+					    do
+					      {
+						      P *z = pdup (p);
+						      if (pmatch
+							  (pieces, regex, len,
+							   p, n + 1, icase))
+							{
+								saves (pieces,
+								       n, o,
+								       z->
+								       byte -
+								       o->
+								       byte);
+								if (r)
+									prm
+										(r);
+								r = pdup (p);
+							}
+						      pset (p, z);
+						      prm (z);
+						      c = pgetc (p);
+					      }
+					    while (c != MAXINT &&
+						   (*oregex == '\\' ?
+						    (tregex =
+						     oregex + 2, tlen =
+						     olen - 2, brack (&tregex,
+								      &tlen,
+								      c))
+						    : (icase ? toupper (c) ==
+						       toupper (*oregex) : c
+						       == *oregex)));
+
+					  done:
+					    if (r)
+						    pset (p, r), prm (r);
+					    if (r)
+						    goto succeed;
+					    else
+						    goto fail;
+				    }
+
+			    case '^':
+				    if (!pisbol (p))
+					    goto fail;
+				    break;
+
+			    case '$':
+				    if (!piseol (p))
+					    goto fail;
+				    break;
+
+			    case '<':
+				    if (!pisbow (p))
+					    goto fail;
+				    break;
+
+			    case '>':
+				    if (!piseow (p))
+					    goto fail;
+				    break;
+
+			    default:
+				    d = pgetc (p);
+				    if (icase)
+				      {
+					      if (toupper (d) != toupper (c))
+						      goto fail;
+				      }
+				    else
+				      {
+					      if (d != c)
+						      goto fail;
+				      }
+			    }
+			  break;
+
+		  default:
+			  d = pgetc (p);
+			  if (icase)
+			    {
+				    if (toupper (d) != toupper (c))
+					    goto fail;
+			    }
+			  else
+			    {
+				    if (d != c)
+					    goto fail;
+			    }
+		  }
+d420 2
+a421 2
+		prm (o);
+	prm (q);
+d426 3
+a428 3
+		prm (o);
+	pset (p, q);
+	prm (q);
+@
+
+
+1.3
+log
+@changed as of joe-2.9.5
+@
+text
+@d1 3
+a3 2
+/* Regular expression subroutines
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d14 93
+a106 52
+int escape(a,b)
+unsigned char **a;
+int *b;
+ {
+ int c;
+ unsigned char *s= *a;
+ int l= *b;
+ if(*s=='\\' && l>=2)
+  {
+  ++s; --l;
+  switch(*s)
+   {
+  case 'n': c= 10; break; 
+  case 't': c= 9; break;
+  case 'a': c= 7; break;
+  case 'b': c= 8; break;
+  case 'f': c= 12; break;
+  case 'e': c= 27; break;
+  case 'r': c= 13; break;
+  case '8': c= 8; break;
+  case '9': c= 9; break;
+
+  case '0': case '1': case '2': case '3':
+  case '4': case '5': case '6': case '7':
+   c= *s-'0';
+   if(l>1 && s[1]>='0' && s[1]<='7') c=c*8+s[1]-'0', ++s, --l;
+   if(l>1 && s[1]>='0' && s[1]<='7') c=c*8+s[1]-'0', ++s, --l;
+  break;
+
+  case 'x': case 'X':
+   c=0;
+   if(l>1 && s[1]>='0' && s[1]<='9') c=c*16+s[1]-'0', ++s, --l;
+   else if(l>1 && s[1]>='A' && s[1]<='F') c=c*16+s[1]-'A'+10, ++s, --l;
+   else if(l>1 && s[1]>='a' && s[1]<='f') c=c*16+s[1]-'a'+10, ++s, --l;
+   if(l>1 && s[1]>='0' && s[1]<='9') c=c*16+s[1]-'0', ++s, --l;
+   else if(l>1 && s[1]>='A' && s[1]<='F') c=c*16+s[1]-'A'+10, ++s, --l;
+   else if(l>1 && s[1]>='a' && s[1]<='f') c=c*16+s[1]-'a'+10, ++s, --l;
+  break;
+
+  default: c= *s; break;
+   }
+  ++s; --l;
+  }
+ else (c= *s++), --l;
+ *a= s; *b= l;
+ return c;
+ }
+
+static int brack(a,la,c)
+unsigned char **a;
+int *la;
+unsigned char c;
+d108 43
+a150 28
+int inverse=0;
+int flag=0;
+unsigned char *s= *a;
+int l= *la;
+if(!l) return 0;
+if(*s=='^' || *s=='*') inverse=1, ++s, --l;
+if(l && *s==']')
+ {
+ ++s; --l;
+ if(c==']') flag=1;
+ }
+while(l)
+ if(*s==']') { ++s; --l; break; }
+ else
+  {
+  int cl, cr;
+  cl=escape(&s,&l);
+  if(l>=2 && s[0]=='-' && s[1]!=']')
+   {
+   --l; ++s;
+   cr=escape(&s,&l);
+   if(c>=cl && c<=cr) flag=1;
+   }
+  else if(c==cl) flag=1;
+  }
+*a=s; *la=l;
+if(inverse) return !flag;
+else return flag;
+d153 4
+a156 3
+static void savec(pieces,n,c)
+char *pieces[];
+char c;
+d158 5
+a162 4
+char *s=0;
+if(pieces[n]) vsrm(pieces[n]);
+s=vsncpy(s,0,&c,1);
+pieces[n]=s;
+d165 5
+a169 4
+static void saves(pieces,n,p,szz)
+char *pieces[];
+P *p;
+long szz;
+d171 70
+a240 6
+if(szz>=MAXINT-31) pieces[n]=vstrunc(pieces[n],0);
+else
+ {
+ pieces[n]=vstrunc(pieces[n],(int)szz);
+ brmem(p,pieces[n],(int)szz);
+ }
+d243 5
+a247 50
+static int skip_special(p)
+ P *p;
+ {
+  int to, s;
+  switch(s=pgetc(p))
+   {
+    case '"':
+    do
+     if((s=pgetc(p))=='\\') pgetc(p), s=pgetc(p);
+     while(s!=MAXINT && s!='\"');
+    if(s=='\"') return MAXINT-1;
+    break;
+
+    case '\'':
+    if((s=pgetc(p))=='\\') s=pgetc(p), s=pgetc(p);
+    if(s=='\'') return MAXINT-1;
+    if((s=pgetc(p))=='\'') return MAXINT-1;
+    if((s=pgetc(p))=='\'') return MAXINT-1;
+    break;
+
+    case '[': to=']'; goto skip;
+    case '(': to=')'; goto skip;
+    case '{': to='}';
+    skip: do
+     s=skip_special(p);
+     while(s!=to && s!=MAXINT);
+    if(s==to) return MAXINT-1;
+    break;
+
+    case '/':
+    s=pgetc(p);
+    if(s=='*')
+     do
+      {
+      s=pgetc(p);
+      while(s=='*') if((s=pgetc(p))=='/') return MAXINT-1;
+      } while(s!=MAXINT);
+    else
+     if(s!=MAXINT) s=prgetc(p);
+     else s='/';
+    break;
+
+   }
+  return s;
+ }
+
+int pmatch(pieces,regex,len,p,n,icase)
+char *pieces[];
+char *regex;
+P *p;
+d249 217
+a465 155
+int c,d;
+P *q=pdup(p);
+P *o=0;
+while(len--)
+ switch(c= *regex++)
+  {
+ case '\\':
+  if(!len--) goto fail;
+  switch(c= *regex++)
+   {
+  case '?':
+   d=pgetc(p);
+   if(d== MAXINT) goto fail;
+   savec(pieces,n++,(char)d);
+   break;
+
+  case 'n': case 'r': case 'a': case 'f': case 'b': case 't': case 'e':
+  case 'x': case 'X': case '0': case '1': case '2': case '3': case '4':
+  case '5': case '6': case '7': case '8': case '9':
+   regex-=2; len+=2;
+   if(pgetc(p)!= escape(&regex,&len)) goto fail;
+   break;
+
+  case '*':
+   /* Find shortest matching sequence */
+   o=pdup(p);
+   do
+    {
+    long pb=p->byte;
+    if(pmatch(pieces,regex,len,p,n+1,icase))
+     { saves(pieces,n,o,pb-o->byte); goto succeed; }
+    c=pgetc(p);
+    }
+    while(c!=MAXINT && c!='\n');
+   goto fail;
+	
+  case 'c':
+   o=pdup(p);
+   do
+    {
+    long pb=p->byte;
+    if(pmatch(pieces,regex,len,p,n+1,icase))
+     { saves(pieces,n,o,pb-o->byte); goto succeed; }
+    }
+    while(skip_special(p)!= MAXINT);
+   goto fail;
+
+  case '[':
+   d=pgetc(p);
+   if(d== MAXINT) goto fail;
+   if(!brack(&regex,&len,d)) goto fail;
+   savec(pieces,n++,(char)d);
+   break;
+
+  case '+':
+   {
+   char *oregex=regex;	/* Point to character to skip */
+   int olen=len;
+
+   char *tregex;
+   int tlen;
+
+   P *r=0;
+   o=pdup(p);
+
+   /* Advance over character to skip */
+   if(len>=2 && regex[0]=='\\' && regex[1]=='[')
+    {
+    regex+=2;
+    len-=2;
+    brack(&regex,&len,0);
+    }
+   else if(len>=1) --len, ++regex;
+   else goto done;
+
+   /* Now oregex/olen point to character to skip over and
+      regex/len point to sequence which follows */
+
+   do
+    {
+    P *z=pdup(p);
+    if(pmatch(pieces,regex,len,p,n+1,icase))
+     {
+     saves(pieces,n,o,z->byte-o->byte);
+     if(r) prm(r);
+     r=pdup(p);
+     }
+    pset(p,z);
+    prm(z);
+    c=pgetc(p);
+    }
+   while(c!=MAXINT &&
+          (*oregex=='\\' ?
+           (tregex=oregex+2, tlen=olen-2, brack(&tregex,&tlen,c))
+          :
+           (icase?toupper(c)==toupper(*oregex):c==*oregex)
+          )
+        );
+
+   done:
+   if(r) pset(p,r), prm(r);
+   if(r) goto succeed;
+   else goto fail;
+   }
+
+  case '^':
+   if(!pisbol(p)) goto fail;
+   break;
+
+  case '$':
+   if(!piseol(p)) goto fail;
+   break;
+
+  case '<':
+   if(!pisbow(p)) goto fail;
+   break;
+  
+  case '>':
+   if(!piseow(p)) goto fail;
+   break;
+  
+  default:
+   d=pgetc(p);
+   if(icase)
+    {
+    if(toupper(d)!=toupper(c)) goto fail;
+    }
+   else
+    {
+    if(d!=c) goto fail;
+    }
+   }
+  break;
+
+ default:
+  d=pgetc(p);
+  if(icase)
+   {
+   if(toupper(d)!=toupper(c)) goto fail;
+   }
+  else
+   {
+   if(d!=c) goto fail;
+   }
+  }
+succeed:
+if(o) prm(o);
+prm(q);
+return 1;
+
+fail:
+if(o) prm(o);
+pset(p,q);
+prm(q);
+return 0;
+@
+
+
+1.2
+log
+@changes for joe-2.9.1
+@
+text
+@a20 1
+#include "zstr.h"
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d19 1
+d278 1
+a278 1
+           (icase?toup(c)==toup(*oregex):c==*oregex)
+d308 1
+a308 1
+    if(toup(d)!=toup(c)) goto fail;
+d321 1
+a321 1
+   if(toup(d)!=toup(c)) goto fail;
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

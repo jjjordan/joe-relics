@@ -1,0 +1,108 @@
+head	1.5;
+access;
+symbols
+	joe_3_5:1.4
+	joe-3_4:1.2
+	help:1.2;
+locks; strict;
+comment	@# @;
+
+
+1.5
+date	2008.10.28.02.34.36;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2006.06.07.01.56.35;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.06.01.15.53.39;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.05.30.15.34.24;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.05.25.01.47.50;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.5
+log
+@Update configure scripts to use docdir and datadir
+@
+text
+@sysconf_joedir = $(sysconfdir)/joe
+data_joedir = $(datadir)/joe
+data_docdir = $(docdir)
+
+SUBDIRS = ru
+
+man_MANS = joe.1
+
+EXTRA_DIST = joe.1.in
+
+joe.1 : joe.1.in
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@JOEDOC\@@,$(data_docdir),; s,@@JOEDATA\@@,$(data_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(bindir),' $(srcdir)/joe.1.in > $@@
+
+MOSTLYCLEANFILES = $(man_MANS)
+
+@
+
+
+1.4
+log
+@large file patch, makefile fix, tty.c fix.
+@
+text
+@d2 2
+d12 1
+a12 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(bindir),' $(srcdir)/joe.1.in > $@@
+@
+
+
+1.3
+log
+@build fixes
+@
+text
+@d10 1
+a10 1
+	sed 's,@@JOERC\@@,$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(bindir),' $< > $@@
+@
+
+
+1.2
+log
+@fix make, add search options help screen
+@
+text
+@d1 2
+d10 1
+a10 1
+	sed 's,@@JOERC\@@,$(DESTDIR)$(sysconf_joedir),; s,@@SPELL\@@,@@SPELL@@,; s,@@BINDIR\@@,$(DESTDIR)$(bindir),' $< > $@@
+@
+
+
+1.1
+log
+@Makefile subdirectories
+@
+text
+@d5 1
+a5 1
+EXTRA_DIST = $(man_MANS)
+@
+

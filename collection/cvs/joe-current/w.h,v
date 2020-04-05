@@ -1,0 +1,1226 @@
+head	1.21;
+access;
+symbols
+	joe_3_5:1.17
+	joe-3_4:1.17
+	help:1.17
+	joe_3_1:1.12
+	joe_3_0:1.12
+	joe_2_9_8:1.9
+	joe_2_9_8_pre1:1.9
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.21
+date	2008.10.25.19.23.04;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2007.06.04.01.13.33;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2007.05.31.02.31.55;	author jhallen;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2006.05.21.01.58.58;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2006.05.14.17.50.51;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2005.03.26.05.47.32;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2005.02.27.05.29.33;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.04.18.02.26.36;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.04.17.13.13.17;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.04.12.13.58.28;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.11.20.12.59.50;	author marx_sk;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.12.15.54.16;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.12.15.52.27;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.31;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.31;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.21
+log
+@Allow > in content.  rename accept and chsize.
+@
+text
+@/*
+ *	Window management
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_W_H
+#define _JOE_W_H 1
+
+struct watom {
+	unsigned char	*context;	/* Context name */
+	void	(*disp) ();	/* Display window */
+	void	(*follow) ();	/* Called to have window follow cursor */
+	int	(*abort) ();	/* Common user functions */
+	int	(*rtn) ();
+	int	(*type) ();
+	void	(*resize) ();	/* Called when window changed size */
+	void	(*move) ();	/* Called when window moved */
+	void	(*ins) ();	/* Called on line insertions */
+	void	(*del) ();	/* Called on line deletions */
+	int	what;		/* Type of this thing */
+};
+
+/* A screen with windows */
+
+struct screen {
+	SCRN	*t;		/* Screen data on this screen is output to */
+
+	int	wind;		/* Number of help lines on this screen */
+
+	W	*topwin;	/* Top-most window showing on screen */
+	W	*curwin;	/* Window cursor is in */
+
+	int	w, h;		/* Width and height of this screen */
+};
+
+/* A window (base class) */
+
+struct window {
+	LINK(W)	link;		/* Linked list of windows in order they
+				   appear on the screen */
+
+	Screen	*t;		/* Screen this thing is on */
+
+	int	x, y, w, h;	/* Position and size of window */
+				/* Currently, x = 0, w = width of screen. */
+				/* y == -1 if window is not on screen */
+
+	int	ny, nh;		/* Temporary values for wfit */
+
+	int	reqh;		/* Requested new height or 0 for same */
+				/* This is an argument for wfit */
+
+	int	fixed;		/* If this is zero, use 'hh'.  If not, this
+				   is a fixed size window and this variable
+				   gives its height */
+
+	int	hh;		/* Height window would be on a screen with
+				   1000 lines.  When the screen size changes
+				   this is used to calculate the window's
+				   real height */
+
+	W	*win;		/* Window this one operates on */
+	W	*main;		/* Main window of this family */
+	W	*orgwin;	/* Window where space from this window came */
+	int	curx, cury;	/* Cursor position within window */
+	KBD	*kbd;		/* Keyboard handler for this window */
+	WATOM	*watom;		/* The type of this window */
+	void	*object;	/* Object which inherits this */
+#if 0
+	union {			/* FIXME: instead of void *object we should */
+		BW	*bw;	/* use this union to get strict type checking */
+		PW	*pw;	/* from C compiler (need to check and change */
+		QW	*qw;	/* all of the occurrencies of ->object) */
+		TW	*tw;
+		MENU	*menu;
+		BASE	*base;
+	} object;
+#endif
+
+	unsigned char	*msgt;		/* Message at top of window */
+	unsigned char	*msgb;		/* Message at bottom of window */
+	unsigned char	*huh;		/* Name of window for context sensitive hlp */
+	Coroutine *coro;	/* Coroutine which is resumed when this prompt window is finished */
+};
+
+/* Anything which goes in window.object must start like this: */
+struct base {
+	W	*parent;
+};
+
+/***************/
+/* Subroutines */
+/***************/
+
+/* int getgrouph(W *);
+ * Get height of a family of windows
+ */
+int getgrouph PARAMS((W *w));
+
+/* W *findtopw(W *);
+ * Find first (top-most) window of a family
+ */
+W *findtopw PARAMS((W *w));
+
+/* W *findbotw(W *);
+ * Find last (bottom-most) window a family
+ */
+W *findbotw PARAMS((W *w));
+
+int demotegroup PARAMS((W *w));
+
+/* W *lastw(Screen *t);
+ * Find last window on screen
+ */
+W *lastw PARAMS((Screen *t));
+
+/* Determine number of main windows
+ */
+int countmain PARAMS((Screen *t));
+
+/* void wfit(Screen *t);
+ *
+ * Fit all of the windows onto the screen
+ */
+void wfit PARAMS((Screen *t));
+
+/* W *watpos(Screen *t, int x, int y);
+ * Return the window at the given location, or NULL if there is none
+ */
+W *watpos PARAMS((Screen *t, int x, int y));
+
+/*****************/
+/* Main routines */
+/*****************/
+
+/* Screen *screate(SCRN *);
+ *
+ * Create a screen
+ */
+Screen *screate PARAMS((SCRN *scrn));
+
+/* void sresize(Screen *t);
+ * Screen size changed
+ */
+void sresize PARAMS((Screen *t));
+
+/* void chsize(Screen *t,int mul,int div)
+ * Resize windows: each window is multiplied by the fraction mul/div
+ */
+/* void chsize PARAMS(()); */
+
+/* W *wcreate(Screen *t,WATOM *watom,W *where,W *target,W *original,int height);
+ *
+ * Try to create a window
+ *
+ * 't'		Is the screen the window is placed on
+ * 'watom'	Type of new window
+ * 'where'	The window is placed after this window, or if 'where'==0, the
+ *		window is placed on the end of the screen
+ * 'target'	The window operates on this window.  The window becomes a
+ *		member of 'target's family or starts a new family if
+ *		'target'==0.
+ * 'original'	Attempt to get 'height' from this window.  When the window is
+ *              aborted, the space gets returned to 'original' if it still
+ *		exists.  If 'original'==0, the window will force other
+ *		windows to go off of the screen.
+ * 'height'	The height of the window
+ *
+ * Returns the new window or returns 0 if there was not enough space to
+ * create the window and maintain family integrity.
+ */
+W *wcreate PARAMS((Screen *t, WATOM *watom, W *where, W *target, W *original, int height, unsigned char *huh));
+
+/* int wabort(W *w);
+ *
+ * Kill a window and it's children
+ */
+int wabort PARAMS((W *w));
+
+/* int wnext(Screen *);
+ *
+ * Switch to next window
+ */
+int wnext PARAMS((Screen *t));
+
+/* int wprev(Screen *);
+ *
+ * Switch to previous window
+ */
+int wprev PARAMS((Screen *t));
+
+/* int wgrow(W *);
+ *
+ * increase size of window.  Return 0 for success, -1 for fail.
+ */
+int wgrow PARAMS((W *w));
+
+/* int wshrink(W *);
+ *
+ * Decrease size of window.  Returns 0 for success, -1 for fail.
+ */
+int wshrink PARAMS((W *w));
+
+int wgrowup PARAMS((W *w));
+int wgrowdown PARAMS((W *w));
+
+/* void wshowone(W *);
+ *
+ * Show only one window on the screen
+ */
+void wshowone PARAMS((W *w));
+
+/* void wshowall(Screen *);
+ *
+ * Show all windows on the screen, including the given one
+ */
+void wshowall PARAMS((Screen *t));
+
+/* void wredraw(W *);
+ *
+ * Force complete redraw of window
+ */
+void wredraw PARAMS((W *w));
+
+/* void updall()
+ *
+ * Redraw all windows
+ */
+void updall PARAMS((void));
+
+/* void msgnw[t](W *w, char *s);
+ * Display a message which will be eliminated on the next keypress.
+ * msgnw displays message on bottom line of window
+ * msgnwt displays message on top line of window
+ */
+void msgnw PARAMS((W *w, unsigned char *s));
+void msgnwt PARAMS((W *w, unsigned char *s));
+
+void msgout PARAMS((W *w));			/* Output msgnw/msgnwt messages */
+
+/* Common user functions */
+
+int urtn PARAMS((BASE *b, int k));		/* User hit return */
+int utype PARAMS((BASE *b, int k));		/* User types a character */
+int uretyp PARAMS((BASE *bw));			/* Refresh the screen */
+int ugroww PARAMS((BASE *bw));			/* Grow current window */
+int uexpld PARAMS((BASE *bw));			/* Explode current window or show all windows */
+int ushrnk PARAMS((BASE *bw));			/* Shrink current window */
+int unextw PARAMS((BASE *bw));			/* Goto next window */
+int uprevw PARAMS((BASE *bw));			/* Goto previous window */
+int umwind PARAMS((BW *bw));			/* Go to message window */
+int umfit PARAMS((BW *bw));			/* Fit two windows on screen */
+
+void scrdel PARAMS((B *b, long int l, long int n, int flg));
+void scrins PARAMS((B *b, long int l, long int n, int flg));
+
+extern int bg_msg; /* Background color for messages */
+
+#endif
+@
+
+
+1.20
+log
+@More work on coroutine refactoring.
+@
+text
+@d152 1
+a152 1
+void chsize PARAMS(());
+@
+
+
+1.19
+log
+@get uquery to use coroutines: eliminates recursive edloop calls.
+@
+text
+@a85 1
+	int	*notify;	/* Address of kill notification flag */
+d174 1
+a174 1
+W *wcreate PARAMS((Screen *t, WATOM *watom, W *where, W *target, W *original, int height, unsigned char *huh, int *notify));
+@
+
+
+1.18
+log
+@semiautomatic variables
+@
+text
+@d85 1
+@
+
+
+1.17
+log
+@A option for search
+Restore cursor to old position
+@
+text
+@a240 3
+#define JOE_MSGBUFSIZE 300
+extern unsigned char msgbuf[JOE_MSGBUFSIZE];	/* Message composition buffer for msgnw/msgnwt */
+
+@
+
+
+1.16
+log
+@Change SCREEN to Screen
+@
+text
+@d256 2
+@
+
+
+1.15
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d44 1
+a44 1
+	SCREEN	*t;		/* Screen this thing is on */
+d114 1
+a114 1
+/* W *lastw(SCREEN *t);
+d117 1
+a117 1
+W *lastw PARAMS((SCREEN *t));
+d121 1
+a121 1
+int countmain PARAMS((SCREEN *t));
+d123 1
+a123 1
+/* void wfit(SCREEN *t);
+d127 1
+a127 1
+void wfit PARAMS((SCREEN *t));
+d129 1
+a129 1
+/* W *watpos(SCREEN *t, int x, int y);
+d132 1
+a132 1
+W *watpos PARAMS((SCREEN *t, int x, int y));
+d138 1
+a138 1
+/* SCREEN *screate(SCRN *);
+d142 1
+a142 1
+SCREEN *screate PARAMS((SCRN *scrn));
+d144 1
+a144 1
+/* void sresize(SCREEN *t);
+d147 1
+a147 1
+void sresize PARAMS((SCREEN *t));
+d149 1
+a149 1
+/* void chsize(SCREEN *t,int mul,int div)
+d154 1
+a154 1
+/* W *wcreate(SCREEN *t,WATOM *watom,W *where,W *target,W *original,int height);
+d174 1
+a174 1
+W *wcreate PARAMS((SCREEN *t, WATOM *watom, W *where, W *target, W *original, int height, unsigned char *huh, int *notify));
+d182 1
+a182 1
+/* int wnext(SCREEN *);
+d186 1
+a186 1
+int wnext PARAMS((SCREEN *t));
+d188 1
+a188 1
+/* int wprev(SCREEN *);
+d192 1
+a192 1
+int wprev PARAMS((SCREEN *t));
+d215 1
+a215 1
+/* void wshowall(SCREEN *);
+d219 1
+a219 1
+void wshowall PARAMS((SCREEN *t));
+@
+
+
+1.14
+log
+@        Reformat mouse.c
+
+        Apply diff patch
+
+        Apply vpath patch
+
+        Apply electrum's mouse patch (send mouse off code during
+        shell escape)
+
+        Mouse can now resize windows
+
+        Mouse can position cursor in menus.  Double-click selects
+        an item.  Need to add scroll.
+
+@
+text
+@d11 81
+a91 2
+#include "config.h"
+#include "types.h"
+d260 2
+@
+
+
+1.13
+log
+@Jesse McGrew's xterm mouse support.
+@
+text
+@d127 3
+@
+
+
+1.12
+log
+@Allow UTF-8 in menu entries.
+
+Clear up genfield() and genfmt() stuff.  Now control characters in
+file names are properly displayed.
+
+When UTF-8 character decodes to 127 - 159, 0 - 31, display it
+as a control character.
+@
+text
+@d50 5
+@
+
+
+1.11
+log
+@UTF-8 now supported in file names and prompts.
+
+Search should be partially working.  \+ with
+a UTF-8 character following is broken and
+\[ ] only works for bytes.
+@
+text
+@a145 10
+void gentxt PARAMS((SCRN *t, int x, int y, int ofst, unsigned char *s, int len, int flg));
+int gentxtwidth PARAMS((unsigned char *s));
+
+void genfmt PARAMS((SCRN *t, int x, int y, int ofst, unsigned char *s, int flg));
+
+/* Should be called fmtwidth since this returns column width */
+int fmtlen PARAMS((unsigned char *s));
+
+int fmtpos PARAMS((unsigned char *s, int goal));
+
+@
+
+
+1.10
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d146 3
+d150 2
+a151 1
+void gentxt PARAMS((SCRN *t, int x, int y, int ofst, unsigned char *s, int len, int flg));
+d153 1
+@
+
+
+1.9
+log
+@include only headers which are needed
+@
+text
+@d90 1
+a90 1
+W *wcreate PARAMS((SCREEN *t, WATOM *watom, W *where, W *target, W *original, int height, char *huh, int *notify));
+d146 4
+a149 4
+void genfmt PARAMS((SCRN *t, int x, int y, int ofst, char *s, int flg));
+void gentxt PARAMS((SCRN *t, int x, int y, int ofst, char *s, int len, int flg));
+int fmtlen PARAMS((char *s));
+int fmtpos PARAMS((char *s, int goal));
+d156 2
+a157 2
+void msgnw PARAMS((W *w, char *s));
+void msgnwt PARAMS((W *w, char *s));
+d160 1
+a160 1
+extern char msgbuf[JOE_MSGBUFSIZE];	/* Message composition buffer for msgnw/msgnwt */
+@
+
+
+1.8
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 5
+#include "queue.h"
+#include "scrn.h"
+#include "kbd.h"
+#include "b.h"
+
+@
+
+
+1.7
+log
+@MSGBUFSIZE remaned to JOE_MSGBUFSIZE
+@
+text
+@d2 8
+a9 2
+	Window management
+	Copyright (C) 1992 Joseph H. Allen
+d11 2
+a12 5
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Iw
+#define _Iw 1
+a13 1
+#include "config.h"
+a17 89
+
+typedef struct watom WATOM;
+typedef struct screen SCREEN;
+typedef struct window W;
+typedef struct base BASE;
+
+struct watom {
+	char *context;		/* Context name */
+	void (*disp) ();	/* Display window */
+	void (*follow) ();	/* Called to have window follow cursor */
+	int (*abort) ();	/* Common user functions */
+	int (*rtn) ();
+	int (*type) ();
+	void (*resize) ();	/* Called when window changed size */
+	void (*move) ();	/* Called when window moved */
+	void (*ins) ();		/* Called on line insertions */
+	void (*del) ();		/* Called on line deletions */
+	int what;		/* Type of this thing */
+};
+
+struct screen {
+	SCRN *t;		/* Screen data on this screen is output to */
+
+	int wind;		/* Number of help lines on this screen */
+
+	W *topwin;		/* Top-most window showing on screen */
+	W *curwin;		/* Window cursor is in */
+
+	int w, h;		/* Width and height of this screen */
+};
+
+struct window {
+	LINK(W) link;		/* Linked list of windows in order they
+				   appear on the screen */
+
+	SCREEN *t;		/* Screen this thing is on */
+
+	int x, y, w, h;		/* Position and size of window */
+				/* Currently, x = 0, w = width of screen. */
+				/* y == -1 if window is not on screen */
+
+	int ny, nh;		/* Temporary values for wfit */
+
+	int reqh;		/* Requested new height or 0 for same */
+				/* This is an argument for wfit */
+
+	int fixed;		/* If this is zero, use 'hh'.  If not, this
+				   is a fixed size window and this variable
+				   gives its height */
+
+	int hh;			/* Height window would be on a screen with
+				   1000 lines.  When the screen size changes
+				   this is used to calculate the window's
+				   real height */
+
+	W *win;			/* Window this one operates on */
+	W *main;		/* Main window of this family */
+	W *orgwin;		/* Window where space from this window came */
+	int curx, cury;		/* Cursor position within window */
+	KBD *kbd;		/* Keyboard handler for this window */
+	WATOM *watom;		/* The type of this window */
+	void *object;		/* Object which inherits this */
+#if 0
+	union {			/* FIXME: instead of void *object we should */
+		BW	*bw;	/* use this union to get strict type checking */
+		PW	*pw;	/* from C compiler (need to check and change */
+		QW	*qw;	/* all of the occurrencies of ->object) */
+		TW	*tw;
+		MENU	*menu;
+		BASE	*base;
+	} object;
+#endif
+
+	char *msgt;		/* Message at top of window */
+
+	char *msgb;		/* Message at bottom of window */
+
+	char *huh;		/* Name of window for context sensitive hlp */
+
+	int *notify;		/* Address of kill notification flag */
+};
+
+/* Anything which goes in window.object must start like this: */
+struct base {
+	W *parent;
+};
+
+/* Minimum text window height */
+#define FITHEIGHT 4
+@
+
+
+1.6
+log
+@non-code clean up
+@
+text
+@d251 2
+a252 2
+#define MSGBUFSIZE 300
+extern char msgbuf[MSGBUFSIZE];	/* Message composition buffer for msgnw/msgnwt */
+@
+
+
+1.5
+log
+@use msgnw[t](W *, char *) instead of msgnw[t](BASE *, char *)
+@
+text
+@d54 2
+a55 2
+	/* Currently, x=0, w=width of screen. */
+	/* y== -1 if window is not on screen */
+d60 1
+a60 1
+	/* This is an argument for wfit */
+d78 10
+a98 1
+
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d234 1
+a234 1
+/* void msgnw[t](W *w,char *text);
+d239 2
+a240 2
+void msgnw PARAMS((BASE *w, char *s));
+void msgnwt PARAMS((BASE *w, char *s));
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d15 1
+d104 1
+a104 1
+int getgrouph();
+d109 1
+a109 1
+W *findtopw();
+d114 1
+a114 1
+W *findbotw();
+d116 1
+a116 1
+int demotegroup();
+d121 1
+a121 1
+W *lastw();
+d125 1
+a125 1
+int countmain();
+d131 1
+a131 1
+void wfit();
+d141 1
+a141 1
+SCREEN *screate();
+d146 1
+a146 1
+void sresize();
+d151 1
+a151 1
+void chsize();
+d173 1
+a173 1
+W *wcreate();
+d179 1
+a179 1
+int wabort();
+d185 1
+a185 1
+int wnext();
+d191 1
+a191 1
+int wprev();
+d197 1
+a197 1
+int wgrow();
+d203 1
+a203 1
+int wshrink();
+d209 1
+a209 1
+void wshowone();
+d215 1
+a215 1
+void wshowall();
+d221 1
+a221 1
+void wredraw();
+d227 1
+a227 1
+void updall();
+d229 4
+a232 4
+void genfmt();
+void gentxt();
+int fmtlen();
+int fmtpos();
+d239 2
+a240 2
+void msgnw();
+void msgnwt();
+d245 1
+a245 1
+void msgout();			/* Output msgnw/msgnwt messages */
+d249 8
+a256 8
+int urtn();			/* User hit return */
+int utype();			/* User types a character */
+int uretyp();			/* Refresh the screen */
+int ugroww();			/* Grow current window */
+int uexpld();			/* Explode current window or show all windows */
+int ushrnk();			/* Shrink current window */
+int unextw();			/* Goto next window */
+int uprevw();			/* Goto previous window */
+d258 2
+a259 2
+void scrdel();
+void scrins();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d47 1
+a47 1
+	LINK (W) link;		/* Linked list of windows in order they
+d103 1
+a103 1
+int getgrouph ();
+d108 1
+a108 1
+W *findtopw ();
+d113 1
+a113 1
+W *findbotw ();
+d115 1
+a115 1
+int demotegroup ();
+d120 1
+a120 1
+W *lastw ();
+d124 1
+a124 1
+int countmain ();
+d130 1
+a130 1
+void wfit ();
+d140 1
+a140 1
+SCREEN *screate ();
+d145 1
+a145 1
+void sresize ();
+d150 1
+a150 1
+void chsize ();
+d172 1
+a172 1
+W *wcreate ();
+d178 1
+a178 1
+int wabort ();
+d184 1
+a184 1
+int wnext ();
+d190 1
+a190 1
+int wprev ();
+d196 1
+a196 1
+int wgrow ();
+d202 1
+a202 1
+int wshrink ();
+d208 1
+a208 1
+void wshowone ();
+d214 1
+a214 1
+void wshowall ();
+d220 1
+a220 1
+void wredraw ();
+d226 1
+a226 1
+void updall ();
+d228 4
+a231 4
+void genfmt ();
+void gentxt ();
+int fmtlen ();
+int fmtpos ();
+d238 2
+a239 2
+void msgnw ();
+void msgnwt ();
+d241 1
+a241 1
+#define MSGBUFSIZE 80
+d244 1
+a244 1
+void msgout ();			/* Output msgnw/msgnwt messages */
+d248 8
+a255 8
+int urtn ();			/* User hit return */
+int utype ();			/* User types a character */
+int uretyp ();			/* Refresh the screen */
+int ugroww ();			/* Grow current window */
+int uexpld ();			/* Explode current window or show all windows */
+int ushrnk ();			/* Shrink current window */
+int unextw ();			/* Goto next window */
+int uprevw ();			/* Goto previous window */
+d257 2
+a258 2
+void scrdel ();
+void scrins ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Window management
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d21 56
+a76 59
+struct watom
+ {
+ char *context;		/* Context name */
+ void (*disp)();	/* Display window */
+ void (*follow)();	/* Called to have window follow cursor */
+ int (*abort)();	/* Common user functions */
+ int (*rtn)();
+ int (*type)();
+ void (*resize)();	/* Called when window changed size */
+ void (*move)();	/* Called when window moved */
+ void (*ins)();		/* Called on line insertions */ 
+ void (*del)();		/* Called on line deletions */
+ int what;		/* Type of this thing */
+ };
+
+struct screen
+ {
+ SCRN *t;			/* Screen data on this screen is output to */
+
+ int wind;			/* Number of help lines on this screen */
+ 
+ W *topwin;			/* Top-most window showing on screen */
+ W *curwin;			/* Window cursor is in */
+
+ int w,h;			/* Width and height of this screen */
+ };
+
+struct window
+ {
+ LINK(W) link;			/* Linked list of windows in order they
+ 				   appear on the screen */
+
+ SCREEN *t;			/* Screen this thing is on */
+
+ int x,y,w,h;			/* Position and size of window */
+                                /* Currently, x=0, w=width of screen. */
+                                /* y== -1 if window is not on screen */
+
+ int ny,nh;			/* Temporary values for wfit */
+
+ int reqh;			/* Requested new height or 0 for same */
+ 				/* This is an argument for wfit */
+
+ int fixed;			/* If this is zero, use 'hh'.  If not, this
+ 				   is a fixed size window and this variable
+ 				   gives its height */
+
+ int hh;			/* Height window would be on a screen with
+ 				   1000 lines.  When the screen size changes
+ 				   this is used to calculate the window's
+ 				   real height */
+
+ W *win;			/* Window this one operates on */
+ W *main;			/* Main window of this family */
+ W *orgwin;			/* Window where space from this window came */
+ int curx, cury;		/* Cursor position within window */
+ KBD *kbd;			/* Keyboard handler for this window */
+ WATOM *watom;			/* The type of this window */
+ void *object;			/* Object which inherits this */
+d78 1
+a78 1
+ char *msgt;			/* Message at top of window */
+d80 1
+a80 1
+ char *msgb;			/* Message at bottom of window */
+d82 1
+a82 1
+ char *huh;			/* Name of window for context sensitive hlp */
+d84 2
+a85 2
+ int *notify;			/* Address of kill notification flag */
+ };
+d89 3
+a91 4
+struct base
+ {
+ W *parent;
+ };
+d103 1
+a103 1
+int getgrouph();
+d108 1
+a108 1
+W *findtopw();
+d113 1
+a113 1
+W *findbotw();
+d115 1
+a115 1
+int demotegroup();
+d120 1
+a120 1
+W *lastw();
+d124 1
+a124 1
+int countmain();
+d130 1
+a130 1
+void wfit();
+d140 1
+a140 1
+SCREEN *screate();
+d145 1
+a145 1
+void sresize();
+d150 1
+a150 1
+void chsize();
+d172 1
+a172 1
+W *wcreate();
+d178 1
+a178 1
+int wabort();
+d184 1
+a184 1
+int wnext();
+d190 1
+a190 1
+int wprev();
+d196 1
+a196 1
+int wgrow();
+d202 1
+a202 1
+int wshrink();
+d208 1
+a208 1
+void wshowone();
+d214 1
+a214 1
+void wshowall();
+d220 1
+a220 1
+void wredraw();
+d226 1
+a226 1
+void updall();
+d228 4
+a231 4
+void genfmt();
+void gentxt();
+int fmtlen();
+int fmtpos();
+d238 2
+a239 2
+void msgnw();
+void msgnwt();
+d241 2
+a242 1
+extern char msgbuf[80];	/* Message composition buffer for msgnw/msgnwt */
+d244 1
+a244 1
+void msgout();		/* Output msgnw/msgnwt messages */
+d248 8
+a255 8
+int urtn();	/* User hit return */
+int utype();	/* User types a character */
+int uretyp();	/* Refresh the screen */
+int ugroww();	/* Grow current window */
+int uexpld();	/* Explode current window or show all windows */
+int ushrnk();	/* Shrink current window */
+int unextw();	/* Goto next window */
+int uprevw();	/* Goto previous window */
+d257 2
+a258 2
+void scrdel();
+void scrins();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

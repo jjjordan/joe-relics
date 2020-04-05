@@ -1,0 +1,56 @@
+head	1.1;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.1
+date	2008.10.23.02.29.18;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.1
+log
+@Put JOE 3.5 in main/
+Co-routine stuff is to be considered a new branch with current
+release in main/
+
+Add some patches to main/
+	Get tags search to work again.
+	Fix bug where joe crashes when it can't write to a file
+	Fix bug where joe crashes if you try to entry an empty command
+@
+text
+@# JOE syntax highlight file for LISP
+
+# Needs lots of work...
+
+=Idle
+=Comment 	green
+=String 	cyan
+=Escape 	bold cyan
+
+:idle Idle
+	*		idle
+	";"		comment		recolor=-1
+	"\""		string		recolor=-1
+
+:comment Comment
+	*		comment
+	"\n"		idle
+
+:string String
+	*		string
+	"\""		idle
+	"\\"		string_escape	recolor=-1
+
+:string_escape Escape
+	*		string
+	"\n"		string		recolor=-2
+@

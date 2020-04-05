@@ -1,0 +1,123 @@
+head	1.2;
+access;
+symbols
+	joe_3_5:1.2
+	joe-3_4:1.2
+	help:1.2;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2006.02.25.18.38.38;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.02.25.04.40.17;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@latest web page
+@
+text
+@/* Convert text file into html */
+
+void fix(char *o, char *i)
+  {
+  for (; *i; ++i)
+    if (*i=='&')
+      {
+      *o++ = '&';
+      *o++ = 'a';
+      *o++ = 'm';
+      *o++ = 'p';
+      *o++ = ';';
+      }
+    else if (*i=='<')
+      {
+      *o++ = '&';
+      *o++ = 'l';
+      *o++ = 't';
+      *o++ = ';';
+      }
+    else if (*i=='>')
+      {
+      *o++ = '&';
+      *o++ = 'g';
+      *o++ = 't';
+      *o++ = ';';
+      }
+    else
+      *o++ = *i;
+  *o = 0;
+  }
+
+main()
+  {
+  char buf[1024];
+  char fixed[1024];
+  int inpara = 0;
+  while(gets(buf))
+    {
+    int x;
+    int isblank = 1;
+    fix(fixed, buf);
+    for (x = 0; buf[x]; ++x)
+      if(buf[x] != ' ' && buf[x] != '\t')
+        isblank = 0;
+    if (!inpara)
+      {
+      if (isblank)
+        {
+        printf("\n");
+        }
+      else
+        {
+        inpara = 1;
+        printf("<p>%s\n",fixed);
+        }
+      }
+    else
+      {
+      if (isblank)
+        {
+        printf("</p>\n");
+        inpara = 0;
+        }
+      else
+        {
+        printf("%s\n",fixed);
+        }
+      }
+    }
+  if (inpara)
+    printf("</p>\n");
+  }
+@
+
+
+1.1
+log
+@web page files
+@
+text
+@d3 30
+d36 1
+d42 1
+d55 1
+a55 1
+        printf("<p>%s\n",buf);
+d67 1
+a67 1
+        printf("%s\n",buf);
+d71 2
+@
+

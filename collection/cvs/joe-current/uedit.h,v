@@ -1,0 +1,497 @@
+head	1.12;
+access;
+symbols
+	joe_3_5:1.12
+	joe-3_4:1.12
+	help:1.12
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.7
+	joe_2_9_7:1.5
+	joe_2_9_7_pre3:1.5
+	joe_2_9_7_pre2:1.4
+	joe_2_9_6:1.3
+	joe_2_9_5:1.2
+	joe_2_9_4:1.2
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.12
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2005.03.29.06.27.01;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2005.03.16.23.19.29;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2005.03.02.03.31.35;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.20.14.45.53;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2001.12.10.13.59.06;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.00.24;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.13;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.13;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/*
+ *	Basic user edit functions
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_UEDIT_H
+#define _JOE_UEDIT_H 1
+
+extern int pgamnt; /* Amount of pgup/pgdn lines to keep */
+
+/*
+ * Movable functions
+ *	return 0 if action was done
+ *	return -1 otherwise
+ */
+int u_goto_bol PARAMS((BW *bw));	/* move cursor to beginning of line */
+int u_goto_eol PARAMS((BW *bw));	/* move cursor to end of line */
+int u_goto_bof PARAMS((BW *bw));	/* move cursor to beginning of file */
+int u_goto_eof PARAMS((BW *bw));	/* move cursor to end of file */
+int u_goto_left PARAMS((BW *bw));	/* move cursor to left (left arrow) */
+int u_goto_right PARAMS((BW *bw));	/* move cursor to right (right arrow) */
+int u_goto_prev PARAMS((BW *bw));	/* move cursor to prev. word, edge,
+					   or beginning of line */
+int u_goto_next PARAMS((BW *bw));	/* move cursor to next word, edge,
+					   or end of line */
+
+int utomatch PARAMS((BW *bw));
+int uuparw PARAMS((BW *bw));
+int udnarw PARAMS((BW *bw));
+int utos PARAMS((BW *bw));
+int ubos PARAMS((BW *bw));
+void scrup PARAMS((BW *bw, int n, int flg));
+void scrdn PARAMS((BW *bw, int n, int flg));
+int upgup PARAMS((BW *bw));
+int upgdn PARAMS((BW *bw));
+int uupslide PARAMS((BW *bw));
+int udnslide PARAMS((BW *bw));
+int uline PARAMS((BW *bw));
+int udelch PARAMS((BW *bw));
+int ubacks PARAMS((BW *bw, int k));
+int u_word_delete PARAMS((BW *bw));
+int ubackw PARAMS((BW *bw));
+int udelel PARAMS((BW *bw));
+int udelbl PARAMS((BW *bw));
+int udelln PARAMS((BW *bw));
+int uinsc PARAMS((BW *bw));
+int utypebw PARAMS((BW *bw, int k));
+int uquote PARAMS((BW *bw));
+int uquote8 PARAMS((BW *bw));
+int rtntw PARAMS((BW *bw));
+int uopen PARAMS((BW *bw));
+int usetmark PARAMS((BW *bw, int c));
+int ugomark PARAMS((BW *bw, int c));
+int ufwrdc PARAMS((BW *bw, int k));
+int ubkwdc PARAMS((BW *bw, int k));
+int umsg PARAMS((BASE *b));
+int uctrl PARAMS((BW *bw));
+int unedge PARAMS((BW *bw));
+int upedge PARAMS((BW *bw));
+int ubyte PARAMS((BW *bw));
+int ucol PARAMS((BW *bw));
+int utxt PARAMS((BW *bw));
+int uhome PARAMS((BW *bw));
+int uname_joe PARAMS((BW *bw));
+int upaste PARAMS((BW *bw, int k));
+
+#endif
+@
+
+
+1.11
+log
+@XTerm hack.
+@
+text
+@d11 1
+a11 4
+#include "config.h"
+#include "types.h"
+
+extern int pgamnt;
+d64 1
+a64 1
+int utxt PARAMS((BASE *bw));
+d67 1
+a67 1
+int upaste PARAMS((BW *bw));
+@
+
+
+1.10
+log
+@Get tab completion to work on user names.
+@
+text
+@d70 1
+@
+
+
+1.9
+log
+@Fix keymap command.  Add name command.
+@
+text
+@d69 1
+a69 1
+int uname PARAMS((BW *bw));
+@
+
+
+1.8
+log
+@Applied David Phillips' smart home key patch.
+
+Changed  ` u to ` x.
+@
+text
+@d69 1
+@
+
+
+1.7
+log
+@change function declaration "void a(P * p)" to "void a(P *p)"
+@
+text
+@d68 1
+@
+
+
+1.6
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d21 7
+a27 7
+int u_goto_bol PARAMS((BW * bw));	/* move cursor to beginning of line */
+int u_goto_eol PARAMS((BW * bw));	/* move cursor to end of line */
+int u_goto_bof PARAMS((BW * bw));	/* move cursor to beginning of file */
+int u_goto_eof PARAMS((BW * bw));	/* move cursor to end of file */
+int u_goto_left PARAMS((BW * bw));	/* move cursor to left (left arrow) */
+int u_goto_right PARAMS((BW * bw));	/* move cursor to right (right arrow) */
+int u_goto_prev PARAMS((BW * bw));	/* move cursor to prev. word, edge,
+d29 1
+a29 1
+int u_goto_next PARAMS((BW * bw));	/* move cursor to next word, edge,
+@
+
+
+1.5
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 8
+	Basic user edit functions
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Iuedit
+#define _Iuedit 1
+d12 1
+@
+
+
+1.4
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d11 2
+d20 10
+a29 12
+int u_goto_bol(BW * bw);	/* move cursor to beginning of line */
+int u_goto_eol(BW * bw);	/* move cursor to end of line */
+int u_goto_bof(BW * bw);	/* move cursor to beginning of file */
+int u_goto_eof(BW * bw);	/* move cursor to end of file */
+int u_goto_left(BW * bw);	/* move cursor to left (left arrow) */
+int u_goto_right(BW * bw);	/* move cursor to right (right arrow) */
+int u_goto_prev(BW * bw);	/* move cursor to prev. word, edge, 
+
+				   or beginning of line */
+int u_goto_next(BW * bw);	/* move cursor to next word, edge,
+
+				   or end of line */
+d31 36
+a66 36
+int utomatch();
+int uuparw();
+int udnarw();
+int utos();
+int ubos();
+void scrup();
+void scrdn();
+int upgup();
+int upgdn();
+int uupslide();
+int udnslide();
+int uline();
+int udelch();
+int ubacks();
+int u_word_delete();
+int ubackw();
+int udelel();
+int udelbl();
+int udelln();
+int uinsc();
+int utypebw();
+int uquote();
+int uquote8();
+int rtntw();
+int uopen();
+int usetmark();
+int ugomark();
+int ufwrdc();
+int ubkwdc();
+int umsg();
+int uctrl();
+int unedge();
+int upedge();
+int ubyte();
+int ucol();
+int utxt();
+@
+
+
+1.3
+log
+@changed as of joe-2.9.6
+@
+text
+@d18 7
+a24 4
+int u_goto_bol (BW *bw);	/* move cursor to beginning of line */
+int u_goto_eol (BW *bw);	/* move cursor to end of line */
+int u_goto_bof (BW *bw);	/* move cursor to beginning of file */
+int u_goto_eof (BW *bw);	/* move cursor to end of file */
+d26 2
+a27 4
+int u_goto_left  (BW *bw);	/* move cursor to left (left arrow) */
+int u_goto_right (BW *bw);	/* move cursor to right (right arrow) */
+int u_goto_up (BW *bw);		/* move cursor to previous line */
+int u_goto_down (BW *bw);	/* move cursor to next line */
+d29 1
+a29 4
+int u_goto_prev (BW *bw);	/* move cursor to prev. word, edge, 
+				    or beginning of line */
+int u_goto_next (BW *bw);	/* move cursor to next word, edge,
+				    or end of line */
+d31 36
+a66 36
+
+
+int utomatch ();
+int utos ();
+int ubos ();
+void scrup ();
+void scrdn ();
+int upgup ();
+int upgdn ();
+int uupslide ();
+int udnslide ();
+int uline ();
+int udelch ();
+int ubacks ();
+int u_word_delete ();
+int ubackw ();
+int udelel ();
+int udelbl ();
+int udelln ();
+int uinsc ();
+int utypebw ();
+int uquote ();
+int uquote8 ();
+int rtntw ();
+int uopen ();
+int usetmark ();
+int ugomark ();
+int ufwrdc ();
+int ubkwdc ();
+int umsg ();
+int uctrl ();
+int unedge ();
+int upedge ();
+int ubyte ();
+int ucol ();
+int utxt ();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.4
+@
+text
+@d13 22
+a34 8
+int ubol ();
+int ueol ();
+int ubof ();
+int ueof ();
+int ultarw ();
+int urtarw ();
+int uprvwrd ();
+int unxtwrd ();
+a35 2
+int uuparw ();
+int udnarw ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Basic user edit functions
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d13 44
+a56 44
+int ubol();
+int ueol();
+int ubof();
+int ueof();
+int ultarw();
+int urtarw();
+int uprvwrd();
+int unxtwrd();
+int utomatch();
+int uuparw();
+int udnarw();
+int utos();
+int ubos();
+void scrup();
+void scrdn();
+int upgup();
+int upgdn();
+int uupslide();
+int udnslide();
+int uline();
+int udelch();
+int ubacks();
+int udelw();
+int ubackw();
+int udelel();
+int udelbl();
+int udelln();
+int uinsc();
+int utypebw();
+int uquote();
+int uquote8();
+int rtntw();
+int uopen();
+int usetmark();
+int ugomark();
+int ufwrdc();
+int ubkwdc();
+int umsg();
+int uctrl();
+int unedge();
+int upedge();
+int ubyte();
+int ucol();
+int utxt();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

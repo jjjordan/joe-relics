@@ -1,0 +1,482 @@
+head	1.9;
+access;
+symbols
+	joe_3_5:1.9
+	joe-3_4:1.9
+	help:1.9
+	joe_3_1:1.7
+	joe_3_0:1.7
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.9
+date	2006.05.20.13.21.28;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2002.06.10.12.09.38;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.56;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.9
+log
+@update some comments
+@
+text
+@/*
+ *	Doubly linked list primitives
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_QUEUE
+#define _JOE_QUEUE 1 
+
+extern void *ITEM;
+extern void *QUEUE;
+extern void *LAST;
+struct stditem {
+	LINK(STDITEM)	link;
+};
+
+/* Initialize a doubly-linked list */
+
+#define izque(type,member,item) do { \
+	QUEUE = (void *)(item); \
+	((type *)QUEUE)->member.prev = (type *)QUEUE; \
+	((type *)QUEUE)->member.next = (type *)QUEUE; \
+	} while(0)
+
+/* Remove an item from a list */
+
+#define deque(type,member,item) do { \
+	ITEM = (void *)(item); \
+	((type *)ITEM)->member.prev->member.next = ((type *)ITEM)->member.next; \
+	((type *)ITEM)->member.next->member.prev = ((type *)ITEM)->member.prev; \
+	} while(0)
+
+/* Remove an item from a list and return it */
+
+#define deque_f(type,member,item) \
+	( \
+	ITEM=(void *)(item), \
+	((type *)ITEM)->member.prev->member.next=((type *)ITEM)->member.next, \
+	((type *)ITEM)->member.next->member.prev=((type *)ITEM)->member.prev, \
+	(type *)ITEM \
+	)
+
+/* Return true if doubly-linked list is empty */
+
+#define qempty(type,member,item) \
+	( \
+	QUEUE=(void *)(item), \
+	(type *)QUEUE==((type *)QUEUE)->member.next \
+	)
+
+/* Insert an item at front of list */
+
+#define enquef(type,member,queue,item) do { \
+	ITEM = (void *)(item); \
+	QUEUE = (void *)(queue); \
+	((type *)ITEM)->member.next = ((type *)QUEUE)->member.next; \
+	((type *)ITEM)->member.prev = (type *)QUEUE; \
+	((type *)QUEUE)->member.next->member.prev = (type *)ITEM; \
+	((type *)QUEUE)->member.next = (type *)ITEM; \
+	} while(0)
+
+/* Insert an item at back of list */
+
+#define enqueb(type,member,queue,item) do { \
+	ITEM = (void *)(item); \
+	QUEUE = (void *)(queue); \
+	((type *)ITEM)->member.next = (type *)QUEUE; \
+	((type *)ITEM)->member.prev = ((type *)QUEUE)->member.prev; \
+	((type *)QUEUE)->member.prev->member.next = (type *)ITEM; \
+	((type *)QUEUE)->member.prev = (type *)ITEM; \
+	} while(0)
+
+/* Insert an item at front of list and return it */
+
+#define enqueb_f(type,member,queue,item) \
+	( \
+	ITEM=(void *)(item), \
+	QUEUE=(void *)(queue), \
+	((type *)ITEM)->member.next=(type *)QUEUE, \
+	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+	((type *)QUEUE)->member.prev=(type *)ITEM, \
+	(type *)ITEM \
+	)
+
+/* Promote an item to front of list */
+
+#define promote(type,member,queue,item) \
+	enquef(type,member,(queue),deque_f(type,member,(item)))
+
+/* Demote an item to back of list */
+
+#define demote(type,member,queue,item) \
+	enqueb(type,member,(queue),deque_f(type,member,(item)))
+
+/* Splice a chain into from of a list */
+
+#define splicef(type,member,queue,chain) do { \
+	ITEM = (void *)(chain); \
+	LAST = (void *)((type *)ITEM)->member.prev; \
+	QUEUE = (void *)(queue); \
+	((type *)LAST)->member.next = ((type *)QUEUE)->member.next; \
+	((type *)ITEM)->member.prev = (type *)QUEUE; \
+	((type *)QUEUE)->member.next->member.prev = (type *)LAST; \
+	((type *)QUEUE)->member.next = (type *)ITEM; \
+	} while(0)
+
+/* Splice a chain into back of a list */
+
+#define spliceb(type,member,queue,chain) do { \
+	ITEM = (void *)(chain); \
+	LAST = (void *)((type *)ITEM)->member.prev; \
+	QUEUE = (void *)(queue); \
+	((type *)LAST)->member.next = (type *)QUEUE; \
+	((type *)ITEM)->member.prev = ((type *)QUEUE)->member.prev; \
+	((type *)QUEUE)->member.prev->member.next = (type *)ITEM; \
+	((type *)QUEUE)->member.prev = (type *)LAST; \
+	} while(0)
+
+#define spliceb_f(type,member,queue,chain) \
+	( \
+	ITEM=(void *)(chain), \
+	LAST=(void *)((type *)ITEM)->member.prev, \
+	QUEUE=(void *)(queue), \
+	((type *)LAST)->member.next=(type *)QUEUE, \
+	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+	((type *)QUEUE)->member.prev=(type *)LAST, \
+	(type *)ITEM \
+	)
+
+/* Remove a range of items from a list and return it as a chain for later splicing */
+
+#define snip(type,member,first,last) \
+	( \
+	ITEM=(void *)(first), \
+	LAST=(void *)(last), \
+	((type *)LAST)->member.next->member.prev=((type *)ITEM)->member.prev, \
+	((type *)ITEM)->member.prev->member.next=((type *)LAST)->member.next, \
+	((type *)ITEM)->member.prev=(type *)LAST, \
+	((type *)LAST)->member.next=(type *)ITEM, \
+	(type *)ITEM \
+	)
+
+/* Allocate an item */
+
+void *alitem PARAMS((void *list, int itemsize));
+
+/* Free an item */
+
+void frchn PARAMS((void *list, void *ch));
+
+#endif
+@
+
+
+1.8
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d18 2
+d26 2
+d34 2
+d44 2
+d52 2
+d63 2
+d74 2
+d87 2
+d92 2
+d97 2
+d109 2
+d133 2
+d146 2
+d149 3
+@
+
+
+1.7
+log
+@change "expr, expr" to "expr; expr" where appropriate
+@
+text
+@a10 2
+#include "config.h"
+
+d14 3
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d17 11
+a27 13
+#define izque(type,member,item) \
+	( \
+	QUEUE=(void *)(item), \
+	((type *)QUEUE)->member.prev=(type *)QUEUE, \
+	((type *)QUEUE)->member.next=(type *)QUEUE \
+	)
+
+#define deque(type,member,item) \
+	( \
+	ITEM=(void *)(item), \
+	((type *)ITEM)->member.prev->member.next=((type *)ITEM)->member.next, \
+	((type *)ITEM)->member.next->member.prev=((type *)ITEM)->member.prev\
+	)
+d43 17
+a59 19
+#define enquef(type,member,queue,item) \
+	( \
+	ITEM=(void *)(item), \
+	QUEUE=(void *)(queue), \
+	((type *)ITEM)->member.next=((type *)QUEUE)->member.next, \
+	((type *)ITEM)->member.prev=(type *)QUEUE, \
+	((type *)QUEUE)->member.next->member.prev=(type *)ITEM, \
+	((type *)QUEUE)->member.next=(type *)ITEM \
+	)
+
+#define enqueb(type,member,queue,item) \
+	( \
+	ITEM=(void *)(item), \
+	QUEUE=(void *)(queue), \
+	((type *)ITEM)->member.next=(type *)QUEUE, \
+	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+	((type *)QUEUE)->member.prev=(type *)ITEM \
+	)
+d73 1
+a73 3
+	( \
+	enquef(type,member,(queue),deque_f(type,member,(item))) \
+	)
+d76 1
+a76 14
+	( \
+	enqueb(type,member,(queue),deque_f(type,member,(item))) \
+	)
+
+#define splicef(type,member,queue,chain) \
+	( \
+	ITEM=(void *)(chain), \
+	LAST=(void *)((type *)ITEM)->member.prev, \
+	QUEUE=(void *)(queue), \
+	((type *)LAST)->member.next=((type *)QUEUE)->member.next, \
+	((type *)ITEM)->member.prev=(type *)QUEUE, \
+	((type *)QUEUE)->member.next->member.prev=(type *)LAST, \
+	((type *)QUEUE)->member.next=(type *)ITEM \
+	)
+d78 19
+a96 10
+#define spliceb(type,member,queue,chain) \
+	( \
+	ITEM=(void *)(chain), \
+	LAST=(void *)((type *)ITEM)->member.prev, \
+	QUEUE=(void *)(queue), \
+	((type *)LAST)->member.next=(type *)QUEUE, \
+	((type *)ITEM)->member.prev=((type *)QUEUE)->member.prev, \
+	((type *)QUEUE)->member.prev->member.next=(type *)ITEM, \
+	((type *)QUEUE)->member.prev=(type *)LAST \
+	)
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a11 1
+#include "types.h"
+a15 2
+
+
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d2 8
+a9 8
+	Doubly linked list primitives
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+#ifndef _Iqueue
+#define _Iqueue 1
+d12 1
+a17 6
+#define LINK(type) struct { type *next; type *prev; }
+
+typedef struct stditem STDITEM;
+struct stditem {
+	LINK(STDITEM) link;
+};
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d139 2
+a140 2
+void *alitem(void *list, int itemsize);
+void frchn(void *list, void *ch);
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d21 1
+a21 1
+	LINK (STDITEM) link;
+d29 1
+a29 2
+	((type *)QUEUE)->member.next=(type *)QUEUE, \
+	(type *)QUEUE \
+d36 7
+d60 1
+a60 2
+	((type *)QUEUE)->member.next=(type *)ITEM, \
+	(type *)ITEM \
+d70 10
+d86 1
+a86 1
+	enquef(type,member,(queue),deque(type,member,(item))) \
+d91 1
+a91 1
+	enqueb(type,member,(queue),deque(type,member,(item))) \
+d102 1
+a102 2
+	((type *)QUEUE)->member.next=(type *)ITEM, \
+	(type *)ITEM \
+d113 11
+d139 2
+a140 5
+void *ALITEM (STDITEM *freelist, int itemsize);
+void FRCHN (STDITEM *freelist, STDITEM *chn);
+
+#define alitem(freelist,itemsize) ALITEM((STDITEM *) freelist, itemsize)
+#define frchn(freelist,chn) FRCHN((STDITEM *) freelist, (STDITEM *) chn)
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Doubly linked list primitives
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d19 6
+d114 5
+a118 2
+void *alitem();
+void frchn();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

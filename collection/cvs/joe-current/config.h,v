@@ -1,0 +1,228 @@
+head	1.7;
+access;
+symbols
+	joe_3_5:1.7
+	joe-3_4:1.7
+	help:1.7
+	joe_3_1:1.4
+	joe_3_0:1.3
+	joe_2_9_8:1.3
+	joe_2_9_8_pre1:1.2
+	joe_2_9_7:1.1
+	joe_2_9_7_pre3:1.1
+	joe_2_9_7_pre2:1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.7
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2006.03.08.04.38.07;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2005.02.27.05.29.32;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.05.28.17.06.35;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2003.02.17.13.51.00;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.7
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@/* Configuration options for JOE */
+
+#ifndef _Iconfig
+#define _Iconfig 1
+#include "autoconf.h"
+#define MOUSE_XTERM 1
+#endif
+@
+
+
+1.6
+log
+@expand virtual memory
+fix performance problem when you did joe +300000 big.v: not recording state of last line
+@
+text
+@d1 1
+a1 2
+#ifndef _JOE_CONFIG_H
+#define _JOE_CONFIG_H
+d3 2
+a5 1
+
+a6 37
+
+#ifdef HAVE_SNPRINTF
+
+#define joe_snprintf_0(buf,len,fmt) snprintf((buf),(len),(fmt))
+#define joe_snprintf_1(buf,len,fmt,a) snprintf((buf),(len),(fmt),(a))
+#define joe_snprintf_2(buf,len,fmt,a,b) snprintf((buf),(len),(fmt),(a),(b))
+#define joe_snprintf_3(buf,len,fmt,a,b,c) snprintf((buf),(len),(fmt),(a),(b),(c))
+#define joe_snprintf_4(buf,len,fmt,a,b,c,d) snprintf((buf),(len),(fmt),(a),(b),(c),(d))
+#define joe_snprintf_5(buf,len,fmt,a,b,c,d,e) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e))
+#define joe_snprintf_6(buf,len,fmt,a,b,c,d,e,f) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e),(f))
+#define joe_snprintf_7(buf,len,fmt,a,b,c,d,e,f,g) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e),(f),(g))
+#define joe_snprintf_8(buf,len,fmt,a,b,c,d,e,f,g,h) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e),(f),(g),(h))
+#define joe_snprintf_9(buf,len,fmt,a,b,c,d,e,f,g,h,i) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e),(f),(g),(h),(i))
+#define joe_snprintf_10(buf,len,fmt,a,b,c,d,e,f,g,h,i,j) snprintf((buf),(len),(fmt),(a),(b),(c),(d),(e),(f),(g),(h),(i),(j))
+
+#else
+
+#define joe_snprintf_0(buf,len,fmt) sprintf((buf),(fmt))
+#define joe_snprintf_1(buf,len,fmt,a) sprintf((buf),(fmt),(a))
+#define joe_snprintf_2(buf,len,fmt,a,b) sprintf((buf),(fmt),(a),(b))
+#define joe_snprintf_3(buf,len,fmt,a,b,c) sprintf((buf),(fmt),(a),(b),(c))
+#define joe_snprintf_4(buf,len,fmt,a,b,c,d) sprintf((buf),(fmt),(a),(b),(c),(d))
+#define joe_snprintf_5(buf,len,fmt,a,b,c,d,e) sprintf((buf),(fmt),(a),(b),(c),(d),(e))
+#define joe_snprintf_6(buf,len,fmt,a,b,c,d,e,f) sprintf((buf),(fmt),(a),(b),(c),(d),(e),(f))
+#define joe_snprintf_7(buf,len,fmt,a,b,c,d,e,f,g) sprintf((buf),(fmt),(a),(b),(c),(d),(e),(f),(g))
+#define joe_snprintf_8(buf,len,fmt,a,b,c,d,e,f,g,h) sprintf((buf),(fmt),(a),(b),(c),(d),(e),(f),(g),(h))
+#define joe_snprintf_9(buf,len,fmt,a,b,c,d,e,f,g,h,i) sprintf((buf),(fmt),(a),(b),(c),(d),(e),(f),(g),(h),(i))
+#define joe_snprintf_10(buf,len,fmt,a,b,c,d,e,f,g,h,i,j) sprintf((buf),(fmt),(a),(b),(c),(d),(e),(f),(g),(h),(i),(j))
+
+#endif
+
+#define MAXINT  ((((unsigned int)-1)/2)-1)
+#define MAXLONG ((((unsigned long)-1L)/2)-1)
+
+#include <stdio.h>
+#ifndef EOF
+#define EOF -1
+a7 39
+#define NO_MORE_DATA EOF
+
+#if defined __MSDOS__ && SIZEOF_INT == 2 /* real mode ms-dos compilers */
+#if SIZEOF_VOID_P == 4 /* real mode ms-dos compilers with 'far' memory model or something like that */
+#define physical(a)  (((unsigned long)(a)&0xFFFF)+(((unsigned long)(a)&0xFFFF0000)>>12))
+#define normalize(a) ((void *)(((unsigned long)(a)&0xFFFF000F)+(((unsigned long)(a)&0x0000FFF0)<<12)))
+#else
+#define physical(a) ((unsigned long)(a))
+#define normalize(a) (a)
+#endif /* sizeof(void *) == 4 */
+
+#define SEGSIZ 1024
+#define PGSIZE 1024
+#define LPGSIZE 10
+#define ILIMIT (PGSIZE*96L)
+#define HTSIZE 128
+
+#else /* not real mode ms-dos */
+
+#define physical(a) ((unsigned long)(a))
+#define normalize(a) (a)
+
+/* Log2 of page size */
+#define LPGSIZE 12
+/* No. bytes in page */
+#define PGSIZE (1<<LPGSIZE)
+/* Gap buffer size (must be same as page size) */
+#define SEGSIZ PGSIZE
+
+/* Max number of pages allowed in core */
+#define NPAGES 8192
+/* Max core memory used in bytes */
+#define ILIMIT (PGSIZE*NPAGES)
+/* Hash table size (should be double the max number of pages) */
+#define HTSIZE (NPAGES*2)
+
+#endif /* real mode ms-dos */
+
+#endif /* ifndef _JOE_CONFIG_H */
+@
+
+
+1.5
+log
+@Jesse McGrew's xterm mouse support.
+@
+text
+@d66 6
+a71 5
+#ifdef PAGE_SIZE
+#define PGSIZE PAGE_SIZE
+#else
+#define PGSIZE 4096
+#endif
+d73 7
+a79 3
+#define LPGSIZE 12
+#define ILIMIT (PGSIZE*1024)
+#define HTSIZE 2048
+@
+
+
+1.4
+log
+@Now it will use sprintf if snprintf does not exist.
+Can now build on IRIX 6.2
+@
+text
+@d6 2
+@
+
+
+1.3
+log
+@fix segafults in isalpha()-like functions
+@
+text
+@d6 30
+@
+
+
+1.2
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@d9 6
+@
+
+
+1.1
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d1 2
+a2 2
+#ifndef _JOEconfig
+#define _JOEconfig 1
+d40 1
+a40 1
+#endif /* ifndef _JOEconfig */
+@
+

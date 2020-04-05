@@ -1,0 +1,79 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.05.11.03.17.45;	author polesapart;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.36.10;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.36.10;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@removed files, attempting to re-create module from scratch
+@
+text
+@#ifndef _Iuisrch
+#define _Iuisrch 1
+
+#include "queue.h"
+#include "bw.h"
+
+typedef struct irec IREC;
+struct irec {
+	LINK (IREC) link;
+	int what;		/* 0 repeat, >0 append n chars */
+	long start;		/* Cursor search position */
+	long disp;		/* Original cursor position */
+};
+
+struct isrch {
+	IREC irecs;		/* Linked list of positions */
+	char *pattern;		/* Search pattern string/prompt */
+	int ofst;		/* Offset in pattern past prompt */
+	int dir;		/* 0=fwrd, 1=bkwd */
+	int quote;		/* Set to quote next char */
+};
+
+int uisrch (BW *bw);
+int ursrch (BW *bw);
+
+#endif
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+
+Initial CVS entry
+@
+text
+@@

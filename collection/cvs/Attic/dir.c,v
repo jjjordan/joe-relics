@@ -1,0 +1,97 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.05.11.03.17.45;	author polesapart;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.36.11;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.36.11;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@removed files, attempting to re-create module from scratch
+@
+text
+@/*
+	Directory package for older UNIXs
+	Copyright (C) 1992 Joseph H. Allen
+
+	This file is part of JOE (Joe's Own Editor)
+*/
+
+struct direct {
+	short d_ino;
+	char d_name[14];
+};
+
+void *opendir (char *name) {
+	return fopen (name, "r");
+}
+
+struct direct *readdir (void *f) {
+	static struct direct direct;
+
+	while (1 == fread (&direct, sizeof (struct direct), 1, (FILE *) f)) {
+		if (direct.d_ino) {
+			return &direct;
+		}
+	}
+	return 0;	
+}
+
+void closedir (FILE *f) {
+	fclose (f);
+}
+
+int mkdir (char *s) {
+	char *y = NULL;
+	int rtval;
+
+	y = vsncpy (sv (y), sc ("/bin/mkdir "));
+	y = vsncpy (sv (y), sz (s));
+	y = vsncpy (sv (y), sc (" 2>/dev/null"));
+	tickoff ();
+	rtval = system (y);
+	tickon ();
+	vsrm (y);
+	return rtval;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+
+Initial CVS entry
+@
+text
+@@

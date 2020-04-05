@@ -1,0 +1,514 @@
+head	1.12;
+access;
+symbols
+	joe_3_5:1.11
+	joe-3_4:1.11
+	help:1.11
+	joe_3_1:1.8
+	joe_3_0:1.8
+	joe_2_9_8:1.7
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.12
+date	2007.05.31.02.31.55;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2005.02.27.05.29.32;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.12.13.58.27;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2003.02.20.07.18.19;	author vsamel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.31;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.51;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.36;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.39.54;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.39.54;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@get uquery to use coroutines: eliminates recursive edloop calls.
+@
+text
+@/*
+ *	Keyboard macros
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_MACRO_H
+#define _JOE_MACRO_H 1
+
+struct macro {
+	int k; /* Keycode */
+	int flg; /* Flags: bit 0: this step wants the negative arg,
+	                   bit 1: ignore return value of this step, but use it as return value of macro */
+	CMD *cmd; /* Command address */
+	int n; /* Number of steps */
+	int size; /* Malloc size of steps */
+	MACRO **steps; /* Block */
+};
+
+struct recmac {
+	struct recmac *next;
+	int	n;
+	MACRO	*m;
+};
+
+extern struct recmac *recmac; /* Set when macro is recording: for status line */
+
+/* Macro construction functions */
+MACRO *mkmacro PARAMS((int k, int arg, int n, CMD *cmd));
+void addmacro PARAMS((MACRO *macro, MACRO *m));
+MACRO *dupmacro PARAMS((MACRO *mac));
+void rmmacro PARAMS((MACRO *macro));
+MACRO *macstk PARAMS((MACRO *m, int k));
+MACRO *macsta PARAMS((MACRO *m, int a));
+
+void chmac PARAMS((void));
+
+/* Text to macro / Macro to text */
+MACRO *mparse PARAMS((MACRO *m, unsigned char *buf, int *sta));
+unsigned char *mtext PARAMS((unsigned char *s, MACRO *m));
+
+/* Execute a macro */
+extern MACRO *curmacro; /* Current macro being executed */
+int exemac PARAMS((va_list args));
+int exmacro PARAMS((MACRO *m, int u));
+
+/* Keyboard macros user interface */
+int uplay PARAMS((BW *bw, int c));
+int ustop PARAMS((void));
+int urecord PARAMS((BW *bw, int c));
+int uquery PARAMS((BW *bw));
+int umacros PARAMS((BW *bw));
+
+/* Repeat prefix user command */
+int uarg PARAMS((BW *bw));
+int uuarg PARAMS((BW *bw, int c));
+int uif PARAMS((BW *bw));
+int uelsif PARAMS((BW *bw));
+int uelse PARAMS((BW *bw));
+int uendif PARAMS((BW *bw));
+
+unsigned char *unescape PARAMS((unsigned char *ptr,int c));
+
+void load_macros PARAMS((FILE *f));
+void save_macros PARAMS((FILE *f));
+
+extern int current_arg; /* Current macro repeat argument */
+extern int current_arg_set; /* Set if repeat arg was given */
+
+#endif
+@
+
+
+1.11
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d45 1
+a45 1
+int exemac PARAMS((MACRO *m));
+@
+
+
+1.10
+log
+@Jesse McGrew's xterm mouse support.
+@
+text
+@d11 15
+a25 2
+#include "config.h"
+#include "types.h"
+d27 1
+a27 2
+/* Set when macro is recording: for status line */
+extern struct recmac *recmac;
+d44 1
+a44 1
+extern MACRO *curmacro;
+d68 3
+@
+
+
+1.9
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d46 4
+@
+
+
+1.8
+log
+@	Added -notite global option: when set, prevents screen from
+	being restored on exit.
+
+	Added -usetabs global option: when set, uses tabs for cursor
+	position update (which was the default before).  Now we don't
+	use tabs by default.
+
+        Completed change to 'unsigned char *' and elimination of
+        MAXINT.  What a mess.  No warnings with gcc -pedantic.
+
+	Fix UTF-8 bugs where cursor was not correct on scrolled screen.
+@
+text
+@d47 5
+@
+
+
+1.7
+log
+@change type of variables holding string to unsigned char *
+@
+text
+@d29 1
+a29 1
+char *mtext PARAMS((char *s, MACRO *m));
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d28 1
+a28 1
+MACRO *mparse PARAMS((MACRO *m, char *buf, int *sta));
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 2
+#include "cmd.h"
+
+a36 1
+/* FIXME: cyclic dependency of header files (here on BW struct)
+d38 1
+a41 6
+*/
+int uplay();
+int ustop PARAMS((void));
+int urecord();
+int uquery();
+int umacros();
+a43 1
+/* FIXME: cyclic dependency of header files (here on BW struct)
+a45 3
+*/
+int uarg();
+int uuarg();
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 21
+
+/* Keyboard macros
+   Copyright (C) 1992 Joseph H. Allen
+
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _Imacro
+#define _Imacro 1
+d12 1
+a14 15
+
+struct macro {
+	int k;			/* Keycode */
+	int arg;		/* Repeat argument */
+	CMD *cmd;		/* Command address */
+	int n;			/* Number of steps */
+	int size;		/* Malloc size of steps */
+	MACRO **steps;		/* Block */
+};
+
+struct recmac {
+	struct recmac *next;
+	int n;
+	MACRO *m;
+};
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d24 1
+d46 6
+a51 6
+MACRO *mkmacro();
+void addmacro();
+MACRO *dupmacro();
+void rmmacro();
+MACRO *macstk();
+MACRO *macsta();
+d53 1
+a53 1
+void chmac();
+d56 2
+a57 2
+MACRO *mparse();
+char *mtext();
+d61 2
+a62 2
+int exemac();
+int exmacro();
+d65 6
+d72 1
+a72 1
+int ustop();
+d78 4
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@a0 3
+/*
+	Keyboard macros
+	Copyright (C) 1992 Joseph H. Allen
+d2 17
+a18 2
+	This file is part of JOE (Joe's Own Editor)
+ */
+d26 1
+a26 2
+struct macro
+{
+d35 1
+a35 2
+struct recmac
+{
+d45 6
+a50 6
+MACRO *mkmacro ();
+void addmacro ();
+MACRO *dupmacro ();
+void rmmacro ();
+MACRO *macstk ();
+MACRO *macsta ();
+d52 1
+a52 1
+void chmac ();
+d55 2
+a56 2
+MACRO *mparse ();
+char *mtext ();
+d60 2
+a61 2
+int exemac ();
+int exmacro ();
+d64 5
+a68 5
+int uplay ();
+int ustop ();
+int urecord ();
+int uquery ();
+int umacros ();
+d71 2
+a72 2
+int uarg ();
+int uuarg ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 3
+a3 2
+/* Keyboard macros
+   Copyright (C) 1992 Joseph H. Allen
+d5 2
+a6 14
+This file is part of JOE (Joe's Own Editor)
+
+JOE is free software; you can redistribute it and/or modify it under the 
+terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 1, or (at your option) any later version.  
+
+JOE is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS 
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more 
+details.  
+
+You should have received a copy of the GNU General Public License along with 
+JOE; see the file COPYING.  If not, write to the Free Software Foundation, 
+675 Mass Ave, Cambridge, MA 02139, USA.  */ 
+d15 8
+a22 8
+ {
+ int k;		/* Keycode */
+ int arg;	/* Repeat argument */
+ CMD *cmd;	/* Command address */
+ int n;		/* Number of steps */
+ int size;	/* Malloc size of steps */
+ MACRO **steps;	/* Block */
+ };
+d25 5
+a29 5
+ {
+ struct recmac *next;
+ int n;
+ MACRO *m;
+ };
+d35 6
+a40 6
+MACRO *mkmacro();
+void addmacro();
+MACRO *dupmacro();
+void rmmacro();
+MACRO *macstk();
+MACRO *macsta();
+d42 1
+a42 1
+void chmac();
+d45 2
+a46 2
+MACRO *mparse();
+char *mtext();
+d50 2
+a51 2
+int exemac();
+int exmacro();
+d54 5
+a58 5
+int uplay();
+int ustop();
+int urecord();
+int uquery();
+int umacros();
+d61 2
+a62 2
+int uarg();
+int uuarg();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

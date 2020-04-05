@@ -1,0 +1,152 @@
+head	1.4;
+access;
+symbols
+	joe_3_5:1.4
+	joe-3_4:1.1
+	help:1.1;
+locks; strict;
+comment	@# @;
+
+
+1.4
+date	2006.06.07.12.42.08;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2006.06.02.17.04.00;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2006.06.02.15.01.26;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2006.05.26.22.44.09;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.4
+log
+@add french translation
+@
+text
+@To create a translation for JOE:
+
+- Create a new .po file and edit in your translations.  You can
+  start with any of the existing .po files, or with the joe.pot file.
+
+  JOE's gettext() allows comments in msgid and msgstr.  These look like
+  this: "|comment|yY".  These are used to distinguish between two otherwise
+  identical strings which have different meanings, except in english. 
+  Without the comment, xgettext (which generates the joe.pot file) will
+  merge them.
+
+  Some of the strings are sets of characters which can be used as
+  responses to single-key queries.  For example: "|yes|yYoO" means
+  y, Y, o, and O can all be used to answer yes to a yes/no question.
+
+  It may be difficult to figure out the meaning of some strings- a good
+  idea is to look at the referenced source code or ask a question
+  in the joe-editor-general@@lists.sourceforge.net mailing list.
+
+- Verify the .po file with:
+
+  msgfmt --check-format de.po
+
+  This verifies that the number of printf format string directives
+  has been preserved in your translations.  It also generates a binary
+  version of the .po, but we don't need it.
+
+- If the joe.pot file has been updated since your last translation
+  you need to merge in the updates with: msgmerge de.po joe.pot >new.po
+
+- Copy the .po file into ~/.joe/lang  You should be able to try it
+  now.  Run JOE like this to set a particular language: LANG=de_DE joe
+
+- Translate the on-line help in the joerc file and call it joerc.de
+
+- If you are feeling ambitious, translate the man page.  It goes
+  here: /usr/share/man/de/man1/joe.1
+
+- Upload the files to the patch area of
+  http://sourceforge.net/projects/joe-editor so that others can use them.  I
+  will include them in the next version of JOE.
+@
+
+
+1.3
+log
+@get rid of <> stupidity
+@
+text
+@d3 2
+a4 2
+	- Create a new .po file and edit in your translations.  You can
+start with any of the existing .po files, or the joe.pot file.
+d6 5
+a10 1
+	- Verify the .po file with:
+d12 3
+a14 1
+		msgfmt --check-format de.po
+d16 3
+a18 3
+	This verifies that the number of printf format string directives
+has been preserved in your translations.  It also generates a binary
+version of the .po, but we don't need it.
+d20 1
+a20 2
+	- Copy the .po file into ~/.joe/lang  You should be able to try it
+now.  Run JOE like this to set a particular language: LANG=de_DE joe
+d22 1
+a22 1
+	- Translate the on-line help in the joerc file and call it joerc.de
+d24 3
+a26 2
+	- If you feeling ambitious, translate the man page.  It goes
+	here: /usr/share/man/de/man1/joe.1
+d28 14
+a41 3
+	- Upload the files to the patch area of
+http://sourceforge.net/projects/joe-editor so that others can use them.  I will
+include them in the next version of JOE.
+@
+
+
+1.2
+log
+@i18n yes/no
+@
+text
+@a5 12
+	- Strings containing <> are character sets for single-key answers,
+	  like 'y' for yes and 'n' for no.  The format of these strings
+	  should be:
+		"xxx<>yyy"
+
+		  where: xxx is a list of 8-bit characters.
+		    and: yyy is a list of UTF-8 characters.
+
+	  Both the 8-bit and UTF-8 versions of the characters must always be
+	  given.  For example, "yY<>yY" is the yes_string for english.  'y'
+	  and 'Y' can be entered by the user.
+
+@
+
+
+1.1
+log
+@transpose menus
+@
+text
+@d6 12
+@
+

@@ -1,0 +1,2003 @@
+head	1.37;
+access;
+symbols
+	joe_3_5:1.31
+	joe-3_4:1.28
+	help:1.28
+	joe_3_1:1.16
+	joe_3_0:1.5;
+locks; strict;
+comment	@ * @;
+
+
+1.37
+date	2008.11.23.21.58.01;	author jhallen;	state Exp;
+branches;
+next	1.36;
+
+1.36
+date	2008.10.25.03.21.48;	author jhallen;	state Exp;
+branches;
+next	1.35;
+
+1.35
+date	2008.10.25.02.52.18;	author jhallen;	state Exp;
+branches;
+next	1.34;
+
+1.34
+date	2008.06.10.22.33.49;	author shallot;	state Exp;
+branches;
+next	1.33;
+
+1.33
+date	2007.01.23.05.27.50;	author jhallen;	state Exp;
+branches;
+next	1.32;
+
+1.32
+date	2006.07.20.20.56.18;	author jhallen;	state Exp;
+branches;
+next	1.31;
+
+1.31
+date	2006.07.19.00.27.13;	author jhallen;	state Exp;
+branches;
+next	1.30;
+
+1.30
+date	2006.07.18.23.31.54;	author jhallen;	state Exp;
+branches;
+next	1.29;
+
+1.29
+date	2006.06.02.15.01.26;	author jhallen;	state Exp;
+branches;
+next	1.28;
+
+1.28
+date	2006.05.24.17.23.27;	author jhallen;	state Exp;
+branches;
+next	1.27;
+
+1.27
+date	2006.05.23.21.44.04;	author jhallen;	state Exp;
+branches;
+next	1.26;
+
+1.26
+date	2006.05.22.20.09.07;	author jhallen;	state Exp;
+branches;
+next	1.25;
+
+1.25
+date	2006.05.22.20.06.54;	author jhallen;	state Exp;
+branches;
+next	1.24;
+
+1.24
+date	2006.05.22.04.15.41;	author jhallen;	state Exp;
+branches;
+next	1.23;
+
+1.23
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.22;
+
+1.22
+date	2006.05.12.02.07.06;	author jhallen;	state Exp;
+branches;
+next	1.21;
+
+1.21
+date	2005.04.24.04.30.52;	author jhallen;	state Exp;
+branches;
+next	1.20;
+
+1.20
+date	2005.04.22.05.19.35;	author jhallen;	state Exp;
+branches;
+next	1.19;
+
+1.19
+date	2004.07.08.19.09.54;	author sonic_amiga;	state Exp;
+branches;
+next	1.18;
+
+1.18
+date	2004.06.21.14.47.43;	author jhallen;	state Exp;
+branches;
+next	1.17;
+
+1.17
+date	2004.06.02.19.40.29;	author jhallen;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	2004.05.05.22.05.56;	author jhallen;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	2004.05.04.16.35.12;	author jhallen;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	2004.05.03.22.55.53;	author jhallen;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	2004.05.03.18.29.00;	author jhallen;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	2004.05.03.12.28.48;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2004.05.03.12.17.02;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2004.04.26.22.03.10;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2004.04.26.19.38.48;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2004.04.25.15.52.36;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.04.25.00.53.41;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2004.04.24.15.18.19;	author jhallen;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2004.04.17.13.13.17;	author jhallen;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2004.04.16.21.10.16;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.04.15.19.58.13;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.04.15.19.40.05;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.04.12.20.11.16;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.37
+log
+@Improve documentation of utf-8 decoder
+@
+text
+@/*
+ *	UTF-8 Utilities
+ *	Copyright
+ *		(C) 2004 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#include "types.h"
+
+/* Under AmigaOS we have setlocale() but don't have langinfo.h and associated stuff,
+ * so we have to disable the whole piece of code
+ */
+#ifdef __amigaos
+#undef HAVE_SETLOCALE
+#endif
+
+/* Cygwin has CODESET, but it's crummy */
+#ifdef __CYGWIN__
+#undef HAVE_SETLOCALE
+#endif
+
+#if defined(HAVE_LOCALE_H) && defined(HAVE_SETLOCALE)
+#	include <locale.h>
+#       include <langinfo.h>
+#endif
+
+/* If we didn't find a CODESET in locale.h/langinfo.h, forget about setlocale */
+#ifndef CODESET
+#undef HAVE_SETLOCALE
+#endif
+
+/* nl_langinfo(CODESET) is broken on many systems.  If HAVE_SETLOCALE is undefined,
+   JOE uses a limited internal version instead */
+
+/* UTF-8 Encoder
+ *
+ * c is unicode character.
+ * buf is 7 byte buffer- utf-8 coded character is written to this followed by a 0 termination.
+ * returns length (not including terminator).
+ */
+
+int utf8_encode(unsigned char *buf,int c)
+{
+	if (c < 0x80) {
+		buf[0] = c;
+		buf[1] = 0;
+		return 1;
+	} else if(c < 0x800) {
+		buf[0] = (0xc0|(c>>6));
+		buf[1] = (0x80|(c&0x3F));
+		buf[2] = 0;
+		return 2;
+	} else if(c < 0x10000) {
+		buf[0] = (0xe0|(c>>12));
+		buf[1] = (0x80|((c>>6)&0x3f));
+		buf[2] = (0x80|((c)&0x3f));
+		buf[3] = 0;
+		return 3;
+	} else if(c < 0x200000) {
+		buf[0] = (0xf0|(c>>18));
+		buf[1] = (0x80|((c>>12)&0x3f));
+		buf[2] = (0x80|((c>>6)&0x3f));
+		buf[3] = (0x80|((c)&0x3f));
+		buf[4] = 0;
+		return 4;
+	} else if(c < 0x4000000) {
+		buf[0] = (0xf8|(c>>24));
+		buf[1] = (0x80|((c>>18)&0x3f));
+		buf[2] = (0x80|((c>>12)&0x3f));
+		buf[3] = (0x80|((c>>6)&0x3f));
+		buf[4] = (0x80|((c)&0x3f));
+		buf[5] = 0;
+		return 5;
+	} else {
+		buf[0] = (0xfC|(c>>30));
+		buf[1] = (0x80|((c>>24)&0x3f));
+		buf[2] = (0x80|((c>>18)&0x3f));
+		buf[3] = (0x80|((c>>12)&0x3f));
+		buf[4] = (0x80|((c>>6)&0x3f));
+		buf[5] = (0x80|((c)&0x3f));
+		buf[6] = 0;
+		return 6;
+	}
+}
+
+/* UTF-8 Decoder
+ *
+ * Returns 0 - 7FFFFFFF: decoded character
+ *                   -1: byte accepted, no character decoded yet.
+ *                   -2: incomplete byte sequence
+ *                   -3: no byte sequence started, but character is between 128 - 191, 254 or 255
+ */
+
+int utf8_decode(struct utf8_sm *utf8_sm,unsigned char c)
+{
+	if (utf8_sm->state) {
+		if ((c&0xC0)==0x80) {
+			utf8_sm->buf[utf8_sm->ptr++] = c;
+			--utf8_sm->state;
+			utf8_sm->accu = ((utf8_sm->accu<<6)|(c&0x3F));
+			if(!utf8_sm->state)
+				return utf8_sm->accu;
+		} else {
+			utf8_sm->state = 0;
+			return -2;
+		}
+	} else if ((c&0xE0)==0xC0) {
+		/* 192 - 223 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 1;
+		utf8_sm->accu = (c&0x1F);
+	} else if ((c&0xF0)==0xE0) {
+		/* 224 - 239 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 2;
+		utf8_sm->accu = (c&0x0F);
+	} else if ((c&0xF8)==0xF0) {
+		/* 240 - 247 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 3;
+		utf8_sm->accu = (c&0x07);
+	} else if ((c&0xFC)==0xF8) {
+		/* 248 - 251 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 4;
+		utf8_sm->accu = (c&0x03);
+	} else if ((c&0xFE)==0xFC) {
+		/* 252 - 253 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 5;
+		utf8_sm->accu = (c&0x01);
+	} else if ((c&0x80)==0x00) {
+		/* 0 - 127 */
+		utf8_sm->buf[0] = c;
+		utf8_sm->ptr = 1;
+		utf8_sm->state = 0;
+		return c;
+	} else {
+		/* 128 - 191, 254, 255 */
+		utf8_sm->ptr = 0;
+		utf8_sm->state = 0;
+		return -3;
+	}
+	return -1;
+}
+
+/* Initialize state machine */
+
+void utf8_init(struct utf8_sm *utf8_sm)
+{
+	utf8_sm->ptr = 0;
+	utf8_sm->state = 0;
+}
+
+/* Decode an entire string */
+
+int utf8_decode_string(unsigned char *s)
+{
+	struct utf8_sm sm;
+	int x;
+	int c = -1;
+	utf8_init(&sm);
+	for(x=0;s[x];++x)
+		c = utf8_decode(&sm,s[x]);
+	return c;
+}
+
+/* Decode and advance
+ *
+ * Returns: 0 - 7FFFFFFF: decoded character
+ *  -2: incomplete sequence
+ *  -3: bad start of sequence found.
+ *
+ * p/plen are always advanced in such a way that repeated called to utf8_decode_fwrd do not cause
+ * infinite loops.
+ */
+
+int utf8_decode_fwrd(unsigned char **p,int *plen)
+{
+	struct utf8_sm sm;
+	unsigned char *s = *p;
+	int len;
+	int c = -2; /* Return this on no more input. */
+	if (plen)
+		len = *plen;
+	else
+		len = -1;
+
+	utf8_init(&sm);
+
+	while (len) {
+		c = utf8_decode(&sm, *s);
+		if (c >= 0) {
+			/* We've got a character */
+			--len;
+			++s;
+			break;
+		} else if (c == -2) {
+			/* Bad sequence detected.  Caller should feed rest of string in again. */
+			break;
+		} else if (c == -3) {
+			/* Bad start of UTF-8 sequence.  We need to eat this char to avoid infinite loops. */
+			--len;
+			++s;
+			/* But we should tell the caller that something bad was found. */
+			break;
+		} else {
+			/* If c is -1, utf8_decode accepted the character, so we should get the next one. */
+			--len;
+			++s;
+		}
+	}
+
+	if (plen)
+		*plen = len;
+	*p = s;
+
+	return c;
+}
+
+/* Get next character from string and advance it, locale dependent */
+
+int fwrd_c(unsigned char **s)
+{
+	if (locale_map->type)
+		return utf8_decode_fwrd(s, NULL);
+	else {
+		int c = **s;
+		*s = *s + 1;
+		return c;
+	}
+}
+
+/* Copy character from one string to another */
+
+void copy_c(unsigned char **d, unsigned char **s)
+{
+	if (locale_map->type) {
+		*d += utf8_encode(*d, utf8_decode_fwrd(s, NULL));
+	} else if (**s) {
+		**d = **s;
+		(*s)++;
+		(*d)++;
+	}
+}
+
+/* For systems (BSD) with no nl_langinfo(CODESET) */
+
+/*
+ * This is a quick-and-dirty emulator of the nl_langinfo(CODESET)
+ * function defined in the Single Unix Specification for those systems
+ * (FreeBSD, etc.) that don't have one yet. It behaves as if it had
+ * been called after setlocale(LC_CTYPE, ""), that is it looks at
+ * the locale environment variables.
+ *
+ * http://www.opengroup.org/onlinepubs/7908799/xsh/langinfo.h.html
+ *
+ * Please extend it as needed and suggest improvements to the author.
+ * This emulator will hopefully become redundant soon as
+ * nl_langinfo(CODESET) becomes more widely implemented.
+ *
+ * Since the proposed Li18nux encoding name registry is still not mature,
+ * the output follows the MIME registry where possible:
+ *
+ *   http://www.iana.org/assignments/character-sets
+ *
+ * A possible autoconf test for the availability of nl_langinfo(CODESET)
+ * can be found in
+ *
+ *   http://www.cl.cam.ac.uk/~mgk25/unicode.html#activate
+ *
+ * Markus.Kuhn@@cl.cam.ac.uk -- 2002-03-11
+ * Permission to use, copy, modify, and distribute this software
+ * for any purpose and without fee is hereby granted. The author
+ * disclaims all warranties with regard to this software.
+ *
+ * Latest version:
+ *
+ *   http://www.cl.cam.ac.uk/~mgk25/ucs/langinfo.c
+ */
+
+unsigned char *joe_getcodeset(unsigned char *l)
+{
+  static unsigned char buf[16];
+  unsigned char *p;
+  
+  if (l || ((l = (unsigned char *)getenv("LC_ALL"))   && *l) ||
+      ((l = (unsigned char *)getenv("LC_CTYPE")) && *l) ||
+      ((l = (unsigned char *)getenv("LANG"))     && *l)) {
+
+    /* check standardized locales */
+    if (!zcmp(l, USTR "C") || !zcmp(l, USTR "POSIX"))
+      return USTR "ascii";
+
+    /* check for encoding name fragment */
+    if (zstr(l, USTR "UTF") || zstr(l, USTR "utf"))
+      return USTR "UTF-8";
+
+    if ((p = zstr(l, USTR "8859-"))) {
+      memcpy((char *)buf, "ISO-8859-\0\0", 12);
+      p += 5;
+      if (*p >= '0' && *p <= '9') {
+	buf[9] = *p++;
+	if (*p >= '0' && *p <= '9') buf[10] = *p++;
+	return buf;
+      }
+    }
+
+    if (zstr(l, USTR "KOI8-R")) return USTR "KOI8-R";
+    if (zstr(l, USTR "KOI8-U")) return USTR "KOI8-U";
+    if (zstr(l, USTR "620")) return USTR "TIS-620";
+    if (zstr(l, USTR "2312")) return USTR "GB2312";
+    if (zstr(l, USTR "HKSCS")) return USTR "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, USTR "Big5") || zstr(l, USTR "BIG5")) return USTR "Big5";
+    if (zstr(l, USTR "GBK")) return USTR "GBK";           /* no MIME charset */
+    if (zstr(l, USTR "18030")) return USTR "GB18030";     /* no MIME charset */
+    if (zstr(l, USTR "Shift_JIS") || zstr(l, USTR "SJIS")) return USTR "Shift_JIS";
+    /* check for conclusive modifier */
+    if (zstr(l, USTR "euro")) return USTR "ISO-8859-15";
+    /* check for language (and perhaps country) codes */
+    if (zstr(l, USTR "zh_TW")) return USTR "Big5";
+    if (zstr(l, USTR "zh_HK")) return USTR "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, USTR "zh")) return USTR "GB2312";
+    if (zstr(l, USTR "ja")) return USTR "EUC-JP";
+    if (zstr(l, USTR "ko")) return USTR "EUC-KR";
+    if (zstr(l, USTR "ru")) return USTR "KOI8-R";
+    if (zstr(l, USTR "uk")) return USTR "KOI8-U";
+    if (zstr(l, USTR "pl") || zstr(l, USTR "hr") ||
+	zstr(l, USTR "hu") || zstr(l, USTR "cs") ||
+	zstr(l, USTR "sk") || zstr(l, USTR "sl")) return USTR "ISO-8859-2";
+    if (zstr(l, USTR "eo") || zstr(l, USTR "mt")) return USTR "ISO-8859-3";
+    if (zstr(l, USTR "el")) return USTR "ISO-8859-7";
+    if (zstr(l, USTR "he")) return USTR "ISO-8859-8";
+    if (zstr(l, USTR "tr")) return USTR "ISO-8859-9";
+    if (zstr(l, USTR "th")) return USTR "TIS-620";      /* or ISO-8859-11 */
+    if (zstr(l, USTR "lt")) return USTR "ISO-8859-13";
+    if (zstr(l, USTR "cy")) return USTR "ISO-8859-14";
+    if (zstr(l, USTR "ro")) return USTR "ISO-8859-2";   /* or ISO-8859-16 */
+    if (zstr(l, USTR "am") || zstr(l, USTR "vi")) return USTR "UTF-8";
+    /* Send me further rules if you like, but don't forget that we are
+     * *only* interested in locale naming conventions on platforms
+     * that do not already provide an nl_langinfo(CODESET) implementation. */
+    return USTR "ISO-8859-1"; /* should perhaps be "UTF-8" instead */
+  }
+  return USTR "ascii";
+}
+
+/* Initialize locale for JOE */
+
+unsigned char *codeset;	/* Codeset of terminal */
+
+unsigned char *non_utf8_codeset;
+			/* Codeset of local language non-UTF-8 */
+
+unsigned char *locale_lang;
+			/* Our local language */
+
+unsigned char *locale_msgs;
+			/* Language to use for editor messages */
+
+struct charmap *locale_map;
+			/* Character map of terminal, default map for new files */
+
+struct charmap *locale_map_non_utf8;
+			/* Old, non-utf8 version of locale */
+
+void joe_locale()
+{
+	unsigned char *s, *t, *u;
+
+	s=(unsigned char *)getenv("LC_ALL");
+	if (!s || !*s) {
+		s=(unsigned char *)getenv("LC_MESSAGES");
+		if (!s || !*s) {
+			s=(unsigned char *)getenv("LANG");
+		}
+	}
+
+	if (s)
+		s=zdup(s);
+	else
+		s=USTR "ascii";
+
+	if ((t=zrchr(s,'.')))
+		*t = 0;
+
+	locale_msgs = s;
+
+	s=(unsigned char *)getenv("LC_ALL");
+	if (!s || !*s) {
+		s=(unsigned char *)getenv("LC_CTYPE");
+		if (!s || !*s) {
+			s=(unsigned char *)getenv("LANG");
+		}
+	}
+
+	if (s)
+		s=zdup(s);
+	else
+		s=USTR "ascii";
+
+	u = zdup(s);
+
+	if ((t=zrchr(s,'.')))
+		*t = 0;
+
+	locale_lang = s;
+
+#ifdef HAVE_SETLOCALE
+	setlocale(LC_ALL,(char *)s);
+	non_utf8_codeset = zdup((unsigned char *)nl_langinfo(CODESET));
+#else
+	non_utf8_codeset = joe_getcodeset(s);
+#endif
+
+
+	/* printf("joe_locale\n"); */
+#ifdef HAVE_SETLOCALE
+	/* printf("set_locale\n"); */
+	setlocale(LC_ALL,"");
+#ifdef ENABLE_NLS
+	/* Set up gettext() */
+	bindtextdomain(PACKAGE, LOCALEDIR);
+	textdomain(PACKAGE);
+	/* printf("%s %s %s\n",PACKAGE,LOCALEDIR,joe_gettext("New File")); */
+#endif
+	codeset = zdup((unsigned char *)nl_langinfo(CODESET));
+#else
+	codeset = joe_getcodeset(u);
+#endif
+
+	locale_map = find_charmap(codeset);
+	if (!locale_map)
+		locale_map = find_charmap(USTR "ascii");
+
+	locale_map_non_utf8 = find_charmap(non_utf8_codeset);
+	if (!locale_map_non_utf8)
+		locale_map_non_utf8 = find_charmap(USTR "ascii");
+
+/*
+	printf("Character set is %s\n",locale_map->name);
+
+	for(x=0;x!=128;++x)
+		printf("%x	space=%d blank=%d alpha=%d alnum=%d punct=%d print=%d\n",
+		       x,joe_isspace(locale_map,x), joe_isblank(locale_map,x), joe_isalpha_(locale_map,x),
+		       joe_isalnum_(locale_map,x), joe_ispunct(locale_map,x), joe_isprint(locale_map,x));
+*/
+
+/* Use iconv() */
+#ifdef junk
+	to_utf = iconv_open("UTF-8", (char *)non_utf8_codeset);
+	from_utf = iconv_open((char *)non_utf8_codeset, "UTF-8");
+#endif
+
+/* For no locale support */
+#ifdef junk
+	locale_map = find_charmap("ascii");
+#endif
+	init_gettext(locale_msgs);
+}
+
+void to_utf8(struct charmap *map,unsigned char *s,int c)
+{
+	int d = to_uni(map,c);
+
+	if (d==-1)
+		utf8_encode(s,'?');
+	else
+		utf8_encode(s,d);
+#ifdef junk
+	/* Iconv() way */
+	unsigned char buf[10];
+	unsigned char *ibufp = buf;
+	unsigned char *obufp = s;
+	int ibuf_sz=1;
+	int obuf_sz= 10;
+	buf[0]=c;
+	buf[1]=0;
+
+	if (to_utf==(iconv_t)-1 ||
+	    iconv(to_utf,(char **)&ibufp,&ibuf_sz,(char **)&obufp,&obuf_sz)==(size_t)-1) {
+		s[0]='?';
+		s[1]=0;
+	} else {
+		*obufp = 0;
+	}
+#endif
+}
+
+int from_utf8(struct charmap *map,unsigned char *s)
+{
+	int d = utf8_decode_string(s);
+	int c = from_uni(map,d);
+	if (c==-1)
+		return '?';
+	else
+		return c;
+
+#ifdef junk
+	/* Iconv() way */
+	int ibuf_sz=zlen(s);
+	unsigned char *ibufp=s;
+	int obuf_sz=10;
+	unsigned char obuf[10];
+	unsigned char *obufp = obuf;
+
+
+	if (from_utf==(iconv_t)-1 ||
+	    iconv(from_utf,(char **)&ibufp,&ibuf_sz,(char **)&obufp,&obuf_sz)==((size_t)-1))
+		return '?';
+	else
+		return obuf[0];
+#endif
+}
+
+unsigned char *my_iconv(unsigned char *dest,struct charmap *dest_map,
+              unsigned char *src,struct charmap *src_map)
+{
+	if (dest_map == src_map) {
+		return vscpyz(dest, src);
+	}
+
+	if (src_map->type) {
+		/* src is UTF-8 */
+		if (dest_map->type) {
+			/* UTF-8 to UTF-8? */
+			dest = vscpyz(dest, src);
+		} else {
+			/* UTF-8 to non-UTF-8 */
+			dest = vsensure(dest, zlen(src) / 2);
+			dest = vstrunc(dest, 0);
+			while (*src) {
+				int len = -1;
+				int c = utf8_decode_fwrd(&src, &len);
+				if (c >= 0) {
+					int d = from_uni(dest_map, c);
+					if (d >= 0)
+						dest = vsadd(dest, d);
+					else
+						dest = vsadd(dest, '?');
+				} else
+					dest = vsadd(dest, 'X');
+			}
+		}
+	} else {
+		/* src is not UTF-8 */
+		if (!dest_map->type) {
+			/* Non UTF-8 to non-UTF-8 */
+			dest = vsensure(dest, zlen(src));
+			dest = vstrunc(dest, 0);
+			while (*src) {
+				int c = to_uni(src_map, *src++);
+				int d;
+				if (c >= 0) {
+					d = from_uni(dest_map, c);
+					if (d >= 0)
+						dest = vsadd(dest, d);
+					else
+						dest = vsadd(dest, '?');
+				} else
+					dest = vsadd(dest, '?');
+			}
+		} else {
+			/* Non-UTF-8 to UTF-8 */
+			dest = vsensure(dest, zlen(src) * 3);
+			dest = vstrunc(dest, 0);
+			while (*src) {
+				int c = to_uni(src_map, *src++);
+				if (c >= 0) {
+					dest = vsensure(dest, vslen(dest) + 10);
+					obj_len(dest) += utf8_encode(dest + obj_len(dest), c);
+					dest[obj_len(dest)] = 0;
+				} else
+					dest = vsadd(dest, '?');
+			}
+		}
+	}
+	return dest;
+}
+
+/* Guess character set */
+
+int guess_non_utf8;
+int guess_utf8;
+
+struct charmap *guess_map(unsigned char *buf, int len)
+{
+	unsigned char *p;
+	int plen;
+	int c;
+	int flag;
+
+	/* No info? Use default */
+	if (!len || (!guess_non_utf8 && !guess_utf8))
+		return locale_map;
+
+	/* Does it look like UTF-8? */
+	p = buf;
+	plen = len;
+	c = 0;
+	flag = 0;
+	while (plen) {
+		/* Break if we could possibly run out of data in
+		   the middle of utf-8 sequence */
+		if (plen < 7)
+			break;
+		if (*p >= 128)
+			flag = 1;
+		c = utf8_decode_fwrd(&p, &plen);
+		if (c < 0)
+			break;
+	}
+
+	if (flag && c >= 0) {
+		/* There are characters above 128, and there are no utf-8 errors */
+		if (locale_map->type || !guess_utf8)
+			return locale_map;
+		else
+			return find_charmap(USTR "utf-8");
+	}
+
+	if (!flag || !guess_non_utf8) {
+		/* No characters above 128 */
+		return locale_map;
+	} else {
+		/* Choose non-utf8 version of locale */
+		return locale_map_non_utf8;
+	}
+}
+@
+
+
+1.36
+log
+@Look at LC_MESSAGES for language to use for editor messages.
+@
+text
+@d89 3
+a91 3
+ *                   -1: character accepted, nothing decoded yet.
+ *                   -2: incomplete sequence
+ *                   -3: no sequence started, but character is between 128 - 191, 254 or 255
+@
+
+
+1.35
+log
+@Fix LC_CTYPE handling.
+@
+text
+@d363 3
+d378 18
+d464 1
+a464 1
+	init_gettext(locale_lang);
+@
+
+
+1.34
+log
+@!CODESET->!setlocale check needs to go after locale.h/langinfo.h, because otherwise we force joe's internal hack on valid Linux systems
+@
+text
+@d374 1
+a374 1
+	if (!s) {
+d376 1
+a376 1
+		if (!s) {
+@
+
+
+1.33
+log
+@more wmkpw elimination
+@
+text
+@a21 5
+/* If it looks old, forget it */
+#ifndef CODESET
+#undef HAVE_SETLOCALE
+#endif
+
+d27 5
+@
+
+
+1.32
+log
+@semiautomatic variables
+@
+text
+@d226 26
+@
+
+
+1.31
+log
+@UC -> USTR
+@
+text
+@a397 3
+	fdefault.charmap = locale_map;
+	pdefault.charmap = locale_map;
+
+a415 2
+	fdefault.charmap = locale_map;
+	pdefault.charmap = locale_map;
+d474 1
+a474 1
+void my_iconv(unsigned char *dest,struct charmap *dest_map,
+d478 1
+a478 2
+		zcpy (dest, src);
+		return;
+d485 1
+a485 1
+			zcpy (dest, src);
+d488 2
+d496 1
+a496 1
+						*dest++ = d;
+d498 1
+a498 1
+						*dest++ = '?';
+d500 1
+a500 1
+					*dest++ = 'X';
+a501 1
+			*dest = 0;
+d507 2
+d515 1
+a515 1
+						*dest++ = d;
+d517 1
+a517 1
+						*dest++ = '?';
+d519 1
+a519 1
+					*dest++ = '?';
+a520 1
+			*dest = 0;
+d523 2
+d527 6
+a532 4
+				if (c >= 0)
+					dest += utf8_encode(dest, c);
+				else
+					*dest++ = '?';
+a533 1
+			*dest = 0;
+d536 1
+@
+
+
+1.30
+log
+@change US to UC
+@
+text
+@d271 2
+a272 2
+    if (!zcmp(l, UC "C") || !zcmp(l, UC "POSIX"))
+      return UC "ascii";
+d275 2
+a276 2
+    if (zstr(l, UC "UTF") || zstr(l, UC "utf"))
+      return UC "UTF-8";
+d278 1
+a278 1
+    if ((p = zstr(l, UC "8859-"))) {
+d288 9
+a296 9
+    if (zstr(l, UC "KOI8-R")) return UC "KOI8-R";
+    if (zstr(l, UC "KOI8-U")) return UC "KOI8-U";
+    if (zstr(l, UC "620")) return UC "TIS-620";
+    if (zstr(l, UC "2312")) return UC "GB2312";
+    if (zstr(l, UC "HKSCS")) return UC "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, UC "Big5") || zstr(l, UC "BIG5")) return UC "Big5";
+    if (zstr(l, UC "GBK")) return UC "GBK";           /* no MIME charset */
+    if (zstr(l, UC "18030")) return UC "GB18030";     /* no MIME charset */
+    if (zstr(l, UC "Shift_JIS") || zstr(l, UC "SJIS")) return UC "Shift_JIS";
+d298 1
+a298 1
+    if (zstr(l, UC "euro")) return UC "ISO-8859-15";
+d300 19
+a318 19
+    if (zstr(l, UC "zh_TW")) return UC "Big5";
+    if (zstr(l, UC "zh_HK")) return UC "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, UC "zh")) return UC "GB2312";
+    if (zstr(l, UC "ja")) return UC "EUC-JP";
+    if (zstr(l, UC "ko")) return UC "EUC-KR";
+    if (zstr(l, UC "ru")) return UC "KOI8-R";
+    if (zstr(l, UC "uk")) return UC "KOI8-U";
+    if (zstr(l, UC "pl") || zstr(l, UC "hr") ||
+	zstr(l, UC "hu") || zstr(l, UC "cs") ||
+	zstr(l, UC "sk") || zstr(l, UC "sl")) return UC "ISO-8859-2";
+    if (zstr(l, UC "eo") || zstr(l, UC "mt")) return UC "ISO-8859-3";
+    if (zstr(l, UC "el")) return UC "ISO-8859-7";
+    if (zstr(l, UC "he")) return UC "ISO-8859-8";
+    if (zstr(l, UC "tr")) return UC "ISO-8859-9";
+    if (zstr(l, UC "th")) return UC "TIS-620";      /* or ISO-8859-11 */
+    if (zstr(l, UC "lt")) return UC "ISO-8859-13";
+    if (zstr(l, UC "cy")) return UC "ISO-8859-14";
+    if (zstr(l, UC "ro")) return UC "ISO-8859-2";   /* or ISO-8859-16 */
+    if (zstr(l, UC "am") || zstr(l, UC "vi")) return UC "UTF-8";
+d322 1
+a322 1
+    return UC "ISO-8859-1"; /* should perhaps be "UTF-8" instead */
+d324 1
+a324 1
+  return UC "ascii";
+d358 1
+a358 1
+		s=UC "ascii";
+d392 1
+a392 1
+		locale_map = find_charmap(UC "ascii");
+d396 1
+a396 1
+		locale_map_non_utf8 = find_charmap(UC "ascii");
+d577 1
+a577 1
+			return find_charmap(UC "utf-8");
+@
+
+
+1.29
+log
+@i18n yes/no
+@
+text
+@d271 2
+a272 2
+    if (!zcmp(l, US "C") || !zcmp(l, US "POSIX"))
+      return US "ascii";
+d275 2
+a276 2
+    if (zstr(l, US "UTF") || zstr(l, US "utf"))
+      return US "UTF-8";
+d278 1
+a278 1
+    if ((p = zstr(l, US "8859-"))) {
+d288 9
+a296 9
+    if (zstr(l, US "KOI8-R")) return US "KOI8-R";
+    if (zstr(l, US "KOI8-U")) return US "KOI8-U";
+    if (zstr(l, US "620")) return US "TIS-620";
+    if (zstr(l, US "2312")) return US "GB2312";
+    if (zstr(l, US "HKSCS")) return US "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, US "Big5") || zstr(l, US "BIG5")) return US "Big5";
+    if (zstr(l, US "GBK")) return US "GBK";           /* no MIME charset */
+    if (zstr(l, US "18030")) return US "GB18030";     /* no MIME charset */
+    if (zstr(l, US "Shift_JIS") || zstr(l, US "SJIS")) return US "Shift_JIS";
+d298 1
+a298 1
+    if (zstr(l, US "euro")) return US "ISO-8859-15";
+d300 19
+a318 19
+    if (zstr(l, US "zh_TW")) return US "Big5";
+    if (zstr(l, US "zh_HK")) return US "Big5HKSCS";   /* no MIME charset */
+    if (zstr(l, US "zh")) return US "GB2312";
+    if (zstr(l, US "ja")) return US "EUC-JP";
+    if (zstr(l, US "ko")) return US "EUC-KR";
+    if (zstr(l, US "ru")) return US "KOI8-R";
+    if (zstr(l, US "uk")) return US "KOI8-U";
+    if (zstr(l, US "pl") || zstr(l, US "hr") ||
+	zstr(l, US "hu") || zstr(l, US "cs") ||
+	zstr(l, US "sk") || zstr(l, US "sl")) return US "ISO-8859-2";
+    if (zstr(l, US "eo") || zstr(l, US "mt")) return US "ISO-8859-3";
+    if (zstr(l, US "el")) return US "ISO-8859-7";
+    if (zstr(l, US "he")) return US "ISO-8859-8";
+    if (zstr(l, US "tr")) return US "ISO-8859-9";
+    if (zstr(l, US "th")) return US "TIS-620";      /* or ISO-8859-11 */
+    if (zstr(l, US "lt")) return US "ISO-8859-13";
+    if (zstr(l, US "cy")) return US "ISO-8859-14";
+    if (zstr(l, US "ro")) return US "ISO-8859-2";   /* or ISO-8859-16 */
+    if (zstr(l, US "am") || zstr(l, US "vi")) return US "UTF-8";
+d322 1
+a322 1
+    return US "ISO-8859-1"; /* should perhaps be "UTF-8" instead */
+d324 1
+a324 1
+  return US "ascii";
+d358 1
+a358 1
+		s=US "ascii";
+d392 1
+a392 1
+		locale_map = find_charmap(US "ascii");
+d396 1
+a396 1
+		locale_map_non_utf8 = find_charmap(US "ascii");
+d577 1
+a577 1
+			return find_charmap(US "utf-8");
+@
+
+
+1.28
+log
+@Fix debug messages
+@
+text
+@d187 1
+a187 1
+	int len = *plen;
+d189 4
+d219 2
+a220 1
+	*plen = len;
+@
+
+
+1.27
+log
+@remove gnu-gettext from joe
+@
+text
+@d370 1
+a370 1
+	printf("joe_locale\n");
+d372 1
+a372 1
+	printf("set_locale\n");
+d378 1
+a378 1
+	printf("%s %s %s\n",PACKAGE,LOCALEDIR,joe_gettext("New File"));
+@
+
+
+1.26
+log
+@eliminate debug messages
+@
+text
+@d22 5
+a34 4
+#ifndef CODESET
+#undef HAVE_SETLOCALE
+#endif
+
+d329 3
+d360 1
+d370 1
+d372 1
+d378 1
+d417 1
+@
+
+
+1.25
+log
+@gettext support.
+@
+text
+@a364 1
+	printf("Joe locale\n");
+a365 1
+	printf("Set locale\n");
+d369 2
+a370 4
+	printf("Setting up gettext %s %s\n",PACKAGE,LOCALEDIR);
+	printf("%s\n",bindtextdomain(PACKAGE, LOCALEDIR));
+	printf("%s\n",textdomain(PACKAGE));
+	printf("%s\n",joe_gettext("New File"));
+@
+
+
+1.24
+log
+@gettext()
+@
+text
+@a9 7
+/* nl_langinfo(CODESET) is broken on many systems.  If HAVE_SETLOCALE is undefined,
+   JOE uses a limited internal version instead */
+
+#ifndef CODESET
+#undef HAVE_SETLOCALE
+#endif
+
+d27 7
+d365 1
+d367 1
+d371 4
+a374 2
+	bindtextdomain(PACKAGE, LOCALEDIR);
+	textdomain(PACKAGE);
+@
+
+
+1.23
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d260 1
+a260 1
+  if (((l = (unsigned char *)getenv("LC_ALL"))   && *l) ||
+d367 5
+d527 3
+d538 1
+a538 6
+	if (!len)
+		return locale_map;
+
+	/* Do we UTF-8? */
+	if (!locale_map->type)
+		/* Nope, use default */
+d547 4
+d557 7
+a563 3
+	if (c >= 0 && flag) {
+		/* No decoding errors but there are utf-8 sequences */
+		return find_charmap(US "utf-8");
+d566 7
+a572 2
+	/* Well, it might be non-utf8 version of the locale */
+	return locale_map_non_utf8;
+@
+
+
+1.22
+log
+@new cvs server
+@
+text
+@a7 3
+#include <stdio.h>
+#include <string.h>
+#include "config.h"
+a8 5
+#include "utils.h"
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+a33 4
+#include "rc.h"
+#include "utf8.h"
+#include "charmap.h"
+
+d165 1
+a165 1
+	int c;
+a337 2
+	int x;
+
+d353 1
+a353 1
+	if (t=zrchr(s,'.'))
+@
+
+
+1.21
+log
+@fix gcc-4.0.0 warnings
+@
+text
+@d184 9
+a192 1
+/* Decode and advance */
+d199 1
+a199 1
+	int c = -2;
+d204 8
+a211 3
+		--len;
+		c = utf8_decode(&sm,*s++);
+		if (c >= 0)
+d213 11
+d341 4
+a344 1
+			/* Character map of terminal */
+d390 4
+d473 99
+@
+
+
+1.20
+log
+@Don't use nl_langinfo(CODESET) in Cygwin
+@
+text
+@d9 1
+a9 1
+
+a13 2
+#include <string.h>
+
+d253 1
+a253 1
+    if (!strcmp((char *)l, "C") || !strcmp((char *)l, "POSIX"))
+d257 1
+a257 1
+    if (strstr((char *)l, "UTF") || strstr((char*)l, "utf"))
+d260 1
+a260 1
+    if ((p = (unsigned char *)strstr((char *)l, "8859-"))) {
+d270 9
+a278 9
+    if (strstr((char *)l, "KOI8-R")) return US "KOI8-R";
+    if (strstr((char *)l, "KOI8-U")) return US "KOI8-U";
+    if (strstr((char *)l, "620")) return US "TIS-620";
+    if (strstr((char *)l, "2312")) return US "GB2312";
+    if (strstr((char *)l, "HKSCS")) return US "Big5HKSCS";   /* no MIME charset */
+    if (strstr((char *)l, "Big5") || strstr((char *)l, "BIG5")) return US "Big5";
+    if (strstr((char *)l, "GBK")) return US "GBK";           /* no MIME charset */
+    if (strstr((char *)l, "18030")) return US "GB18030";     /* no MIME charset */
+    if (strstr((char *)l, "Shift_JIS") || strstr((char *)l, "SJIS")) return US "Shift_JIS";
+d280 1
+a280 1
+    if (strstr((char *)l, "euro")) return US "ISO-8859-15";
+d282 19
+a300 19
+    if (strstr((char *)l, "zh_TW")) return US "Big5";
+    if (strstr((char *)l, "zh_HK")) return US "Big5HKSCS";   /* no MIME charset */
+    if (strstr((char *)l, "zh")) return US "GB2312";
+    if (strstr((char *)l, "ja")) return US "EUC-JP";
+    if (strstr((char *)l, "ko")) return US "EUC-KR";
+    if (strstr((char *)l, "ru")) return US "KOI8-R";
+    if (strstr((char *)l, "uk")) return US "KOI8-U";
+    if (strstr((char *)l, "pl") || strstr((char *)l, "hr") ||
+	strstr((char *)l, "hu") || strstr((char *)l, "cs") ||
+	strstr((char *)l, "sk") || strstr((char *)l, "sl")) return US "ISO-8859-2";
+    if (strstr((char *)l, "eo") || strstr((char *)l, "mt")) return US "ISO-8859-3";
+    if (strstr((char *)l, "el")) return US "ISO-8859-7";
+    if (strstr((char *)l, "he")) return US "ISO-8859-8";
+    if (strstr((char *)l, "tr")) return US "ISO-8859-9";
+    if (strstr((char *)l, "th")) return US "TIS-620";      /* or ISO-8859-11 */
+    if (strstr((char *)l, "lt")) return US "ISO-8859-13";
+    if (strstr((char *)l, "cy")) return US "ISO-8859-14";
+    if (strstr((char *)l, "ro")) return US "ISO-8859-2";   /* or ISO-8859-16 */
+    if (strstr((char *)l, "am") || strstr((char *)l, "vi")) return US "UTF-8";
+d334 1
+a334 1
+		s=joe_strdup(s);
+d338 1
+a338 1
+	u = joe_strdup(s);
+d340 1
+a340 1
+	if (t=(unsigned char *)strrchr((char *)s,'.'))
+d346 1
+a346 1
+	non_utf8_codeset = joe_strdup((unsigned char *)nl_langinfo(CODESET));
+d354 1
+a354 1
+	codeset = joe_strdup((unsigned char *)nl_langinfo(CODESET));
+d428 1
+a428 1
+	int ibuf_sz=strlen((char *)s);
+@
+
+
+1.19
+log
+@
+AmigaOS is now supported. See "README.AMIGA" file for details
+@
+text
+@d20 7
+d34 5
+a322 1
+#ifdef HAVE_SETLOCALE
+d346 1
+a346 1
+#ifdef CODESET
+d354 1
+a354 1
+#ifdef CODESET
+d377 1
+d383 2
+a384 1
+#else
+@
+
+
+1.18
+log
+@Fix -pedantic warnings.
+@
+text
+@d20 7
+@
+
+
+1.17
+log
+@Fix for archaic systems (BSD) with no nl_langinfo(CODESET).
+@
+text
+@d12 1
+d243 1
+a243 1
+    if ((p = strstr((char *)l, "8859-"))) {
+d318 1
+a318 1
+		s=(unsigned char *)strdup((char *)s);
+d322 1
+a322 1
+	u = (unsigned char *)strdup((char *)s);
+d330 1
+a330 1
+	non_utf8_codeset = (unsigned char *)strdup(nl_langinfo(CODESET));
+d338 1
+a338 1
+	codeset = (unsigned char *)strdup(nl_langinfo(CODESET));
+@
+
+
+1.16
+log
+@Regex search now works properly with UTF-8 chars.
+Incremental search now works with UTF-8.
+@
+text
+@d190 101
+d304 1
+a304 1
+	unsigned char *s, *t;
+d321 2
+d326 2
+d330 3
+d334 2
+d338 3
+@
+
+
+1.15
+log
+@
+Everything about character set is now contained in struct charmap.
+
+Deprecate ^T U.  Now use ^T E to select file encoding.
+@
+text
+@d153 1
+a153 1
+/* Decode a string */
+d166 24
+@
+
+
+1.14
+log
+@Clean up pass: use internal ctype function everywhere.
+@
+text
+@a167 1
+int utf8;		/* Set if terminal is UTF-8 */
+a171 1
+			/* What if it is UTF-8? */
+d173 2
+a174 1
+struct charmap *locale_map;	/* Character map */
+d181 2
+d194 1
+a194 1
+		s=US "C";
+d205 1
+a205 7
+	if(!strcmp((char *)codeset,"UTF-8")) {
+		utf8 = 1;
+		fdefault.utf8 = 1;	/* Default file type */
+		pdefault.utf8 = 1;	/* For prompt windows too */
+	}
+
+	locale_map = find_charmap(non_utf8_codeset);
+d207 1
+a207 1
+		locale_map = find_charmap("C");
+d212 9
+d227 3
+a229 1
+	locale_map = find_charmap("C");
+a240 1
+
+a285 36
+
+/* Return true if c is a control character which should not be displayed */
+/* This should match mk_wcwidth() */
+
+int unictrl(int ucs)
+{
+	/* Control characters are one column wide in JOE */
+	if (ucs < 32 || ucs == 0x7F)
+		return 1;
+
+	if (ucs >= 0x80 && ucs <= 0x9F)
+		return 4;
+
+	/* More control characters... */
+	if (ucs>=0x200b && ucs<=0x206f) {
+		if (ucs<=0x200f) return 6;
+		if (ucs>=0x2028 && ucs<=0x202E) return 6;
+		if (ucs>=0x2060 && ucs<=0x2063) return 6;
+		if (ucs>=0x206a) return 6;
+	}
+
+	/* More control characters... */
+	if (ucs>=0xFDD0 && ucs<=0xFDEF)
+		return 6;
+
+	if (ucs==0xFEFF)
+		return 6;
+
+	if (ucs>=0xFFF9 && ucs<=0xFFFB)
+		return 6;
+
+	if (ucs>=0xFFFE && ucs<=0xFFFF)
+		return 6;
+
+	return 0;
+}
+@
+
+
+1.13
+log
+@Eliminate iconv() dependency.
+@
+text
+@d214 3
+d227 1
+a227 1
+void to_utf8(unsigned char *s,int c)
+d229 1
+a229 1
+	int d = to_uni(locale_map,c);
+d256 1
+a256 1
+int from_utf8(unsigned char *s)
+d259 1
+a259 1
+	int c = from_uni(locale_map,d);
+@
+
+
+1.12
+log
+@Elimiante --pedantic warnings.
+@
+text
+@a21 1
+#	include <iconv.h>
+d26 1
+d175 1
+a175 4
+#ifdef HAVE_SETLOCALE
+iconv_t to_utf;
+iconv_t from_utf;
+#endif
+d210 5
+d218 4
+d226 9
+a234 1
+#ifdef HAVE_SETLOCALE
+a249 2
+#else
+	utf8_encode(s,c);
+d255 9
+a263 1
+#ifdef HAVE_SETLOCALE
+a275 2
+#else
+	return utf8_decode_string(s);
+@
+
+
+1.11
+log
+@Fix highlighter when there are utf-8 characters in file.
+
+No longer depend on wctype.h (working towards not depending on
+iconv()).
+@
+text
+@d196 1
+a196 1
+		s="C";
+d201 1
+a201 1
+	setlocale(LC_ALL,s);
+d213 2
+a214 2
+	to_utf = iconv_open("UTF-8", non_utf8_codeset);
+	from_utf = iconv_open(non_utf8_codeset, "UTF-8");
+d244 1
+a244 1
+	int ibuf_sz=strlen(s);
+@
+
+
+1.10
+log
+@Forgot .pm files for perl.
+
+Update colors for perl and verilog.
+
+Added mail.jsf: works nicely with mutt
+
+Oops- was displaying characters between 0xA0 - 0xBF as
+control characters in UTF-8.
+@
+text
+@a295 227
+
+/*
+ * This is an implementation of wcwidth() and wcswidth() (defined in
+ * IEEE Std 1002.1-2001) for Unicode.
+ *
+ * http://www.opengroup.org/onlinepubs/007904975/functions/wcwidth.html
+ * http://www.opengroup.org/onlinepubs/007904975/functions/wcswidth.html
+ *
+ * In fixed-width output devices, Latin characters all occupy a single
+ * "cell" position of equal width, whereas ideographic CJK characters
+ * occupy two such cells. Interoperability between terminal-line
+ * applications and (teletype-style) character terminals using the
+ * UTF-8 encoding requires agreement on which character should advance
+ * the cursor by how many cell positions. No established formal
+ * standards exist at present on which Unicode character shall occupy
+ * how many cell positions on character terminals. These routines are
+ * a first attempt of defining such behavior based on simple rules
+ * applied to data provided by the Unicode Consortium.
+ *
+ * For some graphical characters, the Unicode standard explicitly
+ * defines a character-cell width via the definition of the East Asian
+ * FullWidth (F), Wide (W), Half-width (H), and Narrow (Na) classes.
+ * In all these cases, there is no ambiguity about which width a
+ * terminal shall use. For characters in the East Asian Ambiguous (A)
+ * class, the width choice depends purely on a preference of backward
+ * compatibility with either historic CJK or Western practice.
+ * Choosing single-width for these characters is easy to justify as
+ * the appropriate long-term solution, as the CJK practice of
+ * displaying these characters as double-width comes from historic
+ * implementation simplicity (8-bit encoded characters were displayed
+ * single-width and 16-bit ones double-width, even for Greek,
+ * Cyrillic, etc.) and not any typographic considerations.
+ *
+ * Much less clear is the choice of width for the Not East Asian
+ * (Neutral) class. Existing practice does not dictate a width for any
+ * of these characters. It would nevertheless make sense
+ * typographically to allocate two character cells to characters such
+ * as for instance EM SPACE or VOLUME INTEGRAL, which cannot be
+ * represented adequately with a single-width glyph. The following
+ * routines at present merely assign a single-cell width to all
+ * neutral characters, in the interest of simplicity. This is not
+ * entirely satisfactory and should be reconsidered before
+ * establishing a formal standard in this area. At the moment, the
+ * decision which Not East Asian (Neutral) characters should be
+ * represented by double-width glyphs cannot yet be answered by
+ * applying a simple rule from the Unicode database content. Setting
+ * up a proper standard for the behavior of UTF-8 character terminals
+ * will require a careful analysis not only of each Unicode character,
+ * but also of each presentation form, something the author of these
+ * routines has avoided to do so far.
+ *
+ * http://www.unicode.org/unicode/reports/tr11/
+ *
+ * Markus Kuhn -- 2003-05-20 (Unicode 4.0)
+ *
+ * Permission to use, copy, modify, and distribute this software
+ * for any purpose and without fee is hereby granted. The author
+ * disclaims all warranties with regard to this software.
+ *
+ * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
+ */
+
+/* Return width of unicode character */
+
+struct interval {
+	int first;
+	int last;
+};
+
+/* auxiliary function for binary search in interval table */
+static int bisearch(int ucs, const struct interval *table, int max)
+{
+	int min = 0;
+	int mid;
+
+	if (ucs < table[0].first || ucs > table[max].last)
+		return 0;
+	while (max >= min) {
+		mid = (min + max) / 2;
+		if (ucs > table[mid].last)
+			min = mid + 1;
+		else if (ucs < table[mid].first)
+			max = mid - 1;
+		else
+			return 1;
+	}
+
+	return 0;
+}
+
+/* The following two functions define the column width of an ISO 10646
+ * character as follows:
+ *
+ *    - The null character (U+0000) has a column width of 0.
+ *
+ *    - Other C0/C1 control characters and DEL will lead to a return
+ *      value of -1.
+ *
+ *    - Non-spacing and enclosing combining characters (general
+ *      category code Mn or Me in the Unicode database) have a
+ *      column width of 0.
+ *
+ *    - SOFT HYPHEN (U+00AD) has a column width of 1.
+ *
+ *    - Other format characters (general category code Cf in the Unicode
+ *      database) and ZERO WIDTH SPACE (U+200B) have a column width of 0.
+ *
+ *    - Hangul Jamo medial vowels and final consonants (U+1160-U+11FF)
+ *      have a column width of 0.
+ *
+ *    - Spacing characters in the East Asian Wide (W) or East Asian
+ *      Full-width (F) category as defined in Unicode Technical
+ *      Report #11 have a column width of 2.
+ *
+ *    - All remaining characters (including all printable
+ *      ISO 8859-1 and WGL4 characters, Unicode control characters,
+ *      etc.) have a column width of 1.
+ *
+ * This implementation assumes that wchar_t characters are encoded
+ * in ISO 10646.
+ */
+
+/* Modified for JOE: returns printed width of control and other non-printable
+   characters */
+
+int mk_wcwidth(int wide,int ucs)
+{
+	int x;
+
+	/* sorted list of non-overlapping intervals of non-spacing characters */
+	/* generated by "uniset +cat=Me +cat=Mn +cat=Cf -00AD +1160-11FF +200B c" */
+	static const struct interval combining[] = {
+		{ 0x0300, 0x0357 }, { 0x035D, 0x036F }, { 0x0483, 0x0486 },
+		{ 0x0488, 0x0489 }, { 0x0591, 0x05A1 }, { 0x05A3, 0x05B9 },
+		{ 0x05BB, 0x05BD }, { 0x05BF, 0x05BF }, { 0x05C1, 0x05C2 },
+		{ 0x05C4, 0x05C4 }, { 0x0600, 0x0603 }, { 0x0610, 0x0615 },
+		{ 0x064B, 0x0658 }, { 0x0670, 0x0670 }, { 0x06D6, 0x06E4 },
+		{ 0x06E7, 0x06E8 }, { 0x06EA, 0x06ED }, { 0x070F, 0x070F },
+		{ 0x0711, 0x0711 }, { 0x0730, 0x074A }, { 0x07A6, 0x07B0 },
+		{ 0x0901, 0x0902 }, { 0x093C, 0x093C }, { 0x0941, 0x0948 },
+		{ 0x094D, 0x094D }, { 0x0951, 0x0954 }, { 0x0962, 0x0963 },
+		{ 0x0981, 0x0981 }, { 0x09BC, 0x09BC }, { 0x09C1, 0x09C4 },
+		{ 0x09CD, 0x09CD }, { 0x09E2, 0x09E3 }, { 0x0A01, 0x0A02 },
+		{ 0x0A3C, 0x0A3C }, { 0x0A41, 0x0A42 }, { 0x0A47, 0x0A48 },
+		{ 0x0A4B, 0x0A4D }, { 0x0A70, 0x0A71 }, { 0x0A81, 0x0A82 },
+		{ 0x0ABC, 0x0ABC }, { 0x0AC1, 0x0AC5 }, { 0x0AC7, 0x0AC8 },
+		{ 0x0ACD, 0x0ACD }, { 0x0AE2, 0x0AE3 }, { 0x0B01, 0x0B01 },
+		{ 0x0B3C, 0x0B3C }, { 0x0B3F, 0x0B3F }, { 0x0B41, 0x0B43 },
+		{ 0x0B4D, 0x0B4D }, { 0x0B56, 0x0B56 }, { 0x0B82, 0x0B82 },
+		{ 0x0BC0, 0x0BC0 }, { 0x0BCD, 0x0BCD }, { 0x0C3E, 0x0C40 },
+		{ 0x0C46, 0x0C48 }, { 0x0C4A, 0x0C4D }, { 0x0C55, 0x0C56 },
+		{ 0x0CBC, 0x0CBC }, { 0x0CBF, 0x0CBF }, { 0x0CC6, 0x0CC6 },
+		{ 0x0CCC, 0x0CCD }, { 0x0D41, 0x0D43 }, { 0x0D4D, 0x0D4D },
+		{ 0x0DCA, 0x0DCA }, { 0x0DD2, 0x0DD4 }, { 0x0DD6, 0x0DD6 },
+		{ 0x0E31, 0x0E31 }, { 0x0E34, 0x0E3A }, { 0x0E47, 0x0E4E },
+		{ 0x0EB1, 0x0EB1 }, { 0x0EB4, 0x0EB9 }, { 0x0EBB, 0x0EBC },
+		{ 0x0EC8, 0x0ECD }, { 0x0F18, 0x0F19 }, { 0x0F35, 0x0F35 },
+		{ 0x0F37, 0x0F37 }, { 0x0F39, 0x0F39 }, { 0x0F71, 0x0F7E },
+		{ 0x0F80, 0x0F84 }, { 0x0F86, 0x0F87 }, { 0x0F90, 0x0F97 },
+		{ 0x0F99, 0x0FBC }, { 0x0FC6, 0x0FC6 }, { 0x102D, 0x1030 },
+		{ 0x1032, 0x1032 }, { 0x1036, 0x1037 }, { 0x1039, 0x1039 },
+		{ 0x1058, 0x1059 }, { 0x1160, 0x11FF }, { 0x1712, 0x1714 },
+		{ 0x1732, 0x1734 }, { 0x1752, 0x1753 }, { 0x1772, 0x1773 },
+		{ 0x17B4, 0x17B5 }, { 0x17B7, 0x17BD }, { 0x17C6, 0x17C6 },
+		{ 0x17C9, 0x17D3 }, { 0x17DD, 0x17DD }, { 0x180B, 0x180D },
+		{ 0x18A9, 0x18A9 }, { 0x1920, 0x1922 }, { 0x1927, 0x1928 },
+		{ 0x1932, 0x1932 }, { 0x1939, 0x193B }, { 0x200B, 0x200F },
+		{ 0x202A, 0x202E }, { 0x2060, 0x2063 }, { 0x206A, 0x206F },
+		{ 0x20D0, 0x20EA }, { 0x302A, 0x302F }, { 0x3099, 0x309A },
+		{ 0xFB1E, 0xFB1E }, { 0xFE00, 0xFE0F }, { 0xFE20, 0xFE23 },
+		{ 0xFEFF, 0xFEFF }, { 0xFFF9, 0xFFFB }, { 0x1D167, 0x1D169 },
+		{ 0x1D173, 0x1D182 }, { 0x1D185, 0x1D18B }, { 0x1D1AA, 0x1D1AD },
+		{ 0xE0001, 0xE0001 }, { 0xE0020, 0xE007F }, { 0xE0100, 0xE01EF }
+	};
+
+	/* If terminal is not UTF-8 or file is not UTF-8: width is 1 */
+	if (!utf8 || !wide)
+		return 1;
+
+	/* Control characters are one column wide in JOE */
+	if (ucs < 32 || ucs == 0x7F)
+		return 1;
+
+	/* More control characters... */
+	if (ucs>=0x80 && ucs<=0x9F)
+		return 4;
+
+	/* More control characters... */
+	if (ucs>=0x200b && ucs<=0x206f) {
+		if (ucs<=0x200f) return 6;
+		if (ucs>=0x2028 && ucs<=0x202E) return 6;
+		if (ucs>=0x2060 && ucs<=0x2063) return 6;
+		if (ucs>=0x206a) return 6;
+	}
+
+	/* More control characters... */
+	if (ucs>=0xFDD0 && ucs<=0xFDEF)
+		return 6;
+
+	if (ucs==0xFEFF)
+		return 6;
+
+	if (ucs>=0xFFF9 && ucs<=0xFFFB)
+		return 6;
+
+	if (ucs>=0xFFFE && ucs<=0xFFFF)
+		return 6;
+
+	/* 0 Width Combining characters */
+	if (bisearch(ucs, combining, sizeof(combining) / sizeof(struct interval) - 1))
+		return 0;
+
+	/* Double-wide characters */
+	return 1 + 
+		(ucs >= 0x1100 &&
+		(ucs <= 0x115f ||                    /* Hangul Jamo init. consonants */
+		ucs == 0x2329 || ucs == 0x232a ||
+		(ucs >= 0x2e80 && ucs <= 0xa4cf &&
+		ucs != 0x303f) ||                  /* CJK ... Yi */
+		(ucs >= 0xac00 && ucs <= 0xd7a3) || /* Hangul Syllables */
+		(ucs >= 0xf900 && ucs <= 0xfaff) || /* CJK Compatibility Ideographs */
+		(ucs >= 0xfe30 && ucs <= 0xfe6f) || /* CJK Compatibility Forms */
+		(ucs >= 0xff00 && ucs <= 0xff60) || /* Fullwidth Forms */
+		(ucs >= 0xffe0 && ucs <= 0xffe6) ||
+		(ucs >= 0x20000 && ucs <= 0x2fffd) ||
+		(ucs >= 0x30000 && ucs <= 0x3fffd)));
+}
+@
+
+
+1.9
+log
+@Fix rtarw: was not fixing xcol.
+
+TAB key now does smart indenting.
+
+smart home goes to real home first, then indentation point.
+@
+text
+@d270 1
+a270 1
+	if (ucs >= 0x80 && ucs <= 0xBF)
+d480 1
+a480 1
+	if (ucs>=0x80 && ucs<=0xBF)
+@
+
+
+1.8
+log
+@Better handling of iconv() conversion errors.
+
+Better handling of error UTF-8 sequences.
+@
+text
+@a424 4
+	/* If terminal is not UTF-8 or file is not UTF-8: width is 1 */
+	if (!utf8 || !wide)
+		return 1;
+
+d471 4
+@
+
+
+1.7
+log
+@Print <XXXX> for unicode control characters.
+@
+text
+@d8 2
+d140 1
+a140 1
+		return c;
+d222 2
+a223 1
+	unsigned char *bp;
+a227 1
+	bp = buf;
+d229 7
+a235 2
+	iconv(to_utf,(char **)&bp,&ibuf_sz,(char **)&s,&obuf_sz);
+	*s = 0;
+d244 1
+a244 1
+	int ibuf_sz=10;
+a245 1
+	
+d250 6
+a255 2
+	iconv(from_utf,(char **)&s,&ibuf_sz,(char **)&obufp,&obuf_sz);
+	return obuf[0];
+d421 1
+a421 1
+int mk_wcwidth(int ucs)
+d424 5
+@
+
+
+1.6
+log
+@Fix utf8 encoder for characters between 0x10000 and 0x1FFFF.
+@
+text
+@d250 258
+@
+
+
+1.5
+log
+@UTF-8 now supported in file names and prompts.
+
+Search should be partially working.  \+ with
+a UTF-8 character following is broken and
+\[ ] only works for bytes.
+@
+text
+@d44 1
+a44 1
+	} else if(c < 0x20000) {
+@
+
+
+1.4
+log
+@Fixed bug where '-syntax' on command line had
+no effect.
+
+Now if terminal is UTF-8, the default file type
+is assumed to be UTF-8.
+@
+text
+@d208 1
+@
+
+
+1.3
+log
+@Added preprocessor directives to utf8.c to check
+for locale support.  Needs more work: should check
+for iconv() support.
+
+Fix bug which happened when no locale env vars set.
+@
+text
+@d23 1
+d205 1
+a205 1
+	if(!strcmp((char *)codeset,"UTF-8"))
+d207 2
+@
+
+
+1.2
+log
+@First attempt at character set conversion iconv().
+Now the file's coding can be different from the terminal's
+coding.
+
+Also, applied secure linux patch from RedHat.
+@
+text
+@d179 1
+d192 2
+d209 1
+d214 1
+d225 3
+d232 1
+d242 3
+@
+
+
+1.1
+log
+@Input of UTF-8 is now working.  For example, you
+can cut and paste in an xterm.
+
+Placed UTF-8 encoder and decoder in separate file.
+@
+text
+@d8 14
+d149 85
+@
+

@@ -1,0 +1,110 @@
+head	1.2;
+access;
+symbols
+	start:1.1.1.1 vendor:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.2
+date	2001.04.19.16.32.17;	author marx_sk;	state dead;
+branches;
+next	1.1;
+
+1.1
+date	2001.04.19.16.12.09;	author marx_sk;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.04.19.16.12.09;	author marx_sk;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.2
+log
+@*** empty log message ***
+@
+text
+@/* Simple hash table */
+
+#include <string.h>
+#include "hash.h"
+
+static HENTRY *freentry = 0;
+
+unsigned long hash (char *s) {
+	unsigned long accu = 0;
+
+	while (*s) {
+		accu = hnext (accu, *s++);
+	}
+	return accu;
+}
+
+HASH *htmk (int len) {
+	HASH *t = (HASH *) malloc (sizeof (HASH));
+
+	t->len = len - 1;
+	t->tab = (HENTRY **) calloc (sizeof (HENTRY *), len);
+	return t;
+}
+
+void htrm (HASH *ht) {
+	free (ht->tab);
+	free (ht);
+}
+
+void *htadd (HASH *ht, char *name, void *val) {
+	int idx = hash (name) & ht->len;
+	HENTRY *entry;
+	int x;
+
+	if (!freentry) {
+		entry = (HENTRY *) malloc (sizeof (HENTRY) * 64);
+		for (x = 0; x != 64; ++x) {
+			entry[x].next = freentry, freentry = entry + x;
+		}
+	}
+	entry = freentry;
+	freentry = entry->next;
+	entry->next = ht->tab[idx];
+	ht->tab[idx] = entry;
+	entry->name = name;
+	return entry->val = val;
+}
+
+void *htfind (HASH *ht, char *name) {
+	HENTRY *e;
+
+	for (e = ht->tab[hash (name) & ht->len]; e; e = e->next) {
+		if (!strcmp (e->name, name)) {
+			return e->val;
+		}
+	}
+	return 0;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
+
+
+1.1.1.1
+log
+@
+Project was succesfully moved to CVS repository
+@
+text
+@@

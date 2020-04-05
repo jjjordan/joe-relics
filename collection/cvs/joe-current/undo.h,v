@@ -1,0 +1,416 @@
+head	1.12;
+access;
+symbols
+	joe_3_5:1.12
+	joe-3_4:1.9
+	help:1.9
+	joe_3_1:1.6
+	joe_3_0:1.6
+	joe_2_9_8:1.6
+	joe_2_9_8_pre1:1.6
+	joe_2_9_7:1.4
+	joe_2_9_7_pre3:1.4
+	joe_2_9_7_pre2:1.3
+	joe_2_9_6:1.2
+	joe_2_9_5:1.1.1.1
+	joe_2_9_4:1.1.1.1
+	joe_2_9_2:1.1.1.1
+	joe_2_9_1:1.1.1.1
+	joe_2_9:1.1.1.1
+	joe_source:1.1.1;
+locks; strict;
+comment	@ * @;
+
+
+1.12
+date	2006.07.10.17.44.46;	author jhallen;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	2006.07.10.17.38.54;	author jhallen;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	2006.07.02.16.54.06;	author jhallen;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	2006.05.14.17.14.04;	author jhallen;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	2005.03.14.00.07.50;	author jhallen;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2004.07.08.21.16.11;	author jhallen;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2001.11.29.14.43.34;	author vsamel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2001.11.27.13.27.32;	author vsamel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2001.10.29.15.28.38;	author vsamel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2001.10.29.14.39.52;	author vsamel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2001.05.11.04.38.37;	author polesapart;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2001.05.11.03.40.19;	author polesapart;	state Exp;
+branches
+	1.1.1.1;
+next	;
+
+1.1.1.1
+date	2001.05.11.03.40.19;	author polesapart;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@eliminate debug messages
+@
+text
+@/*
+ *	UNDO system
+ *	Copyright
+ *		(C) 1992 Joseph H. Allen
+ *
+ *	This file is part of JOE (Joe's Own Editor)
+ */
+#ifndef _JOE_UNDO_H
+#define _JOE_UNDO_H 1
+
+struct undorec {
+	LINK(UNDOREC)	link;	/* Doubly-linked list of undo records */
+	UNDOREC	*unit;		/* If this is first record of a unit: points to last.  If this is last record of a unit: points to first. */
+	int	min;		/* Set to allow merging of undo information with this record (like to small inserts) */
+	int	changed;	/* Status of modified flag before this record */
+	long	where;		/* Buffer address of this record */
+	long	len;		/* Length of insert or delete */
+	int	del;		/* Set if this is a delete */
+	B	*big;		/* Set to buffer containing a large amount of deleted data */
+	unsigned char	*small;		/* Set to malloc block containg a small amount of deleted data */
+};
+
+struct undo {
+	LINK(UNDO)	link;
+	B	*b;
+	int	nrecs;		/* Number of units */
+	UNDOREC	recs;		/* The undo records: recs.link.prev is latest */
+	UNDOREC	*ptr;		/* Pointer to latest "undone" record. */
+	UNDOREC	*first;		/* Pointers to first and last records of a group.  The group is */
+	UNDOREC	*last;		/* treated as a single undo record. */
+};
+
+extern int inundo; /* Set if inserts/deletes are part of an undo operation */
+extern int justkilled; /* Last edit was a delete, so store data in yank buffer */
+
+UNDO *undomk PARAMS((B *b));
+void undorm PARAMS((UNDO *undo));
+int uundo PARAMS((BW *bw));
+int uredo PARAMS((BW *bw));
+void umclear PARAMS((void)); /* Call this to finalize current undo records.  New changes will create new records. */
+void undomark PARAMS((void));
+void undoins PARAMS((UNDO *undo, P *p, long int size));
+void undodel PARAMS((UNDO *undo, long int where, B *b));
+int uyank PARAMS((BW *bw));
+int uyankpop PARAMS((BW *bw));
+int uyapp PARAMS((BW *bw));
+int unotmod PARAMS((BW *bw));
+int ucopy PARAMS((BW *bw));
+
+void load_yank PARAMS((FILE *f));
+void save_yank PARAMS((FILE *f));
+void bw_unlock PARAMS((BW *bw));
+
+extern int undo_keep;
+
+#endif
+@
+
+
+1.11
+log
+@undo_keep bug
+@
+text
+@d26 1
+a26 1
+	int	nrecs;
+@
+
+
+1.10
+log
+@allow setting undo
+@
+text
+@d12 3
+a14 3
+	LINK(UNDOREC)	link;
+	UNDOREC	*unit;
+	int	min;
+d27 4
+a30 4
+	UNDOREC	recs;
+	UNDOREC	*ptr;
+	UNDOREC	*first;
+	UNDOREC	*last;
+d40 1
+a40 1
+void umclear PARAMS((void));
+@
+
+
+1.9
+log
+@Massive check-in: rearrange header files, fix -Wall warnings.
+@
+text
+@d54 2
+@
+
+
+1.8
+log
+@file locking.
+@
+text
+@d11 11
+a21 2
+#include "config.h"
+#include "types.h"
+d23 12
+a34 2
+extern int inundo;
+extern int justkilled;
+@
+
+
+1.7
+log
+@Thu Jul  8 2004  Joe Allen <jhallen@@world.std.com>
+
+	Merge last two changes (described below...)
+
+
+Tue Jul  6 2004  Pavel Fedin <sonimiga@@rambler.ru>
+
+     Changed some fork()s to vfork()s.
+	Added ^# (CSI = 0x9B) control character.
+	Added Amiga CSI sequences to keys definitions in joerc files.
+	Added some #ifdef's to compile properly on AmigaOS.
+
+Tue Jun 22 2004  Joe Allen <jhallen@@world.std.com>
+
+	~/.joe_state file.
+
+	Saves macros, yanks records, and file name history in a file.
+@
+text
+@d33 1
+@
+
+
+1.6
+log
+@include only headers which are needed
+@
+text
+@d31 3
+@
+
+
+1.5
+log
+@put struct definitions and other goodies into types.h
+@
+text
+@a13 3
+#include "queue.h"	/* for LINK() macro */
+#include "b.h"
+
+@
+
+
+1.4
+log
+@version 2.9.7-pre3
+@
+text
+@d1 9
+a9 2
+#ifndef _Iundo
+#define _Iundo 1
+d12 2
+a15 27
+
+#define UNDOKEEP 100
+
+typedef struct undo UNDO;
+typedef struct undorec UNDOREC;
+
+struct undorec {
+	LINK(UNDOREC) link;
+	UNDOREC *unit;
+	int min;
+	int changed;		/* Status of modified flag before this record */
+	long where;		/* Buffer address of this record */
+	long len;		/* Length of insert or delete */
+	int del;		/* Set if this is a delete */
+	B *big;			/* Set to buffer containing a large amount of deleted data */
+	char *small;		/* Set to malloc block containg a small amount of deleted data */
+};
+
+struct undo {
+	LINK(UNDO) link;
+	B *b;
+	int nrecs;
+	UNDOREC recs;
+	UNDOREC *ptr;
+	UNDOREC *first;
+	UNDOREC *last;
+};
+@
+
+
+1.3
+log
+@take the CVS repository to version 2.9.7-pre2
+@
+text
+@d5 1
+a5 1
+#include "queue.h"
+d38 13
+a50 13
+UNDO *undomk();
+void undorm();
+int uundo();
+int uredo();
+void umclear();
+void undomark();
+void undoins();
+void undodel();
+int uyank();
+int uyankpop();
+int uyapp();
+int unotmod();
+int ucopy();
+@
+
+
+1.2
+log
+@changed as of joe-2.9.6
+@
+text
+@d13 2
+a14 3
+struct undorec
+{
+	LINK (UNDOREC) link;
+d25 2
+a26 3
+struct undo
+{
+	LINK (UNDO) link;
+d38 13
+a50 13
+UNDO *undomk ();
+void undorm ();
+int uundo ();
+int uredo ();
+void umclear ();
+void undomark ();
+void undoins ();
+void undodel ();
+int uyank ();
+int uyankpop ();
+int uyapp ();
+int unotmod ();
+int ucopy ();
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d14 11
+a24 11
+ {
+ LINK(UNDOREC) link;
+ UNDOREC *unit;
+ int min;
+ int changed;		/* Status of modified flag before this record */
+ long where;		/* Buffer address of this record */
+ long len;		/* Length of insert or delete */
+ int del;		/* Set if this is a delete */
+ B *big;		/* Set to buffer containing a large amount of deleted data */
+ char *small;		/* Set to malloc block containg a small amount of deleted data */
+ };
+d27 9
+a35 9
+ {
+ LINK(UNDO) link;
+ B *b;
+ int nrecs;
+ UNDOREC recs;
+ UNDOREC *ptr;
+ UNDOREC *first;
+ UNDOREC *last;
+ };
+d40 13
+a52 13
+UNDO *undomk();
+void undorm();
+int uundo();
+int uredo();
+void umclear();
+void undomark();
+void undoins();
+void undodel();
+int uyank();
+int uyankpop();
+int uyapp();
+int unotmod();
+int ucopy();
+@
+
+
+1.1.1.1
+log
+@First import of joe sources to cvs (as of joe-2.9)
+@
+text
+@@

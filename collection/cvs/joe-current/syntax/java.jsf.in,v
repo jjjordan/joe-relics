@@ -1,0 +1,360 @@
+head	1.4;
+access;
+symbols
+	joe_3_5:1.4
+	joe-3_4:1.4
+	help:1.4
+	joe_3_1:1.3;
+locks; strict;
+comment	@# @;
+
+
+1.4
+date	2006.05.19.17.00.56;	author jhallen;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2004.04.29.15.41.17;	author jhallen;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2004.04.28.23.29.52;	author jhallen;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2004.04.27.20.54.11;	author jhallen;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.4
+log
+@Add rexx.  Take advantage of highlighter subroutines.
+@
+text
+@# JOE syntax highlight file for JAVA
+
+# Needs: \uXXXX for unicode in strings
+# improve escape parsing
+
+=Idle
+=Preproc 	blue
+=Define		bold blue
+=Comment 	green
+=Constant 	cyan
+=Escape 	bold cyan
+=Type 		bold
+=Keyword 	bold
+=Operator	bold
+=Bad		bold red
+=Brace		magenta
+=Control
+
+:begin Idle
+	*	begin	noeat call=.java()
+
+#
+# Java as a subroute- for use as java script in html
+#
+
+.subr java
+
+:idle Idle
+	*		idle
+	"\n"		idle
+	"/"		slash
+	"0"		first_digit	recolor=-1
+	"1-9"		decimal	recolor=-1
+	"."		maybe_float
+	"\""		string		recolor=-1
+	"'"		char		recolor=-1
+	"a-zA-Z_"	ident		buffer
+	"{}"		brace		recolor=-1
+.ifdef script
+	",:;=()>[]*&|!~+\-%^"	control		recolor=-1
+	"<"		maybe_done
+.else
+	",:;=()><[]*&|!~+\-%^"	control		recolor=-1
+.endif
+
+:maybe_done Control
+	*	idle	noeat
+	"/"	idle	noeat return recolor=-2
+
+:brace Brace
+	*	idle	noeat
+
+:control Control
+	*	idle	noeat
+
+:slash Idle
+	*		idle		noeat
+	"*"		comment		recolor=-2
+	"/"		line_comment	recolor=-2
+
+:comment Comment
+	*		comment
+	"*"		maybe_end_comment
+
+:maybe_end_comment Comment
+	*		comment
+	"/"		idle
+	"*"		maybe_end_comment
+
+:line_comment Comment
+	*		line_comment
+	"\n"		idle
+
+:first_digit Constant
+	*		idle	noeat
+	"xX"		hex
+	"."		float
+	"eE"		epart
+	"0-7"		octal
+	"89"		bad_number	recolor=-1
+
+:bad_number Bad
+	*		idle	noeat
+	"0-9"		bad_number
+
+:octal Constant
+	*		idle	noeat
+	"0-7"		octal
+	"89"		bad_number	recolor=-1
+
+:hex Constant
+	*		idle	noeat
+	"0-9A-Fa-f"	hex
+
+:decimal Constant
+	*		idle	noeat
+	"0-9"		decimal
+	"eE"		epart
+	"."		float
+
+:maybe_float Constant
+	*		idle	recolor=-2	noeat
+	"0-9"		float		recolor=-2
+
+:float Constant
+	*		idle	noeat
+	"eE"		epart
+	"0-9"		float
+
+:epart Constant
+	*		idle	noeat
+	"0-9+\-"	enum
+
+:enum Constant
+	*		idle	noeat
+	"0-9"		enum
+
+:string	Constant
+	*		string
+	"\""		idle
+	"\\"		string_escape	recolor=-1
+	"%"		string_control	recolor=-1
+
+:string_escape Escape
+	*		string
+	"x"		string_hex1
+	"0-7"		string_octal2
+	"\n"		string		recolor=-2
+
+:string_hex1 Escape
+	*		string		noeat
+	"0-9a-fA-F"	string_hex2
+
+:string_hex2 Escape
+	*		string		noeat
+	"0-9a-fA-F"	string
+
+:string_octal2 Escape
+	*		string		noeat
+	"0-7"		string_octal3
+
+:string_octal3 Escape
+	*		string		noeat
+	"0-7"		string
+
+:string_control Escape
+	*		string_control
+	"\n"		reset
+	"diouxXeEfFgGaAcspn%SC"	string
+
+:char Constant
+	*		char
+	"\n"		reset
+	"'"		idle
+	"\\"		char_escape	recolor=-1
+
+:char_escape	Escape
+	*		char
+	"x"		char_hex1
+	"0-7"		char_octal2
+	"\n"		char		recolor=-2
+
+:char_hex1 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char_hex2
+
+:char_hex2 Escape
+	*		char		noeat
+	"0-9a-fA-F"	char
+
+:char_octal2 Escape
+	*		char		noeat
+	"0-7"		char_octal3
+
+:char_octal3 Escape
+	*		char		noeat
+	"0-7"		char
+
+:ident Idle
+	*		idle		noeat strings
+	"abstract"	kw
+	"boolean"	type
+	"break"		kw
+	"byte"		type
+	"case"		kw
+	"catch"		kw
+	"char"		type
+	"class"		kw
+	"const"		kw
+	"continue"	kw
+	"default"	kw
+	"do"		kw
+	"double"	type
+	"else"		kw
+	"extends"	kw
+	"final"		kw
+	"finally"	kw
+	"float"		type
+	"for"		kw
+	"goto"		kw
+	"if"		kw
+	"implements"	kw
+	"import"	kw
+	"instanceof"	operator
+	"int"		type
+	"interface"	kw
+	"long"		type
+	"native"	kw
+	"new"		operator
+	"null"		lit
+	"package"	kw
+	"private"	kw
+	"protected"	kw
+	"public"	kw
+	"return"	kw
+	"short"		type
+	"static"	kw
+	"super"		kw
+	"switch"	kw
+	"synchronized"	kw
+	"this"		kw
+	"throw"		kw
+	"throws"	kw
+	"transient"	kw
+	"try"		kw
+	"void"		kw
+	"volatile"	kw
+	"while"		kw
+	"true"		lit
+	"false"		lit
+done
+	"a-zA-Z0-9_"	ident
+
+:type Type
+	*	idle	noeat
+
+:kw Keyword
+	*	idle	noeat
+
+:lit Constant
+	*	idle	noeat
+
+:operator Operator
+	*	idle	noeat
+
+.end
+@
+
+
+1.3
+log
+@Improved fortran highlighter.
+@
+text
+@d19 9
+d39 4
+d44 5
+d245 2
+@
+
+
+1.2
+log
+@More syntax files: tcl
+
+Now 'noeat' implies 'recolor=-1', which reduces debug time
+for syntax definition files.
+@
+text
+@d15 3
+d23 2
+a24 1
+	"0-9"		first_digit	recolor=-1
+d29 8
+d60 12
+a71 1
+	"0-9"		first_number
+d77 1
+a77 1
+:first_number Constant
+d79 2
+a80 1
+	"0-9"		first_number
+d104 1
+d108 2
+d112 21
+d135 1
+a135 1
+	"\n"		idle
+d141 2
+d145 16
+@
+
+
+1.1
+log
+@More syntax files: java.jsf
+@
+text
+@d45 1
+a45 1
+	*		idle	noeat	recolor=-1
+d51 1
+a51 1
+	*		idle	noeat	recolor=-1
+d55 1
+a55 1
+	*		idle	noeat	recolor=-1
+d64 1
+a64 1
+	*		idle	noeat	recolor=-1
+d69 1
+a69 1
+	*		idle	noeat	recolor=-1
+d73 1
+a73 1
+	*		idle	noeat	recolor=-1
+@
+
