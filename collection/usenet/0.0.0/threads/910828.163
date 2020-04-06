@@ -1,0 +1,58 @@
+Xref: funic comp.editors:2124 alt.religion.emacs:846 alt.sources:2299 comp.unix.xenix.sco:3046
+Path: funic!fuug!mcsun!uunet!math.fu-berlin.de!fub!unlisys!trigon.in-berlin.de!immi
+From: immi@trigon.in-berlin.de (Immanuel Bloch)
+Newsgroups: comp.editors,alt.religion.emacs,alt.sources,comp.unix.xenix.sco
+Subject: Re: Patch for Joe's Editor
+Message-ID: <RJ2TMHM@trigon.in-berlin.de>
+Date: 23 Aug 91 20:50:36 GMT
+References: <1991Aug23.012009.820@wpi.WPI.EDU>
+Organization: trigon Schluechtern/Germany
+Lines: 47
+
+rcarter@wpi.WPI.EDU (Randolph Carter (nee. Joseph H. Allen)) writes:
+
+
+>So much for my testing abilities... I work hard to test all these weird cases
+>and then only one day after posting the source someone finds a bug.  Oh well.
+
+>The Bug:  Running Undo or Redo before having done any deleting crashes the
+>editor
+
+>The fix:  Place the following lines in a file called 'patch0.0.1', change to
+>the directory containing the file 'j.c' and type this command:
+
+>	ed - j.c <patch0.0.1
+
+>--- Cut Here ---
+>/undo(/
+>+
+>a
+>if(!undorecs) return;
+>.
+>/redo(/
+>+
+>a
+>if(!undorecs) return;
+>.
+>/version/
+>s/0.0.0/0.0.1/
+>w
+>q
+>--- Cut Here ---
+
+
+I have the following problems
+
+1. patching "ed - j.c <patch0.0.1" under sun 4.1.1 i get a "Segmentation 
+failure". Doing the same thing under Xenix works ok.
+
+2. The help table under Xenix is covered  partly by "@" signs.
+   The same table under sun 4.1.1 is ok.
+
+can you help ?
+
+-- 
+Immanuel Bloch    | UUCP: immi@trigon.in-berlin.de  | The only problem with
+6490 Schluechtern | Tel.: (+49)-6661-3377           | doing nothing is that
+Germany           | FAX : 06661-3886                | you never know when you
+                  |                                 | have finished
