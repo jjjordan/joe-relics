@@ -12,20 +12,10 @@ import yaml
 from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand
 from fastimport.helpers import repr_bytes
 from dateutil import tz
+from Levenshtein import distance
 
 MIN_DIFF_SCORE = 0.8
-
-BASE_MARK = 1000
-
-def main2(spec):
-    with open(spec, 'r') as f:
-        y = yaml.safe_load(f)
-    
-    versions = [Version("..", v) for v in y['versions']]
-    hfiles = HistoricalFiles(".")
-    fset = FileSet(None)
-    hfiles.apply_files(fset, versions)
-    print(fset.files[0].read().decode('utf8'))
+BASE_MARK = 100000
 
 def main(spec, rootpath, outfile):
     with open(spec, 'r') as f:
@@ -49,6 +39,8 @@ def main(spec, rootpath, outfile):
         for c in cmds:
             f.write(repr_bytes(c))
             f.write(b'\n')
+    
+    return True
 
 def apply_changes(version, prev, files):
     adds, removes, changes = diff_filesets(prev, version.fileset)
@@ -111,7 +103,7 @@ def find_renames(adds, removes, changes):
             if sc > MIN_DIFF_SCORE:
                 poss.append((sc, r, a))
 
-    poss.sort()
+    poss.sort(key=lambda x: (x[0], -distance(x[1].repopath, x[2].repopath)))
     poss.reverse()
 
     # Convert remove+add => rename
