@@ -9,7 +9,7 @@ import os
 import stat
 import yaml
 
-from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand
+from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand, ResetCommand
 from fastimport.helpers import repr_bytes
 from dateutil import tz
 from Levenshtein import distance
@@ -71,6 +71,10 @@ def apply_changes(version, prev, files):
         from_=None,
         merges=None,
         file_iter=filecmds)
+    
+    yield ResetCommand(
+        from_=None,
+        ref="refs/tags/release/old/{}-{}".format(version.name, version.version).encode('utf-8'))
 
 def diff_filesets(prev, cur):
     prevfiles = {f.repopath: f for f in prev.files}

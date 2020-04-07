@@ -35,7 +35,7 @@ env/bin/python fixhg.py out/hg.txt out/hg-fixed.txt
 env/bin/python fuse.py out/historic.txt -- out/cvs-blobs.txt out/cvs-fixed.txt >out/cvs-full.txt
 env/bin/python fuse.py out/cvs-full.txt -- out/hg-fixed.txt >out/full.txt
 
-if [ -d out/gitout ]; then
+if [ -d out/git ]; then
 	rm -rf out/git
 fi
 
