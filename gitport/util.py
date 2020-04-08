@@ -1,4 +1,5 @@
 import difflib
+import os
 
 from fastimport.commands import FileDeleteCommand, FileRenameCommand
 from Levenshtein import distance
@@ -180,3 +181,19 @@ def diff_score(a, b):
         if ln.startswith(b'! ') or ln.startswith(b'+ ') or ln.startswith(b'- '):
             sc += 1
     return 1 - (sc / (len(la) + len(lb)))
+
+def readfile(name, rootpath='.'):
+    if name is None:
+        return None
+    
+    if ':' not in name:
+        with open(os.path.join(rootpath, name), 'r') as f:
+            return f.read()
+    
+    path, lines = name.split(':')
+    st, en = lines.split('-')
+    start, end = int(st), int(en)
+    with open(os.path.join(rootpath, path), 'r') as f:
+        result = [line for i, line in enumerate(list(f)) if i >= (start - 1) and i < end]
+    
+    return ''.join(result)

@@ -12,7 +12,7 @@ from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, F
 from fastimport.helpers import repr_bytes
 from dateutil import tz
 from Levenshtein import distance
-from util import diff_score
+from util import diff_score, readfile
 
 MIN_DIFF_SCORE = 0.8
 BASE_MARK = 100000
@@ -222,22 +222,6 @@ class HistoricalFiles:
         fileset.files.append(ts_f)
         
         fileset.commitmsg = self.env.get_template("templates/commit").render(version=versions[-1]).encode('utf-8')
-
-def readfile(name, rootpath='.'):
-    if name is None:
-        return None
-    
-    if ':' not in name:
-        with open(os.path.join(rootpath, name), 'r') as f:
-            return f.read()
-    
-    path, lines = name.split(':')
-    st, en = lines.split('-')
-    start, end = int(st), int(en)
-    with open(os.path.join(rootpath, path), 'r') as f:
-        result = [line for i, line in enumerate(list(f)) if i >= (start - 1) and i < end]
-    
-    return ''.join(result)
 
 if __name__ == '__main__':
     import sys
