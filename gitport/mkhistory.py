@@ -8,14 +8,15 @@ import os
 import stat
 import yaml
 
-from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand, ResetCommand
+from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand, TagCommand
 from fastimport.helpers import repr_bytes
 from dateutil import tz
 from Levenshtein import distance
 from util import diff_score, readfile
 
 MIN_DIFF_SCORE = 0.8
-BASE_MARK = 100000
+BLOB_BASE_MARK = 100000
+COMMIT_BASE_MARK = 200000
 
 def main(spec, rootpath, outfile):
     with open(spec, 'r') as f:
@@ -27,11 +28,13 @@ def main(spec, rootpath, outfile):
     cmds = []
 
     hfiles = HistoricalFiles(".")
+    mk = COMMIT_BASE_MARK
     
     for i, v in enumerate(versions):
         if v.fileset is not None:
             hfiles.apply_files(v.fileset, versions[:i+1])
-            cmds.extend(apply_changes(v, lastset, files))
+            cmds.extend(apply_changes(v, lastset, files, mk))
+            mk += 1
             lastset = v.fileset
     
     # Write it out
@@ -42,7 +45,7 @@ def main(spec, rootpath, outfile):
     
     return True
 
-def apply_changes(version, prev, files):
+def apply_changes(version, prev, files, mark):
     adds, removes, changes = diff_filesets(prev, version.fileset)
     find_renames(adds, removes, changes)
     
@@ -50,7 +53,7 @@ def apply_changes(version, prev, files):
     for f in adds + [c[1] for c in changes]:
         if f.hash not in files:
             # Generate a new id
-            id = str(len(files) + BASE_MARK).encode('utf-8')
+            id = str(len(files) + BLOB_BASE_MARK).encode('utf-8')
             files[f.hash] = b':' + id
             
             yield BlobCommand(id, f.read())
@@ -63,7 +66,7 @@ def apply_changes(version, prev, files):
     
     # Build the commit ...
     yield CommitCommand(
-        mark=None,
+        mark=str(mark).encode('utf-8'),
         ref=b"refs/heads/master",
         author=get_author(version),
         committer=get_committer(version),
@@ -72,9 +75,11 @@ def apply_changes(version, prev, files):
         merges=None,
         file_iter=filecmds)
     
-    yield ResetCommand(
-        from_=None,
-        ref="refs/tags/release/old/{}-{}".format(version.name, version.version).encode('utf-8'))
+    yield TagCommand(
+        id="releases/old/{}-{}".format(version.name, version.version).encode('utf-8'),
+        from_=':{}'.format(mark).encode('utf-8'),
+        tagger=get_author(version),
+        message=version.changelog.encode('utf-8') if version.changelog is not None else b'')
 
 def diff_filesets(prev, cur):
     prevfiles = {f.repopath: f for f in prev.files}

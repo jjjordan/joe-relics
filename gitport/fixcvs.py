@@ -13,8 +13,8 @@ from fastimport.parser import ImportParser
 from fastimport.commands import TagCommand
 from fastimport.helpers import repr_bytes
 
-BLOB_BASE_MARK = 200000
-BASE_MARK = 300000
+BLOB_BASE_MARK = 300000
+BASE_MARK = 400000
 
 def main(blobs, cmds, outfile):
     t = util.Tracker()
@@ -168,7 +168,7 @@ def find_release_tag(commit):
             tagger=commit.author or commit.committer,
             message=changelog)
 
-releasepfx = b'refs/tags/releases/'
+releasepfx = b'releases/'
 
 tagxlate = {
     b'refs/tags/joe_2_9': 'joe-2.9',
