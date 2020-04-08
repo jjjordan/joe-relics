@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import dateutil.parser
-import difflib
 import email.parser
 import hashlib
 import jinja2
@@ -13,6 +12,7 @@ from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, F
 from fastimport.helpers import repr_bytes
 from dateutil import tz
 from Levenshtein import distance
+from util import diff_score
 
 MIN_DIFF_SCORE = 0.8
 BASE_MARK = 100000
@@ -119,16 +119,6 @@ def find_renames(adds, removes, changes):
             changes.append((rf, af))
         else:
             print("Rejected file rename (preempted): {} => {} [{}]".format(rf.repopath, af.repopath, score))
-
-def diff_score(a, b):
-    la = a.splitlines(keepends=True)
-    lb = b.splitlines(keepends=True)
-    d = difflib.diff_bytes(difflib.context_diff, la, lb)
-    sc = 0
-    for ln in d:
-        if ln.startswith(b'! ') or ln.startswith(b'+ ') or ln.startswith(b'- '):
-            sc += 1
-    return 1 - (sc / (len(la) + len(lb)))
 
 def get_author(version):
     # Format: name,email,secs-since-epoch,utc-offset-secs

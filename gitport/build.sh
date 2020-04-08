@@ -27,13 +27,12 @@ cd out/dummy
 # TODO:
 #  - Translate names
 #  - Translate tags
-#  - Filter CRLF
-../../tools/hg-fast-export/hg-fast-export.py -r ../joe-editor-hg --mapping=../hg-mapping.txt --heads=../hg-heads.txt --status=../hg-status.txt --marks=../hg-marks.txt >../hg-exp.txt || exit $?
+../../tools/hg-fast-export/hg-fast-export.py -r ../joe-editor-hg --mapping=../hg-mapping.txt --heads=../hg-heads.txt --status=../hg-status.txt --marks=../hg-marks.txt >../hg-exp.txt --filter=../../crlf-filter.sh || exit $?
 cd ../..
 
 env/bin/python fixcvs.py out/cvs-blobs.txt out/cvs-cmds.txt out/cvs-fixed.txt || exit $?
 env/bin/python fixhg.py out/hg-exp.txt out/hg-fixed.txt || exit $?
-env/bin/python fuse.py out/historic.txt out/cvs-fixed.txt out/hg-fixed.txt out/full-export.txt || exit $?
+(env/bin/python fuse.py out/historic.txt out/cvs-fixed.txt out/hg-fixed.txt out/full-export.txt | tee out/export-log.txt) || exit $?
 
 if [ -d out/git ]; then
 	rm -rf out/git
@@ -43,4 +42,4 @@ mkdir -p out/git
 cd out/git
 git init --bare
 
-git fast-import <../full-export.txt
+git fast-import --export-marks=../git-marks.txt <../full-export.txt

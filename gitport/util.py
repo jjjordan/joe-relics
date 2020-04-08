@@ -1,4 +1,9 @@
-from fastimport.commands import FileDeleteCommand
+import difflib
+
+from fastimport.commands import FileDeleteCommand, FileRenameCommand
+from Levenshtein import distance
+
+MIN_DIFF_SCORE = 0.8
 
 class Tracker:
     def __init__(self):
@@ -58,7 +63,7 @@ class BranchState:
                 if st is not None:
                     del self.files[f.path]
                 else:
-                    print("Warning: found file delete for untracked file")
+                    print("Warning: found file delete for untracked file [{}] in {} mark {}".format(f.path.decode('utf-8'), commit.ref.decode('utf-8'), commit.mark.decode('utf-8')))
             elif f.name == b'filecopy':
                 st = self.files[f.src_path] if f.src_path in self.files else None
                 if st is not None:
@@ -110,20 +115,68 @@ def rebase(tr, cmt):
 
 def rebase_branch(base, nxt, cmt):
     # Diff...
-    fcmds = []
+    adds = []
+    changes = []
+    deletes = []
+    
     for newpath, newfile in nxt.files.items():
         if newpath in base.files:
             oldfile = base.files[newpath]
             if oldfile.contents != newfile.contents or oldfile.mode != newfile.mode:
-                fcmds.append(newfile.modify)
+                changes.append(newfile)
         else:
-            fcmds.append(newfile.modify)
+            adds.append(newfile)
     for oldpath, oldfile in base.files.items():
         if oldpath not in nxt.files:
-            fcmds.append(FileDeleteCommand(oldpath))
-    # Not doing renames :-\
+            deletes.append(oldfile)
+    
+    # Detect renames
+    renames = find_renames(adds, deletes, changes)
+    fcmds = []
+    fcmds.extend(FileRenameCommand(d.path, a.path) for d, a in renames)
+    fcmds.extend(f.modify for f in changes)
+    fcmds.extend(f.modify for f in adds)
+    fcmds.extend(FileDeleteCommand(f.path) for f in deletes)
     
     if len(fcmds) == 0:
         return None
 
     return cmt.copy(file_iter=fcmds)
+
+def find_renames(adds, deletes, changes):
+    poss = []
+    if len(deletes) > 0 and len(adds) > 0:
+        print("Searching for renames from {} to {}".format(repr([f.path for f in deletes]), repr([f.path for f in adds])))
+    
+    for d in deletes:
+        for a in adds:
+            score = diff_score(d.contents, a.contents)
+            if score > MIN_DIFF_SCORE:
+                poss.append((score, d, a))
+    
+    poss.sort(key=lambda x: (x[0], -distance(x[1].path, x[2].path)))
+    poss.reverse()
+    
+    renames = []
+    for score, d, a in poss:
+        if d in deletes and a in adds:
+            print("Detected file rename: {} => {} [{}]".format(d.path, a.path, score))
+            adds.remove(a)
+            deletes.remove(d)
+            renames.append((d, a))
+            if d.contents != a.contents:
+                changes.append(a)
+        else:
+            print("Rejected file rename (preempted): {} => {} [{}]".format(d.path, a.path, score))
+    
+    return renames
+
+def diff_score(a, b):
+    la = a.splitlines(keepends=True)
+    lb = b.splitlines(keepends=True)
+    d = difflib.diff_bytes(difflib.context_diff, la, lb)
+    sc = 0
+    for ln in d:
+        if ln.startswith(b'! ') or ln.startswith(b'+ ') or ln.startswith(b'- '):
+            sc += 1
+    return 1 - (sc / (len(la) + len(lb)))
