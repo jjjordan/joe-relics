@@ -218,8 +218,8 @@ class HistoricalFiles:
         self.env.filters['rtrim'] = str.rstrip
     
     def apply_files(self, fileset, versions):
-        hist_f = File(".historical/notes.md", None)
-        hist_f.set(self.env.get_template("templates/notes.md").render(versions=versions).encode('utf-8'))
+        hist_f = File(".historical/README.md", None)
+        hist_f.set(self.env.get_template("templates/README.md").render(versions=versions).encode('utf-8'))
         fileset.files.append(hist_f)
         
         ts_f = File(".historical/timestamps.md", None)
