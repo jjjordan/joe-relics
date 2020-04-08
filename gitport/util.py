@@ -106,7 +106,9 @@ def rebase(tr, cmt):
 
     nxt = base.fork()
     nxt.apply(cmt, tr.blobs)
-    
+    return rebase_branch(base, nxt, cmt)
+
+def rebase_branch(base, nxt, cmt):
     # Diff...
     fcmds = []
     for newpath, newfile in nxt.files.items():

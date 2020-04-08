@@ -24,16 +24,16 @@ env/bin/python mkhistory.py ./oldmeta.yaml .. out/historic.txt || exit $?
 python2 tools/cvs2svn/cvs2git --blobfile=out/cvs-blobs.txt --dumpfile=out/cvs-cmds.txt ../collection/cvs/joe-current || exit $?
 rm -f out/hg-mapping.txt out/hg-heads.txt out/hg-status.txt out/hg-marks.txt out/hg-exp.txt
 cd out/dummy
-../../tools/hg-fast-export/hg-fast-export.py -r ../joe-editor-hg --mapping=../hg-mapping.txt --heads=../hg-heads.txt --status=../hg-status.txt --marks=../hg-marks.txt >../hg-exp.txt
+# TODO:
+#  - Translate names
+#  - Translate tags
+#  - Filter CRLF
+../../tools/hg-fast-export/hg-fast-export.py -r ../joe-editor-hg --mapping=../hg-mapping.txt --heads=../hg-heads.txt --status=../hg-status.txt --marks=../hg-marks.txt >../hg-exp.txt || exit $?
 cd ../..
 
-exit 0
-
-env/bin/python fixcvs.py out/cvs-blobs.txt out/cvs-cmds.txt out/cvs-fixed.txt
-env/bin/python fixhg.py out/hg.txt out/hg-fixed.txt
-
-env/bin/python fuse.py out/historic.txt -- out/cvs-blobs.txt out/cvs-fixed.txt >out/cvs-full.txt
-env/bin/python fuse.py out/cvs-full.txt -- out/hg-fixed.txt >out/full.txt
+env/bin/python fixcvs.py out/cvs-blobs.txt out/cvs-cmds.txt out/cvs-fixed.txt || exit $?
+env/bin/python fixhg.py out/hg-exp.txt out/hg-fixed.txt || exit $?
+env/bin/python fuse.py out/historic.txt out/cvs-fixed.txt out/hg-fixed.txt out/full-export.txt || exit $?
 
 if [ -d out/git ]; then
 	rm -rf out/git
@@ -43,4 +43,4 @@ mkdir -p out/git
 cd out/git
 git init --bare
 
-git fast-import <../full.txt
+git fast-import <../full-export.txt

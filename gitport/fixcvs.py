@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # This will do a couple three things:
-# - Squash together the first 3 commits (wherein they're figuring out the repo)
+# - Remove the first three commands
 # - Translate bare SF usernames => realnames+emails
 # - Fork . and main/ at "coroutines" revision
 #   - Duplicate further commits where both are touched
