@@ -76,7 +76,7 @@ def apply_changes(version, prev, files, mark):
         file_iter=filecmds)
     
     yield TagCommand(
-        id="releases/old/{}-{}".format(version.name, version.version).encode('utf-8'),
+        id="releases/old/{}-{}".format(version.name.lower(), version.version).encode('utf-8'),
         from_=':{}'.format(mark).encode('utf-8'),
         tagger=get_author(version),
         message=version.changelog.encode('utf-8') if version.changelog is not None else b'')
