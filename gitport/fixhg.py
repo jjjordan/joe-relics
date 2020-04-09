@@ -5,7 +5,7 @@
 
 import util
 
-from fastimport.commands import CommitCommand, FileModifyCommand
+from fastimport.commands import CommitCommand, FileModifyCommand, TagCommand
 from fastimport.parser import ImportParser
 from fastimport.helpers import repr_bytes
 
@@ -36,10 +36,49 @@ def main(hgin, hgout):
         f.write(repr_bytes(commit))
         f.write(b'\n')
         for c in l[cutoff+1:]:
-            f.write(repr_bytes(c))
-            f.write(b'\n')
+            if c.name == b'reset':
+                c = fix_tag(c, t)
+
+            if c is not None:
+                t.feed(c)
+                f.write(repr_bytes(c))
+                f.write(b'\n')
     
     return True
+
+def fix_tag(c, t):
+    if c.ref.startswith(b'refs/tags/joe-'):
+        kind = 'joe'
+        version = c.ref[14:].decode('utf-8')
+    elif c.ref.startswith(b'refs/tags/windows-'):
+        kind = 'windows/joe'
+        version = c.ref[18:].decode('utf-8')
+    else:
+        return None
+    
+    changelog = b''
+    if version in changelogs:
+        changelog = util.readfile(changelogs[version]).encode('utf-8')
+    
+    commit = t.commits[c.from_.lstrip(b':')].commit
+    author = commit.author or commit.committer
+    
+    return TagCommand(
+        id="releases/{}-{}".format(kind, version).encode('utf-8'),
+        from_=c.from_,
+        tagger=author,
+        message=changelog)
+
+changelogs = {
+    '4.6': 'NEWS.md:29-92',
+    '4.5': 'NEWS.md:104-171',
+    '4.4': 'NEWS.md:177-197',
+    '4.3': 'NEWS.md:201-266',
+    '4.2': 'NEWS.md:270-388',
+    '4.1': 'NEWS.md:392-625',
+    '4.0': 'NEWS.md:631-666',
+    '3.8': 'NEWS.md:672-768',
+}
 
 if __name__ == '__main__':
     import sys
