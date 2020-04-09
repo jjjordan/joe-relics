@@ -155,7 +155,7 @@ def to_timefmt(dt):
 
 class Version:
     def __init__(self, rootpath, v):
-        self.name = v.get('name', 'joe')
+        self.name = v.get('name', 'JOE')
         self.version = v['version']
         self.date = v.get('date', None)
         self.source = v.get('source', None)
