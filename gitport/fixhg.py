@@ -48,10 +48,10 @@ def main(hgin, hgout):
 
 def fix_tag(c, t):
     if c.ref.startswith(b'refs/tags/joe-'):
-        kind = 'joe'
+        suffix = ''
         version = c.ref[14:].decode('utf-8')
     elif c.ref.startswith(b'refs/tags/windows-'):
-        kind = 'windows/joe'
+        suffix = '-windows'
         version = c.ref[18:].decode('utf-8')
     else:
         return None
@@ -64,7 +64,7 @@ def fix_tag(c, t):
     author = commit.author or commit.committer
     
     return TagCommand(
-        id="releases/{}-{}".format(kind, version).encode('utf-8'),
+        id="releases/joe-{}{}".format(version, suffix).encode('utf-8'),
         from_=c.from_,
         tagger=author,
         message=changelog)
