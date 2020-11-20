@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-# This only needs to squash together the first several commits to maintain a clean
-# history back to the CVS code.  hg-fast-export can handle name, tag, and crlf
-# translation.
+# This will:
+# - Squash together the first 7 commits to maintain a clean break from CVS.
+# - Make nice annotated tags for each release.
+# - Convert author names (I don't like how hg-fast-export handles this).
 
 import util
+import authors
 
 from fastimport.commands import CommitCommand, FileModifyCommand, TagCommand
 from fastimport.parser import ImportParser
@@ -32,12 +34,15 @@ def main(hgin, hgout):
         merges=None,
         file_iter=[FileModifyCommand(p, f.mode, f.modify.dataref, f.modify.data) for p, f in t.last.files.items()])
     
+    # Still need to make annotated tags + fix authors.
     with open(hgout, 'wb') as f:
         f.write(repr_bytes(commit))
         f.write(b'\n')
         for c in l[cutoff+1:]:
             if c.name == b'reset':
                 c = fix_tag(c, t)
+            if c.name == b'commit':
+                fix_authors(c)
 
             if c is not None:
                 t.feed(c)
@@ -68,6 +73,11 @@ def fix_tag(c, t):
         from_=c.from_,
         tagger=author,
         message=changelog)
+
+def fix_authors(c):
+    person = c.committer[0:2]
+    if person in authors.hg_author_map:
+        c.committer = authors.hg_author_map[person] + c.committer[2:]
 
 changelogs = {
     '4.6': 'NEWS.md:29-92',

@@ -8,6 +8,7 @@
 # - Create annotated tags for each release
 
 import util
+import authors
 
 from fastimport.parser import ImportParser
 from fastimport.commands import TagCommand
@@ -109,24 +110,9 @@ def main(blobs, cmds, outfile):
     return True
 
 def fix_person(c):
-    person = c.committer[0:2]
-    tm = c.committer[2:]
-    if person[0] == b'jhallen':
-        person = (b"Joseph H. Allen", b"jhallen@world.std.com")
-    elif person[0] == b'vsamel':
-        person = (b"Vitezslav Samel", b"samel@mail.cz")
-    elif person[0] == b'marx_sk':
-        person = (b"Marek 'Marx' Grac", b"xgrac@fi.muni.cz")
-    elif person[0] == b'polesapart':
-        person = (b"Alexandre P. Nunes", b"alex@PolesApart.dhs.org")
-    elif person[0] == b'electrum':
-        person = (b"David Phillips", b"electrum@users.sf.net")
-    elif person[0] == b'sonic_amiga':
-        person = (b"Pavel Fedin", b"sonic_amiga@rambler.ru")
-    elif person[0] == b'shallot':
-        person = (b"Josip Rodin", b"shallot@users.sf.net")
-    
-    c.committer = person + tm
+    person = c.committer[0]
+    if person in authors.cvs_author_map:
+        c.committer = authors.cvs_author_map[person] + c.committer[2:]
 
 def fix_blobmark(cmd):
     if cmd.name == b'blob':

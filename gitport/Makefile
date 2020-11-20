@@ -34,9 +34,17 @@ out/cvs-cmds.txt: Makefile | out
 # TODO:
 #  - Translate names
 #  - Translate tags
-out/hg-exp.txt: out/joe-editor-hg plugins/crlf/__init__.py Makefile | out/dummy out env2
+out/hg-exp.txt: out/joe-editor-hg plugins/crlf/__init__.py plugins/sfbugs/__init__.py Makefile | out/dummy out env2
 	rm -f out/hg-mapping.txt out/hg-heads.txt out/hg-status.txt out/hg-marks.txt out/hg-exp.txt
-	cd out/dummy && ../../env2/bin/python ../../tools/hg-fast-export/hg-fast-export.py -r ../joe-editor-hg --mapping=../hg-mapping.txt --heads=../hg-heads.txt --status=../hg-status.txt --marks=../hg-marks.txt --plugin-path=../../plugins --plugin=crlf >../hg-exp.txt
+	cd out/dummy && ../../env2/bin/python ../../tools/hg-fast-export/hg-fast-export.py \
+		-r ../joe-editor-hg \
+		--mapping=../hg-mapping.txt \
+		--heads=../hg-heads.txt \
+		--status=../hg-status.txt \
+		--marks=../hg-marks.txt \
+		--plugin-path=../../plugins \
+		--plugin=crlf \
+		--plugin=sfbugs=SF- >../hg-exp.txt
 
 out/cvs-fixed.txt: out/cvs-cmds.txt fixcvs.py util.py Makefile | env out
 	env/bin/python fixcvs.py out/cvs-blobs.txt out/cvs-cmds.txt out/cvs-fixed.txt

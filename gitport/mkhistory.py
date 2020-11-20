@@ -14,6 +14,7 @@ from fastimport.helpers import repr_bytes
 from dateutil import tz
 from Levenshtein import distance
 from util import diff_score, readfile
+import authors
 
 MIN_DIFF_SCORE = 0.8
 BLOB_BASE_MARK = 100000
@@ -126,10 +127,10 @@ def find_renames(adds, removes, changes):
         else:
             print("Rejected file rename (preempted): {} => {} [{}]".format(rf.repopath, af.repopath, score))
 
-def get_author(version):
+def get_committer(version):
     # Format: name,email,secs-since-epoch,utc-offset-secs
     if version.msg is None:
-        return (b"Joseph H. Allen", b"jhallen@world.std.com") + to_timefmt(get_time(version))
+        return authors.jhallen_old + to_timefmt(get_time(version))
     
     fr = version.msg.get("From")
     paren = fr.index("(")
@@ -137,9 +138,9 @@ def get_author(version):
     
     return (fr[paren+1:lparen].strip().encode("utf-8"), fr[:paren].strip().encode("utf-8")) + to_timefmt(get_time(version))
 
-def get_committer(version):
+def get_author(version):
     # Format: name,email,secs-since-epoch,utc-offset-secs
-    return (b"Joe Allen", b"jhallenworld@gmail.com") + to_timefmt(get_time(version))
+    return authors.jhallen + to_timefmt(get_time(version))
 
 def get_time(version):
     eastern = tz.gettz("America/New_York")
