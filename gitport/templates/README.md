@@ -33,7 +33,7 @@ Author's comments:
 {{ v.comments|rtrim }}
 ```
 {%- endif -%}
-{%- if v.changelog is not none and (v.announce is none or v.changelog not in v.announce) %}
+{%- if v.changelog is not none and (v.announce is none or v.changelog|squash not in v.announce|squash) %}
 
 Changelog:
 

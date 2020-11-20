@@ -6,6 +6,7 @@ import hashlib
 import jinja2
 import os
 import stat
+import unicodedata
 import yaml
 
 from fastimport.commands import BlobCommand, CommitCommand, FileModifyCommand, FileRenameCommand, FileDeleteCommand, TagCommand
@@ -216,6 +217,7 @@ class HistoricalFiles:
     def __init__(self, tpath):
         self.env = jinja2.Environment(loader=jinja2.FileSystemLoader(tpath))
         self.env.filters['rtrim'] = str.rstrip
+        self.env.filters['squash'] = squash
     
     def apply_files(self, fileset, versions):
         hist_f = File(".historical/README.md", None)
@@ -227,6 +229,12 @@ class HistoricalFiles:
         fileset.files.append(ts_f)
         
         fileset.commitmsg = self.env.get_template("templates/commit").render(version=versions[-1]).encode('utf-8')
+
+def squash(s):
+    def filt(c):
+        cat = unicodedata.category(c)
+        return cat.startswith('L') or cat.startswith('N')
+    return ''.join(c.upper() for c in s if filt(c))
 
 if __name__ == '__main__':
     import sys
