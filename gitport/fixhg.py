@@ -33,6 +33,8 @@ def main(hgin, hgout):
         from_=None,
         merges=None,
         file_iter=[FileModifyCommand(p, f.mode, f.modify.dataref, f.modify.data) for p, f in t.last.files.items()])
+
+    fix_authors(commit)
     
     # Still need to make annotated tags + fix authors.
     with open(hgout, 'wb') as f:
