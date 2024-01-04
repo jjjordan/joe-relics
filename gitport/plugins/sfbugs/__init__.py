@@ -15,4 +15,4 @@ class Filter:
         for match in re.findall(b'#[1-9][0-9]+', commit_data['desc']):
             if int(match[1:]) < 450: # Max current bug
                 commit_data['desc'] = commit_data['desc'].replace(
-                    match, b'#%s%s' % (self.prefix, match[1:]))
+                    match, b'%s%s' % (self.prefix, match[1:]))
