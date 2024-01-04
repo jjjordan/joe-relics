@@ -1,9 +1,9 @@
 # Historical JOE release
 
-This revision contains a historical release of JOE.  These versions predated
+This snapshot contains a historical release of JOE. These versions predated
 widespread use of source control and were distributed primarily on USENET
-and FTP servers.  As such, these do not represent *real* commits, but are
-included in the git repository for the sake of completeness.
+and FTP servers. As such, any related commits do not represent *real*
+commits, but are included in the repository for the sake of completeness.
 
 ---
 {% for v in versions|reverse %}

@@ -1,7 +1,11 @@
 all: out/full-export.txt
 	rm -rf out/git
 	mkdir -p out/git
-	cd out/git && git init --bare && git fast-import --export-marks=../git-marks.txt <../full-export.txt && git gc
+	cd out/git && \
+		git init --bare && \
+		git fast-import --export-marks=../git-marks.txt <../full-export.txt && \
+		git branch -D TAG.FIXUP && \
+		git gc
 
 clean:
 	rm -rf out/historic.txt out/cvs-cmds.txt out/cvs-blobs.txt out/cvs-fixed.txt out/hg-exp.txt out/hg-fixed.txt out/full-export.txt out/git
@@ -24,13 +28,10 @@ env: requirements.txt
 out/historic.txt: oldmeta.yaml mkhistory.py util.py | env out
 	env/bin/python mkhistory.py ./oldmeta.yaml .. out/historic.txt
 
-# CVS commits are precomputed now that this tool is basically impossible to run.
+# CVS commits are precomputed now that cvs2git is basically impossible to run.
 out/cvs-cmds.txt: precomputed/cvs-data.tgz | out
 	cd out && tar xvf ../precomputed/cvs-data.tgz
 
-# TODO:
-#  - Translate names
-#  - Translate tags
 out/hg-exp.txt: out/joe-editor-hg plugins/crlf/__init__.py plugins/sfbugs/__init__.py Makefile | out/dummy out env
 	rm -f out/hg-mapping.txt out/hg-heads.txt out/hg-status.txt out/hg-marks.txt out/hg-exp.txt
 	cd out/dummy && ../../env/bin/python ../../tools/hg-fast-export/hg-fast-export.py \
