@@ -21,22 +21,19 @@ env: requirements.txt
 	python3 -m venv env
 	env/bin/pip install -r requirements.txt
 
-env2: requirements2.txt
-	virtualenv2 env2
-	env2/bin/pip install -r requirements2.txt
-
 out/historic.txt: oldmeta.yaml mkhistory.py util.py | env out
 	env/bin/python mkhistory.py ./oldmeta.yaml .. out/historic.txt
 
-out/cvs-cmds.txt: Makefile | out
-	python2 tools/cvs2svn/cvs2git --blobfile=out/cvs-blobs.txt --dumpfile=out/cvs-cmds.txt ../collection/cvs/joe-current
+# CVS commits are precomputed now that this tool is basically impossible to run.
+out/cvs-cmds.txt: precomputed/cvs-data.tgz | out
+	cd out && tar xvf ../precomputed/cvs-data.tgz
 
 # TODO:
 #  - Translate names
 #  - Translate tags
-out/hg-exp.txt: out/joe-editor-hg plugins/crlf/__init__.py plugins/sfbugs/__init__.py Makefile | out/dummy out env2
+out/hg-exp.txt: out/joe-editor-hg plugins/crlf/__init__.py plugins/sfbugs/__init__.py Makefile | out/dummy out env
 	rm -f out/hg-mapping.txt out/hg-heads.txt out/hg-status.txt out/hg-marks.txt out/hg-exp.txt
-	cd out/dummy && ../../env2/bin/python ../../tools/hg-fast-export/hg-fast-export.py \
+	cd out/dummy && ../../env/bin/python ../../tools/hg-fast-export/hg-fast-export.py \
 		-r ../joe-editor-hg \
 		--mapping=../hg-mapping.txt \
 		--heads=../hg-heads.txt \
